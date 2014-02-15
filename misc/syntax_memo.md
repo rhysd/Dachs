@@ -4,8 +4,8 @@
 
 ```
 func plus(lhs, rhs) // テンプレート
-func plus(lhs of int, rhs of int) -> int // フリー関数
-func int plus(lhs, rhs of typeof(lhs) ) // require considering
+func plus(lhs : int, rhs : int) -> int // フリー関数
+func plus(lhs, rhs : typeof(lhs)) -> int // require considering
 ```
 
 - 戻り値が無ければ推論
@@ -13,31 +13,32 @@ func int plus(lhs, rhs of typeof(lhs) ) // require considering
 - コピーして値にするときは val を付ける
 
 ```
-def int plus(lhs of int val, rhs of int val)
+def int plus(val lhs : int, val rhs : int)
 ```
 
 - 参照を明示したいとき
 
 ```
-def int plus(lhs of int ref, rhs of int ref)
+def int plus(ref lhs : int, ref rhs : int)
 ```
 
 - 変数はデフォルトで immutable な左辺値参照
 
 ```
 hoge = 'a'
+var hoge = 'a' // こっちじゃないと代入と初期化を区別できないのでは？
 ```
 
 - 変数宣言で型を宣言する場合は後置
 
 ```
-hoge = 42 of int
+hoge : int = 42
 ```
 
 - デフォルト値で初期化（mutable）
 
 ```
-hoge of int
+hoge : int
 ```
 
 - mutable にするときは mutable を付ける
@@ -49,8 +50,8 @@ mutable hoge = 42
 - = は参照を代入，:= はコピーして参照を代入
 
 ```
-hoge = huga
-hoge := huga
+hoge = huga // immutable
+hoge := huga // mutable
 ```
 
 - tuple をサポート
@@ -62,7 +63,7 @@ t = (1, 'a', "hoge")
 - 引数のパターンマッチをサポート // 関数型でどんなパターンマッチができるのかよく調べる．動的にマッチさせるかどうかも．
 
 ```
-func head(val int[] x:xs)
+func head(val x:xs : int[])
     return x
 end
 ```
@@ -88,7 +89,7 @@ func huga(maybe int a)
 end
 ```
 
-- __TODO:__ class の定義方法を考える．テンプレートが必要な気がする．
+- __TODO:__ class の定義方法を考える．ジェネリクスの必要性
 
 ```
 class Tmp(T)
@@ -109,4 +110,18 @@ func f(a, b, c...)
 end
 
 f('a', 'b', 'c', 'd') // c は tuple(char, char) 型で値は ('c', 'd')
+```
+
+- ラムダ式を最後の引数に取る関数には with 構文が使える
+
+```
+func sort(array, predicate)
+    ...
+end
+
+sort(array, \(a, b) => a < b)
+
+sort(array) with(a, b)
+    return a < b
+end
 ```
