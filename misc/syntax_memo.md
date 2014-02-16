@@ -65,14 +65,13 @@ t = (1, 'a', "hoge")
 ```
 func head(val x:xs : int[])
     return x
-end
 ```
 
 - キーワード引数で名前呼び出しをサポート．変数名を指定してセットできる
 
 ```
 func hoge(a, b)
-end
+
 hoge(a: 1, b: 2)
 ```
 
@@ -85,8 +84,6 @@ func huga(maybe int a)
         hoge = a // a の中身を確かめないとアクセスできない
     else
         // a が nothing のとき
-    end
-end
 ```
 
 - __TODO:__ class の定義方法を考える．ジェネリクスの必要性
@@ -94,7 +91,6 @@ end
 ```
 class Tmp(T)
     // どうしよう
-end
 ```
 
 - 等値性を示す演算子は ==（値比較）と is（参照値比較）を提供する
@@ -107,7 +103,6 @@ end
 
 ```
 func f(a, b, c...)
-end
 
 f('a', 'b', 'c', 'd') // c は tuple(char, char) 型で値は ('c', 'd')
 ```
@@ -117,11 +112,9 @@ f('a', 'b', 'c', 'd') // c は tuple(char, char) 型で値は ('c', 'd')
 ```
 func sort(array, predicate)
     ...
-end
 
 sort(array, \(a, b) => a < b)
 
 sort(array) with(a, b)
     return a < b
-end
 ```
