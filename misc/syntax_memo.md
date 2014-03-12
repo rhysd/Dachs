@@ -13,20 +13,13 @@ func plus(lhs, rhs : typeof(lhs)) -> int // require considering
 - コピーして値にするときは val を付ける
 
 ```
-def int plus(val lhs : int, val rhs : int)
-```
-
-- 参照を明示したいとき
-
-```
-def int plus(ref lhs : int, ref rhs : int)
+func plus(val lhs : int, val rhs : int) : int
 ```
 
 - 変数はデフォルトで immutable な左辺値参照
 
 ```
 hoge = 'a'
-var hoge = 'a' // こっちじゃないと代入と初期化を区別できないのでは？
 ```
 
 - 変数宣言で型を宣言する場合は後置
@@ -41,17 +34,17 @@ hoge : int = 42
 hoge : int
 ```
 
-- mutable にするときは mutable を付ける
+- mutable にするときは val を付ける
 
 ```
-mutable hoge = 42
+val hoge = 42
 ```
 
 - = は参照を代入，:= はコピーして参照を代入
 
 ```
-hoge = huga // immutable
-hoge := huga // mutable
+hoge = huga // alias and it's immutable
+hoge := huga // copy and it's mutable
 ```
 
 - tuple をサポート
@@ -65,17 +58,19 @@ t = (1, 'a', "hoge")
 ```
 func head(val x:xs : int[])
     return x
+end
 ```
 
 - キーワード引数で名前呼び出しをサポート．変数名を指定してセットできる
 
 ```
 func hoge(a, b)
+end
 
 hoge(a: 1, b: 2)
 ```
 
-- maybe 型をサポート
+- maybe 指定子をサポート
 
 ```
 func huga(maybe int a)
@@ -84,6 +79,14 @@ func huga(maybe int a)
         hoge = a // a の中身を確かめないとアクセスできない
     else
         // a が nothing のとき
+    end
+end
+```
+
+- >>= 演算子 を使えるようにする？
+
+```
+arg >>= may_fail1 >>= may_fail2
 ```
 
 - __TODO:__ class の定義方法を考える．ジェネリクスの必要性
@@ -91,6 +94,7 @@ func huga(maybe int a)
 ```
 class Tmp(T)
     // どうしよう
+end
 ```
 
 - 等値性を示す演算子は ==（値比較）と is（参照値比較）を提供する
@@ -107,14 +111,63 @@ func f(a, b, c...)
 f('a', 'b', 'c', 'd') // c は tuple(char, char) 型で値は ('c', 'd')
 ```
 
-- ラムダ式を最後の引数に取る関数には with 構文が使える
+- ラムダ式
+
+```
+\a,b do
+    return a < b
+end
+
+\a, b -> a < b
+```
+
+- Ruby と同様に do-end が使える
+
+```
+sort(array) do |a, b|
+    return a < b
+end
+```
+
+- 複数のブロックを取りたいときは where で名前渡しする
 
 ```
 func sort(array, predicate)
     ...
+end
 
-sort(array, \(a, b) => a < b)
+sort(array, \a, b -> a < b)
 
-sort(array) with(a, b)
-    return a < b
+sort(array) where
+    predicate do
+        return a < b
+    end
+end
+
+connect(addr) where
+    on_success do
+        ...
+    end
+    on_failure do
+        ...
+    end
+end
+```
+
+- 事前条件を書けるようにする．事前条件はコンパイル時に評価できるものもできないものも OK．実行時評価のものはリリースビルド時はチェックしない．
+
+```
+func do_something(a, b, c)
+    # ここに事前条件
+begin
+    # 関数本体
+end
+```
+
+- 引数を変更する場合は関数ではなく手続きを使う
+
+```
+proc do_procedure(a, b, c) # 戻り値なし
+    # 引数を変更する処理
+end
 ```
