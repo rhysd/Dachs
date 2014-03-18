@@ -1,0 +1,4 @@
+#if !defined DACHS_HPP_INCLUDED
+#define DACHS_HPP_INCLUDED
+
+#endif  // DACHS_HPP_INCLUDED
