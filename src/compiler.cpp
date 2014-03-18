@@ -1,11 +1,11 @@
 #include "compiler.hpp"
+#include "helper/stringize_ast.hpp"
 
 namespace dachs {
 std::string compiler::compile(std::string const& code)
 {
     auto ast = parser.parse(code);
-    (void) ast;
-    return "";
+    return helper::stringize_ast(ast);
 }
 
 }  // namespace dachs

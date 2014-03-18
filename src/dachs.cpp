@@ -39,5 +39,8 @@ int main(int const argc, char const* const argv[])
     }
     auto const& code = *maybe_code;
 
+    dachs::compiler compiler;
+    std::cout << compiler.compile(code);
+
     return 0;
 }
