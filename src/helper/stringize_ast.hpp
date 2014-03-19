@@ -45,9 +45,9 @@ public:
             return prefix + '\'' + *c + '\'';
         } else if (auto const s = helper::variant::get<std::string>(l.value)) {
             return prefix + '"' + *s + '"';
-        } else if (auto const int_lit = helper::variant::get<std::shared_ptr<syntax::ast::node_type::integer_literal>>(l.value)) {
+        } else if (auto const int_lit = helper::variant::get<syntax::ast::node::integer_literal>(l.value)) {
             return prefix + visit(**int_lit, indent_level+1);
-        } else if (auto const arr_lit = helper::variant::get<std::shared_ptr<syntax::ast::node_type::array_literal>>(l.value)) {
+        } else if (auto const arr_lit = helper::variant::get<syntax::ast::node::array_literal>(l.value)) {
             return prefix + visit(**arr_lit, indent_level+1);
         } else {
             return prefix + boost::lexical_cast<std::string>(l.value);

@@ -17,6 +17,25 @@ namespace node_type {
 
 std::size_t generate_id();
 
+// Forward class declarations
+struct integer_literal;
+struct array_literal;
+struct literal;
+struct program;
+
+}
+
+namespace node {
+
+using integer_literal = std::shared_ptr<node_type::integer_literal>;
+using array_literal = std::shared_ptr<node_type::array_literal>;
+using literal = std::shared_ptr<node_type::literal>;
+using program = std::shared_ptr<node_type::program>;
+
+} // namespace node
+
+namespace node_type {
+
 struct base {
     base()
         : id(generate_id())
@@ -60,8 +79,8 @@ struct literal : public base {
         boost::variant< char
                       , double
                       , std::string
-                      , std::shared_ptr<integer_literal>
-                      , std::shared_ptr<array_literal> >;
+                      , node::integer_literal
+                      , node::array_literal >;
     value_type value;
 
     template<class T>
@@ -75,13 +94,13 @@ struct literal : public base {
             = helper::variant::has<char>(value) ? "char" :
               helper::variant::has<double>(value) ? "float" :
               helper::variant::has<std::string>(value) ? "string" :
-              helper::variant::has<std::shared_ptr<integer_literal>>(value) ? "integer" : "array";
+              helper::variant::has<node::integer_literal>(value) ? "integer" : "array";
         return "LITERAL: " + kind;
     }
 };
 
 struct program : public base {
-    std::shared_ptr<literal> value; // TEMPORARY
+    node::literal value; // TEMPORARY
 
     std::string to_string() const
     {
@@ -92,7 +111,7 @@ struct program : public base {
 } // namespace node_type
 
 struct ast {
-    std::shared_ptr<node_type::program> root;
+    node::program root;
 };
 
 } // namespace ast
