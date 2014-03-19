@@ -13,7 +13,7 @@ namespace dachs {
 namespace syntax {
 namespace ast {
 
-namespace node {
+namespace node_type {
 
 std::size_t generate_id();
 
@@ -51,7 +51,7 @@ struct array_literal : public base {
     // TODO: Not implemented
     std::string to_string() const
     {
-        return "ARRAY_LITERAL: ";
+        return "ARRAY_LITERAL (Not implemented)";
     }
 };
 
@@ -89,10 +89,10 @@ struct program : public base {
     }
 };
 
-} // namespace node
+} // namespace node_type
 
 struct ast {
-    std::shared_ptr<node::program> root;
+    std::shared_ptr<node_type::program> root;
 };
 
 } // namespace ast

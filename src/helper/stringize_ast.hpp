@@ -22,22 +22,22 @@ class ast_stringizer {
 
 public:
 
-    std::string visit(syntax::ast::node::program const& p, size_t const indent_level) const
+    std::string visit(syntax::ast::node_type::program const& p, size_t const indent_level) const
     {
         return indent(indent_level) + p.to_string() + '\n' + visit(*p.value, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::integer_literal const& il, size_t const indent_level) const
+    std::string visit(syntax::ast::node_type::integer_literal const& il, size_t const indent_level) const
     {
         return indent(indent_level) + il.to_string();
     }
 
-    std::string visit(syntax::ast::node::array_literal const& al, size_t const indent_level) const
+    std::string visit(syntax::ast::node_type::array_literal const& al, size_t const indent_level) const
     {
         return indent(indent_level) + al.to_string();
     }
 
-    std::string visit(syntax::ast::node::literal const& l, size_t const indent_level) const
+    std::string visit(syntax::ast::node_type::literal const& l, size_t const indent_level) const
     {
         std::string const prefix = indent(indent_level) + l.to_string() + '\n';
 
@@ -45,9 +45,9 @@ public:
             return prefix + '\'' + *c + '\'';
         } else if (auto const s = helper::variant::get<std::string>(l.value)) {
             return prefix + '"' + *s + '"';
-        } else if (auto const int_lit = helper::variant::get<std::shared_ptr<syntax::ast::node::integer_literal>>(l.value)) {
+        } else if (auto const int_lit = helper::variant::get<std::shared_ptr<syntax::ast::node_type::integer_literal>>(l.value)) {
             return prefix + visit(**int_lit, indent_level+1);
-        } else if (auto const arr_lit = helper::variant::get<std::shared_ptr<syntax::ast::node::array_literal>>(l.value)) {
+        } else if (auto const arr_lit = helper::variant::get<std::shared_ptr<syntax::ast::node_type::array_literal>>(l.value)) {
             return prefix + visit(**arr_lit, indent_level+1);
         } else {
             return prefix + boost::lexical_cast<std::string>(l.value);
