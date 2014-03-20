@@ -3,7 +3,7 @@
 namespace dachs {
 namespace syntax {
 namespace ast {
-namespace node {
+namespace node_type {
 
 std::size_t generate_id()
 {
