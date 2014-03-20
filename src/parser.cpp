@@ -44,6 +44,13 @@ namespace qi = boost::spirit::qi;
 namespace phx = boost::phoenix;
 namespace ascii = boost::spirit::ascii;
 
+using qi::_1;
+using qi::_2;
+using qi::_3;
+using qi::_val;
+using qi::lit;
+using phx::bind;
+
 template<class Iterator>
 class grammar : public qi::grammar<Iterator, ast::node::program(), ascii::blank_type /*FIXME*/> {
     template<class Value, class... Extra>
@@ -52,7 +59,55 @@ class grammar : public qi::grammar<Iterator, ast::node::program(), ascii::blank_
 public:
     grammar() : grammar::base_type(program)
     {
-        
+        // FIXME: Temporary
+        program = literal
+            [
+                _val = bind([](auto const& lit){ return std::make_shared<ast::node_type::program>(lit); }, _1)
+            ];
+
+        literal =
+            (
+                  ('\'' > qi::char_ > '\'')
+                | qi::double_
+                | qi::as_string[qi::lexeme['"' > *(qi::char_ - '"') > '"']]
+                | integer_literal
+                | array_literal
+            )
+            [
+                _val = bind([](auto const& val){ return std::make_shared<ast::node_type::literal>(val); }, _1)
+            ];
+
+        integer_literal =
+            (
+                  (qi::lexeme[qi::uint_ >> 'u']) | qi::int_
+            )
+            [
+                _val = bind([](auto const& int_val){ return std::make_shared<ast::node_type::integer_literal>(int_val); }, _1)
+            ];
+
+        // FIXME: Temporary
+        array_literal =
+            (
+                lit('[') >> ']'
+            )
+            [
+                _val = phx::construct<ast::node::array_literal>()
+            ];
+
+        qi::on_error<qi::fail>
+        (
+            program,
+            // qi::_2 : end of string to parse
+            // qi::_3 : iterator at failed point
+            // qi::_4 : what failed?
+            std::cerr
+                << phx::val( "Error: Expecting " )
+                << qi::_4
+                << phx::val( "\nhere:\n\"" )
+                << phx::construct<std::string>( _3, _2 ) // TODO: get line and col from iterators
+                << phx::val( "\"" )
+                << std::endl
+        );
     }
 
     ~grammar()
@@ -60,6 +115,9 @@ public:
 
 private:
     rule<ast::node::program()> program;
+    rule<ast::node::literal()> literal;
+    rule<ast::node::integer_literal()> integer_literal;
+    rule<ast::node::array_literal()> array_literal;
 };
 
 ast::ast parser::parse(std::string const& code)

@@ -102,6 +102,10 @@ struct literal : public base {
 struct program : public base {
     node::literal value; // TEMPORARY
 
+    program(node::literal const& lit)
+        : base(), value(lit)
+    {}
+
     std::string to_string() const
     {
         return "PROGRAM";
