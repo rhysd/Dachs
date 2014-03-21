@@ -60,7 +60,10 @@ public:
     grammar() : grammar::base_type(program)
     {
         // FIXME: Temporary
-        program = literal
+        program =
+            (
+                literal > (qi::eol | qi::eoi)
+            )
             [
                 _val = bind([](auto const& lit){ return std::make_shared<ast::node_type::program>(lit); }, _1)
             ];
