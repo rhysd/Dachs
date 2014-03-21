@@ -94,7 +94,7 @@ public:
                 lit('[') >> ']'
             )
             [
-                _val = phx::construct<ast::node::array_literal>()
+                _val = bind([]{ return std::make_shared<ast::node_type::array_literal>(); })
             ];
 
         qi::on_error<qi::fail>
