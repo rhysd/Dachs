@@ -17,7 +17,7 @@ using std::size_t;
 class ast_stringizer {
     std::string indent(size_t const level) const
     {
-        return std::string(' ', level);
+        return std::string(level, ' ');
     }
 
 public:
@@ -39,7 +39,7 @@ public:
 
     std::string visit(syntax::ast::node_type::literal const& l, size_t const indent_level) const
     {
-        std::string const prefix = indent(indent_level) + l.to_string() + '\n';
+        std::string const prefix = indent(indent_level) + l.to_string() + '\n' + indent(indent_level + 1);
 
         if (auto const c = helper::variant::get<char>(l.value)) {
             return prefix + '\'' + *c + '\'';
