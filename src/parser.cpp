@@ -75,6 +75,7 @@ public:
                 | integer_literal
                 | qi::double_
                 | array_literal
+                | tuple_literal
             )
             [
                 _val = bind([](auto const& val){ return std::make_shared<ast::node_type::literal>(val); }, _1)
@@ -95,6 +96,15 @@ public:
             )
             [
                 _val = bind([]{ return std::make_shared<ast::node_type::array_literal>(); })
+            ];
+
+        // FIXME: Temporary
+        tuple_literal =
+            (
+                '(' >> +lit(',') >> ')'
+            )
+            [
+                _val = bind([]{ return std::make_shared<ast::node_type::tuple_literal>(); })
             ];
 
         qi::on_error<qi::fail>
@@ -121,6 +131,7 @@ private:
     rule<ast::node::literal()> literal;
     rule<ast::node::integer_literal()> integer_literal;
     rule<ast::node::array_literal()> array_literal;
+    rule<ast::node::tuple_literal()> tuple_literal;
 };
 
 ast::ast parser::parse(std::string const& code)

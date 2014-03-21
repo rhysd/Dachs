@@ -37,9 +37,14 @@ public:
         return indent(indent_level) + al.to_string();
     }
 
+    std::string visit(syntax::ast::node_type::tuple_literal const& tl, size_t const indent_level) const
+    {
+        return indent(indent_level) + tl.to_string();
+    }
+
     std::string visit(syntax::ast::node_type::literal const& l, size_t const indent_level) const
     {
-        std::string const prefix = indent(indent_level) + l.to_string() + '\n' + indent(indent_level + 1);
+        std::string const prefix = indent(indent_level) + l.to_string() + '\n';
 
         if (auto const c = helper::variant::get<char>(l.value)) {
             return prefix + '\'' + *c + '\'';
@@ -49,8 +54,10 @@ public:
             return prefix + visit(**int_lit, indent_level+1);
         } else if (auto const arr_lit = helper::variant::get<syntax::ast::node::array_literal>(l.value)) {
             return prefix + visit(**arr_lit, indent_level+1);
+        } else if (auto const tpl_lit = helper::variant::get<syntax::ast::node::tuple_literal>(l.value)) {
+            return prefix + visit(**tpl_lit, indent_level+1);
         } else {
-            return prefix + boost::lexical_cast<std::string>(l.value);
+            return prefix + indent(indent_level + 1) + boost::lexical_cast<std::string>(l.value);
         }
     }
 };
