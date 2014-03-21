@@ -71,9 +71,9 @@ public:
         literal =
             (
                   ('\'' > qi::char_ > '\'')
-                | qi::double_
                 | qi::as_string[qi::lexeme['"' > *(qi::char_ - '"') > '"']]
                 | integer_literal
+                | qi::double_
                 | array_literal
             )
             [
