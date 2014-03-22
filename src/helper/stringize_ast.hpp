@@ -22,42 +22,42 @@ class ast_stringizer {
 
 public:
 
-    std::string visit(syntax::ast::node_type::program const& p, size_t const indent_level) const
+    std::string visit(syntax::ast::node::program const& p, size_t const indent_level) const
     {
-        return indent(indent_level) + p.to_string() + '\n' + visit(*p.value, indent_level+1);
+        return indent(indent_level) + p->to_string() + '\n' + visit(p->value, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node_type::integer_literal const& il, size_t const indent_level) const
+    std::string visit(syntax::ast::node::integer_literal const& il, size_t const indent_level) const
     {
-        return indent(indent_level) + il.to_string();
+        return indent(indent_level) + il->to_string();
     }
 
-    std::string visit(syntax::ast::node_type::array_literal const& al, size_t const indent_level) const
+    std::string visit(syntax::ast::node::array_literal const& al, size_t const indent_level) const
     {
-        return indent(indent_level) + al.to_string();
+        return indent(indent_level) + al->to_string();
     }
 
-    std::string visit(syntax::ast::node_type::tuple_literal const& tl, size_t const indent_level) const
+    std::string visit(syntax::ast::node::tuple_literal const& tl, size_t const indent_level) const
     {
-        return indent(indent_level) + tl.to_string();
+        return indent(indent_level) + tl->to_string();
     }
 
-    std::string visit(syntax::ast::node_type::literal const& l, size_t const indent_level) const
+    std::string visit(syntax::ast::node::literal const& l, size_t const indent_level) const
     {
-        std::string const prefix = indent(indent_level) + l.to_string() + '\n';
+        std::string const prefix = indent(indent_level) + l->to_string() + '\n';
 
-        if (auto const c = helper::variant::get<char>(l.value)) {
+        if (auto const c = helper::variant::get<char>(l->value)) {
             return prefix + '\'' + *c + '\'';
-        } else if (auto const s = helper::variant::get<std::string>(l.value)) {
+        } else if (auto const s = helper::variant::get<std::string>(l->value)) {
             return prefix + '"' + *s + '"';
-        } else if (auto const int_lit = helper::variant::get<syntax::ast::node::integer_literal>(l.value)) {
-            return prefix + visit(**int_lit, indent_level+1);
-        } else if (auto const arr_lit = helper::variant::get<syntax::ast::node::array_literal>(l.value)) {
-            return prefix + visit(**arr_lit, indent_level+1);
-        } else if (auto const tpl_lit = helper::variant::get<syntax::ast::node::tuple_literal>(l.value)) {
-            return prefix + visit(**tpl_lit, indent_level+1);
+        } else if (auto const int_lit = helper::variant::get<syntax::ast::node::integer_literal>(l->value)) {
+            return prefix + visit(*int_lit, indent_level+1);
+        } else if (auto const arr_lit = helper::variant::get<syntax::ast::node::array_literal>(l->value)) {
+            return prefix + visit(*arr_lit, indent_level+1);
+        } else if (auto const tpl_lit = helper::variant::get<syntax::ast::node::tuple_literal>(l->value)) {
+            return prefix + visit(*tpl_lit, indent_level+1);
         } else {
-            return prefix + indent(indent_level + 1) + boost::lexical_cast<std::string>(l.value);
+            return prefix + indent(indent_level + 1) + boost::lexical_cast<std::string>(l->value);
         }
     }
 };
@@ -66,7 +66,7 @@ public:
 
 inline std::string stringize_ast(syntax::ast::ast const& ast)
 {
-    return detail::ast_stringizer{}.visit(*ast.root, 0);
+    return detail::ast_stringizer{}.visit(ast.root, 0);
 }
 
 } // namespace helper
