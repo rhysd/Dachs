@@ -72,8 +72,8 @@ public:
             (
                   ('\'' > qi::char_ > '\'')
                 | qi::as_string[qi::lexeme['"' > *(qi::char_ - '"') > '"']]
+                | qi::real_parser<double, qi::strict_real_policies<double>>()
                 | integer_literal
-                | qi::double_
                 | array_literal
                 | tuple_literal
             )
