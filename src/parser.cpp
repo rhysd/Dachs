@@ -121,6 +121,11 @@ public:
                 _val = make_node<ast::node::tuple_literal>()
             ];
 
+        identifier
+            =
+                qi::as_string[qi::alpha | qi::char_('_') >> *(qi::alnum | qi::char_('_'))]
+        ;
+
         qi::on_error<qi::fail>
         (
             program,
@@ -146,6 +151,7 @@ private:
     rule<ast::node::integer_literal()> integer_literal;
     rule<ast::node::array_literal()> array_literal;
     rule<ast::node::tuple_literal()> tuple_literal;
+    rule<std::string()> identifier;
 };
 
 ast::ast parser::parse(std::string const& code)
