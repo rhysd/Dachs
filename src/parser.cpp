@@ -51,6 +51,25 @@ using qi::_val;
 using qi::lit;
 using phx::bind;
 
+// Helpers {{{
+namespace detail {
+    template<class NodeType>
+    struct make_shared_impl {
+        template<class... Holders>
+        auto operator()(Holders &&... holders) const
+        {
+            return std::make_shared<NodeType>(std::forward<Holders>(holders)...);
+        }
+    };
+} // namespace detail
+
+template<class NodeType, class... Args>
+auto make_shared(Args &&... args)
+{
+    return phx::bind(detail::make_shared_impl<NodeType>{}, std::forward<Args>(args)...);
+}
+// }}}
+
 template<class Iterator>
 class grammar : public qi::grammar<Iterator, ast::node::program(), ascii::blank_type /*FIXME*/> {
     template<class Value, class... Extra>
@@ -65,7 +84,7 @@ public:
                 literal > (qi::eol | qi::eoi)
             )
             [
-                _val = bind([](auto const& lit){ return std::make_shared<ast::node_type::program>(lit); }, _1)
+                _val = make_shared<ast::node_type::program>(_1)
             ];
 
         literal =
@@ -78,7 +97,7 @@ public:
                 | tuple_literal
             )
             [
-                _val = bind([](auto const& val){ return std::make_shared<ast::node_type::literal>(val); }, _1)
+                _val = make_shared<ast::node_type::literal>(_1)
             ];
 
         integer_literal =
@@ -86,7 +105,7 @@ public:
                   (qi::lexeme[qi::uint_ >> 'u']) | qi::int_
             )
             [
-                _val = bind([](auto const& int_val){ return std::make_shared<ast::node_type::integer_literal>(int_val); }, _1)
+                _val = make_shared<ast::node_type::integer_literal>(_1)
             ];
 
         // FIXME: Temporary
@@ -95,7 +114,7 @@ public:
                 lit('[') >> ']'
             )
             [
-                _val = bind([]{ return std::make_shared<ast::node_type::array_literal>(); })
+                _val = make_shared<ast::node_type::array_literal>()
             ];
 
         // FIXME: Temporary
@@ -104,7 +123,7 @@ public:
                 '(' >> +lit(',') >> ')'
             )
             [
-                _val = bind([]{ return std::make_shared<ast::node_type::tuple_literal>(); })
+                _val = make_shared<ast::node_type::tuple_literal>()
             ];
 
         qi::on_error<qi::fail>
