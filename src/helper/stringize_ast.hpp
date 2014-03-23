@@ -56,6 +56,8 @@ public:
             return prefix + visit(*arr_lit, indent_level+1);
         } else if (auto const tpl_lit = helper::variant::get<syntax::ast::node::tuple_literal>(l->value)) {
             return prefix + visit(*tpl_lit, indent_level+1);
+        } else if (auto const b = helper::variant::get<bool>(l->value)) {
+            return prefix + indent(indent_level + 1) + (*b ? "true" : "false");
         } else {
             return prefix + indent(indent_level + 1) + boost::lexical_cast<std::string>(l->value);
         }

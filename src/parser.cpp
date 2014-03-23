@@ -90,6 +90,7 @@ public:
             = (
                   ('\'' > qi::char_ > '\'')
                 | qi::as_string[qi::lexeme['"' > *(qi::char_ - '"') > '"']]
+                | qi::bool_
                 | qi::real_parser<double, qi::strict_real_policies<double>>()
                 | integer_literal
                 | array_literal

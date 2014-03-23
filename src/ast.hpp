@@ -92,6 +92,7 @@ struct literal : public base {
     using value_type =
         boost::variant< char
                       , double
+                      , bool
                       , std::string
                       , node::integer_literal
                       , node::array_literal
