@@ -64,7 +64,7 @@ namespace detail {
 } // namespace detail
 
 template<class NodeType, class... Args>
-auto make_shared(Args &&... args)
+inline auto make_shared(Args &&... args)
 {
     return phx::bind(detail::make_shared_impl<NodeType>{}, std::forward<Args>(args)...);
 }
