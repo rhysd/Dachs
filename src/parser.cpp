@@ -53,20 +53,20 @@ using phx::bind;
 
 // Helpers {{{
 namespace detail {
-    template<class NodeType>
-    struct make_shared_impl {
-        template<class... Holders>
-        auto operator()(Holders &&... holders) const
+    template<class Node>
+    struct make_shared {
+        template<class... Args>
+        auto operator()(Args &&... args) const
         {
-            return std::make_shared<NodeType>(std::forward<Holders>(holders)...);
+            return std::make_shared<Node>(std::forward<Args>(args)...);
         }
     };
 } // namespace detail
 
-template<class NodeType, class... Args>
-inline auto make_shared(Args &&... args)
+template<class NodeType, class... Holders>
+inline auto make_node(Holders &&... holders)
 {
-    return phx::bind(detail::make_shared_impl<NodeType>{}, std::forward<Args>(args)...);
+    return phx::bind(detail::make_shared<typename NodeType::element_type>{}, std::forward<Holders>(holders)...);
 }
 // }}}
 
@@ -84,7 +84,7 @@ public:
                 literal > (qi::eol | qi::eoi)
             )
             [
-                _val = make_shared<ast::node_type::program>(_1)
+                _val = make_node<ast::node::program>(_1)
             ];
 
         literal =
@@ -97,7 +97,7 @@ public:
                 | tuple_literal
             )
             [
-                _val = make_shared<ast::node_type::literal>(_1)
+                _val = make_node<ast::node::literal>(_1)
             ];
 
         integer_literal =
@@ -105,7 +105,7 @@ public:
                   (qi::lexeme[qi::uint_ >> 'u']) | qi::int_
             )
             [
-                _val = make_shared<ast::node_type::integer_literal>(_1)
+                _val = make_node<ast::node::integer_literal>(_1)
             ];
 
         // FIXME: Temporary
@@ -114,7 +114,7 @@ public:
                 lit('[') >> ']'
             )
             [
-                _val = make_shared<ast::node_type::array_literal>()
+                _val = make_node<ast::node::array_literal>()
             ];
 
         // FIXME: Temporary
@@ -123,7 +123,7 @@ public:
                 '(' >> +lit(',') >> ')'
             )
             [
-                _val = make_shared<ast::node_type::tuple_literal>()
+                _val = make_node<ast::node::tuple_literal>()
             ];
 
         qi::on_error<qi::fail>
