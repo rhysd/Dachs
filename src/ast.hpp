@@ -48,7 +48,7 @@ struct base {
 
     virtual std::string to_string() const = 0;
 
-    std::size_t line, col, length;
+    std::size_t line = 0, col = 0, length = 0;
     std::size_t id;
 };
 
