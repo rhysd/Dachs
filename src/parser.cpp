@@ -79,50 +79,45 @@ public:
     grammar() : grammar::base_type(program)
     {
         // FIXME: Temporary
-        program =
-            (
+        program
+            = (
                 literal > (qi::eol | qi::eoi)
-            )
-            [
+            ) [
                 _val = make_node<ast::node::program>(_1)
             ];
 
-        literal =
-            (
+        literal
+            = (
                   ('\'' > qi::char_ > '\'')
                 | qi::as_string[qi::lexeme['"' > *(qi::char_ - '"') > '"']]
                 | qi::real_parser<double, qi::strict_real_policies<double>>()
                 | integer_literal
                 | array_literal
                 | tuple_literal
-            )
-            [
+            ) [
                 _val = make_node<ast::node::literal>(_1)
             ];
 
-        integer_literal =
-            (
+        integer_literal
+            = (
                   (qi::lexeme[qi::uint_ >> 'u']) | qi::int_
-            )
-            [
+            ) [
                 _val = make_node<ast::node::integer_literal>(_1)
             ];
 
         // FIXME: Temporary
-        array_literal =
-            (
+        array_literal
+            = (
                 lit('[') >> ']'
-            )
-            [
+            ) [
                 _val = make_node<ast::node::array_literal>()
             ];
 
         // FIXME: Temporary
-        tuple_literal =
-            (
+        tuple_literal
+            = (
                 '(' >> +lit(',') >> ')'
-            )
-            [
+            ) [
                 _val = make_node<ast::node::tuple_literal>()
             ];
 
