@@ -81,7 +81,7 @@ public:
         // FIXME: Temporary
         program
             = (
-                literal > (qi::eol | qi::eoi)
+                primary_expr > (qi::eol | qi::eoi)
             ) [
                 _val = make_node<ast::node::program>(_1)
             ];
@@ -122,9 +122,18 @@ public:
             ];
 
         identifier
-            =
+            = (
                 qi::as_string[qi::alpha | qi::char_('_') >> *(qi::alnum | qi::char_('_'))]
-        ;
+            ) [
+                _val = make_node<ast::node::identifier>(_1)
+            ];
+
+        primary_expr
+            = (
+                literal | identifier // | '(' >> expr >> ')'
+            ) [
+                _val = make_node<ast::node::primary_expr>(_1)
+            ];
 
         qi::on_error<qi::fail>
         (
@@ -151,7 +160,8 @@ private:
     rule<ast::node::integer_literal()> integer_literal;
     rule<ast::node::array_literal()> array_literal;
     rule<ast::node::tuple_literal()> tuple_literal;
-    rule<std::string()> identifier;
+    rule<ast::node::identifier()> identifier;
+    rule<ast::node::primary_expr()> primary_expr;
 };
 
 ast::ast parser::parse(std::string const& code)

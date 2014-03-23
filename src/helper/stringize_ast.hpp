@@ -60,6 +60,23 @@ public:
             return prefix + indent(indent_level + 1) + boost::lexical_cast<std::string>(l->value);
         }
     }
+
+    std::string visit(syntax::ast::node::identifier const& ident, size_t const indent_level) const
+    {
+        return indent(indent_level) + ident->to_string();
+    }
+
+    std::string visit(syntax::ast::node::primary_expr const& pe, size_t const indent_level) const
+    {
+        std::string const prefix = indent(indent_level) + pe->to_string() + '\n';
+        if (auto const ident = helper::variant::get<syntax::ast::node::identifier>(pe->value)) {
+            return prefix + visit(*ident, indent_level+1);
+        } else if (auto const lit = helper::variant::get<syntax::ast::node::literal>(pe->value)) {
+            return prefix + visit(*lit, indent_level+1);
+        } else {
+            return prefix + "ERROR";
+        }
+    }
 };
 
 } // namespace detail

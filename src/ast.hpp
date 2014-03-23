@@ -22,6 +22,8 @@ struct integer_literal;
 struct array_literal;
 struct tuple_literal;
 struct literal;
+struct identifier;
+struct primary_expr;
 struct program;
 
 }
@@ -32,6 +34,8 @@ using integer_literal = std::shared_ptr<node_type::integer_literal>;
 using array_literal = std::shared_ptr<node_type::array_literal>;
 using tuple_literal = std::shared_ptr<node_type::tuple_literal>;
 using literal = std::shared_ptr<node_type::literal>;
+using identifier = std::shared_ptr<node_type::identifier>;
+using primary_expr = std::shared_ptr<node_type::primary_expr>;
 using program = std::shared_ptr<node_type::program>;
 
 } // namespace node
@@ -101,21 +105,46 @@ struct literal : public base {
 
     std::string to_string() const override
     {
-        std::string const kind
-            = helper::variant::has<char>(value) ? "char" :
-              helper::variant::has<double>(value) ? "float" :
-              helper::variant::has<std::string>(value) ? "string" :
-              helper::variant::has<node::integer_literal>(value) ? "integer" :
-              helper::variant::has<node::array_literal>(value) ? "array" : "tuple";
-        return "LITERAL: " + kind;
+        return "LITERAL";
+    }
+};
+
+struct identifier : public base {
+    std::string value;
+
+    explicit identifier(std::string const& s)
+        : value(s)
+    {}
+
+    std::string to_string() const override
+    {
+        return "IDENTIFIER: " + value;
+    }
+};
+
+struct primary_expr : public base {
+    using value_type =
+        boost::variant< node::identifier
+                      , node::literal
+                      // , node::expression
+                      >;
+    value_type value;
+    template<class T>
+    explicit primary_expr(T && v)
+        : base(), value(std::forward<T>(v))
+    {}
+
+    std::string to_string() const override
+    {
+        return "PRIMARY_EXPR";
     }
 };
 
 struct program : public base {
-    node::literal value; // TEMPORARY
+    node::primary_expr value; // TEMPORARY
 
-    program(node::literal const& lit)
-        : base(), value(lit)
+    program(node::primary_expr const& primary)
+        : base(), value(primary)
     {}
 
     std::string to_string() const override
