@@ -62,7 +62,7 @@ struct integer_literal : public base {
         : base(), value(std::forward<T>(v))
     {}
 
-    std::string to_string() const
+    std::string to_string() const override
     {
         return "INTEGER_LITERAL: " + boost::lexical_cast<std::string>(value);
     }
@@ -70,7 +70,7 @@ struct integer_literal : public base {
 
 struct array_literal : public base {
     // TODO: Not implemented
-    std::string to_string() const
+    std::string to_string() const override
     {
         return "ARRAY_LITERAL (Not implemented)";
     }
@@ -78,7 +78,7 @@ struct array_literal : public base {
 
 struct tuple_literal : public base {
     // TODO: Not implemented
-    std::string to_string() const
+    std::string to_string() const override
     {
         return "TUPLE_LITERAL (Not implemented)";
     }
@@ -99,7 +99,7 @@ struct literal : public base {
         : base(), value(std::forward<T>(v))
     {}
 
-    std::string to_string() const
+    std::string to_string() const override
     {
         std::string const kind
             = helper::variant::has<char>(value) ? "char" :
@@ -118,7 +118,7 @@ struct program : public base {
         : base(), value(lit)
     {}
 
-    std::string to_string() const
+    std::string to_string() const override
     {
         return "PROGRAM";
     }
