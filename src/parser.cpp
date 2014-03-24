@@ -174,7 +174,7 @@ public:
             // qi::_3 : iterator at failed point
             // qi::_4 : what failed?
             std::cerr
-                << phx::val("Error: at ")
+                << phx::val("Syntax error at ")
                 << bind([](auto const begin, auto const err_pos) -> std::string {
                         auto const pos = detail::position_of(begin, err_pos);
                         return (boost::format("line:%1%, col:%2%") % pos.first % pos.second).str();

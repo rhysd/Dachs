@@ -21,11 +21,11 @@ struct parse_error : public std::runtime_error {
     std::size_t line, col;
 
     parse_error(std::size_t const line, std::size_t const col)
-        : std::runtime_error((boost::format("Parse error at line:%1%, col:%2%") % line % col).str()), line(line), col(col)
+        : std::runtime_error((boost::format("Parse error generated at line:%1%, col:%2%") % line % col).str()), line(line), col(col)
     {}
 
     explicit parse_error(std::pair<std::size_t, std::size_t> const& pos)
-        : std::runtime_error((boost::format("Parse error at line:%1%, col:%2%") % pos.first % pos.second).str()), line(pos.first), col(pos.second)
+        : std::runtime_error((boost::format("Parse error generated at line:%1%, col:%2%") % pos.first % pos.second).str()), line(pos.first), col(pos.second)
     {}
 };
 
