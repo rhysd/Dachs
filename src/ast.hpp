@@ -128,7 +128,11 @@ struct integer_literal : public base {
 
     std::string to_string() const override
     {
-        return "INTEGER_LITERAL: " + boost::lexical_cast<std::string>(value);
+        if (helper::variant::has<int>(value)) {
+            return "INTEGER_LITERAL: " + boost::lexical_cast<std::string>(value);
+        } else {
+            return "INTEGER_LITERAL: " + boost::lexical_cast<std::string>(value) + "u";
+        }
     }
 };
 
