@@ -5,7 +5,9 @@
 #include <memory>
 #include <exception>
 #include <cstddef>
+#include <utility>
 
+#include <boost/format.hpp>
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/qi_as.hpp>
 #include <boost/spirit/include/phoenix_core.hpp>
@@ -167,15 +169,20 @@ public:
         qi::on_error<qi::fail>
         (
             program,
+            // qi::_1 : begin of string to parse
             // qi::_2 : end of string to parse
             // qi::_3 : iterator at failed point
             // qi::_4 : what failed?
             std::cerr
-                << phx::val( "Error: Expecting " )
-                << qi::_4
-                << phx::val( "\nhere:\n\"" )
-                << phx::construct<std::string>( _3, _2 ) // TODO: get line and col from iterators
-                << phx::val( "\"" )
+                << phx::val("Error: at ")
+                << bind([](auto const begin, auto const err_pos) -> std::string {
+                        auto const pos = detail::position_of(begin, err_pos);
+                        return (boost::format("line:%1%, col:%2%") % pos.first % pos.second).str();
+                    }, _1, _3) << '\n'
+                << "expected " << qi::_4 << '\n'
+                << phx::val("here:\n\"")
+                << phx::construct<std::string>(_3, _2) // TODO: get line and col from iterators
+                << phx::val("\"")
                 << std::endl
         );
     }
