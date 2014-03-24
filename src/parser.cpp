@@ -64,7 +64,7 @@ namespace detail {
 } // namespace detail
 
 template<class NodeType, class... Holders>
-inline auto make_node(Holders &&... holders)
+inline auto make_node_ptr(Holders &&... holders)
 {
     return phx::bind(detail::make_shared<typename NodeType::element_type>{}, std::forward<Holders>(holders)...);
 }
@@ -83,7 +83,7 @@ public:
             = (
                 primary_expr > (qi::eol | qi::eoi)
             ) [
-                _val = make_node<ast::node::program>(_1)
+                _val = make_node_ptr<ast::node::program>(_1)
             ];
 
         literal
@@ -96,42 +96,42 @@ public:
                 | array_literal
                 | tuple_literal
             ) [
-                _val = make_node<ast::node::literal>(_1)
+                _val = make_node_ptr<ast::node::literal>(_1)
             ];
 
         character_literal
             = (
                 '\'' > qi::char_ > '\''
             ) [
-                _val = make_node<ast::node::character_literal>(_1)
+                _val = make_node_ptr<ast::node::character_literal>(_1)
             ];
 
         float_literal
             = (
                 (qi::real_parser<double, qi::strict_real_policies<double>>())
             ) [
-                _val = make_node<ast::node::float_literal>(_1)
+                _val = make_node_ptr<ast::node::float_literal>(_1)
             ];
 
         boolean_literal
             = (
                 qi::bool_
             ) [
-                _val = make_node<ast::node::boolean_literal>(_1)
+                _val = make_node_ptr<ast::node::boolean_literal>(_1)
             ];
 
         string_literal
             = (
                 qi::as_string[qi::lexeme['"' > *(qi::char_ - '"') > '"']]
             ) [
-                _val = make_node<ast::node::string_literal>(_1)
+                _val = make_node_ptr<ast::node::string_literal>(_1)
             ];
 
         integer_literal
             = (
                   (qi::lexeme[qi::uint_ >> 'u']) | qi::int_
             ) [
-                _val = make_node<ast::node::integer_literal>(_1)
+                _val = make_node_ptr<ast::node::integer_literal>(_1)
             ];
 
         // FIXME: Temporary
@@ -139,7 +139,7 @@ public:
             = (
                 lit('[') >> ']'
             ) [
-                _val = make_node<ast::node::array_literal>()
+                _val = make_node_ptr<ast::node::array_literal>()
             ];
 
         // FIXME: Temporary
@@ -147,21 +147,21 @@ public:
             = (
                 '(' >> +lit(',') >> ')'
             ) [
-                _val = make_node<ast::node::tuple_literal>()
+                _val = make_node_ptr<ast::node::tuple_literal>()
             ];
 
         identifier
             = (
                 qi::as_string[qi::alpha | qi::char_('_') >> *(qi::alnum | qi::char_('_'))]
             ) [
-                _val = make_node<ast::node::identifier>(_1)
+                _val = make_node_ptr<ast::node::identifier>(_1)
             ];
 
         primary_expr
             = (
                 literal | identifier // | '(' >> expr >> ')'
             ) [
-                _val = make_node<ast::node::primary_expr>(_1)
+                _val = make_node_ptr<ast::node::primary_expr>(_1)
             ];
 
         qi::on_error<qi::fail>
