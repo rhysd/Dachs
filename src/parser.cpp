@@ -88,15 +88,43 @@ public:
 
         literal
             = (
-                  ('\'' > qi::char_ > '\'')
-                | qi::as_string[qi::lexeme['"' > *(qi::char_ - '"') > '"']]
-                | qi::bool_
-                | qi::real_parser<double, qi::strict_real_policies<double>>()
+                  character_literal
+                | string_literal
+                | boolean_literal
+                | float_literal
                 | integer_literal
                 | array_literal
                 | tuple_literal
             ) [
                 _val = make_node<ast::node::literal>(_1)
+            ];
+
+        character_literal
+            = (
+                '\'' > qi::char_ > '\''
+            ) [
+                _val = make_node<ast::node::character_literal>(_1)
+            ];
+
+        float_literal
+            = (
+                (qi::real_parser<double, qi::strict_real_policies<double>>())
+            ) [
+                _val = make_node<ast::node::float_literal>(_1)
+            ];
+
+        boolean_literal
+            = (
+                qi::bool_
+            ) [
+                _val = make_node<ast::node::boolean_literal>(_1)
+            ];
+
+        string_literal
+            = (
+                qi::as_string[qi::lexeme['"' > *(qi::char_ - '"') > '"']]
+            ) [
+                _val = make_node<ast::node::string_literal>(_1)
             ];
 
         integer_literal
@@ -159,6 +187,10 @@ private:
     rule<ast::node::program()> program;
     rule<ast::node::literal()> literal;
     rule<ast::node::integer_literal()> integer_literal;
+    rule<ast::node::character_literal()> character_literal;
+    rule<ast::node::float_literal()> float_literal;
+    rule<ast::node::boolean_literal()> boolean_literal;
+    rule<ast::node::string_literal()> string_literal;
     rule<ast::node::array_literal()> array_literal;
     rule<ast::node::tuple_literal()> tuple_literal;
     rule<ast::node::identifier()> identifier;

@@ -19,6 +19,10 @@ std::size_t generate_id();
 
 // Forward class declarations
 struct integer_literal;
+struct character_literal;
+struct float_literal;
+struct boolean_literal;
+struct string_literal;
 struct array_literal;
 struct tuple_literal;
 struct literal;
@@ -31,6 +35,10 @@ struct program;
 namespace node {
 
 using integer_literal = std::shared_ptr<node_type::integer_literal>;
+using character_literal = std::shared_ptr<node_type::character_literal>;
+using float_literal = std::shared_ptr<node_type::float_literal>;
+using boolean_literal = std::shared_ptr<node_type::boolean_literal>;
+using string_literal = std::shared_ptr<node_type::string_literal>;
 using array_literal = std::shared_ptr<node_type::array_literal>;
 using tuple_literal = std::shared_ptr<node_type::tuple_literal>;
 using literal = std::shared_ptr<node_type::literal>;
@@ -54,6 +62,58 @@ struct base {
 
     std::size_t line = 0, col = 0, length = 0;
     std::size_t id;
+};
+
+struct character_literal : public base {
+    char value;
+
+    explicit character_literal(char const c)
+        : value(c)
+    {}
+
+    std::string to_string() const override
+    {
+        return "CHAR_LITERAL: '" + std::to_string(value) + '\'';
+    }
+};
+
+struct float_literal : public base {
+    double value;
+
+    explicit float_literal(double const d)
+        : value(d)
+    {}
+
+    std::string to_string() const override
+    {
+        return "FLOAT_LITERAL: " + std::to_string(value);
+    }
+};
+
+struct boolean_literal : public base {
+    bool value;
+
+    explicit boolean_literal(bool const b)
+        : value(b)
+    {}
+
+    std::string to_string() const override
+    {
+        return std::string{"BOOL_LITERAL: "} + (value ? "true" : "false");
+    }
+};
+
+struct string_literal : public base {
+    std::string value;
+
+    explicit string_literal(std::string const& s)
+        : value(s)
+    {}
+
+    std::string to_string() const override
+    {
+        return std::string{"STRING_LITERAL: \""} + value + '"';
+    }
 };
 
 struct integer_literal : public base {
@@ -90,10 +150,10 @@ struct tuple_literal : public base {
 
 struct literal : public base {
     using value_type =
-        boost::variant< char
-                      , double
-                      , bool
-                      , std::string
+        boost::variant< node::character_literal
+                      , node::float_literal
+                      , node::boolean_literal
+                      , node::string_literal
                       , node::integer_literal
                       , node::array_literal
                       , node::tuple_literal >;
