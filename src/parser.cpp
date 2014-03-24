@@ -212,8 +212,7 @@ ast::ast parser::parse(std::string const& code)
     ast::node::program root;
 
     if (!qi::phrase_parse(itr, end, spiritual_parser, ascii::blank, root) || itr != end) {
-        auto const pos = detail::position_of(std::begin(code), itr);
-        throw std::runtime_error{"line:" + std::to_string(pos.first) + ", col:" + std::to_string(pos.second)};
+        throw parse_error{detail::position_of(std::begin(code), itr)};
     }
 
     return {root};

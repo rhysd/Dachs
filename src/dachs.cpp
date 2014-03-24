@@ -44,6 +44,7 @@ int main(int const argc, char const* const argv[])
         std::cout << compiler.compile(code);
     } catch (std::exception const& e) {
         std::cerr << "Internal compilation error: " << e.what() << std::endl;
+        return 3;
     }
 
     return 0;
