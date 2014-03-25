@@ -83,7 +83,7 @@ public:
         // FIXME: Temporary
         program
             = (
-                primary_expr > (qi::eol | qi::eoi)
+                postfix_expr > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(_1)
             ];
@@ -166,6 +166,44 @@ public:
                 _val = make_node_ptr<ast::node::primary_expr>(_1)
             ];
 
+        index_access
+            = (
+                postfix_expr >> '[' >> /* -expression >> */ ']' // TODO: Temporary
+            ) [
+                _val = make_node_ptr<ast::node::index_access>(_1)
+            ];
+
+        member_access
+            = (
+                postfix_expr >> '.' >> identifier
+            ) [
+                _val = make_node_ptr<ast::node::member_access>(_1, _2)
+            ];
+
+        argument_expr_list
+            = (
+                qi::eps // TODO: Temporary
+            ) [
+                _val = make_node_ptr<ast::node::argument_expr_list>()
+            ];
+
+        function_call
+            = (
+                postfix_expr >> '(' >> argument_expr_list >> ')'
+            ) [
+                _val = make_node_ptr<ast::node::function_call>(_2, _1)
+            ];
+
+        postfix_expr
+            = (
+                  member_access
+                | index_access
+                | function_call
+                | primary_expr
+            ) [
+                _val = make_node_ptr<ast::node::postfix_expr>(_1)
+            ];
+
         qi::on_error<qi::fail>
         (
             program,
@@ -202,6 +240,11 @@ private:
     rule<ast::node::tuple_literal()> tuple_literal;
     rule<ast::node::identifier()> identifier;
     rule<ast::node::primary_expr()> primary_expr;
+    rule<ast::node::index_access()> index_access;
+    rule<ast::node::member_access()> member_access;
+    rule<ast::node::argument_expr_list()> argument_expr_list;
+    rule<ast::node::function_call()> function_call;
+    rule<ast::node::postfix_expr()> postfix_expr;
 };
 
 ast::ast parser::parse(std::string const& code)

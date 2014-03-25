@@ -60,6 +60,7 @@ using program = std::shared_ptr<node_type::program>;
 
 } // namespace node
 
+// TODO: move below definitions to ast.cpp
 namespace node_type {
 
 struct base {
@@ -276,13 +277,13 @@ struct function_call : public base {
 struct postfix_expr : public base {
     using value_type =
         boost::variant< node::primary_expr
-                    , node::member_access
-                    , node::index_access
-                    , node::function_call
+                      , node::member_access
+                      , node::index_access
+                      , node::function_call
         >;
     value_type value;
 
-    template<class T, class U>
+    template<class T>
     explicit postfix_expr(T && v)
         : base(), value(std::forward<T>(v))
     {}
@@ -294,10 +295,10 @@ struct postfix_expr : public base {
 };
 
 struct program : public base {
-    node::primary_expr value; // TEMPORARY
+    node::postfix_expr value; // TEMPORARY
 
-    program(node::primary_expr const& primary)
-        : base(), value(primary)
+    program(node::postfix_expr const& postfix)
+        : base(), value(postfix)
     {}
 
     std::string to_string() const override
