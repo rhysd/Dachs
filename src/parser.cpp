@@ -154,7 +154,7 @@ public:
 
         identifier
             = (
-                qi::as_string[qi::alpha | qi::char_('_') >> *(qi::alnum | qi::char_('_'))]
+                qi::as_string[(qi::alpha | qi::char_('_')) >> *(qi::alnum | qi::char_('_'))]
             ) [
                 _val = make_node_ptr<ast::node::identifier>(_1)
             ];
