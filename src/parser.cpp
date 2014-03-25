@@ -229,23 +229,28 @@ public:
     {}
 
 private:
-    rule<ast::node::program()> program;
-    rule<ast::node::literal()> literal;
-    rule<ast::node::integer_literal()> integer_literal;
-    rule<ast::node::character_literal()> character_literal;
-    rule<ast::node::float_literal()> float_literal;
-    rule<ast::node::boolean_literal()> boolean_literal;
-    rule<ast::node::string_literal()> string_literal;
-    rule<ast::node::array_literal()> array_literal;
-    rule<ast::node::tuple_literal()> tuple_literal;
-    rule<ast::node::identifier()> identifier;
-    rule<ast::node::primary_expr()> primary_expr;
-    rule<ast::node::index_access()> index_access;
-    rule<ast::node::member_access()> member_access;
-    rule<ast::node::argument_expr_list()> argument_expr_list;
-    rule<ast::node::function_call()> function_call;
-    rule<ast::node::postfix_expr()> postfix_expr;
+#define DACHS_PARSE_RULE(n) rule<ast::node::n()> n;
+
+    DACHS_PARSE_RULE(program);
+    DACHS_PARSE_RULE(literal);
+    DACHS_PARSE_RULE(integer_literal);
+    DACHS_PARSE_RULE(character_literal);
+    DACHS_PARSE_RULE(float_literal);
+    DACHS_PARSE_RULE(boolean_literal);
+    DACHS_PARSE_RULE(string_literal);
+    DACHS_PARSE_RULE(array_literal);
+    DACHS_PARSE_RULE(tuple_literal);
+    DACHS_PARSE_RULE(identifier);
+    DACHS_PARSE_RULE(primary_expr);
+    DACHS_PARSE_RULE(index_access);
+    DACHS_PARSE_RULE(member_access);
+    DACHS_PARSE_RULE(argument_expr_list);
+    DACHS_PARSE_RULE(function_call);
+    DACHS_PARSE_RULE(postfix_expr);
+
+#undef DACHS_PARSE_RULE
 };
+
 
 ast::ast parser::parse(std::string const& code)
 {
