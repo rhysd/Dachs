@@ -8,9 +8,9 @@ set(PACKAGE_VERSION "${DACHS_VERSION_MAJOR}.${DACHS_VERSION_MINOR}.${DACHS_VERSI
 cmake_minimum_required( VERSION 2.8 )
 
 if(EXISTS "/usr/local/bin/clang++-3.5")
-    set(CMAKE_CXX_COMPILER "clang++-3.5")
+    set(CMAKE_CXX_COMPILER "/usr/local/bin/clang++-3.5")
 else()
-    set(CMAKE_CXX_COMPILER "clang++")
+    set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
 endif()
 
 include_directories( "${PROJECT_SOURCE_DIR}/src" )
