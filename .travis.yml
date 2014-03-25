@@ -2,7 +2,7 @@ language: cpp
 compiler: clang
 script:
     - /usr/bin/clang++ --version
-    - cmake . -DCMAKE_CXX_COMPILER=/usr/bin/clang++
+    - cmake .
     - make
 install:
     - sudo add-apt-repository --yes ppa:ubuntu-toolchain-r/test
