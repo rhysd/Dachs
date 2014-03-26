@@ -6,7 +6,6 @@
 #include <vector>
 #include <cstddef>
 #include <boost/variant/variant.hpp>
-#include <boost/variant/recursive_wrapper.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/optional.hpp>
 
