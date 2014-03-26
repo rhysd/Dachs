@@ -8,8 +8,6 @@
 #include <boost/variant/variant.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/optional.hpp>
-#include <boost/algorithm/string/join.hpp>
-#include <boost/range/adaptor/transformed.hpp>
 
 #include "helper/variant.hpp"
 
@@ -71,7 +69,6 @@ DACHS_DEFINE_NODE_PTR(program);
 
 } // namespace node
 
-// TODO: move below definitions to ast.cpp
 namespace node_type {
 
 struct base {
@@ -299,19 +296,7 @@ struct unary_expr : public base {
         : values(ops), expr(expr)
     {}
 
-    std::string to_string() const override
-    {
-        return "UNARY_EXPR: " + boost::algorithm::join(
-                values | boost::adaptors::transformed(
-                    [](auto const op) -> std::string {
-                        return op == ast::unary_operator::positive ? "+"
-                             : op == ast::unary_operator::negative ? "-"
-                             : op == ast::unary_operator::one_complement ? "~"
-                             : op == ast::unary_operator::logical_negate ? "!"
-                             : "unknown";
-                    }
-                ) , " ");
-    }
+    std::string to_string() const override;
 };
 
 struct program : public base {
