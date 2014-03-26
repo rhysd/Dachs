@@ -128,37 +128,6 @@ public:
     }
 };
 
-struct literal_stringizer : boost::static_visitor<std::string> {
-
-    ast_stringizer const& stringizer;
-    size_t const indent_level;
-
-    literal_stringizer(ast_stringizer const& s, size_t const il)
-        : stringizer(s), indent_level(il)
-    {}
-
-    std::string operator()(char const c) const
-    {
-        return {'\'', c, '\''};
-    }
-
-    std::string operator()(std::string const& s) const
-    {
-        return '"' + s + '"';
-    }
-
-    std::string operator()(bool const b) const
-    {
-        return b ? "true" : "false";
-    }
-
-    template<class T>
-    std::string operator()(std::shared_ptr<T> const& p) const
-    {
-        return stringizer.visit(p, indent_level+1);
-    }
-};
-
 } // namespace detail
 
 std::string stringize_ast(syntax::ast::ast const& ast)
