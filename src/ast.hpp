@@ -139,10 +139,15 @@ struct integer_literal : public base {
 
     std::string to_string() const override
     {
-        if (helper::variant::has<int>(value)) {
-            return "INTEGER_LITERAL: " + boost::lexical_cast<std::string>(value);
-        } else {
-            return "INTEGER_LITERAL: " + boost::lexical_cast<std::string>(value) + "u";
+        try {
+            if (helper::variant::has<int>(value)) {
+                return "INTEGER_LITERAL: " + boost::lexical_cast<std::string>(value);
+            } else {
+                return "INTEGER_LITERAL: " + boost::lexical_cast<std::string>(value) + "u";
+            }
+        }
+        catch(boost::bad_lexical_cast const& e) {
+            return std::string{"INTEGER_LITERAL: "} + e.what();
         }
     }
 };

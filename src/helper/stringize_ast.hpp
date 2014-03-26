@@ -43,7 +43,12 @@ struct to_string : public boost::static_visitor<std::string> {
     template<class T, class = typename std::enable_if<is_shared_ptr<T>::value>::type>
     std::string operator()(T const& value) const
     {
-        return boost::lexical_cast<std::string>(value);
+        try {
+            return boost::lexical_cast<std::string>(value);
+        }
+        catch(boost::bad_lexical_cast const& e) {
+            return e.what();
+        }
     }
 };
 

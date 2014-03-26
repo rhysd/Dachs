@@ -11,7 +11,7 @@ std::size_t generate_id()
     return ++current_id;
 }
 
-} // namespace node
+} // namespace node_type
 } // namespace ast
 } // namespace syntax
 } // namespace dachs
