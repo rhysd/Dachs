@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <type_traits>
 #include <cstddef>
 #include <boost/variant/variant.hpp>
 #include <boost/lexical_cast.hpp>
@@ -313,6 +314,9 @@ struct program : public base {
 };
 
 } // namespace node_type
+
+template<class T>
+struct is_node : std::is_base_of<node_type::base, T> {};
 
 struct ast {
     node::program root;
