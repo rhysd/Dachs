@@ -204,6 +204,7 @@ struct identifier : public base {
 };
 
 struct primary_expr : public base {
+    // Note: add lambda expression
     using value_type =
         boost::variant< node::identifier
                       , node::literal
@@ -247,8 +248,8 @@ struct member_access : public base {
     }
 };
 
-// TODO: Temporary
 struct function_call : public base {
+    // TODO: Not implemented
     // std::vector<node::expression> args;
     function_call()
     {}
@@ -260,6 +261,7 @@ struct function_call : public base {
 };
 
 struct postfix_expr : public base {
+    // Note: add do-end block
     node::primary_expr prefix;
     using postfix_type =
         boost::variant< node::member_access
