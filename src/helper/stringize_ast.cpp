@@ -133,6 +133,12 @@ public:
             ) + '\n'
             + visit(pe->prefix, indent_level+1);
     }
+
+    std::string visit(syntax::ast::node::unary_expr const& ue, size_t const indent_level) const
+    {
+        return prefix_of(ue, indent_level) + '\n'
+                + visit(ue->expr, indent_level+1);
+    }
 };
 
 } // namespace detail

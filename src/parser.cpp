@@ -87,7 +87,7 @@ public:
         // FIXME: Temporary
         program
             = (
-                postfix_expr > (qi::eol | qi::eoi)
+                unary_expr > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(_1)
             ];
@@ -198,6 +198,13 @@ public:
                 _val = make_node_ptr<ast::node::postfix_expr>(_1, _2)
             ];
 
+        unary_expr
+            = (
+                *unary_operator >> postfix_expr
+            ) [
+                _val = make_node_ptr<ast::node::unary_expr>(_1, _2)
+            ];
+
         qi::on_error<qi::fail>(
             program,
             // qi::_1 : begin of string to parse
@@ -243,8 +250,22 @@ private:
     DACHS_PARSE_RULE(member_access);
     DACHS_PARSE_RULE(function_call);
     DACHS_PARSE_RULE(postfix_expr);
+    DACHS_PARSE_RULE(unary_expr);
 
 #undef DACHS_PARSE_RULE
+
+    struct unary_operator_rule_type : public qi::symbols<char, ast::unary_operator> {
+        unary_operator_rule_type()
+        {
+            add
+                ("+", ast::unary_operator::positive)
+                ("-", ast::unary_operator::negative)
+                ("~", ast::unary_operator::one_complement)
+                ("!", ast::unary_operator::logical_negate)
+            ;
+        }
+    } unary_operator;
+
 };
 
 

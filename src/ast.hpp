@@ -8,12 +8,21 @@
 #include <boost/variant/variant.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/optional.hpp>
+#include <boost/algorithm/string/join.hpp>
+#include <boost/range/adaptor/transformed.hpp>
 
 #include "helper/variant.hpp"
 
 namespace dachs {
 namespace syntax {
 namespace ast {
+
+enum class unary_operator {
+    positive,
+    negative,
+    one_complement,
+    logical_negate
+};
 
 namespace node_type {
 
@@ -56,6 +65,7 @@ DACHS_DEFINE_NODE_PTR(index_access);
 DACHS_DEFINE_NODE_PTR(member_access);
 DACHS_DEFINE_NODE_PTR(function_call);
 DACHS_DEFINE_NODE_PTR(postfix_expr);
+DACHS_DEFINE_NODE_PTR(unary_expr);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
@@ -282,11 +292,33 @@ struct postfix_expr : public base {
     }
 };
 
-struct program : public base {
-    node::postfix_expr value; // TEMPORARY
+struct unary_expr : public base {
+    std::vector<unary_operator> values;
+    node::postfix_expr expr;
+    unary_expr(std::vector<unary_operator> const& ops, node::postfix_expr const& expr)
+        : values(ops), expr(expr)
+    {}
 
-    program(node::postfix_expr const& postfix)
-        : base(), value(postfix)
+    std::string to_string() const override
+    {
+        return "UNARY_EXPR: " + boost::algorithm::join(
+                values | boost::adaptors::transformed(
+                    [](auto const op) -> std::string {
+                        return op == ast::unary_operator::positive ? "+"
+                             : op == ast::unary_operator::negative ? "-"
+                             : op == ast::unary_operator::one_complement ? "~"
+                             : op == ast::unary_operator::logical_negate ? "!"
+                             : "unknown";
+                    }
+                ) , " ");
+    }
+};
+
+struct program : public base {
+    node::unary_expr value; // TEMPORARY
+
+    program(node::unary_expr const& unary)
+        : base(), value(unary)
     {}
 
     std::string to_string() const override
