@@ -216,7 +216,7 @@ public:
                               std::vector<std::string> lines;
                               auto const r = boost::make_iterator_range(begin, end);
                               boost::algorithm::split(lines, r, [](char const c){ return c == '\n'; });
-                              return lines[pos.first-1] + '\n' + std::string(pos.second-1, ' ') + '^';
+                              return lines[pos.first-1] + '\n' + std::string(pos.second-1, ' ') + "↑ ここやで";
                           }, _1, _2, _3)
                       << std::endl
         );
