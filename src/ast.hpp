@@ -34,27 +34,30 @@ struct index_access;
 struct member_access;
 struct function_call;
 struct postfix_expr;
+struct unary_expr;
 struct program;
 
 }
 
 namespace node {
 
-using integer_literal = std::shared_ptr<node_type::integer_literal>;
-using character_literal = std::shared_ptr<node_type::character_literal>;
-using float_literal = std::shared_ptr<node_type::float_literal>;
-using boolean_literal = std::shared_ptr<node_type::boolean_literal>;
-using string_literal = std::shared_ptr<node_type::string_literal>;
-using array_literal = std::shared_ptr<node_type::array_literal>;
-using tuple_literal = std::shared_ptr<node_type::tuple_literal>;
-using literal = std::shared_ptr<node_type::literal>;
-using identifier = std::shared_ptr<node_type::identifier>;
-using primary_expr = std::shared_ptr<node_type::primary_expr>;
-using index_access = std::shared_ptr<node_type::index_access>;
-using member_access = std::shared_ptr<node_type::member_access>;
-using function_call = std::shared_ptr<node_type::function_call>;
-using postfix_expr = std::shared_ptr<node_type::postfix_expr>;
-using program = std::shared_ptr<node_type::program>;
+#define DACHS_DEFINE_NODE_PTR(n) using n = std::shared_ptr<node_type::n>
+DACHS_DEFINE_NODE_PTR(integer_literal);
+DACHS_DEFINE_NODE_PTR(character_literal);
+DACHS_DEFINE_NODE_PTR(float_literal);
+DACHS_DEFINE_NODE_PTR(boolean_literal);
+DACHS_DEFINE_NODE_PTR(string_literal);
+DACHS_DEFINE_NODE_PTR(array_literal);
+DACHS_DEFINE_NODE_PTR(tuple_literal);
+DACHS_DEFINE_NODE_PTR(literal);
+DACHS_DEFINE_NODE_PTR(identifier);
+DACHS_DEFINE_NODE_PTR(primary_expr);
+DACHS_DEFINE_NODE_PTR(index_access);
+DACHS_DEFINE_NODE_PTR(member_access);
+DACHS_DEFINE_NODE_PTR(function_call);
+DACHS_DEFINE_NODE_PTR(postfix_expr);
+DACHS_DEFINE_NODE_PTR(program);
+#undef DACHS_DEFINE_NODE_PTR
 
 } // namespace node
 
