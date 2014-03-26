@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <boost/format.hpp>
+#include <boost/range/iterator_range.hpp>
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/spirit/include/qi.hpp>
@@ -212,12 +213,10 @@ public:
                       << "\n\n"
                       << bind([](auto const begin, auto const end, auto const err_itr) -> std::string {
                               auto const pos = detail::position_of(begin, err_itr);
-                              auto const lnum = pos.first, col = pos.second;
                               std::vector<std::string> lines;
-                              std::string const s = std::string{begin, end};
-                              boost::algorithm::split(lines, s, [](char const c){ return c == '\n'; });
-                              // return lines[lnum-1] + '\n' + std::string(col-1, ' ') + '^';
-                              return lines[lnum-1] + '\n' + std::string(col-1, ' ') + "↑ココ！";
+                              auto const r = boost::make_iterator_range(begin, end);
+                              boost::algorithm::split(lines, r, [](char const c){ return c == '\n'; });
+                              return lines[pos.first-1] + '\n' + std::string(pos.second-1, ' ') + '^';
                           }, _1, _2, _3)
                       << std::endl
         );
