@@ -6,6 +6,7 @@
 #include <vector>
 #include <cstddef>
 #include <boost/variant/variant.hpp>
+#include <boost/variant/recursive_wrapper.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/optional.hpp>
 
@@ -32,7 +33,6 @@ struct identifier;
 struct primary_expr;
 struct index_access;
 struct member_access;
-struct argument_expr_list;
 struct function_call;
 struct postfix_expr;
 struct program;
@@ -53,7 +53,6 @@ using identifier = std::shared_ptr<node_type::identifier>;
 using primary_expr = std::shared_ptr<node_type::primary_expr>;
 using index_access = std::shared_ptr<node_type::index_access>;
 using member_access = std::shared_ptr<node_type::member_access>;
-using argument_expr_list = std::shared_ptr<node_type::argument_expr_list>;
 using function_call = std::shared_ptr<node_type::function_call>;
 using postfix_expr = std::shared_ptr<node_type::postfix_expr>;
 using program = std::shared_ptr<node_type::program>;
@@ -221,10 +220,8 @@ struct primary_expr : public base {
 
 // TODO: Not implemented
 struct index_access : public base {
-    node::postfix_expr prefix_expr;
     // boost::optional<node::expression> index_expr;
-    explicit index_access(node::postfix_expr const& prefix_expr)
-        : prefix_expr(prefix_expr)
+    index_access()
     {}
 
     std::string to_string() const override
@@ -235,11 +232,9 @@ struct index_access : public base {
 };
 
 struct member_access : public base {
-    node::postfix_expr prefix_expr;
     node::identifier member_name;
-    explicit member_access( node::postfix_expr const& prefix_expr
-                          , node::identifier const& member_name)
-        : prefix_expr(prefix_expr), member_name(member_name)
+    explicit member_access(node::identifier const& member_name)
+        : member_name(member_name)
     {}
 
     std::string to_string() const override
@@ -248,24 +243,10 @@ struct member_access : public base {
     }
 };
 
-// TODO: Not implemented
-struct argument_expr_list : public base {
-    // std::vector<node::expression> args;
-    explicit argument_expr_list( /*std::vector<node::expression> const& args*/ )
-    {}
-
-    std::string to_string() const override
-    {
-        return "ARG_EXPR_LIST";
-    }
-};
-
+// TODO: Temporary
 struct function_call : public base {
-    node::argument_expr_list args;
-    node::postfix_expr prefix_expr;
-    function_call( node::argument_expr_list const& args
-                 , node::postfix_expr const& prefix_expr)
-        : args(args), prefix_expr(prefix_expr)
+    // std::vector<node::expression> args;
+    function_call()
     {}
 
     std::string to_string() const override
@@ -275,17 +256,15 @@ struct function_call : public base {
 };
 
 struct postfix_expr : public base {
-    using value_type =
-        boost::variant< node::primary_expr
-                      , node::member_access
+    node::primary_expr prefix;
+    using postfix_type =
+        boost::variant< node::member_access
                       , node::index_access
-                      , node::function_call
-        >;
-    value_type value;
+                      , node::function_call >;
+    std::vector<postfix_type> postfixes;
 
-    template<class T>
-    explicit postfix_expr(T && v)
-        : base(), value(std::forward<T>(v))
+    postfix_expr(node::primary_expr const& pe, std::vector<postfix_type> const& ps)
+        : base(), prefix(pe), postfixes(ps)
     {}
 
     std::string to_string() const override

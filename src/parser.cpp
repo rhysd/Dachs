@@ -168,40 +168,30 @@ public:
 
         index_access
             = (
-                postfix_expr >> '[' >> /* -expression >> */ ']' // TODO: Temporary
+                lit('[') >> /* -expression >> */ ']' // TODO: Temporary
             ) [
-                _val = make_node_ptr<ast::node::index_access>(_1)
+                _val = make_node_ptr<ast::node::index_access>()
             ];
 
         member_access
             = (
-                postfix_expr >> '.' >> identifier
+                '.' >> identifier
             ) [
-                _val = make_node_ptr<ast::node::member_access>(_1, _2)
-            ];
-
-        argument_expr_list
-            = (
-                qi::eps // TODO: Temporary
-            ) [
-                _val = make_node_ptr<ast::node::argument_expr_list>()
+                _val = make_node_ptr<ast::node::member_access>(_1)
             ];
 
         function_call
             = (
-                postfix_expr >> '(' >> argument_expr_list >> ')'
+                '(' >> qi::eps >> ')' // TODO: Temporary
             ) [
-                _val = make_node_ptr<ast::node::function_call>(_2, _1)
+                _val = make_node_ptr<ast::node::function_call>()
             ];
 
         postfix_expr
             = (
-                  member_access
-                | index_access
-                | function_call
-                | primary_expr
+                  primary_expr >> *(member_access | index_access | function_call)
             ) [
-                _val = make_node_ptr<ast::node::postfix_expr>(_1)
+                _val = make_node_ptr<ast::node::postfix_expr>(_1, _2)
             ];
 
         qi::on_error<qi::fail>
@@ -219,7 +209,7 @@ public:
                     }, _1, _3) << '\n'
                 << "expected " << qi::_4 << '\n'
                 << phx::val("here:\n\"")
-                << phx::construct<std::string>(_3, _2) // TODO: get line and col from iterators
+                << phx::construct<std::string>(_3, _2)
                 << phx::val("\"")
                 << std::endl
         );
@@ -244,7 +234,6 @@ private:
     DACHS_PARSE_RULE(primary_expr);
     DACHS_PARSE_RULE(index_access);
     DACHS_PARSE_RULE(member_access);
-    DACHS_PARSE_RULE(argument_expr_list);
     DACHS_PARSE_RULE(function_call);
     DACHS_PARSE_RULE(postfix_expr);
 

@@ -1,6 +1,8 @@
 #if !defined DACHS_HELPER_STRINGIZE_AST_HPP_INCLUDED
 #define      DACHS_HELPER_STRINGIZE_AST_HPP_INCLUDED
 
+#define BOOST_RESULT_OF_USE_DECLTYPE 1
+
 #include <cstddef>
 #include <string>
 #include <type_traits>
@@ -8,15 +10,20 @@
 #include <boost/variant/variant.hpp>
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
+#include <boost/range/adaptor/transformed.hpp>
+#include <boost/algorithm/string/join.hpp>
 
 #include "ast.hpp"
 #include "helper/variant.hpp"
 
 namespace dachs {
 namespace helper {
+// TODO: move below namespace to stringize_ast.cpp
 namespace detail {
 
 using std::size_t;
+using boost::algorithm::join;
+using boost::adaptors::transformed;
 
 struct to_string : public boost::static_visitor<std::string> {
     template<class T>
@@ -93,33 +100,31 @@ public:
     std::string visit(syntax::ast::node::index_access const& ia, size_t const indent_level) const
     {
         // TODO: Temporary
-        return indent(indent_level) + ia->to_string() + '\n' + visit(ia->prefix_expr, indent_level+1);
+        return indent(indent_level) + ia->to_string();
     }
 
     std::string visit(syntax::ast::node::member_access const& ma, size_t const indent_level) const
     {
         return indent(indent_level) + ma->to_string() + '\n'
-                + visit(ma->member_name, indent_level+1) + '\n'
-                + visit(ma->prefix_expr, indent_level+1);
-    }
-
-    std::string visit(syntax::ast::node::argument_expr_list const& ael, size_t const indent_level) const
-    {
-        // TODO: Temporary
-        return indent(indent_level) + ael->to_string();
+                + visit(ma->member_name, indent_level+1);
     }
 
     std::string visit(syntax::ast::node::function_call const& fc, size_t const indent_level) const
     {
-        return indent(indent_level) + fc->to_string() + '\n'
-                + visit(fc->args, indent_level+1) + '\n'
-                + visit(fc->prefix_expr, indent_level+1);
+        // TODO: Temporary
+        return indent(indent_level) + fc->to_string();
     }
 
     std::string visit(syntax::ast::node::postfix_expr const& pe, size_t const indent_level) const
     {
         return indent(indent_level) + pe->to_string() + '\n'
-            + indent(indent_level+1) + boost::apply_visitor(node_variant_visitor{}, pe->value);
+            + join(
+                pe->postfixes | transformed([this, indent_level](auto const& postfix){
+                    return indent(indent_level+1) + boost::apply_visitor(node_variant_visitor{}, postfix);
+                })
+                , "\n"
+            ) + '\n'
+            + visit(pe->prefix, indent_level+1);
     }
 };
 
