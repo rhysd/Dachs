@@ -197,30 +197,29 @@ public:
                 _val = make_node_ptr<ast::node::postfix_expr>(_1, _2)
             ];
 
-        qi::on_error<qi::fail>
-        (
+        qi::on_error<qi::fail>(
             program,
             // qi::_1 : begin of string to parse
             // qi::_2 : end of string to parse
             // qi::_3 : iterator at failed point
             // qi::_4 : what failed?
-            std::cerr
-                << phx::val("Syntax error at ")
-                << bind([](auto const begin, auto const err_pos) -> std::string {
-                        auto const pos = detail::position_of(begin, err_pos);
-                        return (boost::format("line:%1%, col:%2%") % pos.first % pos.second).str();
-                    }, _1, _3) << '\n'
-                << "expected " << qi::_4
-                << "\n\n"
-                << bind([](auto const begin, auto const end, auto const err_itr) -> std::string {
-                        auto const pos = detail::position_of(begin, err_itr);
-                        auto const lnum = pos.first, col = pos.second;
-                        std::vector<std::string> lines;
-                        std::string const s = std::string{begin, end};
-                        boost::algorithm::split(lines, s, boost::is_any_of("\n"));
-                        return lines[lnum-1] + '\n' + std::string(col-1, ' ') + '^';
-                    }, _1, _2, _3)
-                << std::endl
+            std::cerr << phx::val("Syntax error at ")
+                      << bind([](auto const begin, auto const err_pos) -> std::string {
+                              auto const pos = detail::position_of(begin, err_pos);
+                              return (boost::format("line:%1%, col:%2%") % pos.first % pos.second).str();
+                          }, _1, _3) << '\n'
+                      << "expected " << qi::_4
+                      << "\n\n"
+                      << bind([](auto const begin, auto const end, auto const err_itr) -> std::string {
+                              auto const pos = detail::position_of(begin, err_itr);
+                              auto const lnum = pos.first, col = pos.second;
+                              std::vector<std::string> lines;
+                              std::string const s = std::string{begin, end};
+                              boost::algorithm::split(lines, s, [](char const c){ return c == '\n'; });
+                              // return lines[lnum-1] + '\n' + std::string(col-1, ' ') + '^';
+                              return lines[lnum-1] + '\n' + std::string(col-1, ' ') + "↑ココ！";
+                          }, _1, _2, _3)
+                      << std::endl
         );
     }
 
