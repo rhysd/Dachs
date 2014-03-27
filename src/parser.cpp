@@ -285,6 +285,7 @@ private:
                 ("-", ast::unary_operator::negative)
                 ("~", ast::unary_operator::one_complement)
                 ("!", ast::unary_operator::logical_negate)
+                ("typeof", ast::unary_operator::typeof)
             ;
         }
     } unary_operator;
