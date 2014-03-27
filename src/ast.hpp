@@ -89,6 +89,7 @@ struct postfix_expr;
 struct unary_expr;
 struct type_name;
 struct cast_expr;
+struct mult_expr;
 struct program;
 
 }
@@ -113,6 +114,7 @@ DACHS_DEFINE_NODE_PTR(postfix_expr);
 DACHS_DEFINE_NODE_PTR(unary_expr);
 DACHS_DEFINE_NODE_PTR(type_name);
 DACHS_DEFINE_NODE_PTR(cast_expr);
+DACHS_DEFINE_NODE_PTR(mult_expr);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
@@ -363,6 +365,23 @@ struct cast_expr : public base {
     std::string to_string() const override
     {
         return "CAST_EXPR";
+    }
+};
+
+struct mult_expr : public base {
+    using rhss_type
+        = std::vector<std::pair<mult_operator, node::cast_expr>>;
+
+    node::cast_expr lhs;
+    rhss_type rhss;
+
+    mult_expr(node::cast_expr const& lhs, rhss_type const& rhss)
+        : lhs(lhs), rhss(rhss)
+    {}
+
+    std::string to_string() const override
+    {
+        return "MULT_EXPR";
     }
 };
 
