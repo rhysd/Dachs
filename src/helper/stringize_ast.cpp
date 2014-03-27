@@ -74,13 +74,6 @@ class ast_stringizer {
 
 public:
 
-    // For terminal nodes
-    template<class T>
-    std::string visit(std::shared_ptr<T> const& p, size_t const indent_level) const
-    {
-        return prefix_of(p, indent_level);
-    }
-
     std::string visit(syntax::ast::node::program const& p, size_t const indent_level) const
     {
         return prefix_of(p, indent_level) + '\n' + visit(p->value, indent_level+1);
@@ -139,6 +132,32 @@ public:
     {
         return prefix_of(ue, indent_level) + '\n'
                 + visit(ue->expr, indent_level+1);
+    }
+
+    // TODO: Temporary
+    std::string visit(syntax::ast::node::type_name const& tn, size_t const indent_level) const
+    {
+        return prefix_of(tn, indent_level) + '\n'
+                + visit(tn->name, indent_level+1);
+    }
+
+    std::string visit(syntax::ast::node::cast_expr const& ce, size_t const indent_level) const
+    {
+        return prefix_of(ce, indent_level) + '\n'
+                + boost::accumulate(
+                    ce->dest_types | transformed([this, indent_level](auto const& type){
+                        return prefix_of(type, indent_level+1);
+                    }), std::string{}
+                    , [](auto const& acc, auto const& type) {
+                        return acc + type + '\n';
+                    }) + visit(ce->source_expr, indent_level+1);
+    }
+
+    // For terminal nodes
+    template<class T>
+    std::string visit(std::shared_ptr<T> const& p, size_t const indent_level) const
+    {
+        return prefix_of(p, indent_level);
     }
 };
 

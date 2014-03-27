@@ -320,10 +320,10 @@ struct cast_expr : public base {
 };
 
 struct program : public base {
-    node::unary_expr value; // TEMPORARY
+    node::cast_expr value; // TEMPORARY
 
-    program(node::unary_expr const& unary)
-        : base(), value(unary)
+    program(node::cast_expr const& cast)
+        : base(), value(cast)
     {}
 
     std::string to_string() const override

@@ -87,7 +87,7 @@ public:
         // FIXME: Temporary
         program
             = (
-                unary_expr > (qi::eol | qi::eoi)
+                cast_expr > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(_1)
             ];
@@ -205,6 +205,20 @@ public:
                 _val = make_node_ptr<ast::node::unary_expr>(_1, _2)
             ];
 
+        type_name
+            = (
+                identifier >> -(lit('[') >> ']')
+            ) [
+                _val = make_node_ptr<ast::node::type_name>(_1)
+            ];
+
+        cast_expr
+            = (
+                unary_expr >> *("as" > type_name)
+            ) [
+                _val = make_node_ptr<ast::node::cast_expr>(_2, _1)
+            ];
+
         qi::on_error<qi::fail>(
             program,
             // qi::_1 : begin of string to parse
@@ -251,6 +265,8 @@ private:
     DACHS_PARSE_RULE(function_call);
     DACHS_PARSE_RULE(postfix_expr);
     DACHS_PARSE_RULE(unary_expr);
+    DACHS_PARSE_RULE(type_name);
+    DACHS_PARSE_RULE(cast_expr);
 
 #undef DACHS_PARSE_RULE
 
