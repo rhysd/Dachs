@@ -251,28 +251,28 @@ public:
     {}
 
 private:
-#define DACHS_PARSE_RULE(n) rule<ast::node::n()> n;
+#define DACHS_DEFINE_RULE(n) rule<ast::node::n()> n;
 
-    DACHS_PARSE_RULE(program);
-    DACHS_PARSE_RULE(literal);
-    DACHS_PARSE_RULE(integer_literal);
-    DACHS_PARSE_RULE(character_literal);
-    DACHS_PARSE_RULE(float_literal);
-    DACHS_PARSE_RULE(boolean_literal);
-    DACHS_PARSE_RULE(string_literal);
-    DACHS_PARSE_RULE(array_literal);
-    DACHS_PARSE_RULE(tuple_literal);
-    DACHS_PARSE_RULE(identifier);
-    DACHS_PARSE_RULE(primary_expr);
-    DACHS_PARSE_RULE(index_access);
-    DACHS_PARSE_RULE(member_access);
-    DACHS_PARSE_RULE(function_call);
-    DACHS_PARSE_RULE(postfix_expr);
-    DACHS_PARSE_RULE(unary_expr);
-    DACHS_PARSE_RULE(type_name);
-    DACHS_PARSE_RULE(cast_expr);
+    DACHS_DEFINE_RULE(program);
+    DACHS_DEFINE_RULE(literal);
+    DACHS_DEFINE_RULE(integer_literal);
+    DACHS_DEFINE_RULE(character_literal);
+    DACHS_DEFINE_RULE(float_literal);
+    DACHS_DEFINE_RULE(boolean_literal);
+    DACHS_DEFINE_RULE(string_literal);
+    DACHS_DEFINE_RULE(array_literal);
+    DACHS_DEFINE_RULE(tuple_literal);
+    DACHS_DEFINE_RULE(identifier);
+    DACHS_DEFINE_RULE(primary_expr);
+    DACHS_DEFINE_RULE(index_access);
+    DACHS_DEFINE_RULE(member_access);
+    DACHS_DEFINE_RULE(function_call);
+    DACHS_DEFINE_RULE(postfix_expr);
+    DACHS_DEFINE_RULE(unary_expr);
+    DACHS_DEFINE_RULE(type_name);
+    DACHS_DEFINE_RULE(cast_expr);
 
-#undef DACHS_PARSE_RULE
+#undef DACHS_DEFINE_RULE
 
     //
     // Symbol tables
