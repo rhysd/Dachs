@@ -46,11 +46,18 @@ struct to_string : public boost::static_visitor<std::string> {
     }
 };
 
+template<class V>
 struct node_variant_visitor : public boost::static_visitor<std::string> {
+    V const& visitor;
+    size_t const indent_level;
+
+    node_variant_visitor(V const& v, size_t const il) : visitor(v), indent_level(il)
+    {}
+
     template<class T>
     std::string operator()(std::shared_ptr<T> const& p) const
     {
-        return p->to_string();
+        return visitor.visit(p, indent_level);
     }
 };
 
@@ -69,7 +76,7 @@ class ast_stringizer {
     template<class... Args>
     std::string variant_prefix_of(boost::variant<Args...> const& v, size_t const indent_level) const
     {
-        return indent(indent_level) + boost::apply_visitor(node_variant_visitor{}, v);
+        return boost::apply_visitor(node_variant_visitor<ast_stringizer>{*this, indent_level}, v);
     }
 
 public:
