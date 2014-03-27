@@ -74,9 +74,37 @@ class ast_stringizer {
     }
 
     template<class... Args>
-    std::string variant_prefix_of(boost::variant<Args...> const& v, size_t const indent_level) const
+    std::string visit_variant(boost::variant<Args...> const& v, size_t const indent_level) const
     {
         return boost::apply_visitor(node_variant_visitor<ast_stringizer>{*this, indent_level}, v);
+    }
+
+    template<class NodePtrs>
+    std::string visit_nodes(NodePtrs const& ptrs, size_t const indent_level) const
+    {
+        return boost::accumulate(
+            ptrs | transformed([this, indent_level](auto const& p){
+                return visit(p, indent_level);
+            })
+            , std::string{}
+            , [](auto const& acc, auto const& val) {
+                return acc + val + '\n';
+            }
+        );
+    }
+
+    template<class NodePtrs>
+    std::string visit_variants(NodePtrs const& ptrs, size_t const indent_level) const
+    {
+        return boost::accumulate(
+            ptrs | transformed([this, indent_level](auto const& p){
+                return visit_variant(p, indent_level);
+            })
+            , std::string{}
+            , [](auto const& acc, auto const& val) {
+                return acc + val + '\n';
+            }
+        );
     }
 
 public:
@@ -88,7 +116,7 @@ public:
 
     std::string visit(syntax::ast::node::literal const& l, size_t const indent_level) const
     {
-        return prefix_of(l, indent_level) + '\n' + variant_prefix_of(l->value, indent_level+1);
+        return prefix_of(l, indent_level) + '\n' + visit_variant(l->value, indent_level+1);
     }
 
     std::string visit(syntax::ast::node::primary_expr const& pe, size_t const indent_level) const
@@ -124,15 +152,8 @@ public:
     std::string visit(syntax::ast::node::postfix_expr const& pe, size_t const indent_level) const
     {
         return prefix_of(pe, indent_level) + '\n'
-            + boost::accumulate(
-                pe->postfixes | transformed([this, indent_level](auto const& postfix){
-                    return variant_prefix_of(postfix, indent_level+1);
-                })
-                , std::string{}
-                , [](auto const& acc, auto const& val) {
-                    return acc + val + '\n';
-                }
-            ) + visit(pe->prefix, indent_level+1);
+            + visit_variants(pe->postfixes, indent_level+1)
+            + visit(pe->prefix, indent_level+1);
     }
 
     std::string visit(syntax::ast::node::unary_expr const& ue, size_t const indent_level) const
@@ -151,13 +172,8 @@ public:
     std::string visit(syntax::ast::node::cast_expr const& ce, size_t const indent_level) const
     {
         return prefix_of(ce, indent_level) + '\n'
-                + boost::accumulate(
-                    ce->dest_types | transformed([this, indent_level](auto const& type){
-                        return visit(type, indent_level+1);
-                    }), std::string{}
-                    , [](auto const& acc, auto const& type) {
-                        return acc + type + '\n';
-                    }) + visit(ce->source_expr, indent_level+1);
+                + visit_nodes(ce->dest_types, indent_level+1)
+                + visit(ce->source_expr, indent_level+1);
     }
 
     // For terminal nodes
