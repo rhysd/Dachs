@@ -42,6 +42,8 @@ struct member_access;
 struct function_call;
 struct postfix_expr;
 struct unary_expr;
+struct type_name;
+struct cast_expr;
 struct program;
 
 }
@@ -64,6 +66,8 @@ DACHS_DEFINE_NODE_PTR(member_access);
 DACHS_DEFINE_NODE_PTR(function_call);
 DACHS_DEFINE_NODE_PTR(postfix_expr);
 DACHS_DEFINE_NODE_PTR(unary_expr);
+DACHS_DEFINE_NODE_PTR(type_name);
+DACHS_DEFINE_NODE_PTR(cast_expr);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
@@ -285,6 +289,34 @@ struct unary_expr : public base {
     {}
 
     std::string to_string() const override;
+};
+
+// FIXME: Temporary
+struct type_name : public base {
+    node::identifier name;
+
+    explicit type_name(node::identifier const& name)
+        : name(name)
+    {}
+
+    std::string to_string() const override
+    {
+        return "TYPE_NAME";
+    }
+};
+
+struct cast_expr : public base {
+    std::vector<node::type_name> dest_types;
+    node::unary_expr source_expr;
+
+    cast_expr(std::vector<node::type_name> const& types, node::unary_expr const& expr)
+        : dest_types(types), source_expr(expr)
+    {}
+
+    std::string to_string() const override
+    {
+        return "CAST_EXPR";
+    }
 };
 
 struct program : public base {
