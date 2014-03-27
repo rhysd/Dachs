@@ -7,7 +7,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/range/adaptor/transformed.hpp>
-#include <boost/algorithm/string/join.hpp>
+#include <boost/range/numeric.hpp>
 
 #include "stringize_ast.hpp"
 #include "helper/variant.hpp"
@@ -17,7 +17,6 @@ namespace helper {
 namespace detail {
 
 using std::size_t;
-using boost::algorithm::join;
 using boost::adaptors::transformed;
 
 struct to_string : public boost::static_visitor<std::string> {
@@ -125,13 +124,15 @@ public:
     std::string visit(syntax::ast::node::postfix_expr const& pe, size_t const indent_level) const
     {
         return prefix_of(pe, indent_level) + '\n'
-            + join(
+            + boost::accumulate(
                 pe->postfixes | transformed([this, indent_level](auto const& postfix){
                     return variant_prefix_of(postfix, indent_level+1);
                 })
-                , "\n"
-            ) + '\n'
-            + visit(pe->prefix, indent_level+1);
+                , std::string{}
+                , [](auto const& acc, auto const& val) {
+                    return acc + val + '\n';
+                }
+            ) + visit(pe->prefix, indent_level+1);
     }
 
     std::string visit(syntax::ast::node::unary_expr const& ue, size_t const indent_level) const

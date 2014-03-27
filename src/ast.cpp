@@ -1,5 +1,6 @@
 #include <boost/algorithm/string/join.hpp>
 #include <boost/range/adaptor/transformed.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include "ast.hpp"
 
@@ -26,6 +27,16 @@ std::string unary_expr::to_string() const
                             : "unknown";
                 }
             ) , " ");
+}
+
+std::string integer_literal::to_string() const
+{
+    try {
+        return "INTEGER_LITERAL: " + boost::lexical_cast<std::string>(value);
+    }
+    catch(boost::bad_lexical_cast const& e) {
+        return std::string{"INTEGER_LITERAL: "} + e.what();
+    }
 }
 
 } // namespace node_type

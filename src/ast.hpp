@@ -7,7 +7,6 @@
 #include <type_traits>
 #include <cstddef>
 #include <boost/variant/variant.hpp>
-#include <boost/lexical_cast.hpp>
 #include <boost/optional.hpp>
 
 #include "helper/variant.hpp"
@@ -148,19 +147,7 @@ struct integer_literal : public base {
         : base(), value(std::forward<T>(v))
     {}
 
-    std::string to_string() const override
-    {
-        try {
-            if (helper::variant::has<int>(value)) {
-                return "INTEGER_LITERAL: " + boost::lexical_cast<std::string>(value);
-            } else {
-                return "INTEGER_LITERAL: " + boost::lexical_cast<std::string>(value) + "u";
-            }
-        }
-        catch(boost::bad_lexical_cast const& e) {
-            return std::string{"INTEGER_LITERAL: "} + e.what();
-        }
-    }
+    std::string to_string() const override;
 };
 
 struct array_literal : public base {
