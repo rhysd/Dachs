@@ -153,7 +153,7 @@ public:
         return prefix_of(ce, indent_level) + '\n'
                 + boost::accumulate(
                     ce->dest_types | transformed([this, indent_level](auto const& type){
-                        return prefix_of(type, indent_level+1);
+                        return visit(type, indent_level+1);
                     }), std::string{}
                     , [](auto const& acc, auto const& type) {
                         return acc + type + '\n';
