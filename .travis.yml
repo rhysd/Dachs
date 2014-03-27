@@ -1,6 +1,7 @@
 language: cpp
 compiler: clang
 script:
+    - uname -a
     - /usr/bin/clang++ --version
     - cmake .
     - make
