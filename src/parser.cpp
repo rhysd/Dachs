@@ -274,6 +274,9 @@ private:
 
 #undef DACHS_PARSE_RULE
 
+    //
+    // Symbol tables
+    //
     struct unary_operator_rule_type : public qi::symbols<char, ast::unary_operator> {
         unary_operator_rule_type()
         {
@@ -285,6 +288,80 @@ private:
             ;
         }
     } unary_operator;
+
+    struct mult_operator_rule_type : public qi::symbols<char, ast::mult_operator> {
+        mult_operator_rule_type()
+        {
+            add
+                ("*", ast::mult_operator::mult)
+                ("/", ast::mult_operator::div)
+                ("%", ast::mult_operator::mod)
+            ;
+        }
+    } mult_operator;
+
+    struct additive_operator_rule_type : public qi::symbols<char, ast::additive_operator> {
+        additive_operator_rule_type()
+        {
+            add
+                ("+", ast::additive_operator::add)
+                ("-", ast::additive_operator::sub)
+            ;
+        }
+    } additive_operator;
+
+    struct relational_operator_rule_type : public qi::symbols<char, ast::relational_operator> {
+        relational_operator_rule_type()
+        {
+            add
+                ("<", ast::relational_operator::less_than)
+                (">", ast::relational_operator::greater_than)
+                ("<=", ast::relational_operator::less_than_equal)
+                (">=", ast::relational_operator::greater_than_equal)
+            ;
+        }
+    } relational_operator;
+
+    struct shift_operator_rule_type : public qi::symbols<char, ast::shift_operator> {
+        shift_operator_rule_type()
+        {
+            add
+                ("+", ast::shift_operator::left)
+                ("-", ast::shift_operator::right)
+            ;
+        }
+    } shift_operator;
+
+    struct equality_operator_rule_type : public qi::symbols<char, ast::equality_operator> {
+        equality_operator_rule_type()
+        {
+            add
+                ("==", ast::equality_operator::equal)
+                ("!=", ast::equality_operator::not_equal)
+            ;
+        }
+    } equality_operator;
+
+    struct assign_operator_rule_type : public qi::symbols<char, ast::assign_operator> {
+        assign_operator_rule_type()
+        {
+            add
+                ("=", ast::assign_operator::assign)
+                ("*=", ast::assign_operator::mult)
+                ("/=", ast::assign_operator::div)
+                ("%=", ast::assign_operator::mod)
+                ("+=", ast::assign_operator::add)
+                ("-=", ast::assign_operator::sub)
+                ("<<=", ast::assign_operator::left_shift)
+                (">>=", ast::assign_operator::right_shift)
+                ("&=", ast::assign_operator::arithmetic_and)
+                ("^=", ast::assign_operator::arithmetic_xor)
+                ("|=", ast::assign_operator::arithmetic_or)
+                ("&&=", ast::assign_operator::logical_and)
+                ("||=", ast::assign_operator::logical_or)
+            ;
+        }
+    } assign_operator;
 
 };
 

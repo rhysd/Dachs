@@ -19,8 +19,53 @@ enum class unary_operator {
     positive,
     negative,
     one_complement,
-    logical_negate
+    logical_negate,
 };
+
+enum class mult_operator {
+    mult,
+    div,
+    mod,
+};
+
+enum class additive_operator {
+    add,
+    sub,
+};
+
+enum class relational_operator {
+    less_than,
+    greater_than,
+    less_than_equal,
+    greater_than_equal,
+};
+
+enum class shift_operator {
+    left,
+    right,
+};
+
+enum class equality_operator {
+    equal,
+    not_equal,
+};
+
+enum class assign_operator {
+    assign,
+    mult,
+    div,
+    mod,
+    add,
+    sub,
+    left_shift,
+    right_shift,
+    arithmetic_and,
+    arithmetic_xor,
+    arithmetic_or,
+    logical_and,
+    logical_or,
+};
+
 
 namespace node_type {
 
