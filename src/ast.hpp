@@ -138,7 +138,7 @@ struct character_literal : public base {
     char value;
 
     explicit character_literal(char const c)
-        : value(c)
+        : base(), value(c)
     {}
 
     std::string to_string() const override
@@ -151,7 +151,7 @@ struct float_literal : public base {
     double value;
 
     explicit float_literal(double const d)
-        : value(d)
+        : base(), value(d)
     {}
 
     std::string to_string() const override
@@ -164,7 +164,7 @@ struct boolean_literal : public base {
     bool value;
 
     explicit boolean_literal(bool const b)
-        : value(b)
+        : base(), value(b)
     {}
 
     std::string to_string() const override
@@ -177,7 +177,7 @@ struct string_literal : public base {
     std::string value;
 
     explicit string_literal(std::string const& s)
-        : value(s)
+        : base(), value(s)
     {}
 
     std::string to_string() const override
@@ -241,7 +241,7 @@ struct identifier : public base {
     std::string value;
 
     explicit identifier(std::string const& s)
-        : value(s)
+        : base(), value(s)
     {}
 
     std::string to_string() const override
@@ -274,6 +274,7 @@ struct primary_expr : public base {
 struct index_access : public base {
     // boost::optional<node::expression> index_expr;
     index_access()
+        : base()
     {}
 
     std::string to_string() const override
@@ -286,7 +287,7 @@ struct index_access : public base {
 struct member_access : public base {
     node::identifier member_name;
     explicit member_access(node::identifier const& member_name)
-        : member_name(member_name)
+        : base(), member_name(member_name)
     {}
 
     std::string to_string() const override
@@ -299,6 +300,7 @@ struct function_call : public base {
     // TODO: Not implemented
     // std::vector<node::expression> args;
     function_call()
+        : base()
     {}
 
     std::string to_string() const override
@@ -330,7 +332,7 @@ struct unary_expr : public base {
     std::vector<unary_operator> values;
     node::postfix_expr expr;
     unary_expr(std::vector<unary_operator> const& ops, node::postfix_expr const& expr)
-        : values(ops), expr(expr)
+        : base(), values(ops), expr(expr)
     {}
 
     std::string to_string() const override;
@@ -341,7 +343,7 @@ struct type_name : public base {
     node::identifier name;
 
     explicit type_name(node::identifier const& name)
-        : name(name)
+        : base(), name(name)
     {}
 
     std::string to_string() const override
@@ -355,7 +357,7 @@ struct cast_expr : public base {
     node::unary_expr source_expr;
 
     cast_expr(std::vector<node::type_name> const& types, node::unary_expr const& expr)
-        : dest_types(types), source_expr(expr)
+        : base(), dest_types(types), source_expr(expr)
     {}
 
     std::string to_string() const override
