@@ -112,8 +112,8 @@ class ast_stringizer {
     template<class BinaryOperatorNodePtr>
     std::string visit_binary_operator_ptr(BinaryOperatorNodePtr const& p, size_t const indent_level) const
     {
-        return prefix_of(p, indent_level)
-                + visit(p->lhs, indent_level+1) + '\n'
+        return prefix_of(p, indent_level) + '\n'
+                + visit(p->lhs, indent_level+1)
                 + visit_nodes_with_predicate(
                       p->rhss,
                       [this, indent_level](auto const& op_and_rhs) {
@@ -207,6 +207,31 @@ public:
     std::string visit(syntax::ast::node::equality_expr const& ee, size_t const indent_level) const
     {
         return visit_binary_operator_ptr(ee, indent_level);
+    }
+
+    std::string visit(syntax::ast::node::and_expr const& ae, size_t const indent_level) const
+    {
+        return prefix_of(ae, indent_level) + visit_nodes(ae->exprs, indent_level+1);
+    }
+
+    std::string visit(syntax::ast::node::xor_expr const& xe, size_t const indent_level) const
+    {
+        return prefix_of(xe, indent_level) + visit_nodes(xe->exprs, indent_level+1);
+    }
+
+    std::string visit(syntax::ast::node::or_expr const& oe, size_t const indent_level) const
+    {
+        return prefix_of(oe, indent_level) + visit_nodes(oe->exprs, indent_level+1);
+    }
+
+    std::string visit(syntax::ast::node::logical_and_expr const& lae, size_t const indent_level) const
+    {
+        return prefix_of(lae, indent_level) + visit_nodes(lae->exprs, indent_level+1);
+    }
+
+    std::string visit(syntax::ast::node::logical_or_expr const& loe, size_t const indent_level) const
+    {
+        return prefix_of(loe, indent_level) + visit_nodes(loe->exprs, indent_level+1);
     }
 
     // For terminal nodes

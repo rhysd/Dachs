@@ -87,7 +87,7 @@ public:
         // FIXME: Temporary
         program
             = (
-                equality_expr > (qi::eol | qi::eoi)
+                logical_or_expr > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(_1)
             ];
@@ -278,6 +278,41 @@ public:
                 _val = make_node_ptr<ast::node::equality_expr>(_1, _2)
             ];
 
+        and_expr
+            = (
+                *(equality_expr >> "&") >> equality_expr
+            ) [
+                _val = make_node_ptr<ast::node::and_expr>(_1, _2)
+            ];
+
+        xor_expr
+            = (
+                *(and_expr >> "&") >> and_expr
+            ) [
+                _val = make_node_ptr<ast::node::xor_expr>(_1, _2)
+            ];
+
+        or_expr
+            = (
+                *(xor_expr >> "&") >> xor_expr
+            ) [
+                _val = make_node_ptr<ast::node::or_expr>(_1, _2)
+            ];
+
+        logical_and_expr
+            = (
+                *(or_expr >> "&") >> or_expr
+            ) [
+                _val = make_node_ptr<ast::node::logical_and_expr>(_1, _2)
+            ];
+
+        logical_or_expr
+            = (
+                *(logical_and_expr >> "&") >> logical_and_expr
+            ) [
+                _val = make_node_ptr<ast::node::logical_or_expr>(_1, _2)
+            ];
+
         qi::on_error<qi::fail>(
             program,
             // qi::_1 : begin of string to parse
@@ -333,6 +368,11 @@ private:
     DACHS_DEFINE_RULE(shift_expr);
     DACHS_DEFINE_RULE(relational_expr);
     DACHS_DEFINE_RULE(equality_expr);
+    DACHS_DEFINE_RULE(and_expr);
+    DACHS_DEFINE_RULE(xor_expr);
+    DACHS_DEFINE_RULE(or_expr);
+    DACHS_DEFINE_RULE(logical_and_expr);
+    DACHS_DEFINE_RULE(logical_or_expr);
 
 #undef DACHS_DEFINE_RULE
 #undef DACHS_DEFINE_RULE_WITH_LOCALS

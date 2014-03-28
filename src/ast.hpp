@@ -99,6 +99,11 @@ struct additive_expr;
 struct shift_expr;
 struct relational_expr;
 struct equality_expr;
+struct and_expr;
+struct xor_expr;
+struct or_expr;
+struct logical_and_expr;
+struct logical_or_expr;
 struct program;
 
 }
@@ -128,6 +133,11 @@ DACHS_DEFINE_NODE_PTR(additive_expr);
 DACHS_DEFINE_NODE_PTR(shift_expr);
 DACHS_DEFINE_NODE_PTR(relational_expr);
 DACHS_DEFINE_NODE_PTR(equality_expr);
+DACHS_DEFINE_NODE_PTR(and_expr);
+DACHS_DEFINE_NODE_PTR(xor_expr);
+DACHS_DEFINE_NODE_PTR(or_expr);
+DACHS_DEFINE_NODE_PTR(logical_and_expr);
+DACHS_DEFINE_NODE_PTR(logical_or_expr);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
@@ -476,11 +486,86 @@ struct equality_expr : public base {
     }
 };
 
-struct program : public base {
-    node::equality_expr value; // TEMPORARY
+struct and_expr : public base {
+    std::vector<node::equality_expr> exprs;
 
-    program(node::equality_expr const& equality)
-        : base(), value(equality)
+    explicit and_expr(std::vector<node::equality_expr> const& lhss, node::equality_expr const& rhs)
+        : base(), exprs(lhss)
+    {
+        exprs.push_back(rhs);
+    }
+
+    std::string to_string() const override
+    {
+        return "AND_EXPR";
+    }
+};
+
+struct xor_expr : public base {
+    std::vector<node::and_expr> exprs;
+
+    explicit xor_expr(std::vector<node::and_expr> const& lhss, node::and_expr const& rhs)
+        : base(), exprs(lhss)
+    {
+        exprs.push_back(rhs);
+    }
+
+    std::string to_string() const override
+    {
+        return "XOR_EXPR";
+    }
+};
+
+struct or_expr : public base {
+    std::vector<node::xor_expr> exprs;
+
+    explicit or_expr(std::vector<node::xor_expr> const& lhss, node::xor_expr const& rhs)
+        : base(), exprs(lhss)
+    {
+        exprs.push_back(rhs);
+    }
+
+    std::string to_string() const override
+    {
+        return "OR_EXPR";
+    }
+};
+
+struct logical_and_expr : public base {
+    std::vector<node::or_expr> exprs;
+
+    explicit logical_and_expr(std::vector<node::or_expr> const& lhss, node::or_expr const& rhs)
+        : base(), exprs(lhss)
+    {
+        exprs.push_back(rhs);
+    }
+
+    std::string to_string() const override
+    {
+        return "LOGICAL_AND_EXPR";
+    }
+};
+
+struct logical_or_expr : public base {
+    std::vector<node::logical_and_expr> exprs;
+
+    explicit logical_or_expr(std::vector<node::logical_and_expr> const& lhss, node::logical_and_expr const& rhs)
+        : base(), exprs(lhss)
+    {
+        exprs.push_back(rhs);
+    }
+
+    std::string to_string() const override
+    {
+        return "LOGICAL_OR_EXPR";
+    }
+};
+
+struct program : public base {
+    node::logical_or_expr value; // TEMPORARY
+
+    program(node::logical_or_expr const& logical_or)
+        : base(), value(logical_or)
     {}
 
     std::string to_string() const override
