@@ -97,6 +97,7 @@ struct cast_expr;
 struct mult_expr;
 struct additive_expr;
 struct shift_expr;
+struct relational_expr;
 struct program;
 
 }
@@ -124,6 +125,7 @@ DACHS_DEFINE_NODE_PTR(cast_expr);
 DACHS_DEFINE_NODE_PTR(mult_expr);
 DACHS_DEFINE_NODE_PTR(additive_expr);
 DACHS_DEFINE_NODE_PTR(shift_expr);
+DACHS_DEFINE_NODE_PTR(relational_expr);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
@@ -434,11 +436,30 @@ struct shift_expr : public base {
     }
 };
 
-struct program : public base {
-    node::shift_expr value; // TEMPORARY
+struct relational_expr : public base {
+    using rhs_type
+        = std::pair<relational_operator, node::shift_expr>;
+    using rhss_type
+        = std::vector<rhs_type>;
 
-    program(node::shift_expr const& shift)
-        : base(), value(shift)
+    node::shift_expr lhs;
+    rhss_type rhss;
+
+    relational_expr(node::shift_expr const& lhs, rhss_type const& rhss)
+        : lhs(lhs), rhss(rhss)
+    {}
+
+    std::string to_string() const override
+    {
+        return "RELATIONAL_EXPR";
+    }
+};
+
+struct program : public base {
+    node::relational_expr value; // TEMPORARY
+
+    program(node::relational_expr const& relational)
+        : base(), value(relational)
     {}
 
     std::string to_string() const override

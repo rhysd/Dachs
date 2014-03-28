@@ -195,6 +195,11 @@ public:
         return visit_binary_operator_ptr(se, indent_level);
     }
 
+    std::string visit(syntax::ast::node::relational_expr const& re, size_t const indent_level) const
+    {
+        return visit_binary_operator_ptr(re, indent_level);
+    }
+
     // For terminal nodes
     template<class T, class = typename std::enable_if<syntax::ast::is_node<T>::value>::type>
     std::string visit(std::shared_ptr<T> const& p, size_t const indent_level) const

@@ -87,7 +87,7 @@ public:
         // FIXME: Temporary
         program
             = (
-                shift_expr > (qi::eol | qi::eoi)
+                relational_expr > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(_1)
             ];
@@ -223,6 +223,7 @@ public:
                 _val = make_node_ptr<ast::node::cast_expr>(_2, _1)
             ];
 
+        // TODO: DRY for binary operator expression parsing
         mult_expr
             = (
                 cast_expr >> (*(
@@ -254,6 +255,17 @@ public:
                 ))
             ) [
                 _val = make_node_ptr<ast::node::shift_expr>(_1, _2)
+            ];
+
+        relational_expr
+            = (
+                shift_expr >> (*(
+                    qi::as<ast::node_type::relational_expr::rhs_type>()[
+                        relational_operator >> shift_expr
+                    ]
+                ))
+            ) [
+                _val = make_node_ptr<ast::node::relational_expr>(_1, _2)
             ];
 
         qi::on_error<qi::fail>(
@@ -309,6 +321,7 @@ private:
     DACHS_DEFINE_RULE(mult_expr);
     DACHS_DEFINE_RULE(additive_expr);
     DACHS_DEFINE_RULE(shift_expr);
+    DACHS_DEFINE_RULE(relational_expr);
 
 #undef DACHS_DEFINE_RULE
 #undef DACHS_DEFINE_RULE_WITH_LOCALS
