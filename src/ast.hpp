@@ -430,7 +430,7 @@ struct shift_expr : public base {
 
     std::string to_string() const override
     {
-        return "shift_EXPR";
+        return "SHIFT_EXPR";
     }
 };
 
