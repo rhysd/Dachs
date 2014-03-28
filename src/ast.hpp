@@ -20,7 +20,6 @@ enum class unary_operator {
     negative,
     one_complement,
     logical_negate,
-    typeof,
 };
 
 enum class mult_operator {
