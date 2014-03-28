@@ -64,7 +64,7 @@ struct node_variant_visitor : public boost::static_visitor<std::string> {
 class ast_stringizer {
     std::string indent(size_t const level) const
     {
-        return std::string(level, ' ');
+        return std::string(level, '.');
     }
 
     template<class T>
