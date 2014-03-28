@@ -223,7 +223,6 @@ public:
                 _val = make_node_ptr<ast::node::cast_expr>(_2, _1)
             ];
 
-        // TODO: DRY for binary operator expression parsing
         mult_expr
             = (
                 cast_expr >> *(
