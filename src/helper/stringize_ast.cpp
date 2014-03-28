@@ -109,7 +109,7 @@ class ast_stringizer {
     std::string visit_binary_operator_ptr(BinaryOperatorNodePtr const& p, size_t const indent_level) const
     {
         return prefix_of(p, indent_level) + '\n'
-                + visit(p->lhs, indent_level+1) + '\n'
+                + visit(p->lhs, indent_level+1) + (p->rhss.empty() ? "" : "\n")
                 + visit_nodes_with_predicate(
                       p->rhss,
                       [this, indent_level](auto const& op_and_rhs) {
