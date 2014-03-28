@@ -156,7 +156,7 @@ public:
     std::string visit(syntax::ast::node::postfix_expr const& pe, size_t const indent_level) const
     {
         return prefix_of(pe, indent_level) + '\n'
-            + visit_node_variants(pe->postfixes, indent_level+1) + '\n'
+            + visit_node_variants(pe->postfixes, indent_level+1) + (pe->postfixes.empty() ? "" : "\n")
             + visit(pe->prefix, indent_level+1);
     }
 
@@ -176,7 +176,7 @@ public:
     std::string visit(syntax::ast::node::cast_expr const& ce, size_t const indent_level) const
     {
         return prefix_of(ce, indent_level) + '\n'
-                + visit_nodes(ce->dest_types, indent_level+1) + '\n'
+                + visit_nodes(ce->dest_types, indent_level+1) + (ce->dest_types.empty() ? "" : "\n")
                 + visit(ce->source_expr, indent_level+1);
     }
 
