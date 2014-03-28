@@ -7,7 +7,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/range/adaptor/transformed.hpp>
-#include <boost/algorithm/string/join.hpp>
+#include <boost/range/numeric.hpp>
 
 #include "stringize_ast.hpp"
 #include "helper/variant.hpp"
@@ -82,7 +82,11 @@ class ast_stringizer {
     template<class NodePtrs, class Pred>
     std::string visit_nodes_with_predicate(NodePtrs const& ptrs, Pred const& predicate) const
     {
-        return boost::algorithm::join(ptrs | transformed(predicate), "\n");
+        return boost::accumulate(ptrs | transformed(predicate)
+                                 , std::string{}
+                                 , [](auto const& acc, auto const& item){
+                                     return acc + '\n' + item;
+                                 });
     }
 
     template<class NodePtrs>
@@ -108,8 +112,8 @@ class ast_stringizer {
     template<class BinaryOperatorNodePtr>
     std::string visit_binary_operator_ptr(BinaryOperatorNodePtr const& p, size_t const indent_level) const
     {
-        return prefix_of(p, indent_level) + '\n'
-                + visit(p->lhs, indent_level+1) + (p->rhss.empty() ? "" : "\n")
+        return prefix_of(p, indent_level)
+                + visit(p->lhs, indent_level+1) + '\n'
                 + visit_nodes_with_predicate(
                       p->rhss,
                       [this, indent_level](auto const& op_and_rhs) {
@@ -155,8 +159,8 @@ public:
 
     std::string visit(syntax::ast::node::postfix_expr const& pe, size_t const indent_level) const
     {
-        return prefix_of(pe, indent_level) + '\n'
-            + visit_node_variants(pe->postfixes, indent_level+1) + (pe->postfixes.empty() ? "" : "\n")
+        return prefix_of(pe, indent_level)
+            + visit_node_variants(pe->postfixes, indent_level+1) + '\n'
             + visit(pe->prefix, indent_level+1);
     }
 
@@ -175,8 +179,8 @@ public:
 
     std::string visit(syntax::ast::node::cast_expr const& ce, size_t const indent_level) const
     {
-        return prefix_of(ce, indent_level) + '\n'
-                + visit_nodes(ce->dest_types, indent_level+1) + (ce->dest_types.empty() ? "" : "\n")
+        return prefix_of(ce, indent_level)
+                + visit_nodes(ce->dest_types, indent_level+1) + '\n'
                 + visit(ce->source_expr, indent_level+1);
     }
 
