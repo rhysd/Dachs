@@ -226,55 +226,55 @@ public:
         // TODO: DRY for binary operator expression parsing
         mult_expr
             = (
-                cast_expr >> (*(
+                cast_expr >> *(
                     qi::as<ast::node_type::mult_expr::rhs_type>()[
                         mult_operator >> cast_expr
                     ]
-                ))
+                )
             ) [
                 _val = make_node_ptr<ast::node::mult_expr>(_1, _2)
             ];
 
         additive_expr
             = (
-                mult_expr >> (*(
+                mult_expr >> *(
                     qi::as<ast::node_type::additive_expr::rhs_type>()[
                         additive_operator >> mult_expr
                     ]
-                ))
+                )
             ) [
                 _val = make_node_ptr<ast::node::additive_expr>(_1, _2)
             ];
 
         shift_expr
             = (
-                additive_expr >> (*(
+                additive_expr >> *(
                     qi::as<ast::node_type::shift_expr::rhs_type>()[
                         shift_operator >> additive_expr
                     ]
-                ))
+                )
             ) [
                 _val = make_node_ptr<ast::node::shift_expr>(_1, _2)
             ];
 
         relational_expr
             = (
-                shift_expr >> (*(
+                shift_expr >> *(
                     qi::as<ast::node_type::relational_expr::rhs_type>()[
                         relational_operator >> shift_expr
                     ]
-                ))
+                )
             ) [
                 _val = make_node_ptr<ast::node::relational_expr>(_1, _2)
             ];
 
         equality_expr
             = (
-                relational_expr >> (*(
+                relational_expr >> *(
                     qi::as<ast::node_type::equality_expr::rhs_type>()[
                         equality_operator >> relational_expr
                     ]
-                ))
+                )
             ) [
                 _val = make_node_ptr<ast::node::equality_expr>(_1, _2)
             ];
