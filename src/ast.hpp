@@ -98,6 +98,7 @@ struct mult_expr;
 struct additive_expr;
 struct shift_expr;
 struct relational_expr;
+struct equality_expr;
 struct program;
 
 }
@@ -126,6 +127,7 @@ DACHS_DEFINE_NODE_PTR(mult_expr);
 DACHS_DEFINE_NODE_PTR(additive_expr);
 DACHS_DEFINE_NODE_PTR(shift_expr);
 DACHS_DEFINE_NODE_PTR(relational_expr);
+DACHS_DEFINE_NODE_PTR(equality_expr);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
@@ -455,11 +457,30 @@ struct relational_expr : public base {
     }
 };
 
-struct program : public base {
-    node::relational_expr value; // TEMPORARY
+struct equality_expr : public base {
+    using rhs_type
+        = std::pair<equality_operator, node::relational_expr>;
+    using rhss_type
+        = std::vector<rhs_type>;
 
-    program(node::relational_expr const& relational)
-        : base(), value(relational)
+    node::relational_expr lhs;
+    rhss_type rhss;
+
+    equality_expr(node::relational_expr const& lhs, rhss_type const& rhss)
+        : lhs(lhs), rhss(rhss)
+    {}
+
+    std::string to_string() const override
+    {
+        return "EQUALITY_EXPR";
+    }
+};
+
+struct program : public base {
+    node::equality_expr value; // TEMPORARY
+
+    program(node::equality_expr const& equality)
+        : base(), value(equality)
     {}
 
     std::string to_string() const override

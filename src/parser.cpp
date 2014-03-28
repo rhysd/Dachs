@@ -87,7 +87,7 @@ public:
         // FIXME: Temporary
         program
             = (
-                relational_expr > (qi::eol | qi::eoi)
+                equality_expr > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(_1)
             ];
@@ -268,6 +268,17 @@ public:
                 _val = make_node_ptr<ast::node::relational_expr>(_1, _2)
             ];
 
+        equality_expr
+            = (
+                relational_expr >> (*(
+                    qi::as<ast::node_type::equality_expr::rhs_type>()[
+                        equality_operator >> relational_expr
+                    ]
+                ))
+            ) [
+                _val = make_node_ptr<ast::node::equality_expr>(_1, _2)
+            ];
+
         qi::on_error<qi::fail>(
             program,
             // qi::_1 : begin of string to parse
@@ -322,6 +333,7 @@ private:
     DACHS_DEFINE_RULE(additive_expr);
     DACHS_DEFINE_RULE(shift_expr);
     DACHS_DEFINE_RULE(relational_expr);
+    DACHS_DEFINE_RULE(equality_expr);
 
 #undef DACHS_DEFINE_RULE
 #undef DACHS_DEFINE_RULE_WITH_LOCALS
