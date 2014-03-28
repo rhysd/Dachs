@@ -9,8 +9,6 @@
 #include <boost/variant/variant.hpp>
 #include <boost/optional.hpp>
 
-#include "helper/variant.hpp"
-
 namespace dachs {
 namespace syntax {
 namespace ast {
@@ -377,8 +375,10 @@ struct cast_expr : public base {
 };
 
 struct mult_expr : public base {
+    using rhs_type
+        = std::pair<mult_operator, node::cast_expr>;
     using rhss_type
-        = std::vector<std::pair<mult_operator, node::cast_expr>>;
+        = std::vector<rhs_type>;
 
     node::cast_expr lhs;
     rhss_type rhss;
