@@ -262,7 +262,9 @@ public:
     {}
 
 private:
+
 #define DACHS_DEFINE_RULE(n) rule<ast::node::n()> n;
+#define DACHS_DEFINE_RULE_WITH_LOCALS(n, ...) rule<ast::node::n(), qi::locals< __VA_ARGS__ >> n;
 
     DACHS_DEFINE_RULE(program);
     DACHS_DEFINE_RULE(literal);
@@ -285,6 +287,7 @@ private:
     DACHS_DEFINE_RULE(mult_expr);
 
 #undef DACHS_DEFINE_RULE
+#undef DACHS_DEFINE_RULE_WITH_LOCALS
 
     //
     // Symbol tables
