@@ -79,13 +79,11 @@ class ast_stringizer {
         return boost::apply_visitor(node_variant_visitor<ast_stringizer>{*this, indent_level}, v);
     }
 
-    template<class NodePtrs>
-    std::string visit_nodes(NodePtrs const& ptrs, size_t const indent_level) const
+    template<class NodePtrs, class Pred>
+    std::string visit_nodes_with_predicate(NodePtrs const& ptrs, Pred const& predicate) const
     {
         return boost::accumulate(
-            ptrs | transformed([this, indent_level](auto const& p){
-                return visit(p, indent_level);
-            })
+            ptrs | transformed(predicate)
             , std::string{}
             , [](auto const& acc, auto const& val) {
                 return acc + val + '\n';
@@ -94,17 +92,23 @@ class ast_stringizer {
     }
 
     template<class NodePtrs>
+    std::string visit_nodes(NodePtrs const& ptrs, size_t const indent_level) const
+    {
+        return visit_nodes_with_predicate(
+                    ptrs,
+                    [this, indent_level](auto const& p){
+                        return visit(p, indent_level);
+                    });
+    }
+
+    template<class NodePtrs>
     std::string visit_node_variants(NodePtrs const& ptrs, size_t const indent_level) const
     {
-        return boost::accumulate(
-            ptrs | transformed([this, indent_level](auto const& p){
-                return visit_variant_node(p, indent_level);
-            })
-            , std::string{}
-            , [](auto const& acc, auto const& val) {
-                return acc + val + '\n';
-            }
-        );
+        return visit_nodes_with_predicate(
+                    ptrs,
+                    [this, indent_level](auto const& p){
+                        return visit_variant_node(p, indent_level);
+                    });
     }
 
 public:
