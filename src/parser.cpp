@@ -10,7 +10,6 @@
 
 #include <boost/format.hpp>
 #include <boost/range/iterator_range.hpp>
-#include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/qi_as.hpp>

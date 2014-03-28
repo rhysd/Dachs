@@ -34,7 +34,7 @@ struct to_string : public boost::static_visitor<std::string> {
     class is_shared_ptr<std::shared_ptr<T>> : std::true_type
     {};
 
-    template<class T, class = typename std::enable_if<is_shared_ptr<T>::value>::type>
+    template<class T, class = typename std::enable_if<!is_shared_ptr<T>::value>::type>
     std::string operator()(T const& value) const
     {
         try {
@@ -46,7 +46,7 @@ struct to_string : public boost::static_visitor<std::string> {
     }
 };
 
-template<class V>
+template<class V> // Workaround for forward declaration
 struct node_variant_visitor : public boost::static_visitor<std::string> {
     V const& visitor;
     size_t const indent_level;
@@ -74,7 +74,7 @@ class ast_stringizer {
     }
 
     template<class... Args>
-    std::string visit_variant(boost::variant<Args...> const& v, size_t const indent_level) const
+    std::string visit_variant_node(boost::variant<Args...> const& v, size_t const indent_level) const
     {
         return boost::apply_visitor(node_variant_visitor<ast_stringizer>{*this, indent_level}, v);
     }
@@ -94,11 +94,11 @@ class ast_stringizer {
     }
 
     template<class NodePtrs>
-    std::string visit_variants(NodePtrs const& ptrs, size_t const indent_level) const
+    std::string visit_node_variants(NodePtrs const& ptrs, size_t const indent_level) const
     {
         return boost::accumulate(
             ptrs | transformed([this, indent_level](auto const& p){
-                return visit_variant(p, indent_level);
+                return visit_variant_node(p, indent_level);
             })
             , std::string{}
             , [](auto const& acc, auto const& val) {
@@ -116,19 +116,12 @@ public:
 
     std::string visit(syntax::ast::node::literal const& l, size_t const indent_level) const
     {
-        return prefix_of(l, indent_level) + '\n' + visit_variant(l->value, indent_level+1);
+        return prefix_of(l, indent_level) + '\n' + visit_variant_node(l->value, indent_level+1);
     }
 
     std::string visit(syntax::ast::node::primary_expr const& pe, size_t const indent_level) const
     {
-        std::string const prefix = prefix_of(pe, indent_level) + '\n';
-        if (auto const ident = helper::variant::get<syntax::ast::node::identifier>(pe->value)) {
-            return prefix + visit(*ident, indent_level+1);
-        } else if (auto const lit = helper::variant::get<syntax::ast::node::literal>(pe->value)) {
-            return prefix + visit(*lit, indent_level+1);
-        } else {
-            return prefix + "ERROR";
-        }
+        return prefix_of(pe, indent_level) + '\n' + visit_variant_node(pe->value, indent_level+1);
     }
 
     std::string visit(syntax::ast::node::index_access const& ia, size_t const indent_level) const
@@ -152,7 +145,7 @@ public:
     std::string visit(syntax::ast::node::postfix_expr const& pe, size_t const indent_level) const
     {
         return prefix_of(pe, indent_level) + '\n'
-            + visit_variants(pe->postfixes, indent_level+1)
+            + visit_node_variants(pe->postfixes, indent_level+1)
             + visit(pe->prefix, indent_level+1);
     }
 
