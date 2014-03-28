@@ -72,7 +72,6 @@ std::string to_string(shift_operator const o);
 std::string to_string(equality_operator const o);
 std::string to_string(assign_operator const o);
 
-
 namespace node_type {
 
 std::size_t generate_id();
@@ -96,6 +95,7 @@ struct unary_expr;
 struct type_name;
 struct cast_expr;
 struct mult_expr;
+struct additive_expr;
 struct program;
 
 }
@@ -121,6 +121,7 @@ DACHS_DEFINE_NODE_PTR(unary_expr);
 DACHS_DEFINE_NODE_PTR(type_name);
 DACHS_DEFINE_NODE_PTR(cast_expr);
 DACHS_DEFINE_NODE_PTR(mult_expr);
+DACHS_DEFINE_NODE_PTR(additive_expr);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
@@ -393,11 +394,30 @@ struct mult_expr : public base {
     }
 };
 
-struct program : public base {
-    node::mult_expr value; // TEMPORARY
+struct additive_expr : public base {
+    using rhs_type
+        = std::pair<additive_operator, node::mult_expr>;
+    using rhss_type
+        = std::vector<rhs_type>;
 
-    program(node::mult_expr const& mult)
-        : base(), value(mult)
+    node::mult_expr lhs;
+    rhss_type rhss;
+
+    additive_expr(node::mult_expr const& lhs, rhss_type const& rhss)
+        : lhs(lhs), rhss(rhss)
+    {}
+
+    std::string to_string() const override
+    {
+        return "ADDITIVE_EXPR";
+    }
+};
+
+struct program : public base {
+    node::additive_expr value; // TEMPORARY
+
+    program(node::additive_expr const& additive)
+        : base(), value(additive)
     {}
 
     std::string to_string() const override

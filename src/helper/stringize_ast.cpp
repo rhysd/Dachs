@@ -7,7 +7,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/range/adaptor/transformed.hpp>
-#include <boost/range/numeric.hpp>
+#include <boost/algorithm/string/join.hpp>
 
 #include "stringize_ast.hpp"
 #include "helper/variant.hpp"
@@ -82,13 +82,7 @@ class ast_stringizer {
     template<class NodePtrs, class Pred>
     std::string visit_nodes_with_predicate(NodePtrs const& ptrs, Pred const& predicate) const
     {
-        return boost::accumulate(
-            ptrs | transformed(predicate)
-            , std::string{}
-            , [](auto const& acc, auto const& val) {
-                return acc + val + '\n';
-            }
-        );
+        return boost::algorithm::join(ptrs | transformed(predicate), "\n");
     }
 
     template<class NodePtrs>
@@ -109,6 +103,19 @@ class ast_stringizer {
                     [this, indent_level](auto const& p){
                         return visit_variant_node(p, indent_level);
                     });
+    }
+
+    template<class BinaryOperatorNodePtr>
+    std::string visit_binary_operator_ptr(BinaryOperatorNodePtr const& p, size_t const indent_level) const
+    {
+        return prefix_of(p, indent_level) + '\n'
+                + visit(p->lhs, indent_level+1) + '\n'
+                + visit_nodes_with_predicate(
+                      p->rhss,
+                      [this, indent_level](auto const& op_and_rhs) {
+                          return indent(indent_level+1) + "OPERATOR: " + syntax::ast::to_string(op_and_rhs.first)
+                              + '\n' + visit(op_and_rhs.second, indent_level+1);
+                      });
     }
 
 public:
@@ -149,7 +156,7 @@ public:
     std::string visit(syntax::ast::node::postfix_expr const& pe, size_t const indent_level) const
     {
         return prefix_of(pe, indent_level) + '\n'
-            + visit_node_variants(pe->postfixes, indent_level+1)
+            + visit_node_variants(pe->postfixes, indent_level+1) + '\n'
             + visit(pe->prefix, indent_level+1);
     }
 
@@ -169,21 +176,18 @@ public:
     std::string visit(syntax::ast::node::cast_expr const& ce, size_t const indent_level) const
     {
         return prefix_of(ce, indent_level) + '\n'
-                + visit_nodes(ce->dest_types, indent_level+1)
+                + visit_nodes(ce->dest_types, indent_level+1) + '\n'
                 + visit(ce->source_expr, indent_level+1);
     }
 
     std::string visit(syntax::ast::node::mult_expr const& me, size_t const indent_level) const
     {
-        return prefix_of(me, indent_level) + '\n'
-                + visit(me->lhs, indent_level+1) + '\n'
-                + visit_nodes_with_predicate(
-                      me->rhss,
-                      [this, indent_level](auto const& op_and_rhs) {
-                          return indent(indent_level+1) + "OPERATOR: " + syntax::ast::to_string(op_and_rhs.first)
-                              + '\n' + visit(op_and_rhs.second, indent_level+2);
-                      }
-                        );
+        return visit_binary_operator_ptr(me, indent_level);
+    }
+
+    std::string visit(syntax::ast::node::additive_expr const& ae, size_t const indent_level) const
+    {
+        return visit_binary_operator_ptr(ae, indent_level);
     }
 
     // For terminal nodes

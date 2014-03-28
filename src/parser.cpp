@@ -87,7 +87,7 @@ public:
         // FIXME: Temporary
         program
             = (
-                mult_expr > (qi::eol | qi::eoi)
+                additive_expr > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(_1)
             ];
@@ -234,6 +234,17 @@ public:
                 _val = make_node_ptr<ast::node::mult_expr>(_1, _2)
             ];
 
+        additive_expr
+            = (
+                mult_expr >> (*(
+                    qi::as<ast::node_type::additive_expr::rhs_type>()[
+                        additive_operator >> mult_expr
+                    ]
+                ))
+            ) [
+                _val = make_node_ptr<ast::node::additive_expr>(_1, _2)
+            ];
+
         qi::on_error<qi::fail>(
             program,
             // qi::_1 : begin of string to parse
@@ -285,6 +296,7 @@ private:
     DACHS_DEFINE_RULE(type_name);
     DACHS_DEFINE_RULE(cast_expr);
     DACHS_DEFINE_RULE(mult_expr);
+    DACHS_DEFINE_RULE(additive_expr);
 
 #undef DACHS_DEFINE_RULE
 #undef DACHS_DEFINE_RULE_WITH_LOCALS
