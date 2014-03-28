@@ -96,6 +96,7 @@ struct type_name;
 struct cast_expr;
 struct mult_expr;
 struct additive_expr;
+struct shift_expr;
 struct program;
 
 }
@@ -122,6 +123,7 @@ DACHS_DEFINE_NODE_PTR(type_name);
 DACHS_DEFINE_NODE_PTR(cast_expr);
 DACHS_DEFINE_NODE_PTR(mult_expr);
 DACHS_DEFINE_NODE_PTR(additive_expr);
+DACHS_DEFINE_NODE_PTR(shift_expr);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
@@ -413,11 +415,30 @@ struct additive_expr : public base {
     }
 };
 
-struct program : public base {
-    node::additive_expr value; // TEMPORARY
+struct shift_expr : public base {
+    using rhs_type
+        = std::pair<shift_operator, node::additive_expr>;
+    using rhss_type
+        = std::vector<rhs_type>;
 
-    program(node::additive_expr const& additive)
-        : base(), value(additive)
+    node::additive_expr lhs;
+    rhss_type rhss;
+
+    shift_expr(node::additive_expr const& lhs, rhss_type const& rhss)
+        : lhs(lhs), rhss(rhss)
+    {}
+
+    std::string to_string() const override
+    {
+        return "shift_EXPR";
+    }
+};
+
+struct program : public base {
+    node::shift_expr value; // TEMPORARY
+
+    program(node::shift_expr const& shift)
+        : base(), value(shift)
     {}
 
     std::string to_string() const override
