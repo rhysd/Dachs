@@ -41,7 +41,7 @@ int main(int const argc, char const* const argv[])
 
     dachs::compiler compiler;
     try {
-        std::cout << compiler.compile(code);
+        std::cout << compiler.compile(code) << std::endl;
     } catch (std::exception const& e) {
         std::cerr << "Internal compilation error: " << e.what() << std::endl;
         return 3;
