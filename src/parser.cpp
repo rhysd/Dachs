@@ -18,6 +18,7 @@
 #include <boost/spirit/include/phoenix_operator.hpp>
 #include <boost/spirit/include/phoenix_stl.hpp>
 #include <boost/spirit/include/phoenix_bind.hpp>
+#include <boost/fusion/include/std_pair.hpp>
 
 #include "parser.hpp"
 #include "ast.hpp"
@@ -86,7 +87,7 @@ public:
         // FIXME: Temporary
         program
             = (
-                cast_expr > (qi::eol | qi::eoi)
+                mult_expr > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(_1)
             ];
@@ -222,6 +223,17 @@ public:
                 _val = make_node_ptr<ast::node::cast_expr>(_2, _1)
             ];
 
+        mult_expr
+            = (
+                cast_expr >> (*(
+                    qi::as<ast::node_type::mult_expr::rhs_type>()[
+                        mult_operator >> cast_expr
+                    ]
+                ))
+            ) [
+                _val = make_node_ptr<ast::node::mult_expr>(_1, _2)
+            ];
+
         qi::on_error<qi::fail>(
             program,
             // qi::_1 : begin of string to parse
@@ -270,6 +282,7 @@ private:
     DACHS_DEFINE_RULE(unary_expr);
     DACHS_DEFINE_RULE(type_name);
     DACHS_DEFINE_RULE(cast_expr);
+    DACHS_DEFINE_RULE(mult_expr);
 
 #undef DACHS_DEFINE_RULE
 

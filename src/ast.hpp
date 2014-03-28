@@ -394,10 +394,10 @@ struct mult_expr : public base {
 };
 
 struct program : public base {
-    node::cast_expr value; // TEMPORARY
+    node::mult_expr value; // TEMPORARY
 
-    program(node::cast_expr const& cast)
-        : base(), value(cast)
+    program(node::mult_expr const& mult)
+        : base(), value(mult)
     {}
 
     std::string to_string() const override

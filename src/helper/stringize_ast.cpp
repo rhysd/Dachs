@@ -173,6 +173,19 @@ public:
                 + visit(ce->source_expr, indent_level+1);
     }
 
+    std::string visit(syntax::ast::node::mult_expr const& me, size_t const indent_level) const
+    {
+        return prefix_of(me, indent_level) + '\n'
+                + visit(me->lhs, indent_level+1) + '\n'
+                + visit_nodes_with_predicate(
+                      me->rhss,
+                      [this, indent_level](auto const& op_and_rhs) {
+                          return indent(indent_level+1) + "OPERATOR: " + syntax::ast::to_string(op_and_rhs.first)
+                              + '\n' + visit(op_and_rhs.second, indent_level+2);
+                      }
+                        );
+    }
+
     // For terminal nodes
     template<class T, class = typename std::enable_if<syntax::ast::is_node<T>::value>::type>
     std::string visit(std::shared_ptr<T> const& p, size_t const indent_level) const
