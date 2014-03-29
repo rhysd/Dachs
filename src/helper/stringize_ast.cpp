@@ -135,6 +135,16 @@ public:
         return prefix_of(p, indent_level) + '\n' + visit(p->value, indent_level+1);
     }
 
+    std::string visit(syntax::ast::node::array_literal const& al, size_t const indent_level) const
+    {
+        return prefix_of(al, indent_level) + visit_nodes(al->element_exprs, indent_level+1);
+    }
+
+    std::string visit(syntax::ast::node::tuple_literal const& tl, size_t const indent_level) const
+    {
+        return prefix_of(tl, indent_level) + visit_nodes(tl->element_exprs, indent_level+1);
+    }
+
     std::string visit(syntax::ast::node::literal const& l, size_t const indent_level) const
     {
         return prefix_of(l, indent_level) + '\n' + visit_variant_node(l->value, indent_level+1);
@@ -147,8 +157,7 @@ public:
 
     std::string visit(syntax::ast::node::index_access const& ia, size_t const indent_level) const
     {
-        // TODO: Temporary
-        return prefix_of(ia, indent_level);
+        return prefix_of(ia, indent_level) + '\n' + visit(ia->index_expr, indent_level+1);
     }
 
     std::string visit(syntax::ast::node::member_access const& ma, size_t const indent_level) const
@@ -159,8 +168,7 @@ public:
 
     std::string visit(syntax::ast::node::function_call const& fc, size_t const indent_level) const
     {
-        // TODO: Temporary
-        return prefix_of(fc, indent_level);
+        return prefix_of(fc, indent_level) + visit_nodes(fc->args, indent_level+1);
     }
 
     std::string visit(syntax::ast::node::postfix_expr const& pe, size_t const indent_level) const

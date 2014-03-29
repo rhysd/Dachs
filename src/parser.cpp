@@ -53,6 +53,7 @@ namespace ascii = boost::spirit::ascii;
 using qi::_1;
 using qi::_2;
 using qi::_3;
+using qi::_a;
 using qi::_val;
 using qi::lit;
 using phx::bind;
@@ -140,20 +141,25 @@ public:
                 _val = make_node_ptr<ast::node::integer_literal>(_1)
             ];
 
-        // FIXME: Temporary
         array_literal
             = (
-                lit('[') >> ']'
+                '[' >> -(
+                    expression[phx::push_back(_a, _1)] % ','
+                ) >> ']'
             ) [
-                _val = make_node_ptr<ast::node::array_literal>()
+                _val = make_node_ptr<ast::node::array_literal>(_a)
             ];
 
-        // FIXME: Temporary
         tuple_literal
             = (
-                '(' >> +lit(',') >> ')'
+                '(' >> -(
+                    expression[phx::push_back(_a, _1)]
+                    >> +(
+                        ',' >> expression[phx::push_back(_a, _1)]
+                    )
+                ) >> ')'
             ) [
-                _val = make_node_ptr<ast::node::tuple_literal>()
+                _val = make_node_ptr<ast::node::tuple_literal>(_a)
             ];
 
         identifier
@@ -169,16 +175,16 @@ public:
 
         primary_expr
             = (
-                literal | identifier // | '(' >> expr >> ')'
+                literal | identifier | '(' >> expression >> ')'
             ) [
                 _val = make_node_ptr<ast::node::primary_expr>(_1)
             ];
 
         index_access
             = (
-                lit('[') >> /* -expression >> */ ']' // TODO: Temporary
+                '[' >> expression >> ']'
             ) [
-                _val = make_node_ptr<ast::node::index_access>()
+                _val = make_node_ptr<ast::node::index_access>(_1)
             ];
 
         member_access
@@ -190,9 +196,11 @@ public:
 
         function_call
             = (
-                '(' >> qi::eps >> ')' // TODO: Temporary
+                '(' >> -(
+                    expression[phx::push_back(_a, _1)] % ','
+                ) >> ')'
             ) [
-                _val = make_node_ptr<ast::node::function_call>()
+                _val = make_node_ptr<ast::node::function_call>(_a)
             ];
 
         postfix_expr
@@ -359,13 +367,13 @@ private:
     DACHS_DEFINE_RULE(float_literal);
     DACHS_DEFINE_RULE(boolean_literal);
     DACHS_DEFINE_RULE(string_literal);
-    DACHS_DEFINE_RULE(array_literal);
-    DACHS_DEFINE_RULE(tuple_literal);
+    DACHS_DEFINE_RULE_WITH_LOCALS(array_literal, std::vector<ast::node::expression>);
+    DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::expression>);
     DACHS_DEFINE_RULE(identifier);
     DACHS_DEFINE_RULE(primary_expr);
     DACHS_DEFINE_RULE(index_access);
     DACHS_DEFINE_RULE(member_access);
-    DACHS_DEFINE_RULE(function_call);
+    DACHS_DEFINE_RULE_WITH_LOCALS(function_call, std::vector<ast::node::expression>);
     DACHS_DEFINE_RULE(postfix_expr);
     DACHS_DEFINE_RULE(unary_expr);
     DACHS_DEFINE_RULE(type_name);

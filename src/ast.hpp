@@ -227,18 +227,28 @@ struct integer_literal : public base {
 };
 
 struct array_literal : public base {
-    // TODO: Not implemented
+    std::vector<node::expression> element_exprs;
+
+    explicit array_literal(std::vector<node::expression> const& elems)
+        : base(), element_exprs(elems)
+    {}
+
     std::string to_string() const override
     {
-        return "ARRAY_LITERAL (Not implemented)";
+        return "ARRAY_LITERAL: size is " + std::to_string(element_exprs.size());
     }
 };
 
 struct tuple_literal : public base {
-    // TODO: Not implemented
+    std::vector<node::expression> element_exprs;
+
+    explicit tuple_literal(std::vector<node::expression> const& elems)
+        : base(), element_exprs(elems)
+    {}
+
     std::string to_string() const override
     {
-        return "TUPLE_LITERAL (Not implemented)";
+        return "TUPLE_LITERAL: size is " + std::to_string(element_exprs.size());
     }
 };
 
@@ -282,7 +292,7 @@ struct primary_expr : public base {
     using value_type =
         boost::variant< node::identifier
                       , node::literal
-                      // , node::expression
+                      , node::expression
                       >;
     value_type value;
 
@@ -299,9 +309,10 @@ struct primary_expr : public base {
 
 // TODO: Not implemented
 struct index_access : public base {
-    // boost::optional<node::expression> index_expr;
-    index_access()
-        : base()
+    node::expression index_expr;
+
+    index_access(node::expression const& idx_expr)
+        : base(), index_expr(idx_expr)
     {}
 
     std::string to_string() const override
@@ -324,10 +335,10 @@ struct member_access : public base {
 };
 
 struct function_call : public base {
-    // TODO: Not implemented
-    // std::vector<node::expression> args;
-    function_call()
-        : base()
+    std::vector<node::expression> args;
+
+    function_call(std::vector<node::expression> const& args)
+        : base(), args(args)
     {}
 
     std::string to_string() const override
