@@ -87,7 +87,7 @@ public:
         // FIXME: Temporary
         program
             = (
-                logical_or_expr > (qi::eol | qi::eoi)
+                expression > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(_1)
             ];
@@ -313,6 +313,13 @@ public:
                 _val = make_node_ptr<ast::node::logical_or_expr>(_1, _2)
             ];
 
+        expression
+            = (
+                logical_or_expr >> -(':' >> type_name)
+            ) [
+                _val = make_node_ptr<ast::node::expression>(_1, _2)
+            ];
+
         qi::on_error<qi::fail>(
             program,
             // qi::_1 : begin of string to parse
@@ -373,6 +380,7 @@ private:
     DACHS_DEFINE_RULE(or_expr);
     DACHS_DEFINE_RULE(logical_and_expr);
     DACHS_DEFINE_RULE(logical_or_expr);
+    DACHS_DEFINE_RULE(expression);
 
 #undef DACHS_DEFINE_RULE
 #undef DACHS_DEFINE_RULE_WITH_LOCALS

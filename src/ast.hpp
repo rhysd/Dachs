@@ -104,6 +104,7 @@ struct xor_expr;
 struct or_expr;
 struct logical_and_expr;
 struct logical_or_expr;
+struct expression;
 struct program;
 
 }
@@ -138,6 +139,7 @@ DACHS_DEFINE_NODE_PTR(xor_expr);
 DACHS_DEFINE_NODE_PTR(or_expr);
 DACHS_DEFINE_NODE_PTR(logical_and_expr);
 DACHS_DEFINE_NODE_PTR(logical_or_expr);
+DACHS_DEFINE_NODE_PTR(expression);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
@@ -566,10 +568,24 @@ struct logical_or_expr : public base {
     }
 };
 
-struct program : public base {
-    node::logical_or_expr value; // TEMPORARY
+struct expression : public base {
+    node::logical_or_expr child_expr;
+    boost::optional<node::type_name> maybe_type;
 
-    program(node::logical_or_expr const& logical_or)
+    expression(node::logical_or_expr const& e, boost::optional<node::type_name> const& t)
+        : child_expr(e), maybe_type(t)
+    {}
+
+    std::string to_string() const override
+    {
+        return "EXPRESSION";
+    }
+};
+
+struct program : public base {
+    node::expression value; // TEMPORARY
+
+    program(node::expression const& logical_or)
         : base(), value(logical_or)
     {}
 

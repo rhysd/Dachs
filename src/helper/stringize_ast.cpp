@@ -79,6 +79,12 @@ class ast_stringizer {
         return boost::apply_visitor(node_variant_visitor<ast_stringizer>{*this, indent_level}, v);
     }
 
+    template<class T>
+    std::string visit_optional_node(boost::optional<T> const& o, size_t const indent_level) const
+    {
+        return (o ? '\n' + visit(*o, indent_level) : "");
+    }
+
     template<class NodePtrs, class Pred>
     std::string visit_nodes_with_predicate(NodePtrs const& ptrs, Pred const& predicate) const
     {
@@ -232,6 +238,13 @@ public:
     std::string visit(syntax::ast::node::logical_or_expr const& loe, size_t const indent_level) const
     {
         return prefix_of(loe, indent_level) + visit_nodes(loe->exprs, indent_level+1);
+    }
+
+    std::string visit(syntax::ast::node::expression const& e, size_t const indent_level) const
+    {
+        return prefix_of(e, indent_level) + '\n'
+               + visit(e->child_expr, indent_level+1)
+               + visit_optional_node(e->maybe_type, indent_level+1);
     }
 
     // For terminal nodes
