@@ -280,35 +280,35 @@ public:
 
         and_expr
             = (
-                *(equality_expr >> "&") >> equality_expr
+                *(equality_expr >> '&') >> equality_expr
             ) [
                 _val = make_node_ptr<ast::node::and_expr>(_1, _2)
             ];
 
         xor_expr
             = (
-                *(and_expr >> "&") >> and_expr
+                *(and_expr >> '^') >> and_expr
             ) [
                 _val = make_node_ptr<ast::node::xor_expr>(_1, _2)
             ];
 
         or_expr
             = (
-                *(xor_expr >> "&") >> xor_expr
+                *(xor_expr >> '|') >> xor_expr
             ) [
                 _val = make_node_ptr<ast::node::or_expr>(_1, _2)
             ];
 
         logical_and_expr
             = (
-                *(or_expr >> "&") >> or_expr
+                *(or_expr >> "&&") >> or_expr
             ) [
                 _val = make_node_ptr<ast::node::logical_and_expr>(_1, _2)
             ];
 
         logical_or_expr
             = (
-                *(logical_and_expr >> "&") >> logical_and_expr
+                *(logical_and_expr >> "||") >> logical_and_expr
             ) [
                 _val = make_node_ptr<ast::node::logical_or_expr>(_1, _2)
             ];
