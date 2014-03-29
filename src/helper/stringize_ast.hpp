@@ -8,7 +8,7 @@
 namespace dachs {
 namespace helper {
 
-std::string stringize_ast(syntax::ast::ast const& ast);
+std::string stringize_ast(ast::ast const& ast);
 
 } // namespace helper
 } // namespace dachs

@@ -123,132 +123,132 @@ class ast_stringizer {
                 + visit_nodes_with_predicate(
                       p->rhss,
                       [this, indent_level](auto const& op_and_rhs) {
-                          return indent(indent_level+1) + "OPERATOR: " + syntax::ast::to_string(op_and_rhs.first)
+                          return indent(indent_level+1) + "OPERATOR: " + ast::to_string(op_and_rhs.first)
                               + '\n' + visit(op_and_rhs.second, indent_level+1);
                       });
     }
 
 public:
 
-    std::string visit(syntax::ast::node::program const& p, size_t const indent_level) const
+    std::string visit(ast::node::program const& p, size_t const indent_level) const
     {
         return prefix_of(p, indent_level) + '\n' + visit(p->value, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::array_literal const& al, size_t const indent_level) const
+    std::string visit(ast::node::array_literal const& al, size_t const indent_level) const
     {
         return prefix_of(al, indent_level) + visit_nodes(al->element_exprs, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::tuple_literal const& tl, size_t const indent_level) const
+    std::string visit(ast::node::tuple_literal const& tl, size_t const indent_level) const
     {
         return prefix_of(tl, indent_level) + visit_nodes(tl->element_exprs, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::literal const& l, size_t const indent_level) const
+    std::string visit(ast::node::literal const& l, size_t const indent_level) const
     {
         return prefix_of(l, indent_level) + '\n' + visit_variant_node(l->value, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::primary_expr const& pe, size_t const indent_level) const
+    std::string visit(ast::node::primary_expr const& pe, size_t const indent_level) const
     {
         return prefix_of(pe, indent_level) + '\n' + visit_variant_node(pe->value, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::index_access const& ia, size_t const indent_level) const
+    std::string visit(ast::node::index_access const& ia, size_t const indent_level) const
     {
         return prefix_of(ia, indent_level) + '\n' + visit(ia->index_expr, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::member_access const& ma, size_t const indent_level) const
+    std::string visit(ast::node::member_access const& ma, size_t const indent_level) const
     {
         return prefix_of(ma, indent_level) + '\n'
                 + visit(ma->member_name, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::function_call const& fc, size_t const indent_level) const
+    std::string visit(ast::node::function_call const& fc, size_t const indent_level) const
     {
         return prefix_of(fc, indent_level) + visit_nodes(fc->args, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::postfix_expr const& pe, size_t const indent_level) const
+    std::string visit(ast::node::postfix_expr const& pe, size_t const indent_level) const
     {
         return prefix_of(pe, indent_level)
             + visit_node_variants(pe->postfixes, indent_level+1) + '\n'
             + visit(pe->prefix, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::unary_expr const& ue, size_t const indent_level) const
+    std::string visit(ast::node::unary_expr const& ue, size_t const indent_level) const
     {
         return prefix_of(ue, indent_level) + '\n'
                 + visit(ue->expr, indent_level+1);
     }
 
     // TODO: Temporary
-    std::string visit(syntax::ast::node::type_name const& tn, size_t const indent_level) const
+    std::string visit(ast::node::type_name const& tn, size_t const indent_level) const
     {
         return prefix_of(tn, indent_level) + '\n'
                 + visit(tn->name, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::cast_expr const& ce, size_t const indent_level) const
+    std::string visit(ast::node::cast_expr const& ce, size_t const indent_level) const
     {
         return prefix_of(ce, indent_level)
                 + visit_nodes(ce->dest_types, indent_level+1) + '\n'
                 + visit(ce->source_expr, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::mult_expr const& me, size_t const indent_level) const
+    std::string visit(ast::node::mult_expr const& me, size_t const indent_level) const
     {
         return visit_binary_operator_ptr(me, indent_level);
     }
 
-    std::string visit(syntax::ast::node::additive_expr const& ae, size_t const indent_level) const
+    std::string visit(ast::node::additive_expr const& ae, size_t const indent_level) const
     {
         return visit_binary_operator_ptr(ae, indent_level);
     }
 
-    std::string visit(syntax::ast::node::shift_expr const& se, size_t const indent_level) const
+    std::string visit(ast::node::shift_expr const& se, size_t const indent_level) const
     {
         return visit_binary_operator_ptr(se, indent_level);
     }
 
-    std::string visit(syntax::ast::node::relational_expr const& re, size_t const indent_level) const
+    std::string visit(ast::node::relational_expr const& re, size_t const indent_level) const
     {
         return visit_binary_operator_ptr(re, indent_level);
     }
 
-    std::string visit(syntax::ast::node::equality_expr const& ee, size_t const indent_level) const
+    std::string visit(ast::node::equality_expr const& ee, size_t const indent_level) const
     {
         return visit_binary_operator_ptr(ee, indent_level);
     }
 
-    std::string visit(syntax::ast::node::and_expr const& ae, size_t const indent_level) const
+    std::string visit(ast::node::and_expr const& ae, size_t const indent_level) const
     {
         return prefix_of(ae, indent_level) + visit_nodes(ae->exprs, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::xor_expr const& xe, size_t const indent_level) const
+    std::string visit(ast::node::xor_expr const& xe, size_t const indent_level) const
     {
         return prefix_of(xe, indent_level) + visit_nodes(xe->exprs, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::or_expr const& oe, size_t const indent_level) const
+    std::string visit(ast::node::or_expr const& oe, size_t const indent_level) const
     {
         return prefix_of(oe, indent_level) + visit_nodes(oe->exprs, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::logical_and_expr const& lae, size_t const indent_level) const
+    std::string visit(ast::node::logical_and_expr const& lae, size_t const indent_level) const
     {
         return prefix_of(lae, indent_level) + visit_nodes(lae->exprs, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::logical_or_expr const& loe, size_t const indent_level) const
+    std::string visit(ast::node::logical_or_expr const& loe, size_t const indent_level) const
     {
         return prefix_of(loe, indent_level) + visit_nodes(loe->exprs, indent_level+1);
     }
 
-    std::string visit(syntax::ast::node::expression const& e, size_t const indent_level) const
+    std::string visit(ast::node::expression const& e, size_t const indent_level) const
     {
         return prefix_of(e, indent_level) + '\n'
                + visit(e->child_expr, indent_level+1)
@@ -256,7 +256,7 @@ public:
     }
 
     // For terminal nodes
-    template<class T, class = typename std::enable_if<syntax::ast::is_node<T>::value>::type>
+    template<class T, class = typename std::enable_if<ast::is_node<T>::value>::type>
     std::string visit(std::shared_ptr<T> const& p, size_t const indent_level) const
     {
         return prefix_of(p, indent_level);
@@ -265,7 +265,7 @@ public:
 
 } // namespace detail
 
-std::string stringize_ast(syntax::ast::ast const& ast)
+std::string stringize_ast(ast::ast const& ast)
 {
     return detail::ast_stringizer{}.visit(ast.root, 0);
 }

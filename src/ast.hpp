@@ -10,7 +10,6 @@
 #include <boost/optional.hpp>
 
 namespace dachs {
-namespace syntax {
 namespace ast {
 
 enum class unary_operator {
@@ -616,7 +615,6 @@ struct ast {
 };
 
 } // namespace ast
-} // namespace syntax
 } // namespace dachs
 
 #endif    // DACHS_AST_HPP_INCLUDED

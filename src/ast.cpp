@@ -5,7 +5,6 @@
 #include "ast.hpp"
 
 namespace dachs {
-namespace syntax {
 namespace ast {
 
 std::string to_string(unary_operator const o)
@@ -85,7 +84,7 @@ std::string unary_expr::to_string() const
 {
     return "UNARY_EXPR: " + boost::algorithm::join(
             values | boost::adaptors::transformed(
-                [](auto const op) { return syntax::ast::to_string(op); }
+                [](auto const op) { return ::dachs::ast::to_string(op); }
             ), " ");
 }
 
@@ -101,5 +100,4 @@ std::string integer_literal::to_string() const
 
 } // namespace node_type
 } // namespace ast
-} // namespace syntax
 } // namespace dachs
