@@ -489,10 +489,11 @@ struct equality_expr : public base {
 struct and_expr : public base {
     std::vector<node::equality_expr> exprs;
 
-    explicit and_expr(std::vector<node::equality_expr> const& lhss, node::equality_expr const& rhs)
-        : base(), exprs(lhss)
+    explicit and_expr(node::equality_expr const& lhs, std::vector<node::equality_expr> const& rhss)
+        : base(), exprs({lhs})
     {
-        exprs.push_back(rhs);
+        exprs.reserve(1+rhss.size());
+        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
     }
 
     std::string to_string() const override
@@ -504,10 +505,11 @@ struct and_expr : public base {
 struct xor_expr : public base {
     std::vector<node::and_expr> exprs;
 
-    explicit xor_expr(std::vector<node::and_expr> const& lhss, node::and_expr const& rhs)
-        : base(), exprs(lhss)
+    explicit xor_expr(node::and_expr const& lhs, std::vector<node::and_expr> const& rhss)
+        : base(), exprs({lhs})
     {
-        exprs.push_back(rhs);
+        exprs.reserve(1+rhss.size());
+        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
     }
 
     std::string to_string() const override
@@ -519,10 +521,11 @@ struct xor_expr : public base {
 struct or_expr : public base {
     std::vector<node::xor_expr> exprs;
 
-    explicit or_expr(std::vector<node::xor_expr> const& lhss, node::xor_expr const& rhs)
-        : base(), exprs(lhss)
+    explicit or_expr(node::xor_expr const& lhs, std::vector<node::xor_expr> const& rhss)
+        : base(), exprs({lhs})
     {
-        exprs.push_back(rhs);
+        exprs.reserve(1+rhss.size());
+        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
     }
 
     std::string to_string() const override
@@ -534,10 +537,11 @@ struct or_expr : public base {
 struct logical_and_expr : public base {
     std::vector<node::or_expr> exprs;
 
-    explicit logical_and_expr(std::vector<node::or_expr> const& lhss, node::or_expr const& rhs)
-        : base(), exprs(lhss)
+    explicit logical_and_expr(node::or_expr const& lhs, std::vector<node::or_expr> const& rhss)
+        : base(), exprs({lhs})
     {
-        exprs.push_back(rhs);
+        exprs.reserve(1+rhss.size());
+        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
     }
 
     std::string to_string() const override
@@ -549,10 +553,11 @@ struct logical_and_expr : public base {
 struct logical_or_expr : public base {
     std::vector<node::logical_and_expr> exprs;
 
-    explicit logical_or_expr(std::vector<node::logical_and_expr> const& lhss, node::logical_and_expr const& rhs)
-        : base(), exprs(lhss)
+    explicit logical_or_expr(node::logical_and_expr const& lhs, std::vector<node::logical_and_expr> const& rhss)
+        : base(), exprs({lhs})
     {
-        exprs.push_back(rhs);
+        exprs.reserve(1+rhss.size());
+        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
     }
 
     std::string to_string() const override
