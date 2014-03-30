@@ -104,6 +104,8 @@ struct or_expr;
 struct logical_and_expr;
 struct logical_or_expr;
 struct expression;
+struct assignment_stmt;
+struct statement;
 struct program;
 
 }
@@ -139,6 +141,8 @@ DACHS_DEFINE_NODE_PTR(or_expr);
 DACHS_DEFINE_NODE_PTR(logical_and_expr);
 DACHS_DEFINE_NODE_PTR(logical_or_expr);
 DACHS_DEFINE_NODE_PTR(expression);
+DACHS_DEFINE_NODE_PTR(assignment_stmt);
+DACHS_DEFINE_NODE_PTR(statement);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
@@ -592,11 +596,47 @@ struct expression : public base {
     }
 };
 
-struct program : public base {
-    node::expression value; // TEMPORARY
+struct assignment_stmt : public base {
+    std::vector<node::postfix_expr> assignees;
+    assign_operator assign_op;
+    std::vector<node::expression> rhs_exprs;
 
-    program(node::expression const& logical_or)
-        : base(), value(logical_or)
+    assignment_stmt(std::vector<node::postfix_expr> const& assignees,
+                    assign_operator assign_op,
+                    std::vector<node::expression> const& rhs_exprs)
+        : assignees(assignees), assign_op(assign_op), rhs_exprs(rhs_exprs)
+    {}
+
+    std::string to_string() const override
+    {
+        return "ASSIGNMENT_STMT";
+    }
+};
+
+struct statement : public base {
+    using value_type =
+        boost::variant<
+              node::assignment_stmt
+            , node::expression
+        >;
+    value_type value;
+
+    template<class T>
+    explicit statement(T && v)
+        : value(std::forward<T>(v))
+    {}
+
+    std::string to_string() const override
+    {
+        return "STATEMENT";
+    }
+};
+
+struct program : public base {
+    node::statement value; // TEMPORARY
+
+    program(node::statement const& stmt)
+        : base(), value(stmt)
     {}
 
     std::string to_string() const override

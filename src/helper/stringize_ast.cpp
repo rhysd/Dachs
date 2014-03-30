@@ -255,6 +255,19 @@ public:
                + visit_optional_node(e->maybe_type, indent_level+1);
     }
 
+    std::string visit(ast::node::assignment_stmt const& as, size_t const indent_level) const
+    {
+        return prefix_of(as, indent_level)
+               + visit_nodes(as->assignees, indent_level+1)
+               + '\n' + indent(indent_level+1) + "ASSIGN_OPERATOR: " + ast::to_string(as->assign_op)
+               + visit_nodes(as->rhs_exprs, indent_level+1);
+    }
+
+    std::string visit(ast::node::statement const& s, size_t const indent_level) const
+    {
+        return prefix_of(s, indent_level) + '\n' + visit_variant_node(s->value, indent_level+1);
+    }
+
     // For terminal nodes
     template<class T, class = typename std::enable_if<ast::is_node<T>::value>::type>
     std::string visit(std::shared_ptr<T> const& p, size_t const indent_level) const
