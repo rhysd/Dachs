@@ -80,6 +80,11 @@ std::size_t generate_id()
     return ++current_id;
 }
 
+std::string character_literal::to_string() const
+{
+    return "CHAR_LITERAL: '" + boost::lexical_cast<std::string>(value) + '\'';
+}
+
 std::string unary_expr::to_string() const
 {
     return "UNARY_EXPR: " + boost::algorithm::join(
