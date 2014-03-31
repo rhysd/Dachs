@@ -54,6 +54,7 @@ using qi::_1;
 using qi::_2;
 using qi::_3;
 using qi::_4;
+using qi::_5;
 using qi::_a;
 using qi::_val;
 using qi::lit;
@@ -352,7 +353,7 @@ public:
 
         if_stmt
             = (
-                "if" >> expression >> (lit("then") || '\n')
+                if_kind >> expression >> (lit("then") || '\n')
                 >> (statement - "end" - "elseif" - "else") % sep >> -lit('\n')
                 >> *(
                     qi::as<ast::node_type::if_stmt::elseif_type>()[
@@ -362,7 +363,7 @@ public:
                 ) >> -("else" >> -lit('\n') >> (statement - "end") % sep >> -lit('\n'))
                 >> "end"
             ) [
-                _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4)
+                _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4, _5)
             ];
 
         statement
@@ -532,6 +533,15 @@ private:
         }
     } assign_operator;
 
+    struct if_kind_rule_type : public qi::symbols<char, ast::if_kind> {
+        if_kind_rule_type()
+        {
+            add
+                ("if", ast::if_kind::if_)
+                ("unless", ast::if_kind::unless)
+            ;
+        }
+    } if_kind;
 };
 
 

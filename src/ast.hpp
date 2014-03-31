@@ -63,6 +63,11 @@ enum class assign_operator {
     logical_or,
 };
 
+enum class if_kind {
+    if_,
+    unless,
+};
+
 std::string to_string(unary_operator const o);
 std::string to_string(mult_operator const o);
 std::string to_string(additive_operator const o);
@@ -628,27 +633,30 @@ struct assignment_stmt : public base {
     }
 };
 
-// FIXME: Temporary.  body should have list of statements
 struct if_stmt : public base {
     using stmt_list_type
         = std::vector<node::statement>;
     using elseif_type
         = std::pair<node::expression, stmt_list_type>;
+
+    if_kind kind;
     node::expression condition;
     stmt_list_type then_stmts;
     std::vector<elseif_type> elseif_stmts_list;
     boost::optional<stmt_list_type> maybe_else_stmts;
 
-    if_stmt(node::expression const& cond,
+    if_stmt(if_kind const kind,
+            node::expression const& cond,
             stmt_list_type const& then,
             std::vector<elseif_type> const& elseifs,
             boost::optional<stmt_list_type> const& maybe_else)
-        : condition(cond), then_stmts(then), elseif_stmts_list(elseifs), maybe_else_stmts(maybe_else)
+        : kind(kind), condition(cond), then_stmts(then), elseif_stmts_list(elseifs), maybe_else_stmts(maybe_else)
     {}
 
     std::string to_string() const override
     {
-        return "IF_STMT";
+        return std::string{"IF_STMT: "}
+            + (kind == if_kind::if_ ? "if" : "unless");
     }
 };
 
