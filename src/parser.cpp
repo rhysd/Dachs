@@ -354,7 +354,7 @@ public:
                 >> *(
                     qi::as<ast::node_type::if_stmt::elseif_type>()["elseif" >> expression >> (lit("then") || '\n')
                     >> expression >> -lit('\n')]
-                ) >> -("else" >> expression >> -lit('\n'))
+                ) >> -("else" >> -lit('\n') >> expression >> -lit('\n'))
                 >> "end"
             ) [
                 _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4)

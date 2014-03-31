@@ -628,6 +628,7 @@ struct assignment_stmt : public base {
     }
 };
 
+// FIXME: Temporary.  body should have list of statements
 struct if_stmt : public base {
     using elseif_type
         = std::pair<node::expression, node::expression>;
