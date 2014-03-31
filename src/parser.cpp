@@ -353,14 +353,14 @@ public:
 
         if_stmt
             = (
-                if_kind >> expression >> (lit("then") || '\n')
-                >> (statement - "end" - "elseif" - "else") % sep >> -lit('\n')
+                if_kind >> expression >> ("then" || sep)
+                >> (statement - "end" - "elseif" - "else") % sep >> -sep
                 >> *(
                     qi::as<ast::node_type::if_stmt::elseif_type>()[
-                        "elseif" >> expression >> (lit("then") || '\n')
-                        >> (statement - "end" - "else") % sep >> -lit('\n')
+                        "elseif" >> expression >> ("then" || sep)
+                        >> (statement - "end" - "else") % sep >> -sep
                     ]
-                ) >> -("else" >> -lit('\n') >> (statement - "end") % sep >> -lit('\n'))
+                ) >> -("else" >> -sep >> (statement - "end") % sep >> -sep)
                 >> "end"
             ) [
                 _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4, _5)
