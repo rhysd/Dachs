@@ -273,7 +273,7 @@ public:
                             return visit(cond_and_then_stmts.first, indent_level+1)
                                 + visit_nodes(cond_and_then_stmts.second, indent_level+1);
                         })
-                + (is->maybe_else_stmts ? '\n' + visit_nodes(*(is->maybe_else_stmts), indent_level+1) : "");
+                + (is->maybe_else_stmts ? visit_nodes(*(is->maybe_else_stmts), indent_level+1) : "");
     }
 
     std::string visit(ast::node::statement const& s, size_t const indent_level) const
