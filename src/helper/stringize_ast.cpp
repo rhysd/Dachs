@@ -263,6 +263,18 @@ public:
                + visit_nodes(as->rhs_exprs, indent_level+1);
     }
 
+    std::string visit(ast::node::if_stmt const& is, size_t const indent_level) const
+    {
+        return prefix_of(is, indent_level)
+                + '\n' + visit(is->condition, indent_level+1)
+                + '\n' + visit(is->then_expr, indent_level+1)
+                + visit_nodes_with_predicate(is->elseif_exprs,
+                        [this, indent_level](auto const& cond_and_then){
+                            return visit(cond_and_then.first, indent_level+1) + '\n' + visit(cond_and_then.second, indent_level+1);
+                        })
+                + (is->maybe_else_expr ? '\n' + visit(*(is->maybe_else_expr), indent_level+1) : "");
+    }
+
     std::string visit(ast::node::statement const& s, size_t const indent_level) const
     {
         return prefix_of(s, indent_level) + '\n' + visit_variant_node(s->value, indent_level+1);

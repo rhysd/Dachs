@@ -53,6 +53,7 @@ namespace ascii = boost::spirit::ascii;
 using qi::_1;
 using qi::_2;
 using qi::_3;
+using qi::_4;
 using qi::_a;
 using qi::_val;
 using qi::lit;
@@ -346,9 +347,22 @@ public:
                 _val = make_node_ptr<ast::node::assignment_stmt>(_1, _2, _3)
             ];
 
+        if_stmt
+            = (
+                "if" >> expression >> (lit("then") || '\n')
+                >> expression >> -lit('\n')
+                >> *(
+                    qi::as<ast::node_type::if_stmt::elseif_type>()["elseif" >> expression >> (lit("then") || '\n')
+                    >> expression >> -lit('\n')]
+                ) >> -("else" >> expression >> -lit('\n'))
+                >> "end"
+            ) [
+                _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4)
+            ];
+
         statement
             = (
-                assignment_stmt | expression
+                if_stmt | assignment_stmt | expression
             ) [
                 _val = make_node_ptr<ast::node::statement>(_1)
             ];
@@ -416,6 +430,7 @@ private:
     DACHS_DEFINE_RULE(logical_or_expr);
     DACHS_DEFINE_RULE(expression);
     DACHS_DEFINE_RULE(assignment_stmt);
+    DACHS_DEFINE_RULE(if_stmt);
     DACHS_DEFINE_RULE(statement);
 
 #undef DACHS_DEFINE_RULE

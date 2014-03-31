@@ -106,6 +106,7 @@ struct logical_and_expr;
 struct logical_or_expr;
 struct expression;
 struct assignment_stmt;
+struct if_stmt;
 struct statement;
 struct program;
 
@@ -144,6 +145,7 @@ DACHS_DEFINE_NODE_PTR(logical_and_expr);
 DACHS_DEFINE_NODE_PTR(logical_or_expr);
 DACHS_DEFINE_NODE_PTR(expression);
 DACHS_DEFINE_NODE_PTR(assignment_stmt);
+DACHS_DEFINE_NODE_PTR(if_stmt);
 DACHS_DEFINE_NODE_PTR(statement);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
@@ -626,10 +628,32 @@ struct assignment_stmt : public base {
     }
 };
 
+struct if_stmt : public base {
+    using elseif_type
+        = std::pair<node::expression, node::expression>;
+    node::expression condition;
+    node::expression then_expr;
+    std::vector<elseif_type> elseif_exprs;
+    boost::optional<node::expression> maybe_else_expr;
+
+    if_stmt(node::expression const& cond,
+            node::expression const& then,
+            std::vector<elseif_type> const& elseifs,
+            boost::optional<node::expression> const& maybe_else)
+        : condition(cond), then_expr(then), elseif_exprs(elseifs), maybe_else_expr(maybe_else)
+    {}
+
+    std::string to_string() const override
+    {
+        return "IF_STMT";
+    }
+};
+
 struct statement : public base {
     using value_type =
         boost::variant<
-              node::assignment_stmt
+              node::if_stmt
+            , node::assignment_stmt
             , node::expression
         >;
     value_type value;
