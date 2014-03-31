@@ -102,6 +102,7 @@ public:
                 | integer_literal
                 | array_literal
                 | tuple_literal
+                | symbol_literal
             ) [
                 _val = make_node_ptr<ast::node::literal>(_1)
             ];
@@ -160,6 +161,16 @@ public:
                 ) >> ')'
             ) [
                 _val = make_node_ptr<ast::node::tuple_literal>(_a)
+            ];
+
+        symbol_literal
+            = qi::lexeme[
+                ':' >>
+                qi::as_string[
+                    +qi::char_
+                ][
+                    _val = make_node_ptr<ast::node::symbol_literal>(_1)
+                ]
             ];
 
         identifier
@@ -383,6 +394,7 @@ private:
     DACHS_DEFINE_RULE(string_literal);
     DACHS_DEFINE_RULE_WITH_LOCALS(array_literal, std::vector<ast::node::expression>);
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::expression>);
+    DACHS_DEFINE_RULE(symbol_literal);
     DACHS_DEFINE_RULE(identifier);
     DACHS_DEFINE_RULE(primary_expr);
     DACHS_DEFINE_RULE(index_access);

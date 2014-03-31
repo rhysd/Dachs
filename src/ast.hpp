@@ -83,6 +83,7 @@ struct boolean_literal;
 struct string_literal;
 struct array_literal;
 struct tuple_literal;
+struct symbol_literal;
 struct literal;
 struct identifier;
 struct primary_expr;
@@ -120,6 +121,7 @@ DACHS_DEFINE_NODE_PTR(boolean_literal);
 DACHS_DEFINE_NODE_PTR(string_literal);
 DACHS_DEFINE_NODE_PTR(array_literal);
 DACHS_DEFINE_NODE_PTR(tuple_literal);
+DACHS_DEFINE_NODE_PTR(symbol_literal);
 DACHS_DEFINE_NODE_PTR(literal);
 DACHS_DEFINE_NODE_PTR(identifier);
 DACHS_DEFINE_NODE_PTR(primary_expr);
@@ -209,7 +211,7 @@ struct string_literal : public base {
 
     std::string to_string() const override
     {
-        return std::string{"STRING_LITERAL: \""} + value + '"';
+        return "STRING_LITERAL: \"" + value + '"';
     }
 };
 
@@ -252,6 +254,19 @@ struct tuple_literal : public base {
     }
 };
 
+struct symbol_literal : public base {
+    std::string value;
+
+    explicit symbol_literal(std::string const& s)
+        : base(), value(s)
+    {}
+
+    std::string to_string() const override
+    {
+        return "SYMBOL_LITERAL: " + value;
+    }
+};
+
 struct literal : public base {
     using value_type =
         boost::variant< node::character_literal
@@ -260,7 +275,8 @@ struct literal : public base {
                       , node::string_literal
                       , node::integer_literal
                       , node::array_literal
-                      , node::tuple_literal >;
+                      , node::tuple_literal
+                      , node::symbol_literal >;
     value_type value;
 
     template<class T>
