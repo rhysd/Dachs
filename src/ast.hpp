@@ -630,18 +630,20 @@ struct assignment_stmt : public base {
 
 // FIXME: Temporary.  body should have list of statements
 struct if_stmt : public base {
+    using stmt_list_type
+        = std::vector<node::statement>;
     using elseif_type
-        = std::pair<node::expression, node::expression>;
+        = std::pair<node::expression, stmt_list_type>;
     node::expression condition;
-    node::expression then_expr;
-    std::vector<elseif_type> elseif_exprs;
-    boost::optional<node::expression> maybe_else_expr;
+    stmt_list_type then_stmts;
+    std::vector<elseif_type> elseif_stmts_list;
+    boost::optional<stmt_list_type> maybe_else_stmts;
 
     if_stmt(node::expression const& cond,
-            node::expression const& then,
+            stmt_list_type const& then,
             std::vector<elseif_type> const& elseifs,
-            boost::optional<node::expression> const& maybe_else)
-        : condition(cond), then_expr(then), elseif_exprs(elseifs), maybe_else_expr(maybe_else)
+            boost::optional<stmt_list_type> const& maybe_else)
+        : condition(cond), then_stmts(then), elseif_stmts_list(elseifs), maybe_else_stmts(maybe_else)
     {}
 
     std::string to_string() const override

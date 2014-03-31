@@ -86,6 +86,9 @@ class grammar : public qi::grammar<Iterator, ast::node::program(), ascii::blank_
 public:
     grammar() : grammar::base_type(program)
     {
+
+        sep = lit('\n') | ';';
+
         // FIXME: Temporary
         program
             = (
@@ -350,11 +353,13 @@ public:
         if_stmt
             = (
                 "if" >> expression >> (lit("then") || '\n')
-                >> expression >> -lit('\n')
+                >> (statement - "end" - "elseif" - "else") % sep >> -lit('\n')
                 >> *(
-                    qi::as<ast::node_type::if_stmt::elseif_type>()["elseif" >> expression >> (lit("then") || '\n')
-                    >> expression >> -lit('\n')]
-                ) >> -("else" >> -lit('\n') >> expression >> -lit('\n'))
+                    qi::as<ast::node_type::if_stmt::elseif_type>()[
+                        "elseif" >> expression >> (lit("then") || '\n')
+                        >> (statement - "end" - "else") % sep >> -lit('\n')
+                    ]
+                ) >> -("else" >> -lit('\n') >> (statement - "end") % sep >> -lit('\n'))
                 >> "end"
             ) [
                 _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4)
@@ -395,6 +400,8 @@ public:
     {}
 
 private:
+
+    rule<qi::unused_type()> sep;
 
 #define DACHS_DEFINE_RULE(n) rule<ast::node::n()> n;
 #define DACHS_DEFINE_RULE_WITH_LOCALS(n, ...) rule<ast::node::n(), qi::locals< __VA_ARGS__ >> n;

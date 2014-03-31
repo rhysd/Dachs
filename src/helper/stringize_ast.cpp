@@ -267,12 +267,13 @@ public:
     {
         return prefix_of(is, indent_level)
                 + '\n' + visit(is->condition, indent_level+1)
-                + '\n' + visit(is->then_expr, indent_level+1)
-                + visit_nodes_with_predicate(is->elseif_exprs,
-                        [this, indent_level](auto const& cond_and_then){
-                            return visit(cond_and_then.first, indent_level+1) + '\n' + visit(cond_and_then.second, indent_level+1);
+                + visit_nodes(is->then_stmts, indent_level+1)
+                + visit_nodes_with_predicate(is->elseif_stmts_list,
+                        [this, indent_level](auto const& cond_and_then_stmts){
+                            return visit(cond_and_then_stmts.first, indent_level+1)
+                                + visit_nodes(cond_and_then_stmts.second, indent_level+1);
                         })
-                + (is->maybe_else_expr ? '\n' + visit(*(is->maybe_else_expr), indent_level+1) : "");
+                + (is->maybe_else_stmts ? '\n' + visit_nodes(*(is->maybe_else_stmts), indent_level+1) : "");
     }
 
     std::string visit(ast::node::statement const& s, size_t const indent_level) const
