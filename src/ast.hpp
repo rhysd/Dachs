@@ -700,10 +700,10 @@ struct statement : public base {
 };
 
 struct program : public base {
-    node::statement value; // TEMPORARY
+    std::vector<node::statement> value; // TEMPORARY
 
-    program(node::statement const& stmt)
-        : base(), value(stmt)
+    program(std::vector<node::statement> const& value)
+        : base(), value(value)
     {}
 
     std::string to_string() const override

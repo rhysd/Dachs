@@ -132,7 +132,7 @@ public:
 
     std::string visit(ast::node::program const& p, size_t const indent_level) const
     {
-        return prefix_of(p, indent_level) + '\n' + visit(p->value, indent_level+1);
+        return prefix_of(p, indent_level) + visit_nodes(p->value, indent_level+1);
     }
 
     std::string visit(ast::node::array_literal const& al, size_t const indent_level) const

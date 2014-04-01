@@ -94,7 +94,7 @@ public:
         // FIXME: Temporary
         program
             = (
-                statement > (qi::eol | qi::eoi)
+                (statement % +sep) > -(sep) > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(_1)
             ];
