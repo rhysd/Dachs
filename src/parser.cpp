@@ -375,6 +375,13 @@ public:
                 _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4, _5)
             ];
 
+        return_stmt
+            = (
+                "return" >> -(expression[phx::push_back(_a, _1)] % ',')
+            ) [
+                _val = make_node_ptr<ast::node::return_stmt>(_a)
+            ];
+
         case_stmt
             = (
                 "case" >> sep
@@ -415,6 +422,7 @@ public:
         statement
             = (
                   if_stmt
+                | return_stmt
                 | case_stmt
                 | switch_stmt
                 | assignment_stmt
@@ -492,6 +500,7 @@ private:
     DACHS_DEFINE_RULE(expression);
     DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(if_stmt);
+    DACHS_DEFINE_RULE_WITH_LOCALS(return_stmt, std::vector<ast::node::expression>);
     DACHS_DEFINE_RULE(case_stmt);
     DACHS_DEFINE_RULE(switch_stmt);
     DACHS_DEFINE_RULE(postfix_if_stmt);
