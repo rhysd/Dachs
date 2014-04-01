@@ -1,5 +1,27 @@
 [![Build Status](https://travis-ci.org/rhysd/Dachs.png?branch=master)](https://travis-ci.org/rhysd/Dachs)
 
+- [ ] Parser
+  - [x] Literals
+  - [x] Expressions
+  - [ ] Statements
+  - [ ] Functions
+  - [ ] Class
+  - [ ] Lambda
+  - [ ] Block
+  - [ ] Variadic arguments
+  - [ ] Test
+- [ ] Sematic analysis
+  - [ ] Scope tree
+  - [ ] Symbol tables
+  - [ ] Semantic checks
+  - [ ] Test
+- [ ] Code generation
+  - [ ] LLVM IR code generation
+  - [ ] Test
+- [ ] Misc
+  - [ ] CMakeLists.txt
+  - [ ] Travis-CI
+
 This software is disributed under [The MIT License](http://opensource.org/licenses/MIT).
 
     Copyright (c) 2014 rhysd
