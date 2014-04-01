@@ -1,6 +1,7 @@
 #define BOOST_SPIRIT_USE_PHOENIX_V3
 #define BOOST_RESULT_OF_USE_DECLTYPE 1
 
+// Include {{{
 #include <string>
 #include <memory>
 #include <exception>
@@ -22,12 +23,29 @@
 
 #include "parser.hpp"
 #include "ast.hpp"
+// }}}
 
 namespace dachs {
 namespace syntax {
 
-using std::size_t;
+// Import names {{{
+namespace qi = boost::spirit::qi;
+namespace phx = boost::phoenix;
+namespace ascii = boost::spirit::ascii;
 
+using std::size_t;
+using qi::_1;
+using qi::_2;
+using qi::_3;
+using qi::_4;
+using qi::_5;
+using qi::_a;
+using qi::_val;
+using qi::lit;
+using phx::bind;
+// }}}
+
+// Helpers {{{
 namespace detail {
     template<class Iterator>
     auto position_of(Iterator begin, Iterator current)
@@ -44,24 +62,7 @@ namespace detail {
         }
         return std::make_pair(line, col);
     }
-} // namespace detail
 
-namespace qi = boost::spirit::qi;
-namespace phx = boost::phoenix;
-namespace ascii = boost::spirit::ascii;
-
-using qi::_1;
-using qi::_2;
-using qi::_3;
-using qi::_4;
-using qi::_5;
-using qi::_a;
-using qi::_val;
-using qi::lit;
-using phx::bind;
-
-// Helpers {{{
-namespace detail {
     template<class Node>
     struct make_shared {
         template<class... Args>
@@ -409,6 +410,7 @@ public:
 
 private:
 
+    // Rules {{{
     rule<qi::unused_type()> sep;
 
 #define DACHS_DEFINE_RULE(n) rule<ast::node::n()> n;
@@ -451,10 +453,9 @@ private:
 
 #undef DACHS_DEFINE_RULE
 #undef DACHS_DEFINE_RULE_WITH_LOCALS
+    // }}}
 
-    //
-    // Symbol tables
-    //
+    // Symbol tables {{{
     struct unary_operator_rule_type : public qi::symbols<char, ast::unary_operator> {
         unary_operator_rule_type()
         {
@@ -550,8 +551,8 @@ private:
             ;
         }
     } if_kind;
+    // }}}
 };
-
 
 ast::ast parser::parse(std::string const& code)
 {
