@@ -112,6 +112,8 @@ struct logical_or_expr;
 struct expression;
 struct assignment_stmt;
 struct if_stmt;
+struct case_stmt;
+struct switch_stmt;
 struct postfix_if_stmt;
 struct statement;
 struct program;
@@ -152,6 +154,8 @@ DACHS_DEFINE_NODE_PTR(logical_or_expr);
 DACHS_DEFINE_NODE_PTR(expression);
 DACHS_DEFINE_NODE_PTR(assignment_stmt);
 DACHS_DEFINE_NODE_PTR(if_stmt);
+DACHS_DEFINE_NODE_PTR(case_stmt);
+DACHS_DEFINE_NODE_PTR(switch_stmt);
 DACHS_DEFINE_NODE_PTR(postfix_if_stmt);
 DACHS_DEFINE_NODE_PTR(statement);
 DACHS_DEFINE_NODE_PTR(program);
@@ -662,6 +666,47 @@ struct if_stmt : public base {
     }
 };
 
+struct case_stmt : public base {
+    using stmt_list_type
+        = std::vector<node::statement>;
+    using when_type
+        = std::pair<node::expression, stmt_list_type>;
+
+    std::vector<when_type> when_stmts_list;
+    boost::optional<stmt_list_type> maybe_else_stmts;
+
+    case_stmt(std::vector<when_type> const& whens, boost::optional<stmt_list_type> const& elses)
+        : when_stmts_list(whens), maybe_else_stmts(elses)
+    {}
+
+    std::string to_string() const override
+    {
+        return "CASE_STMT";
+    }
+};
+
+struct switch_stmt : public base {
+    using stmt_list_type
+        = std::vector<node::statement>;
+    using when_type
+        = std::pair<node::expression, stmt_list_type>;
+
+    node::expression target_expr;
+    std::vector<when_type> when_stmts_list;
+    boost::optional<stmt_list_type> maybe_else_stmts;
+
+    switch_stmt(node::expression const& target,
+                std::vector<when_type> const& whens,
+                boost::optional<stmt_list_type> const& elses)
+        : target_expr(target), when_stmts_list(whens), maybe_else_stmts(elses)
+    {}
+
+    std::string to_string() const override
+    {
+        return "SWITCH_STMT";
+    }
+};
+
 struct postfix_if_stmt : public base {
     node::expression body;
     if_kind kind;
@@ -683,6 +728,8 @@ struct statement : public base {
         boost::variant<
               node::if_stmt
             , node::assignment_stmt
+            , node::case_stmt
+            , node::switch_stmt
             , node::postfix_if_stmt
             , node::expression
         >;

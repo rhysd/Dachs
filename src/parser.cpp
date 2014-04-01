@@ -367,6 +367,36 @@ public:
                 _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4, _5)
             ];
 
+        case_stmt
+            = (
+                "case" >> sep
+                >> +(
+                    qi::as<ast::node_type::case_stmt::when_type>()[
+                        "when" >> (expression - "then") >> ("then" || sep)
+                        >> (statement - "end" - "else") % sep >> -sep
+                    ]
+                ) >> -(
+                    "else" >> -sep >> (statement - "end") % sep >> -sep
+                ) >> "end"
+            ) [
+                _val = make_node_ptr<ast::node::case_stmt>(_1, _2)
+            ];
+
+        switch_stmt
+            = (
+                "case" >> (expression - "when") >> sep
+                >> +(
+                    qi::as<ast::node_type::switch_stmt::when_type>()[
+                        "when" >> (expression - "then") >> ("then" || sep)
+                        >> (statement - "end" - "else") % sep >> -sep
+                    ]
+                ) >> -(
+                    "else" >> -sep >> (statement - "end") % sep >> -sep
+                ) >> "end"
+            ) [
+                _val = make_node_ptr<ast::node::switch_stmt>(_1, _2, _3)
+            ];
+
         postfix_if_stmt
             = (
                 (expression - if_kind) >> if_kind >> expression
@@ -448,6 +478,8 @@ private:
     DACHS_DEFINE_RULE(expression);
     DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(if_stmt);
+    DACHS_DEFINE_RULE(case_stmt);
+    DACHS_DEFINE_RULE(switch_stmt);
     DACHS_DEFINE_RULE(postfix_if_stmt);
     DACHS_DEFINE_RULE(statement);
 

@@ -276,6 +276,29 @@ public:
                 + (is->maybe_else_stmts ? visit_nodes(*(is->maybe_else_stmts), indent_level+1) : "");
     }
 
+    std::string visit(ast::node::case_stmt const& cs, size_t const indent_level) const
+    {
+        return prefix_of(cs, indent_level)
+                + visit_nodes_with_predicate(cs->when_stmts_list,
+                        [this, indent_level](auto const& cond_and_when_stmts){
+                            return visit(cond_and_when_stmts.first, indent_level+1)
+                                + visit_nodes(cond_and_when_stmts.second, indent_level+1);
+                        })
+                + (cs->maybe_else_stmts ? visit_nodes(*(cs->maybe_else_stmts), indent_level+1) : "");
+    }
+
+    std::string visit(ast::node::switch_stmt const& ss, size_t const indent_level) const
+    {
+        return prefix_of(ss, indent_level)
+                + '\n' + visit(ss->target_expr, indent_level+1)
+                + visit_nodes_with_predicate(ss->when_stmts_list,
+                        [this, indent_level](auto const& cond_and_when_stmts){
+                            return visit(cond_and_when_stmts.first, indent_level+1)
+                                + visit_nodes(cond_and_when_stmts.second, indent_level+1);
+                        })
+                + (ss->maybe_else_stmts ? visit_nodes(*(ss->maybe_else_stmts), indent_level+1) : "");
+    }
+
     std::string visit(ast::node::postfix_if_stmt const& pis, size_t const indent_level) const
     {
         return prefix_of(pis, indent_level)
