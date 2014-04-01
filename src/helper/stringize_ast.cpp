@@ -248,10 +248,18 @@ public:
         return prefix_of(loe, indent_level) + visit_nodes(loe->exprs, indent_level+1);
     }
 
+    std::string visit(ast::node::if_expr const& ie, size_t const indent_level) const
+    {
+        return prefix_of(ie, indent_level)
+                + '\n' + visit(ie->condition_expr, indent_level+1)
+                + '\n' + visit(ie->then_expr, indent_level+1)
+                + '\n' + visit(ie->else_expr, indent_level+1);
+    }
+
     std::string visit(ast::node::expression const& e, size_t const indent_level) const
     {
         return prefix_of(e, indent_level) + '\n'
-               + visit(e->child_expr, indent_level+1)
+               + visit_variant_node(e->child_expr, indent_level+1)
                + visit_optional_node(e->maybe_type, indent_level+1);
     }
 

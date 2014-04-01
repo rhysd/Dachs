@@ -109,6 +109,7 @@ struct xor_expr;
 struct or_expr;
 struct logical_and_expr;
 struct logical_or_expr;
+struct if_expr;
 struct expression;
 struct assignment_stmt;
 struct if_stmt;
@@ -151,6 +152,7 @@ DACHS_DEFINE_NODE_PTR(xor_expr);
 DACHS_DEFINE_NODE_PTR(or_expr);
 DACHS_DEFINE_NODE_PTR(logical_and_expr);
 DACHS_DEFINE_NODE_PTR(logical_or_expr);
+DACHS_DEFINE_NODE_PTR(if_expr);
 DACHS_DEFINE_NODE_PTR(expression);
 DACHS_DEFINE_NODE_PTR(assignment_stmt);
 DACHS_DEFINE_NODE_PTR(if_stmt);
@@ -608,11 +610,31 @@ struct logical_or_expr : public base {
     }
 };
 
+struct if_expr : public base {
+    if_kind kind;
+    node::expression condition_expr, then_expr, else_expr;
+    if_expr(if_kind const kind,
+            node::expression const& condition,
+            node::expression const& then,
+            node::expression const& else_)
+        : kind(kind), condition_expr(condition), then_expr(then), else_expr(else_)
+    {}
+
+    std::string to_string() const override
+    {
+        return std::string{"IF_EXPR: "} + (kind == ast::if_kind::if_ ? "if" : "unless");
+    }
+};
+
 struct expression : public base {
-    node::logical_or_expr child_expr;
+    using expr_type
+        = boost::variant<node::logical_or_expr,
+                         node::if_expr>;
+    expr_type child_expr;
     boost::optional<node::type_name> maybe_type;
 
-    expression(node::logical_or_expr const& e, boost::optional<node::type_name> const& t)
+    template<class T>
+    expression(T const& e, boost::optional<node::type_name> const& t)
         : child_expr(e), maybe_type(t)
     {}
 

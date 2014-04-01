@@ -338,9 +338,17 @@ public:
                 _val = make_node_ptr<ast::node::logical_or_expr>(_1, _2)
             ];
 
+        if_expr
+            = (
+                if_kind >> (expression - "then") >> ("then" || sep)
+                >> (expression - "else") >> -sep >> "else" >> -sep >> expression
+            ) [
+                _val = make_node_ptr<ast::node::if_expr>(_1, _2, _3, _4)
+            ];
+
         expression
             = (
-                logical_or_expr >> -(':' >> type_name)
+                (if_expr | logical_or_expr) >> -(':' >> type_name)
             ) [
                 _val = make_node_ptr<ast::node::expression>(_1, _2)
             ];
@@ -475,6 +483,7 @@ private:
     DACHS_DEFINE_RULE(or_expr);
     DACHS_DEFINE_RULE(logical_and_expr);
     DACHS_DEFINE_RULE(logical_or_expr);
+    DACHS_DEFINE_RULE(if_expr);
     DACHS_DEFINE_RULE(expression);
     DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(if_stmt);
