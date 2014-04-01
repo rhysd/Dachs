@@ -89,7 +89,7 @@ public:
     grammar() : grammar::base_type(program)
     {
 
-        sep = +(lit(';') || '\n') | (lit('\n') || ';');
+        sep = +(lit(';') ^ '\n');
 
         // FIXME: Temporary
         program
