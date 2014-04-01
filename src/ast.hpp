@@ -112,6 +112,7 @@ struct logical_or_expr;
 struct expression;
 struct assignment_stmt;
 struct if_stmt;
+struct postfix_if_stmt;
 struct statement;
 struct program;
 
@@ -151,6 +152,7 @@ DACHS_DEFINE_NODE_PTR(logical_or_expr);
 DACHS_DEFINE_NODE_PTR(expression);
 DACHS_DEFINE_NODE_PTR(assignment_stmt);
 DACHS_DEFINE_NODE_PTR(if_stmt);
+DACHS_DEFINE_NODE_PTR(postfix_if_stmt);
 DACHS_DEFINE_NODE_PTR(statement);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
@@ -660,11 +662,28 @@ struct if_stmt : public base {
     }
 };
 
+struct postfix_if_stmt : public base {
+    node::expression body;
+    if_kind kind;
+    node::expression condition;
+
+    postfix_if_stmt(node::expression const& body, if_kind const kind, node::expression const& cond)
+        : body(body), kind(kind), condition(cond)
+    {}
+
+    std::string to_string() const override
+    {
+        return std::string{"POSTFIX_IF_STMT: "}
+            + (kind == if_kind::if_ ? "if" : "unless");
+    }
+};
+
 struct statement : public base {
     using value_type =
         boost::variant<
               node::if_stmt
             , node::assignment_stmt
+            , node::postfix_if_stmt
             , node::expression
         >;
     value_type value;

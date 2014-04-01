@@ -276,6 +276,13 @@ public:
                 + (is->maybe_else_stmts ? visit_nodes(*(is->maybe_else_stmts), indent_level+1) : "");
     }
 
+    std::string visit(ast::node::postfix_if_stmt const& pis, size_t const indent_level) const
+    {
+        return prefix_of(pis, indent_level)
+                + '\n' + visit(pis->body, indent_level+1)
+                + '\n' + visit(pis->condition, indent_level+1);
+    }
+
     std::string visit(ast::node::statement const& s, size_t const indent_level) const
     {
         return prefix_of(s, indent_level) + '\n' + visit_variant_node(s->value, indent_level+1);

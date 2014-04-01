@@ -366,9 +366,16 @@ public:
                 _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4, _5)
             ];
 
+        postfix_if_stmt
+            = (
+                (expression - if_kind) >> if_kind >> expression
+            ) [
+                _val = make_node_ptr<ast::node::postfix_if_stmt>(_1, _2, _3)
+            ];
+
         statement
             = (
-                if_stmt | assignment_stmt | expression
+                if_stmt | assignment_stmt | postfix_if_stmt | expression
             ) [
                 _val = make_node_ptr<ast::node::statement>(_1)
             ];
@@ -439,6 +446,7 @@ private:
     DACHS_DEFINE_RULE(expression);
     DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(if_stmt);
+    DACHS_DEFINE_RULE(postfix_if_stmt);
     DACHS_DEFINE_RULE(statement);
 
 #undef DACHS_DEFINE_RULE
