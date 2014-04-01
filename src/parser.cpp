@@ -381,7 +381,7 @@ public:
                 >> +(
                     qi::as<ast::node_type::case_stmt::when_type>()[
                         "when" >> (expression - "then") >> ("then" || sep)
-                        >> (statement - "end" - "else") % sep >> -sep
+                        >> +((statement - "end" - "else") >> sep)
                     ]
                 ) >> -(
                     "else" >> -sep >> (statement - "end") % sep >> -sep
@@ -396,7 +396,7 @@ public:
                 >> +(
                     qi::as<ast::node_type::switch_stmt::when_type>()[
                         "when" >> (expression - "then") >> ("then" || sep)
-                        >> (statement - "end" - "else") % sep >> -sep
+                        >> +((statement - "end" - "else") >> sep)
                     ]
                 ) >> -(
                     "else" >> -sep >> (statement - "end") % sep >> -sep
@@ -414,7 +414,12 @@ public:
 
         statement
             = (
-                if_stmt | assignment_stmt | postfix_if_stmt | expression
+                  if_stmt
+                | case_stmt
+                | switch_stmt
+                | assignment_stmt
+                | postfix_if_stmt
+                | expression
             ) [
                 _val = make_node_ptr<ast::node::statement>(_1)
             ];
