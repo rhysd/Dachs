@@ -386,13 +386,20 @@ public:
                 _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4, _5)
             ];
 
+        return_stmt
+            = (
+                "return" >> -(expression[phx::push_back(_a, _1)] % ',')
+            ) [
+                _val = make_node_ptr<ast::node::return_stmt>(_a)
+            ];
+
         case_stmt
             = (
                 "case" >> sep
                 >> +(
                     qi::as<ast::node_type::case_stmt::when_type>()[
                         "when" >> (expression - "then") >> ("then" || sep)
-                        >> (statement - "end" - "else") % sep >> -sep
+                        >> +((statement - "end" - "else") >> sep)
                     ]
                 ) >> -(
                     "else" >> -sep >> (statement - "end") % sep >> -sep
@@ -407,7 +414,7 @@ public:
                 >> +(
                     qi::as<ast::node_type::switch_stmt::when_type>()[
                         "when" >> (expression - "then") >> ("then" || sep)
-                        >> (statement - "end" - "else") % sep >> -sep
+                        >> +((statement - "end" - "else") >> sep)
                     ]
                 ) >> -(
                     "else" >> -sep >> (statement - "end") % sep >> -sep
@@ -446,6 +453,9 @@ public:
         statement
             = (
                   if_stmt
+                | return_stmt
+                | case_stmt
+                | switch_stmt
                 | for_stmt
                 | while_stmt
                 | assignment_stmt
@@ -523,6 +533,7 @@ private:
     DACHS_DEFINE_RULE(if_expr);
     DACHS_DEFINE_RULE(expression);
     DACHS_DEFINE_RULE(if_stmt);
+    DACHS_DEFINE_RULE_WITH_LOCALS(return_stmt, std::vector<ast::node::expression>);
     DACHS_DEFINE_RULE(case_stmt);
     DACHS_DEFINE_RULE(switch_stmt);
     DACHS_DEFINE_RULE(for_stmt);

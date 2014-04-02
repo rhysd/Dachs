@@ -1,4 +1,32 @@
+Dachs Programming Language
+==========================
 [![Build Status](https://travis-ci.org/rhysd/Dachs.png?branch=master)](https://travis-ci.org/rhysd/Dachs)
+
+Doggy Programming Language. :dog2:
+
+## Progress Report
+
+-  Parser
+  - ✔ Literals
+  - ✔ Expressions
+  -  Statements
+  -  Functions
+  -  Class
+  -  Lambda
+  -  Block
+  -  Variadic arguments
+  -  Test
+-  Sematic analysis
+  -  Scope tree
+  -  Symbol tables
+  -  Semantic checks
+  -  Test
+-  Code generation
+  -  LLVM IR code generation
+  -  Test
+-  Misc
+  -  CMakeLists.txt
+  -  Travis-CI
 
 This software is disributed under [The MIT License](http://opensource.org/licenses/MIT).
 

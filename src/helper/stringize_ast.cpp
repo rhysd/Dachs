@@ -314,6 +314,11 @@ public:
                 + (ss->maybe_else_stmts ? visit_nodes(*(ss->maybe_else_stmts), indent_level+1) : "");
     }
 
+    std::string visit(ast::node::return_stmt const& rs, size_t const indent_level) const
+    {
+        return prefix_of(rs, indent_level) + visit_nodes(rs->ret_exprs, indent_level+1);
+    }
+
     std::string visit(ast::node::for_stmt const& fs, size_t const indent_level) const
     {
         return prefix_of(fs, indent_level)

@@ -115,6 +115,7 @@ struct expression;
 struct assignment_stmt;
 struct if_stmt;
 struct case_stmt;
+struct return_stmt;
 struct switch_stmt;
 struct for_stmt;
 struct while_stmt;
@@ -162,6 +163,7 @@ DACHS_DEFINE_NODE_PTR(assignment_stmt);
 DACHS_DEFINE_NODE_PTR(if_stmt);
 DACHS_DEFINE_NODE_PTR(case_stmt);
 DACHS_DEFINE_NODE_PTR(switch_stmt);
+DACHS_DEFINE_NODE_PTR(return_stmt);
 DACHS_DEFINE_NODE_PTR(for_stmt);
 DACHS_DEFINE_NODE_PTR(while_stmt);
 DACHS_DEFINE_NODE_PTR(postfix_if_stmt);
@@ -360,7 +362,6 @@ struct primary_expr : public base {
     }
 };
 
-// TODO: Not implemented
 struct index_access : public base {
     node::expression index_expr;
 
@@ -712,6 +713,19 @@ struct if_stmt : public base {
     }
 };
 
+struct return_stmt : public base {
+    std::vector<node::expression> ret_exprs;
+
+    explicit return_stmt(std::vector<node::expression> const& rets)
+        : ret_exprs(rets)
+    {}
+
+    std::string to_string() const override
+    {
+        return "RETURN_STMT";
+    }
+};
+
 struct case_stmt : public base {
     using stmt_list_type
         = std::vector<node::statement>;
@@ -805,11 +819,12 @@ struct statement : public base {
     using value_type =
         boost::variant<
               node::if_stmt
-            , node::assignment_stmt
+            , node::return_stmt
             , node::case_stmt
             , node::switch_stmt
             , node::for_stmt
             , node::while_stmt
+            , node::assignment_stmt
             , node::postfix_if_stmt
             , node::expression
         >;
