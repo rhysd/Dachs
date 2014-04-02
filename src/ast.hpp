@@ -431,15 +431,17 @@ struct unary_expr : public base {
 
 // FIXME: Temporary
 struct type_name : public base {
+    bool is_maybe;
     node::identifier name;
 
-    explicit type_name(node::identifier const& name)
-        : base(), name(name)
+    type_name(bool const maybe, node::identifier const& name)
+        : base(), is_maybe(maybe), name(name)
     {}
 
     std::string to_string() const override
     {
-        return "TYPE_NAME";
+        return std::string{"TYPE_NAME:"}
+                + (is_maybe ? " maybe" : "");
     }
 };
 

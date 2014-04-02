@@ -247,9 +247,9 @@ public:
 
         type_name
             = (
-                identifier >> -(lit('[') >> ']')
+                -qi::string("maybe") >> identifier >> -(lit('[') >> ']')
             ) [
-                _val = make_node_ptr<ast::node::type_name>(_1)
+                _val = make_node_ptr<ast::node::type_name>(_1, _2)
             ];
 
         cast_expr
