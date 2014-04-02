@@ -65,14 +65,14 @@ namespace detail {
     };
 
     template<class Getter>
-    void set_position_getter(Getter const&)
+    void set_position_getter_on_success(Getter const&)
     {}
 
     template<class Getter, class RulesHead, class... RulesTail>
-    void set_position_getter(Getter const& getter, RulesHead& head, RulesTail &... tail)
+    void set_position_getter_on_success(Getter const& getter, RulesHead& head, RulesTail &... tail)
     {
         qi::on_success(head, getter);
-        detail::set_position_getter(getter, tail...);
+        detail::set_position_getter_on_success(getter, tail...);
     }
 
 } // namespace detail
@@ -469,7 +469,8 @@ public:
                 _val = make_node_ptr<ast::node::statement>(_1)
             ];
 
-        detail::set_position_getter(
+        detail::set_position_getter_on_success(
+
             // _val : parsed value
             // _1   : position before parsing
             // _2   : end of string to parse
@@ -482,6 +483,7 @@ public:
                     node_ptr->length = std::distance(before, after);
                 }
                 , _val, _1, _3)
+
             // Get the position of node
             , program
             , literal
