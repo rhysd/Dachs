@@ -3,6 +3,7 @@
 #include <type_traits>
 #include <cstddef>
 #include <boost/lexical_cast.hpp>
+#include <boost/format.hpp>
 #include <boost/variant/variant.hpp>
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
@@ -70,7 +71,7 @@ class ast_stringizer {
     template<class T>
     std::string prefix_of(std::shared_ptr<T> const& p, size_t const indent_level) const
     {
-        return indent(indent_level) + p->to_string();
+        return indent(indent_level) + p->to_string() + (boost::format(" (line:%1%, col:%2%, length:%3%)") % p->line % p->col % p->length).str();
     }
 
     template<class... Args>

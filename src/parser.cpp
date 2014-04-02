@@ -63,6 +63,18 @@ namespace detail {
             return std::make_shared<Node>(std::forward<Args>(args)...);
         }
     };
+
+    template<class Getter>
+    void set_position_getter(Getter const&)
+    {}
+
+    template<class Getter, class RulesHead, class... RulesTail>
+    void set_position_getter(Getter const& getter, RulesHead& head, RulesTail &... tail)
+    {
+        qi::on_success(head, getter);
+        detail::set_position_getter(getter, tail...);
+    }
+
 } // namespace detail
 
 template<class NodeType, class... Holders>
@@ -78,7 +90,7 @@ class grammar : public qi::grammar<Iterator, ast::node::program(), ascii::blank_
     using rule = qi::rule<Iterator, Value, ascii::blank_type, Extra...>;
 
 public:
-    grammar() : grammar::base_type(program)
+    grammar(Iterator const code_begin) : grammar::base_type(program)
     {
 
         sep = +(lit(';') ^ '\n');
@@ -457,6 +469,63 @@ public:
                 _val = make_node_ptr<ast::node::statement>(_1)
             ];
 
+        detail::set_position_getter(
+            // _val : parsed value
+            // _1   : position before parsing
+            // _2   : end of string to parse
+            // _3   : position after parsing
+            phx::bind(
+                [code_begin](auto &node_ptr, auto const before, auto const after)
+                {
+                    node_ptr->line = spirit::get_line(before);
+                    node_ptr->col = spirit::get_column(code_begin, before);
+                    node_ptr->length = std::distance(before, after);
+                }
+                , _val, _1, _3)
+            // Get the position of node
+            , program
+            , literal
+            , integer_literal
+            , character_literal
+            , float_literal
+            , boolean_literal
+            , string_literal
+            , array_literal
+            , tuple_literal
+            , symbol_literal
+            , identifier
+            , parameter
+            , primary_expr
+            , index_access
+            , member_access
+            , function_call
+            , postfix_expr
+            , unary_expr
+            , type_name
+            , cast_expr
+            , mult_expr
+            , additive_expr
+            , shift_expr
+            , relational_expr
+            , equality_expr
+            , and_expr
+            , xor_expr
+            , or_expr
+            , logical_and_expr
+            , logical_or_expr
+            , if_expr
+            , expression
+            , if_stmt
+            , return_stmt
+            , case_stmt
+            , switch_stmt
+            , for_stmt
+            , while_stmt
+            , assignment_stmt
+            , postfix_if_stmt
+            , statement
+        );
+
         qi::on_error<qi::fail>(
             program,
             // _1 : begin of string to parse
@@ -641,6 +710,7 @@ ast::ast parser::parse(std::string const& code)
     auto itr = detail::line_pos_iterator(std::begin(code));
     auto const begin = itr;
     auto const end = detail::line_pos_iterator(std::end(code));
+    grammar<decltype(itr)> spiritual_parser(begin);
     ast::node::program root;
 
     if (!qi::phrase_parse(itr, end, spiritual_parser, ascii::blank, root) || itr != end) {
