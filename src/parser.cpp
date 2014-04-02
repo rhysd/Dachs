@@ -5,15 +5,17 @@
 #include <string>
 #include <memory>
 #include <exception>
-#include <cstddef>
-#include <utility>
 #include <vector>
+#include <algorithm>
+#include <utility>
+#include <cstddef>
 
 #include <boost/format.hpp>
 #include <boost/range/iterator_range.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/qi_as.hpp>
+#include <boost/spirit/include/support_line_pos_iterator.hpp>
 #include <boost/spirit/include/phoenix_core.hpp>
 #include <boost/spirit/include/phoenix_object.hpp>
 #include <boost/spirit/include/phoenix_operator.hpp>
@@ -30,6 +32,7 @@ namespace syntax {
 
 // Import names {{{
 namespace qi = boost::spirit::qi;
+namespace spirit = boost::spirit;
 namespace phx = boost::phoenix;
 namespace ascii = boost::spirit::ascii;
 
@@ -42,25 +45,14 @@ using qi::_5;
 using qi::_a;
 using qi::_val;
 using qi::lit;
-using phx::bind;
 // }}}
 
 // Helpers {{{
 namespace detail {
     template<class Iterator>
-    auto position_of(Iterator begin, Iterator current)
+    inline auto line_pos_iterator(Iterator i)
     {
-        size_t line = 1;
-        size_t col = 1;
-        for (; begin != current; ++begin) {
-            if (*begin == '\n') {
-                col = 1;
-                line++;
-                continue;
-            }
-            col++;
-        }
-        return std::make_pair(line, col);
+        return boost::spirit::line_pos_iterator<Iterator>(i);
     }
 
     template<class Node>
@@ -467,25 +459,24 @@ public:
 
         qi::on_error<qi::fail>(
             program,
-            // qi::_1 : begin of string to parse
-            // qi::_2 : end of string to parse
-            // qi::_3 : iterator at failed point
-            // qi::_4 : what failed?
+            // _1 : begin of string to parse
+            // _2 : end of string to parse
+            // _3 : iterator at failed point
+            // _4 : what failed?
             std::cerr << phx::val("Syntax error at ")
-                      << bind([](auto const begin, auto const err_pos) -> std::string {
-                              auto const pos = detail::position_of(begin, err_pos);
-                              return (boost::format("line:%1%, col:%2%") % pos.first % pos.second).str();
+                      << phx::bind([](auto const begin, auto const err_pos) {
+                              return (boost::format("line:%1%, col:%2%") % spirit::get_line(err_pos) % spirit::get_column(begin, err_pos)).str();
                           }, _1, _3) << '\n'
                       << "expected " << qi::_4
                       << "\n\n"
-                      << bind([](auto const begin, auto const end, auto const err_itr) -> std::string {
-                              auto const pos = detail::position_of(begin, err_itr);
-                              std::vector<std::string> lines;
-                              auto const r = boost::make_iterator_range(begin, end);
-                              boost::algorithm::split(lines, r, [](char const c){ return c == '\n'; });
-                              return lines[pos.first-1] + '\n' + std::string(pos.second-1, ' ') + "↑ ここやで";
+                      << phx::bind([](auto const begin, auto const end, auto const err_itr) {
+                              return std::string{
+                                        spirit::get_line_start(begin, err_itr),
+                                        std::find_if(err_itr, end, [](auto c){ return c == '\r' || c == '\n'; })
+                                     } + '\n'
+                                     + std::string(spirit::get_column(begin, err_itr)-1, ' ') + "↑ ここやで";
                           }, _1, _2, _3)
-                      << std::endl
+                      << '\n' << std::endl
         );
     }
 
@@ -647,13 +638,13 @@ private:
 
 ast::ast parser::parse(std::string const& code)
 {
-    auto itr = std::begin(code);
-    auto const end = std::end(code);
-    grammar<decltype(itr)> spiritual_parser;
+    auto itr = detail::line_pos_iterator(std::begin(code));
+    auto const begin = itr;
+    auto const end = detail::line_pos_iterator(std::end(code));
     ast::node::program root;
 
     if (!qi::phrase_parse(itr, end, spiritual_parser, ascii::blank, root) || itr != end) {
-        throw parse_error{detail::position_of(std::begin(code), itr)};
+        throw parse_error{spirit::get_line(itr), spirit::get_column(begin, itr)};
     }
 
     return {root};
