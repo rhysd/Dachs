@@ -190,6 +190,17 @@ public:
                 _val = make_node_ptr<ast::node::identifier>(_1)
             ];
 
+        parameter
+            = (
+                -qi::string("var")
+                >> identifier
+                >> -(
+                    ':' >> type_name
+                )
+            ) [
+                _val = make_node_ptr<ast::node::parameter>(_1, _2, _3)
+            ];
+
         primary_expr
             = (
                 literal | identifier | '(' >> expression >> ')'
@@ -405,6 +416,26 @@ public:
                 _val = make_node_ptr<ast::node::switch_stmt>(_1, _2, _3)
             ];
 
+        for_stmt
+            = (
+                // Note: "do" might colide with do-end block in expression
+                "for" >> (parameter - "in") % ',' >> "in" >> expression >> ("do" || sep)
+                >> (statement - "end") % sep >> -sep
+                >> "end"
+            ) [
+                _val = make_node_ptr<ast::node::for_stmt>(_1, _2, _3)
+            ];
+
+        while_stmt
+            = (
+                // Note: "do" might colide with do-end block in expression
+                "for" >> expression >> ("do" || sep)
+                >> (statement - "end") % sep >> -sep
+                >> "end"
+            ) [
+                _val = make_node_ptr<ast::node::while_stmt>(_1, _2)
+            ];
+
         postfix_if_stmt
             = (
                 (expression - if_kind) >> if_kind >> expression
@@ -414,7 +445,12 @@ public:
 
         statement
             = (
-                if_stmt | assignment_stmt | postfix_if_stmt | expression
+                  if_stmt
+                | for_stmt
+                | while_stmt
+                | assignment_stmt
+                | postfix_if_stmt
+                | expression
             ) [
                 _val = make_node_ptr<ast::node::statement>(_1)
             ];
@@ -465,6 +501,7 @@ private:
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::expression>);
     DACHS_DEFINE_RULE(symbol_literal);
     DACHS_DEFINE_RULE(identifier);
+    DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE(primary_expr);
     DACHS_DEFINE_RULE(index_access);
     DACHS_DEFINE_RULE(member_access);
@@ -485,10 +522,12 @@ private:
     DACHS_DEFINE_RULE(logical_or_expr);
     DACHS_DEFINE_RULE(if_expr);
     DACHS_DEFINE_RULE(expression);
-    DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(if_stmt);
     DACHS_DEFINE_RULE(case_stmt);
     DACHS_DEFINE_RULE(switch_stmt);
+    DACHS_DEFINE_RULE(for_stmt);
+    DACHS_DEFINE_RULE(while_stmt);
+    DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(postfix_if_stmt);
     DACHS_DEFINE_RULE(statement);
 

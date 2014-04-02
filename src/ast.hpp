@@ -91,6 +91,7 @@ struct tuple_literal;
 struct symbol_literal;
 struct literal;
 struct identifier;
+struct parameter;
 struct primary_expr;
 struct index_access;
 struct member_access;
@@ -115,6 +116,8 @@ struct assignment_stmt;
 struct if_stmt;
 struct case_stmt;
 struct switch_stmt;
+struct for_stmt;
+struct while_stmt;
 struct postfix_if_stmt;
 struct statement;
 struct program;
@@ -134,6 +137,7 @@ DACHS_DEFINE_NODE_PTR(tuple_literal);
 DACHS_DEFINE_NODE_PTR(symbol_literal);
 DACHS_DEFINE_NODE_PTR(literal);
 DACHS_DEFINE_NODE_PTR(identifier);
+DACHS_DEFINE_NODE_PTR(parameter);
 DACHS_DEFINE_NODE_PTR(primary_expr);
 DACHS_DEFINE_NODE_PTR(index_access);
 DACHS_DEFINE_NODE_PTR(member_access);
@@ -158,6 +162,8 @@ DACHS_DEFINE_NODE_PTR(assignment_stmt);
 DACHS_DEFINE_NODE_PTR(if_stmt);
 DACHS_DEFINE_NODE_PTR(case_stmt);
 DACHS_DEFINE_NODE_PTR(switch_stmt);
+DACHS_DEFINE_NODE_PTR(for_stmt);
+DACHS_DEFINE_NODE_PTR(while_stmt);
 DACHS_DEFINE_NODE_PTR(postfix_if_stmt);
 DACHS_DEFINE_NODE_PTR(statement);
 DACHS_DEFINE_NODE_PTR(program);
@@ -315,6 +321,22 @@ struct identifier : public base {
     std::string to_string() const override
     {
         return "IDENTIFIER: " + value;
+    }
+};
+
+struct parameter : public base {
+    bool is_var;
+    node::identifier name;
+    boost::optional<node::type_name> type;
+
+    template<class T>
+    parameter(bool const v, node::identifier const& n, T const& t)
+        : base(), is_var(v), name(n), type(t)
+    {}
+
+    std::string to_string() const override
+    {
+        return std::string{"PARAMETER: "} + (is_var ? "variable" : "invariable");
     }
 };
 
@@ -729,6 +751,38 @@ struct switch_stmt : public base {
     }
 };
 
+struct for_stmt : public base {
+    std::vector<node::parameter> iter_vars;
+    node::expression range_expr;
+    std::vector<node::statement> body_stmts;
+
+    for_stmt(std::vector<node::parameter> const& iters,
+             node::expression const& range,
+             std::vector<node::statement> body)
+        : iter_vars(iters), range_expr(range), body_stmts(body)
+    {}
+
+    std::string to_string() const override
+    {
+        return "FOR_STMT";
+    }
+};
+
+struct while_stmt : public base {
+    node::expression condition;
+    std::vector<node::statement> body_stmts;
+
+    while_stmt(node::expression const& cond,
+               std::vector<node::statement> const& body)
+        : condition(cond), body_stmts(body)
+    {}
+
+    std::string to_string() const override
+    {
+        return "WHILE_STMT";
+    }
+};
+
 struct postfix_if_stmt : public base {
     node::expression body;
     if_kind kind;
@@ -752,6 +806,8 @@ struct statement : public base {
             , node::assignment_stmt
             , node::case_stmt
             , node::switch_stmt
+            , node::for_stmt
+            , node::while_stmt
             , node::postfix_if_stmt
             , node::expression
         >;

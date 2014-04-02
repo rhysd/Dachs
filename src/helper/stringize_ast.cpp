@@ -150,6 +150,13 @@ public:
         return prefix_of(l, indent_level) + '\n' + visit_variant_node(l->value, indent_level+1);
     }
 
+    std::string visit(ast::node::parameter const& p, size_t const indent_level) const
+    {
+        return prefix_of(p, indent_level)
+                + '\n' + visit(p->name, indent_level+1)
+                + (p->type ? '\n' + visit(*(p->type), indent_level+1) : "");
+    }
+
     std::string visit(ast::node::primary_expr const& pe, size_t const indent_level) const
     {
         return prefix_of(pe, indent_level) + '\n' + visit_variant_node(pe->value, indent_level+1);
@@ -305,6 +312,21 @@ public:
                                 + visit_nodes(cond_and_when_stmts.second, indent_level+1);
                         })
                 + (ss->maybe_else_stmts ? visit_nodes(*(ss->maybe_else_stmts), indent_level+1) : "");
+    }
+
+    std::string visit(ast::node::for_stmt const& fs, size_t const indent_level) const
+    {
+        return prefix_of(fs, indent_level)
+                + visit_nodes(fs->iter_vars, indent_level+1)
+                + '\n' + visit(fs->range_expr, indent_level+1)
+                + visit_nodes(fs->body_stmts, indent_level+1);
+    }
+
+    std::string visit(ast::node::while_stmt const& ws, size_t const indent_level) const
+    {
+        return prefix_of(ws, indent_level)
+                + '\n' + visit(ws->condition, indent_level+1)
+                + visit_nodes(ws->body_stmts, indent_level+1);
     }
 
     std::string visit(ast::node::postfix_if_stmt const& pis, size_t const indent_level) const
