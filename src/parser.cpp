@@ -205,9 +205,29 @@ public:
                 _val = make_node_ptr<ast::node::parameter>(_1, _2, _3)
             ];
 
+        function_call
+            = (
+                '(' >> -(
+                    expression[phx::push_back(_a, _1)] % ','
+                ) >> ')'
+            ) [
+                _val = make_node_ptr<ast::node::function_call>(_a)
+            ];
+
+        object_construct
+            = (
+                "new"
+                >> (
+                    ('(' >> type_name >> ')')
+                    | type_name
+                ) >> -function_call
+            ) [
+                _val = make_node_ptr<ast::node::object_construct>(_1, _2)
+            ];
+
         primary_expr
             = (
-                literal | identifier | '(' >> expression >> ')'
+                object_construct | literal | identifier | '(' >> expression >> ')'
             ) [
                 _val = make_node_ptr<ast::node::primary_expr>(_1)
             ];
@@ -224,15 +244,6 @@ public:
                 '.' >> identifier
             ) [
                 _val = make_node_ptr<ast::node::member_access>(_1)
-            ];
-
-        function_call
-            = (
-                '(' >> -(
-                    expression[phx::push_back(_a, _1)] % ','
-                ) >> ')'
-            ) [
-                _val = make_node_ptr<ast::node::function_call>(_a)
             ];
 
         postfix_expr
@@ -384,7 +395,7 @@ public:
 
         initialize_stmt
             = (
-                variable_decl % ',' >> -(":=" >> expression % ',')
+                variable_decl % ',' >> ":=" >> expression % ','
             ) [
                 _val = make_node_ptr<ast::node::initialize_stmt>(_1, _2)
             ];
@@ -512,10 +523,11 @@ public:
             , symbol_literal
             , identifier
             , parameter
+            , function_call
+            , object_construct
             , primary_expr
             , index_access
             , member_access
-            , function_call
             , postfix_expr
             , unary_expr
             , type_name
@@ -591,10 +603,11 @@ private:
     DACHS_DEFINE_RULE(symbol_literal);
     DACHS_DEFINE_RULE(identifier);
     DACHS_DEFINE_RULE(parameter);
+    DACHS_DEFINE_RULE_WITH_LOCALS(function_call, std::vector<ast::node::expression>);
+    DACHS_DEFINE_RULE(object_construct);
     DACHS_DEFINE_RULE(primary_expr);
     DACHS_DEFINE_RULE(index_access);
     DACHS_DEFINE_RULE(member_access);
-    DACHS_DEFINE_RULE_WITH_LOCALS(function_call, std::vector<ast::node::expression>);
     DACHS_DEFINE_RULE(postfix_expr);
     DACHS_DEFINE_RULE(unary_expr);
     DACHS_DEFINE_RULE(type_name);

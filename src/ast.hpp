@@ -92,10 +92,11 @@ struct symbol_literal;
 struct literal;
 struct identifier;
 struct parameter;
+struct function_call;
+struct object_construct;
 struct primary_expr;
 struct index_access;
 struct member_access;
-struct function_call;
 struct postfix_expr;
 struct unary_expr;
 struct type_name;
@@ -141,10 +142,11 @@ DACHS_DEFINE_NODE_PTR(symbol_literal);
 DACHS_DEFINE_NODE_PTR(literal);
 DACHS_DEFINE_NODE_PTR(identifier);
 DACHS_DEFINE_NODE_PTR(parameter);
+DACHS_DEFINE_NODE_PTR(function_call);
+DACHS_DEFINE_NODE_PTR(object_construct);
 DACHS_DEFINE_NODE_PTR(primary_expr);
 DACHS_DEFINE_NODE_PTR(index_access);
 DACHS_DEFINE_NODE_PTR(member_access);
-DACHS_DEFINE_NODE_PTR(function_call);
 DACHS_DEFINE_NODE_PTR(postfix_expr);
 DACHS_DEFINE_NODE_PTR(unary_expr);
 DACHS_DEFINE_NODE_PTR(type_name);
@@ -345,10 +347,38 @@ struct parameter : public base {
     }
 };
 
+struct function_call : public base {
+    std::vector<node::expression> args;
+
+    function_call(std::vector<node::expression> const& args)
+        : base(), args(args)
+    {}
+
+    std::string to_string() const override
+    {
+        return "FUNCTION_CALL";
+    }
+};
+
+struct object_construct : public base {
+    node::type_name type;
+    boost::optional<node::function_call> args;
+
+    object_construct(node::type_name const& t, boost::optional<node::function_call> const& call)
+        : type(t), args(call)
+    {}
+
+    std::string to_string() const override
+    {
+        return "OBJECT_CONSTRUCT";
+    }
+};
+
 struct primary_expr : public base {
     // Note: add lambda expression
     using value_type =
-        boost::variant< node::identifier
+        boost::variant< node::object_construct
+                      , node::identifier
                       , node::literal
                       , node::expression
                       >;
@@ -388,19 +418,6 @@ struct member_access : public base {
     std::string to_string() const override
     {
         return "MEMBER_ACCESS";
-    }
-};
-
-struct function_call : public base {
-    std::vector<node::expression> args;
-
-    function_call(std::vector<node::expression> const& args)
-        : base(), args(args)
-    {}
-
-    std::string to_string() const override
-    {
-        return "FUNCTION_CALL";
     }
 };
 

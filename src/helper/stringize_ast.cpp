@@ -158,6 +158,13 @@ public:
                 + (p->type ? '\n' + visit(*(p->type), indent_level+1) : "");
     }
 
+    std::string visit(ast::node::object_construct const& oc, size_t const indent_level) const
+    {
+        return prefix_of(oc, indent_level)
+            + '\n' + visit(oc->type, indent_level+1)
+            + (oc->args ? '\n' + visit(*(oc->args), indent_level+1) : "");
+    }
+
     std::string visit(ast::node::primary_expr const& pe, size_t const indent_level) const
     {
         return prefix_of(pe, indent_level) + '\n' + visit_variant_node(pe->value, indent_level+1);
