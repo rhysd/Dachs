@@ -347,6 +347,20 @@ public:
         return prefix_of(s, indent_level) + '\n' + visit_variant_node(s->value, indent_level+1);
     }
 
+    std::string visit(ast::node::variable_decl const& vd, size_t const indent_level) const
+    {
+        return prefix_of(vd, indent_level) +
+            '\n' + visit(vd->name, indent_level+1)
+            + (vd->maybe_type ? '\n' + visit(*(vd->maybe_type), indent_level+1) : "");
+    }
+
+    std::string visit(ast::node::initialize_stmt const& vds, size_t const indent_level) const
+    {
+        return prefix_of(vds, indent_level)
+            + visit_nodes(vds->var_decls, indent_level+1)
+            + (vds->maybe_rhs_exprs ? visit_nodes(*(vds->maybe_rhs_exprs), indent_level+1) : "");
+    }
+
     // For terminal nodes
     template<class T, class = typename std::enable_if<ast::is_node<T>::value>::type>
     std::string visit(std::shared_ptr<T> const& p, size_t const indent_level) const

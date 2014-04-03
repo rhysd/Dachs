@@ -113,6 +113,8 @@ struct logical_or_expr;
 struct if_expr;
 struct expression;
 struct assignment_stmt;
+struct variable_decl;
+struct initialize_stmt;
 struct if_stmt;
 struct case_stmt;
 struct return_stmt;
@@ -160,6 +162,8 @@ DACHS_DEFINE_NODE_PTR(logical_or_expr);
 DACHS_DEFINE_NODE_PTR(if_expr);
 DACHS_DEFINE_NODE_PTR(expression);
 DACHS_DEFINE_NODE_PTR(assignment_stmt);
+DACHS_DEFINE_NODE_PTR(variable_decl);
+DACHS_DEFINE_NODE_PTR(initialize_stmt);
 DACHS_DEFINE_NODE_PTR(if_stmt);
 DACHS_DEFINE_NODE_PTR(case_stmt);
 DACHS_DEFINE_NODE_PTR(switch_stmt);
@@ -331,14 +335,13 @@ struct parameter : public base {
     node::identifier name;
     boost::optional<node::type_name> type;
 
-    template<class T>
-    parameter(bool const v, node::identifier const& n, T const& t)
+    parameter(bool const v, node::identifier const& n, boost::optional<node::type_name> const& t)
         : base(), is_var(v), name(n), type(t)
     {}
 
     std::string to_string() const override
     {
-        return std::string{"PARAMETER: "} + (is_var ? "variable" : "invariable");
+        return std::string{"PARAMETER: "} + (is_var ? "mutable" : "immutable");
     }
 };
 
@@ -533,6 +536,38 @@ struct relational_expr : public base {
     std::string to_string() const override
     {
         return "RELATIONAL_EXPR";
+    }
+};
+
+struct variable_decl : public base {
+    bool is_var;
+    node::identifier name;
+    boost::optional<node::type_name> maybe_type;
+
+    variable_decl(bool const var,
+                  node::identifier const& name,
+                  boost::optional<node::type_name> const& type)
+        : is_var(var), name(name), maybe_type(type)
+    {}
+
+    std::string to_string() const override
+    {
+        return std::string{"VARIABLE_DECL: "} + (is_var ? "mutable" : "immutable");
+    }
+};
+
+struct initialize_stmt : public base {
+    std::vector<node::variable_decl> var_decls;
+    boost::optional<std::vector<node::expression>> maybe_rhs_exprs;
+
+    initialize_stmt(std::vector<node::variable_decl> const& vars,
+                  boost::optional<std::vector<node::expression>> const& rhss)
+        : var_decls(vars), maybe_rhs_exprs(rhss)
+    {}
+
+    std::string to_string() const override
+    {
+        return "INITIALIZE_STMT";
     }
 };
 
@@ -825,6 +860,7 @@ struct statement : public base {
             , node::for_stmt
             , node::while_stmt
             , node::assignment_stmt
+            , node::initialize_stmt
             , node::postfix_if_stmt
             , node::expression
         >;

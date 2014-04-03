@@ -375,6 +375,20 @@ public:
                 _val = make_node_ptr<ast::node::assignment_stmt>(_1, _2, _3)
             ];
 
+        variable_decl
+            = (
+                -(qi::string("var")) >> identifier >> -(':' >> type_name)
+            ) [
+                _val = make_node_ptr<ast::node::variable_decl>(_1, _2, _3)
+            ];
+
+        initialize_stmt
+            = (
+                variable_decl % ',' >> -(":=" >> expression % ',')
+            ) [
+                _val = make_node_ptr<ast::node::initialize_stmt>(_1, _2)
+            ];
+
         if_stmt
             = (
                 if_kind >> (expression - "then") >> ("then" || sep)
@@ -462,6 +476,7 @@ public:
                 | switch_stmt
                 | for_stmt
                 | while_stmt
+                | initialize_stmt
                 | assignment_stmt
                 | postfix_if_stmt
                 | expression
@@ -523,6 +538,8 @@ public:
             , switch_stmt
             , for_stmt
             , while_stmt
+            , variable_decl
+            , initialize_stmt
             , assignment_stmt
             , postfix_if_stmt
             , statement
@@ -600,6 +617,8 @@ private:
     DACHS_DEFINE_RULE(switch_stmt);
     DACHS_DEFINE_RULE(for_stmt);
     DACHS_DEFINE_RULE(while_stmt);
+    DACHS_DEFINE_RULE(variable_decl);
+    DACHS_DEFINE_RULE(initialize_stmt);
     DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(postfix_if_stmt);
     DACHS_DEFINE_RULE(statement);
