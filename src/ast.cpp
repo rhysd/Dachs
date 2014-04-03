@@ -9,67 +9,81 @@ namespace ast {
 
 std::string to_string(unary_operator const o)
 {
-    return o == unary_operator::positive ? "+" :
-           o == unary_operator::negative ? "-" :
-           o == unary_operator::one_complement ? "~" :
-           o == unary_operator::logical_negate ? "!" :
-           "unknown";
+    switch(o) {
+    case unary_operator::positive:       return "+";
+    case unary_operator::negative:       return "-" ;
+    case unary_operator::one_complement: return "~" ;
+    case unary_operator::logical_negate: return "!" ;
+    default:                             return "unknown";
+    }
 }
 
 std::string to_string(mult_operator const o)
 {
-    return o == mult_operator::mult ? "*" :
-           o == mult_operator::div ? "/" :
-           o == mult_operator::mod ? "%" :
-           "unknown";
+    switch(o) {
+    case mult_operator::mult: return "*";
+    case mult_operator::div:  return "/";
+    case mult_operator::mod:  return "%";
+    default:                  return "unknown";
+    }
 }
 
 std::string to_string(additive_operator const o)
 {
-    return o == additive_operator::add ? "+" :
-           o == additive_operator::sub ? "-" :
-           "unknown";
+    switch(o) {
+    case additive_operator::add: return "+";
+    case additive_operator::sub: return "-";
+    default:                     return "unknown";
+    }
 }
 
 std::string to_string(relational_operator const o)
 {
-    return o == relational_operator::less_than ? "<" :
-           o == relational_operator::greater_than ? ">" :
-           o == relational_operator::less_than_equal ? "<=" :
-           o == relational_operator::greater_than_equal ? ">=" :
-           "unknown";
+    switch(o) {
+    case relational_operator::less_than:          return "<";
+    case relational_operator::greater_than:       return ">";
+    case relational_operator::less_than_equal:    return "<=";
+    case relational_operator::greater_than_equal: return ">=";
+    default:                                      return "unknown";
+    }
 }
 
 std::string to_string(shift_operator const o)
 {
-    return o == shift_operator::left ? "<<" :
-           o == shift_operator::right ? ">>" :
-           "unknown";
+    switch(o) {
+    case shift_operator::left:  return "<<";
+    case shift_operator::right: return ">>";
+    default:                    return "unknown";
+    }
 }
 
 std::string to_string(equality_operator const o)
 {
-    return o == equality_operator::equal ? "==" :
-           o == equality_operator::not_equal ? "!=" :
-           "unknown";
+    switch(o) {
+    case equality_operator::equal:     return "==";
+    case equality_operator::not_equal: return "!=";
+    default:                           return "unknown";
+    }
 }
 
 std::string to_string(assign_operator const o)
 {
-    return o == assign_operator::assign ? "=" :
-           o == assign_operator::mult ? "*=" :
-           o == assign_operator::div ? "/=" :
-           o == assign_operator::mod ? "%=" :
-           o == assign_operator::add ? "+=" :
-           o == assign_operator::sub ? "-=" :
-           o == assign_operator::left_shift ? ">>=" :
-           o == assign_operator::right_shift ? "<<=" :
-           o == assign_operator::arithmetic_and ? "&=" :
-           o == assign_operator::arithmetic_xor ? "^=" :
-           o == assign_operator::arithmetic_or ? "|=" :
-           o == assign_operator::logical_and ? "&&=" :
-           o == assign_operator::logical_or ? "||=" :
-           "unknown";
+    switch(o) {
+    case assign_operator::assign:         return "=";
+    case assign_operator::mult:           return "*=";
+    case assign_operator::div:            return "/=";
+    case assign_operator::mod:            return "%=";
+    case assign_operator::add:            return "+=";
+    case assign_operator::sub:            return "-=";
+    case assign_operator::left_shift:     return ">>=";
+    case assign_operator::right_shift:    return "<<=";
+    case assign_operator::arithmetic_and: return "&=";
+    case assign_operator::arithmetic_xor: return "^=";
+    case assign_operator::arithmetic_or:  return "|=";
+    case assign_operator::logical_and:    return "&&=";
+    case assign_operator::logical_or:     return "||=";
+    default:                              return "unknown";
+    }
 }
 
 namespace node_type {
@@ -78,11 +92,6 @@ std::size_t generate_id()
 {
     static std::size_t current_id = 0;
     return ++current_id;
-}
-
-std::string character_literal::to_string() const
-{
-    return "CHAR_LITERAL: '" + boost::lexical_cast<std::string>(value) + '\'';
 }
 
 std::string unary_expr::to_string() const

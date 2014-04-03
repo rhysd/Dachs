@@ -202,7 +202,10 @@ struct character_literal : public base {
         : base(), value(c)
     {}
 
-    std::string to_string() const override;
+    std::string to_string() const override
+    {
+        return "CHAR_LITERAL: " + std::string{'\'', value, '\''};
+    }
 };
 
 struct float_literal : public base {
