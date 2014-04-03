@@ -24,6 +24,7 @@
 #include <boost/fusion/include/std_pair.hpp>
 
 #include "parser.hpp"
+#include "comment_skipper.hpp"
 #include "ast.hpp"
 // }}}
 
@@ -85,15 +86,15 @@ inline auto make_node_ptr(Holders &&... holders)
 // }}}
 
 template<class Iterator>
-class grammar : public qi::grammar<Iterator, ast::node::program(), ascii::blank_type /*FIXME*/> {
+class grammar : public qi::grammar<Iterator, ast::node::program(), comment_skipper<Iterator>> {
     template<class Value, class... Extra>
-    using rule = qi::rule<Iterator, Value, ascii::blank_type, Extra...>;
+    using rule = qi::rule<Iterator, Value, comment_skipper<Iterator>, Extra...>;
 
 public:
     grammar(Iterator const code_begin) : grammar::base_type(program)
     {
 
-        sep = +(lit(';') ^ '\n');
+        sep = +(lit(';') ^ qi::eol);
 
         // FIXME: Temporary
         program
@@ -187,7 +188,7 @@ public:
             = (
                 qi::as_string[
                     qi::lexeme[
-                        (qi::alpha | qi::char_('_')) >> *(qi::alnum | qi::char_('_'))
+                        (qi::alpha | qi::char_('_')) >> *(qi::alnum | qi::char_('_')) >> -(qi::char_('?') | qi::char_('!') | qi::char_('\''))
                     ]
                 ]
             ) [
@@ -742,12 +743,14 @@ private:
 ast::ast parser::parse(std::string const& code)
 {
     auto itr = detail::line_pos_iterator(std::begin(code));
+    using iterator_type = decltype(itr);
     auto const begin = itr;
     auto const end = detail::line_pos_iterator(std::end(code));
-    grammar<decltype(itr)> spiritual_parser(begin);
+    grammar<iterator_type> spiritual_parser(begin);
+    comment_skipper<iterator_type> skipper;
     ast::node::program root;
 
-    if (!qi::phrase_parse(itr, end, spiritual_parser, ascii::blank, root) || itr != end) {
+    if (!qi::phrase_parse(itr, end, spiritual_parser, skipper, root) || itr != end) {
         throw parse_error{spirit::get_line(itr), spirit::get_column(begin, itr)};
     }
 
