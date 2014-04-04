@@ -68,6 +68,10 @@ enum class if_kind {
     unless,
 };
 
+enum class qualifier {
+    maybe,
+};
+
 std::string to_string(unary_operator const o);
 std::string to_string(mult_operator const o);
 std::string to_string(additive_operator const o);
@@ -99,7 +103,11 @@ struct index_access;
 struct member_access;
 struct postfix_expr;
 struct unary_expr;
-struct type_name;
+struct primary_type;
+struct tuple_type;
+struct array_type;
+struct compound_type;
+struct qualified_type;
 struct cast_expr;
 struct mult_expr;
 struct additive_expr;
@@ -149,7 +157,11 @@ DACHS_DEFINE_NODE_PTR(index_access);
 DACHS_DEFINE_NODE_PTR(member_access);
 DACHS_DEFINE_NODE_PTR(postfix_expr);
 DACHS_DEFINE_NODE_PTR(unary_expr);
-DACHS_DEFINE_NODE_PTR(type_name);
+DACHS_DEFINE_NODE_PTR(primary_type);
+DACHS_DEFINE_NODE_PTR(tuple_type);
+DACHS_DEFINE_NODE_PTR(array_type);
+DACHS_DEFINE_NODE_PTR(compound_type);
+DACHS_DEFINE_NODE_PTR(qualified_type);
 DACHS_DEFINE_NODE_PTR(cast_expr);
 DACHS_DEFINE_NODE_PTR(mult_expr);
 DACHS_DEFINE_NODE_PTR(additive_expr);
@@ -338,9 +350,9 @@ struct identifier : public base {
 struct parameter : public base {
     bool is_var;
     node::identifier name;
-    boost::optional<node::type_name> type;
+    boost::optional<node::qualified_type> type;
 
-    parameter(bool const v, node::identifier const& n, boost::optional<node::type_name> const& t)
+    parameter(bool const v, node::identifier const& n, boost::optional<node::qualified_type> const& t)
         : base(), is_var(v), name(n), type(t)
     {}
 
@@ -364,10 +376,10 @@ struct function_call : public base {
 };
 
 struct object_construct : public base {
-    node::type_name type;
+    node::qualified_type type;
     boost::optional<node::function_call> args;
 
-    object_construct(node::type_name const& t, boost::optional<node::function_call> const& call)
+    object_construct(node::qualified_type const& t, boost::optional<node::function_call> const& call)
         : type(t), args(call)
     {}
 
@@ -453,27 +465,84 @@ struct unary_expr : public base {
     std::string to_string() const override;
 };
 
-// FIXME: Temporary
-struct type_name : public base {
-    bool is_maybe;
-    node::identifier name;
+struct primary_type : public base {
+    using value_type =
+        boost::variant< node::identifier
+                      , node::qualified_type >;
+    value_type value;
 
-    type_name(bool const maybe, node::identifier const& name)
-        : base(), is_maybe(maybe), name(name)
+    template<class T>
+    explicit primary_type(T const& v)
+        : value(v)
     {}
 
     std::string to_string() const override
     {
-        return std::string{"TYPE_NAME:"}
-                + (is_maybe ? " maybe" : "");
+        return "PRIMARY_TYPE";
+    }
+};
+
+struct array_type : public base {
+    node::qualified_type elem_type;
+
+    explicit array_type(node::qualified_type const& elem)
+        : elem_type(elem)
+    {}
+
+    std::string to_string() const override
+    {
+        return "ARRAY_TYPE";
+    }
+};
+
+struct tuple_type : public base {
+    std::vector<node::qualified_type> arg_types; // Note: length of this variable should not be 1
+
+    explicit tuple_type(std::vector<node::qualified_type> const& args)
+        : arg_types(args)
+    {}
+
+    std::string to_string() const override
+    {
+        return "TUPLE_TYPE";
+    }
+};
+
+struct compound_type : public base {
+    using value_type =
+        boost::variant<node::array_type, node::tuple_type, node::primary_type>;
+    value_type value;
+
+    template<class T>
+    explicit compound_type(T const& v)
+        : value(v)
+    {}
+
+    std::string to_string() const override
+    {
+        return "COMPOUND_TYPE";
+    }
+};
+
+struct qualified_type : public base {
+    boost::optional<qualifier> value;
+    node::compound_type type;
+
+    qualified_type(boost::optional<qualifier> const& q, node::compound_type const& t)
+        : value(q), type(t)
+    {}
+
+    std::string to_string() const override
+    {
+        return std::string{"QUALIFIED_TYPE: "} + (value ? std::to_string(static_cast<int>(*value)) : "");
     }
 };
 
 struct cast_expr : public base {
-    std::vector<node::type_name> dest_types;
+    std::vector<node::qualified_type> dest_types;
     node::unary_expr source_expr;
 
-    cast_expr(std::vector<node::type_name> const& types, node::unary_expr const& expr)
+    cast_expr(std::vector<node::qualified_type> const& types, node::unary_expr const& expr)
         : base(), dest_types(types), source_expr(expr)
     {}
 
@@ -562,11 +631,11 @@ struct relational_expr : public base {
 struct variable_decl : public base {
     bool is_var;
     node::identifier name;
-    boost::optional<node::type_name> maybe_type;
+    boost::optional<node::qualified_type> maybe_type;
 
     variable_decl(bool const var,
                   node::identifier const& name,
-                  boost::optional<node::type_name> const& type)
+                  boost::optional<node::qualified_type> const& type)
         : is_var(var), name(name), maybe_type(type)
     {}
 
@@ -711,10 +780,10 @@ struct expression : public base {
         = boost::variant<node::logical_or_expr,
                          node::if_expr>;
     expr_type child_expr;
-    boost::optional<node::type_name> maybe_type;
+    boost::optional<node::qualified_type> maybe_type;
 
     template<class T>
-    expression(T const& e, boost::optional<node::type_name> const& t)
+    expression(T const& e, boost::optional<node::qualified_type> const& t)
         : child_expr(e), maybe_type(t)
     {}
 

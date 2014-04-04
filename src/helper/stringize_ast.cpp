@@ -199,11 +199,33 @@ public:
                 + visit(ue->expr, indent_level+1);
     }
 
-    // TODO: Temporary
-    std::string visit(ast::node::type_name const& tn, size_t const indent_level) const
+    std::string visit(ast::node::primary_type const& pt, size_t const indent_level) const
     {
-        return prefix_of(tn, indent_level) + '\n'
-                + visit(tn->name, indent_level+1);
+        return prefix_of(pt, indent_level) + '\n'
+                + visit_variant_node(pt->value, indent_level+1);
+    }
+
+    std::string visit(ast::node::array_type const& at, size_t const indent_level) const
+    {
+        return prefix_of(at, indent_level) + '\n' + visit(at->elem_type, indent_level+1);
+    }
+
+    std::string visit(ast::node::tuple_type const& tt, size_t const indent_level) const
+    {
+        return prefix_of(tt, indent_level)
+            + visit_nodes(tt->arg_types, indent_level+1);
+    }
+
+    std::string visit(ast::node::compound_type const& ct, size_t const indent_level) const
+    {
+        return prefix_of(ct, indent_level) + '\n'
+                + visit_variant_node(ct->value, indent_level+1);
+    }
+
+    std::string visit(ast::node::qualified_type const& qt, size_t const indent_level) const
+    {
+        return prefix_of(qt, indent_level)
+                + '\n' + visit(qt->type, indent_level+1);
     }
 
     std::string visit(ast::node::cast_expr const& ce, size_t const indent_level) const

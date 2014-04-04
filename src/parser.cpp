@@ -200,7 +200,7 @@ public:
                 -qi::string("var")
                 >> identifier
                 >> -(
-                    ':' >> type_name
+                    ':' >> qualified_type
                 )
             ) [
                 _val = make_node_ptr<ast::node::parameter>(_1, _2, _3)
@@ -219,8 +219,8 @@ public:
             = (
                 "new"
                 >> (
-                    ('(' >> type_name >> ')')
-                    | type_name
+                    ('(' >> qualified_type >> ')')
+                    | qualified_type
                 ) >> -function_call
             ) [
                 _val = make_node_ptr<ast::node::object_construct>(_1, _2)
@@ -261,16 +261,47 @@ public:
                 _val = make_node_ptr<ast::node::unary_expr>(_1, _2)
             ];
 
-        type_name
+        primary_type
             = (
-                -qi::string("maybe") >> identifier >> -(lit('[') >> ']')
+                ('(' >> qualified_type >> ')') | identifier
             ) [
-                _val = make_node_ptr<ast::node::type_name>(_1, _2)
+                _val = make_node_ptr<ast::node::primary_type>(_1)
+            ];
+
+        array_type
+            = (
+                '[' >> qualified_type >> ']'
+            ) [
+                _val = make_node_ptr<ast::node::array_type>(_1)
+            ];
+
+        tuple_type
+            = (
+                '('
+                >> -(
+                    qualified_type[phx::push_back(_a, _1)] >> +(',' >> qualified_type[phx::push_back(_a, _1)])
+                ) >> ')'
+            ) [
+                _val = make_node_ptr<ast::node::tuple_type>(_a)
+            ];
+
+        compound_type
+            = (
+                array_type | tuple_type | primary_type
+            ) [
+                _val = make_node_ptr<ast::node::compound_type>(_1)
+            ];
+
+        qualified_type
+            = (
+                -qualifier >> compound_type
+            ) [
+                _val = make_node_ptr<ast::node::qualified_type>(_1, _2)
             ];
 
         cast_expr
             = (
-                unary_expr >> *("as" > type_name)
+                unary_expr >> *("as" > qualified_type)
             ) [
                 _val = make_node_ptr<ast::node::cast_expr>(_2, _1)
             ];
@@ -375,7 +406,7 @@ public:
 
         expression
             = (
-                (if_expr | logical_or_expr) >> -(':' >> type_name)
+                (if_expr | logical_or_expr) >> -(':' >> qualified_type)
             ) [
                 _val = make_node_ptr<ast::node::expression>(_1, _2)
             ];
@@ -389,7 +420,7 @@ public:
 
         variable_decl
             = (
-                -(qi::string("var")) >> identifier >> -(':' >> type_name)
+                -(qi::string("var")) >> identifier >> -(':' >> qualified_type)
             ) [
                 _val = make_node_ptr<ast::node::variable_decl>(_1, _2, _3)
             ];
@@ -531,7 +562,11 @@ public:
             , member_access
             , postfix_expr
             , unary_expr
-            , type_name
+            , primary_type
+            , array_type
+            , tuple_type
+            , compound_type
+            , qualified_type
             , cast_expr
             , mult_expr
             , additive_expr
@@ -611,7 +646,11 @@ private:
     DACHS_DEFINE_RULE(member_access);
     DACHS_DEFINE_RULE(postfix_expr);
     DACHS_DEFINE_RULE(unary_expr);
-    DACHS_DEFINE_RULE(type_name);
+    DACHS_DEFINE_RULE(primary_type);
+    DACHS_DEFINE_RULE(array_type);
+    DACHS_DEFINE_RULE_WITH_LOCALS(tuple_type, std::vector<ast::node::qualified_type>);
+    DACHS_DEFINE_RULE(compound_type);
+    DACHS_DEFINE_RULE(qualified_type);
     DACHS_DEFINE_RULE(cast_expr);
     DACHS_DEFINE_RULE(mult_expr);
     DACHS_DEFINE_RULE(additive_expr);
@@ -737,6 +776,15 @@ private:
             ;
         }
     } if_kind;
+
+    struct qualifier_rule_type : public qi::symbols<char, ast::qualifier> {
+        qualifier_rule_type()
+        {
+            add
+                ("maybe", ast::qualifier::maybe)
+            ;
+        }
+    } qualifier;
     // }}}
 };
 
