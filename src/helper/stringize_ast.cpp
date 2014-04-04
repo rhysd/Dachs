@@ -65,13 +65,13 @@ struct node_variant_visitor : public boost::static_visitor<std::string> {
 class ast_stringizer {
     std::string indent(size_t const level) const
     {
-        return std::string(level, '.');
+        return "\033[93m" + std::string(level, '.') + "\033[0m";
     }
 
     template<class T>
     std::string prefix_of(std::shared_ptr<T> const& p, size_t const indent_level) const
     {
-        return indent(indent_level) + p->to_string() + (boost::format(" (line:%1%, col:%2%, length:%3%)") % p->line % p->col % p->length).str();
+        return indent(indent_level) + "\033[92m" + p->to_string() + "\033[90m" + (boost::format(" (line:%1%, col:%2%, length:%3%)") % p->line % p->col % p->length).str() + "\033[0m";
     }
 
     template<class... Args>
@@ -124,7 +124,7 @@ class ast_stringizer {
                 + visit_nodes_with_predicate(
                       p->rhss,
                       [this, indent_level](auto const& op_and_rhs) {
-                          return indent(indent_level+1) + "OPERATOR: " + ast::to_string(op_and_rhs.first)
+                          return indent(indent_level+1) + "\033[92mOPERATOR: " + ast::to_string(op_and_rhs.first) + "\033[0m"
                               + '\n' + visit(op_and_rhs.second, indent_level+1);
                       });
     }
@@ -304,7 +304,7 @@ public:
     {
         return prefix_of(as, indent_level)
                + visit_nodes(as->assignees, indent_level+1)
-               + '\n' + indent(indent_level+1) + "ASSIGN_OPERATOR: " + ast::to_string(as->assign_op)
+               + '\n' + indent(indent_level+1) + "\033[92mASSIGN_OPERATOR: " + ast::to_string(as->assign_op) + "\033[0m"
                + visit_nodes(as->rhs_exprs, indent_level+1);
     }
 
