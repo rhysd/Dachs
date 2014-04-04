@@ -1,0 +1,18 @@
+func abs(n)
+    return if n > 0.0 then n else -n
+end
+
+func sqrt'(p, z, x)
+    if abs(p-z) < 0.00001
+        return z
+    end
+    return sqrt'(z, z-(z*z-x)/(2*z), x)
+end
+
+func sqrt(x)
+    return sqrt'(0.0, x, x)
+end
+
+func main()
+    println(sqrt(10.0))
+end
