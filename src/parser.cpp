@@ -85,6 +85,13 @@ inline auto make_node_ptr(Holders &&... holders)
 }
 // }}}
 
+template<class FloatType>
+struct strict_real_policies_disallowing_trailing_dot
+    : qi::strict_real_policies<FloatType> {
+    static bool const allow_trailing_dot = false;
+    // static bool const allow_leading_dot = false;
+};
+
 template<class Iterator>
 class grammar : public qi::grammar<Iterator, ast::node::program(), comment_skipper<Iterator>> {
     template<class Value, class... Extra>
@@ -127,7 +134,7 @@ public:
 
         float_literal
             = (
-                (qi::real_parser<double, qi::strict_real_policies<double>>())
+                (qi::real_parser<double, strict_real_policies_disallowing_trailing_dot<double>>())
             ) [
                 _val = make_node_ptr<ast::node::float_literal>(_1)
             ];
@@ -527,6 +534,7 @@ public:
                 _val = make_node_ptr<ast::node::statement>(_1)
             ];
 
+        // Set callback to get the position of node and show obvious compile error {{{
         detail::set_position_getter_on_success(
 
             // _val : parsed value
@@ -542,7 +550,6 @@ public:
                 }
                 , _val, _1, _3)
 
-            // Get the position of node
             , program
             , literal
             , integer_literal
@@ -614,6 +621,8 @@ public:
                           }, _1, _2, _3)
                       << '\n' << std::endl
         );
+        // }}}
+
     }
 
     ~grammar()
@@ -624,8 +633,8 @@ private:
     // Rules {{{
     rule<qi::unused_type()> sep;
 
-#define DACHS_DEFINE_RULE(n) rule<ast::node::n()> n;
-#define DACHS_DEFINE_RULE_WITH_LOCALS(n, ...) rule<ast::node::n(), qi::locals< __VA_ARGS__ >> n;
+#define DACHS_DEFINE_RULE(n) rule<ast::node::n()> n
+#define DACHS_DEFINE_RULE_WITH_LOCALS(n, ...) rule<ast::node::n(), qi::locals< __VA_ARGS__ >> n
 
     DACHS_DEFINE_RULE(program);
     DACHS_DEFINE_RULE(literal);
