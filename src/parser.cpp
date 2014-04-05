@@ -222,13 +222,21 @@ public:
                 _val = make_node_ptr<ast::node::function_call>(_a)
             ];
 
+        constructor_call
+            = (
+                '{' >> -(
+                    expression[phx::push_back(_a, _1)] % ','
+                ) >> '}'
+            ) [
+                _val = make_node_ptr<ast::node::function_call>(_a)
+            ];
+
         object_construct
             = (
-                "new"
-                >> (
+                (
                     ('(' >> qualified_type >> ')')
                     | qualified_type
-                ) >> -function_call
+                ) >> constructor_call
             ) [
                 _val = make_node_ptr<ast::node::object_construct>(_1, _2)
             ];
@@ -563,6 +571,7 @@ public:
             , identifier
             , parameter
             , function_call
+            , constructor_call
             , object_construct
             , primary_expr
             , index_access
@@ -648,7 +657,7 @@ private:
     DACHS_DEFINE_RULE(symbol_literal);
     DACHS_DEFINE_RULE(identifier);
     DACHS_DEFINE_RULE(parameter);
-    DACHS_DEFINE_RULE_WITH_LOCALS(function_call, std::vector<ast::node::expression>);
+    DACHS_DEFINE_RULE_WITH_LOCALS(function_call, std::vector<ast::node::expression>), constructor_call;
     DACHS_DEFINE_RULE(object_construct);
     DACHS_DEFINE_RULE(primary_expr);
     DACHS_DEFINE_RULE(index_access);
