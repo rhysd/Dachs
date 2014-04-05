@@ -106,7 +106,7 @@ public:
         // FIXME: Temporary
         program
             = (
-                (statement % sep) > -(sep) > (qi::eol | qi::eoi)
+                (compound_stmt % sep) > -(sep) > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(_1)
             ];
@@ -163,7 +163,7 @@ public:
         array_literal
             = (
                 '[' >> -(
-                    expression[phx::push_back(_a, _1)] % ','
+                    compound_expr[phx::push_back(_a, _1)] % ','
                 ) >> ']'
             ) [
                 _val = make_node_ptr<ast::node::array_literal>(_a)
@@ -172,9 +172,9 @@ public:
         tuple_literal
             = (
                 '(' >> -(
-                    expression[phx::push_back(_a, _1)]
+                    compound_expr[phx::push_back(_a, _1)]
                     >> +(
-                        ',' >> expression[phx::push_back(_a, _1)]
+                        ',' >> compound_expr[phx::push_back(_a, _1)]
                     )
                 ) >> ')'
             ) [
@@ -216,7 +216,7 @@ public:
         function_call
             = (
                 '(' >> -(
-                    expression[phx::push_back(_a, _1)] % ','
+                    compound_expr[phx::push_back(_a, _1)] % ','
                 ) >> ')'
             ) [
                 _val = make_node_ptr<ast::node::function_call>(_a)
@@ -225,7 +225,7 @@ public:
         constructor_call
             = (
                 '{' >> -(
-                    expression[phx::push_back(_a, _1)] % ','
+                    compound_expr[phx::push_back(_a, _1)] % ','
                 ) >> '}'
             ) [
                 _val = make_node_ptr<ast::node::function_call>(_a)
@@ -243,14 +243,14 @@ public:
 
         primary_expr
             = (
-                object_construct | literal | identifier | '(' >> expression >> ')'
+                object_construct | literal | identifier | '(' >> compound_expr >> ')'
             ) [
                 _val = make_node_ptr<ast::node::primary_expr>(_1)
             ];
 
         index_access
             = (
-                '[' >> expression >> ']'
+                '[' >> compound_expr >> ']'
             ) [
                 _val = make_node_ptr<ast::node::index_access>(_1)
             ];
@@ -413,22 +413,22 @@ public:
 
         if_expr
             = (
-                if_kind >> (expression - "then") >> ("then" || sep)
-                >> (expression - "else") >> -sep >> "else" >> -sep >> expression
+                if_kind >> (compound_expr - "then") >> ("then" || sep)
+                >> (compound_expr - "else") >> -sep >> "else" >> -sep >> compound_expr
             ) [
                 _val = make_node_ptr<ast::node::if_expr>(_1, _2, _3, _4)
             ];
 
-        expression
+        compound_expr
             = (
                 (if_expr | logical_or_expr) >> -(':' >> qualified_type)
             ) [
-                _val = make_node_ptr<ast::node::expression>(_1, _2)
+                _val = make_node_ptr<ast::node::compound_expr>(_1, _2)
             ];
 
         assignment_stmt
             = (
-                postfix_expr % ',' >> assign_operator >> expression % ','
+                postfix_expr % ',' >> assign_operator >> compound_expr % ','
             ) [
                 _val = make_node_ptr<ast::node::assignment_stmt>(_1, _2, _3)
             ];
@@ -442,21 +442,21 @@ public:
 
         initialize_stmt
             = (
-                variable_decl % ',' >> ":=" >> expression % ','
+                variable_decl % ',' >> ":=" >> compound_expr % ','
             ) [
                 _val = make_node_ptr<ast::node::initialize_stmt>(_1, _2)
             ];
 
         if_stmt
             = (
-                if_kind >> (expression - "then") >> ("then" || sep)
-                >> (statement - "end" - "elseif" - "else" - "then") % sep >> -sep
+                if_kind >> (compound_expr - "then") >> ("then" || sep)
+                >> (compound_stmt - "end" - "elseif" - "else" - "then") % sep >> -sep
                 >> *(
                     qi::as<ast::node_type::if_stmt::elseif_type>()[
-                        "elseif" >> (expression - "then") >> ("then" || sep)
-                        >> (statement - "end" - "elseif" - "else" - "then") % sep >> -sep
+                        "elseif" >> (compound_expr - "then") >> ("then" || sep)
+                        >> (compound_stmt - "end" - "elseif" - "else" - "then") % sep >> -sep
                     ]
-                ) >> -("else" >> -sep >> (statement - "end") % sep >> -sep)
+                ) >> -("else" >> -sep >> (compound_stmt - "end") % sep >> -sep)
                 >> "end"
             ) [
                 _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4, _5)
@@ -464,7 +464,7 @@ public:
 
         return_stmt
             = (
-                "return" >> -(expression[phx::push_back(_a, _1)] % ',')
+                "return" >> -(compound_expr[phx::push_back(_a, _1)] % ',')
             ) [
                 _val = make_node_ptr<ast::node::return_stmt>(_a)
             ];
@@ -474,11 +474,11 @@ public:
                 "case" >> sep
                 >> +(
                     qi::as<ast::node_type::case_stmt::when_type>()[
-                        "when" >> (expression - "then") >> ("then" || sep)
-                        >> +((statement - "end" - "else") >> sep)
+                        "when" >> (compound_expr - "then") >> ("then" || sep)
+                        >> +((compound_stmt - "end" - "else") >> sep)
                     ]
                 ) >> -(
-                    "else" >> -sep >> (statement - "end") % sep >> -sep
+                    "else" >> -sep >> (compound_stmt - "end") % sep >> -sep
                 ) >> "end"
             ) [
                 _val = make_node_ptr<ast::node::case_stmt>(_1, _2)
@@ -486,14 +486,14 @@ public:
 
         switch_stmt
             = (
-                "case" >> (expression - "when") >> sep
+                "case" >> (compound_expr - "when") >> sep
                 >> +(
                     qi::as<ast::node_type::switch_stmt::when_type>()[
-                        "when" >> (expression - "then") >> ("then" || sep)
-                        >> +((statement - "end" - "else") >> sep)
+                        "when" >> (compound_expr - "then") >> ("then" || sep)
+                        >> +((compound_stmt - "end" - "else") >> sep)
                     ]
                 ) >> -(
-                    "else" >> -sep >> (statement - "end") % sep >> -sep
+                    "else" >> -sep >> (compound_stmt - "end") % sep >> -sep
                 ) >> "end"
             ) [
                 _val = make_node_ptr<ast::node::switch_stmt>(_1, _2, _3)
@@ -501,9 +501,9 @@ public:
 
         for_stmt
             = (
-                // Note: "do" might colide with do-end block in expression
-                "for" >> (parameter - "in") % ',' >> "in" >> expression >> ("do" || sep)
-                >> (statement - "end") % sep >> -sep
+                // Note: "do" might colide with do-end block in compound_expr
+                "for" >> (parameter - "in") % ',' >> "in" >> compound_expr >> ("do" || sep)
+                >> (compound_stmt - "end") % sep >> -sep
                 >> "end"
             ) [
                 _val = make_node_ptr<ast::node::for_stmt>(_1, _2, _3)
@@ -511,9 +511,9 @@ public:
 
         while_stmt
             = (
-                // Note: "do" might colide with do-end block in expression
-                "for" >> expression >> ("do" || sep)
-                >> (statement - "end") % sep >> -sep
+                // Note: "do" might colide with do-end block in compound_expr
+                "for" >> compound_expr >> ("do" || sep)
+                >> (compound_stmt - "end") % sep >> -sep
                 >> "end"
             ) [
                 _val = make_node_ptr<ast::node::while_stmt>(_1, _2)
@@ -521,12 +521,12 @@ public:
 
         postfix_if_stmt
             = (
-                (expression - if_kind) >> if_kind >> expression
+                (compound_expr - if_kind) >> if_kind >> compound_expr
             ) [
                 _val = make_node_ptr<ast::node::postfix_if_stmt>(_1, _2, _3)
             ];
 
-        statement
+        compound_stmt
             = (
                   if_stmt
                 | return_stmt
@@ -537,9 +537,9 @@ public:
                 | initialize_stmt
                 | assignment_stmt
                 | postfix_if_stmt
-                | expression
+                | compound_expr
             ) [
-                _val = make_node_ptr<ast::node::statement>(_1)
+                _val = make_node_ptr<ast::node::compound_stmt>(_1)
             ];
 
         // Set callback to get the position of node and show obvious compile error {{{
@@ -595,7 +595,7 @@ public:
             , logical_and_expr
             , logical_or_expr
             , if_expr
-            , expression
+            , compound_expr
             , if_stmt
             , return_stmt
             , case_stmt
@@ -606,7 +606,7 @@ public:
             , initialize_stmt
             , assignment_stmt
             , postfix_if_stmt
-            , statement
+            , compound_stmt
         );
 
         qi::on_error<qi::fail>(
@@ -652,12 +652,12 @@ private:
     DACHS_DEFINE_RULE(float_literal);
     DACHS_DEFINE_RULE(boolean_literal);
     DACHS_DEFINE_RULE(string_literal);
-    DACHS_DEFINE_RULE_WITH_LOCALS(array_literal, std::vector<ast::node::expression>);
-    DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::expression>);
+    DACHS_DEFINE_RULE_WITH_LOCALS(array_literal, std::vector<ast::node::compound_expr>);
+    DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::compound_expr>);
     DACHS_DEFINE_RULE(symbol_literal);
     DACHS_DEFINE_RULE(identifier);
     DACHS_DEFINE_RULE(parameter);
-    DACHS_DEFINE_RULE_WITH_LOCALS(function_call, std::vector<ast::node::expression>), constructor_call;
+    DACHS_DEFINE_RULE_WITH_LOCALS(function_call, std::vector<ast::node::compound_expr>), constructor_call;
     DACHS_DEFINE_RULE(object_construct);
     DACHS_DEFINE_RULE(primary_expr);
     DACHS_DEFINE_RULE(index_access);
@@ -681,9 +681,9 @@ private:
     DACHS_DEFINE_RULE(logical_and_expr);
     DACHS_DEFINE_RULE(logical_or_expr);
     DACHS_DEFINE_RULE(if_expr);
-    DACHS_DEFINE_RULE(expression);
+    DACHS_DEFINE_RULE(compound_expr);
     DACHS_DEFINE_RULE(if_stmt);
-    DACHS_DEFINE_RULE_WITH_LOCALS(return_stmt, std::vector<ast::node::expression>);
+    DACHS_DEFINE_RULE_WITH_LOCALS(return_stmt, std::vector<ast::node::compound_expr>);
     DACHS_DEFINE_RULE(case_stmt);
     DACHS_DEFINE_RULE(switch_stmt);
     DACHS_DEFINE_RULE(for_stmt);
@@ -692,7 +692,7 @@ private:
     DACHS_DEFINE_RULE(initialize_stmt);
     DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(postfix_if_stmt);
-    DACHS_DEFINE_RULE(statement);
+    DACHS_DEFINE_RULE(compound_stmt);
 
 #undef DACHS_DEFINE_RULE
 #undef DACHS_DEFINE_RULE_WITH_LOCALS

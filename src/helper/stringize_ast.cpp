@@ -293,7 +293,7 @@ public:
                 + '\n' + visit(ie->else_expr, indent_level+1);
     }
 
-    std::string visit(ast::node::expression const& e, size_t const indent_level) const
+    std::string visit(ast::node::compound_expr const& e, size_t const indent_level) const
     {
         return prefix_of(e, indent_level) + '\n'
                + visit_variant_node(e->child_expr, indent_level+1)
@@ -371,7 +371,7 @@ public:
                 + '\n' + visit(pis->condition, indent_level+1);
     }
 
-    std::string visit(ast::node::statement const& s, size_t const indent_level) const
+    std::string visit(ast::node::compound_stmt const& s, size_t const indent_level) const
     {
         return prefix_of(s, indent_level) + '\n' + visit_variant_node(s->value, indent_level+1);
     }

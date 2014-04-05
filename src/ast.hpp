@@ -120,7 +120,7 @@ struct or_expr;
 struct logical_and_expr;
 struct logical_or_expr;
 struct if_expr;
-struct expression;
+struct compound_expr;
 struct assignment_stmt;
 struct variable_decl;
 struct initialize_stmt;
@@ -131,7 +131,7 @@ struct switch_stmt;
 struct for_stmt;
 struct while_stmt;
 struct postfix_if_stmt;
-struct statement;
+struct compound_stmt;
 struct program;
 
 }
@@ -174,7 +174,7 @@ DACHS_DEFINE_NODE_PTR(or_expr);
 DACHS_DEFINE_NODE_PTR(logical_and_expr);
 DACHS_DEFINE_NODE_PTR(logical_or_expr);
 DACHS_DEFINE_NODE_PTR(if_expr);
-DACHS_DEFINE_NODE_PTR(expression);
+DACHS_DEFINE_NODE_PTR(compound_expr);
 DACHS_DEFINE_NODE_PTR(assignment_stmt);
 DACHS_DEFINE_NODE_PTR(variable_decl);
 DACHS_DEFINE_NODE_PTR(initialize_stmt);
@@ -185,11 +185,18 @@ DACHS_DEFINE_NODE_PTR(return_stmt);
 DACHS_DEFINE_NODE_PTR(for_stmt);
 DACHS_DEFINE_NODE_PTR(while_stmt);
 DACHS_DEFINE_NODE_PTR(postfix_if_stmt);
-DACHS_DEFINE_NODE_PTR(statement);
+DACHS_DEFINE_NODE_PTR(compound_stmt);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
 } // namespace node
+
+namespace alias {
+
+// handy aliases
+using statement_block = std::vector<node::compound_stmt>;
+
+} // namespace alias
 
 namespace node_type {
 
@@ -207,11 +214,22 @@ struct base {
     std::size_t id;
 };
 
-struct character_literal : public base {
+struct expression : public base {
+    // Type type;
+    virtual ~expression()
+    {}
+};
+
+struct statement : public base {
+    virtual ~statement()
+    {}
+};
+
+struct character_literal : public expression {
     char value;
 
     explicit character_literal(char const c)
-        : base(), value(c)
+        : expression(), value(c)
     {}
 
     std::string to_string() const override
@@ -220,11 +238,11 @@ struct character_literal : public base {
     }
 };
 
-struct float_literal : public base {
+struct float_literal : public expression {
     double value;
 
     explicit float_literal(double const d)
-        : base(), value(d)
+        : expression(), value(d)
     {}
 
     std::string to_string() const override
@@ -233,11 +251,11 @@ struct float_literal : public base {
     }
 };
 
-struct boolean_literal : public base {
+struct boolean_literal : public expression {
     bool value;
 
     explicit boolean_literal(bool const b)
-        : base(), value(b)
+        : expression(), value(b)
     {}
 
     std::string to_string() const override
@@ -246,11 +264,11 @@ struct boolean_literal : public base {
     }
 };
 
-struct string_literal : public base {
+struct string_literal : public expression {
     std::string value;
 
     explicit string_literal(std::string const& s)
-        : base(), value(s)
+        : expression(), value(s)
     {}
 
     std::string to_string() const override
@@ -259,24 +277,24 @@ struct string_literal : public base {
     }
 };
 
-struct integer_literal : public base {
+struct integer_literal : public expression {
     boost::variant< int
                   , unsigned int
     > value;
 
     template<class T>
     explicit integer_literal(T && v)
-        : base(), value(std::forward<T>(v))
+        : expression(), value(std::forward<T>(v))
     {}
 
     std::string to_string() const override;
 };
 
-struct array_literal : public base {
-    std::vector<node::expression> element_exprs;
+struct array_literal : public expression {
+    std::vector<node::compound_expr> element_exprs;
 
-    explicit array_literal(std::vector<node::expression> const& elems)
-        : base(), element_exprs(elems)
+    explicit array_literal(std::vector<node::compound_expr> const& elems)
+        : expression(), element_exprs(elems)
     {}
 
     std::string to_string() const override
@@ -285,11 +303,11 @@ struct array_literal : public base {
     }
 };
 
-struct tuple_literal : public base {
-    std::vector<node::expression> element_exprs;
+struct tuple_literal : public expression {
+    std::vector<node::compound_expr> element_exprs;
 
-    explicit tuple_literal(std::vector<node::expression> const& elems)
-        : base(), element_exprs(elems)
+    explicit tuple_literal(std::vector<node::compound_expr> const& elems)
+        : expression(), element_exprs(elems)
     {}
 
     std::string to_string() const override
@@ -298,11 +316,11 @@ struct tuple_literal : public base {
     }
 };
 
-struct symbol_literal : public base {
+struct symbol_literal : public expression {
     std::string value;
 
     explicit symbol_literal(std::string const& s)
-        : base(), value(s)
+        : expression(), value(s)
     {}
 
     std::string to_string() const override
@@ -311,7 +329,7 @@ struct symbol_literal : public base {
     }
 };
 
-struct literal : public base {
+struct literal : public expression {
     using value_type =
         boost::variant< node::character_literal
                       , node::float_literal
@@ -325,7 +343,7 @@ struct literal : public base {
 
     template<class T>
     explicit literal(T && v)
-        : base(), value(std::forward<T>(v))
+        : expression(), value(std::forward<T>(v))
     {}
 
     std::string to_string() const override
@@ -362,11 +380,11 @@ struct parameter : public base {
     }
 };
 
-struct function_call : public base {
-    std::vector<node::expression> args;
+struct function_call : public expression {
+    std::vector<node::compound_expr> args;
 
-    function_call(std::vector<node::expression> const& args)
-        : base(), args(args)
+    function_call(std::vector<node::compound_expr> const& args)
+        : expression(), args(args)
     {}
 
     std::string to_string() const override
@@ -375,12 +393,12 @@ struct function_call : public base {
     }
 };
 
-struct object_construct : public base {
+struct object_construct : public expression {
     node::qualified_type type;
     boost::optional<node::function_call> args;
 
     object_construct(node::qualified_type const& t, boost::optional<node::function_call> const& call)
-        : type(t), args(call)
+        : expression(), type(t), args(call)
     {}
 
     std::string to_string() const override
@@ -389,19 +407,19 @@ struct object_construct : public base {
     }
 };
 
-struct primary_expr : public base {
-    // Note: add lambda expression
+struct primary_expr : public expression {
+    // Note: add lambda compound_expr
     using value_type =
         boost::variant< node::object_construct
                       , node::identifier
                       , node::literal
-                      , node::expression
+                      , node::compound_expr
                       >;
     value_type value;
 
     template<class T>
     explicit primary_expr(T && v)
-        : base(), value(std::forward<T>(v))
+        : expression(), value(std::forward<T>(v))
     {}
 
     std::string to_string() const override
@@ -410,11 +428,11 @@ struct primary_expr : public base {
     }
 };
 
-struct index_access : public base {
-    node::expression index_expr;
+struct index_access : public expression {
+    node::compound_expr index_expr;
 
-    index_access(node::expression const& idx_expr)
-        : base(), index_expr(idx_expr)
+    index_access(node::compound_expr const& idx_expr)
+        : expression(), index_expr(idx_expr)
     {}
 
     std::string to_string() const override
@@ -424,10 +442,10 @@ struct index_access : public base {
     }
 };
 
-struct member_access : public base {
+struct member_access : public expression {
     node::identifier member_name;
     explicit member_access(node::identifier const& member_name)
-        : base(), member_name(member_name)
+        : expression(), member_name(member_name)
     {}
 
     std::string to_string() const override
@@ -436,7 +454,7 @@ struct member_access : public base {
     }
 };
 
-struct postfix_expr : public base {
+struct postfix_expr : public expression {
     // Note: add do-end block
     node::primary_expr prefix;
     using postfix_type =
@@ -446,7 +464,7 @@ struct postfix_expr : public base {
     std::vector<postfix_type> postfixes;
 
     postfix_expr(node::primary_expr const& pe, std::vector<postfix_type> const& ps)
-        : base(), prefix(pe), postfixes(ps)
+        : expression(), prefix(pe), postfixes(ps)
     {}
 
     std::string to_string() const override
@@ -455,11 +473,11 @@ struct postfix_expr : public base {
     }
 };
 
-struct unary_expr : public base {
+struct unary_expr : public expression {
     std::vector<unary_operator> values;
     node::postfix_expr expr;
     unary_expr(std::vector<unary_operator> const& ops, node::postfix_expr const& expr)
-        : base(), values(ops), expr(expr)
+        : expression(), values(ops), expr(expr)
     {}
 
     std::string to_string() const override;
@@ -538,12 +556,12 @@ struct qualified_type : public base {
     }
 };
 
-struct cast_expr : public base {
+struct cast_expr : public expression {
     std::vector<node::qualified_type> dest_types;
     node::unary_expr source_expr;
 
     cast_expr(std::vector<node::qualified_type> const& types, node::unary_expr const& expr)
-        : base(), dest_types(types), source_expr(expr)
+        : expression(), dest_types(types), source_expr(expr)
     {}
 
     std::string to_string() const override
@@ -552,7 +570,7 @@ struct cast_expr : public base {
     }
 };
 
-struct mult_expr : public base {
+struct mult_expr : public expression {
     using rhs_type
         = std::pair<mult_operator, node::cast_expr>;
     using rhss_type
@@ -562,7 +580,7 @@ struct mult_expr : public base {
     rhss_type rhss;
 
     mult_expr(node::cast_expr const& lhs, rhss_type const& rhss)
-        : lhs(lhs), rhss(rhss)
+        : expression(), lhs(lhs), rhss(rhss)
     {}
 
     std::string to_string() const override
@@ -571,7 +589,7 @@ struct mult_expr : public base {
     }
 };
 
-struct additive_expr : public base {
+struct additive_expr : public expression {
     using rhs_type
         = std::pair<additive_operator, node::mult_expr>;
     using rhss_type
@@ -581,7 +599,7 @@ struct additive_expr : public base {
     rhss_type rhss;
 
     additive_expr(node::mult_expr const& lhs, rhss_type const& rhss)
-        : lhs(lhs), rhss(rhss)
+        : expression(), lhs(lhs), rhss(rhss)
     {}
 
     std::string to_string() const override
@@ -590,7 +608,7 @@ struct additive_expr : public base {
     }
 };
 
-struct shift_expr : public base {
+struct shift_expr : public expression {
     using rhs_type
         = std::pair<shift_operator, node::additive_expr>;
     using rhss_type
@@ -600,7 +618,7 @@ struct shift_expr : public base {
     rhss_type rhss;
 
     shift_expr(node::additive_expr const& lhs, rhss_type const& rhss)
-        : lhs(lhs), rhss(rhss)
+        : expression(), lhs(lhs), rhss(rhss)
     {}
 
     std::string to_string() const override
@@ -609,7 +627,7 @@ struct shift_expr : public base {
     }
 };
 
-struct relational_expr : public base {
+struct relational_expr : public expression {
     using rhs_type
         = std::pair<relational_operator, node::shift_expr>;
     using rhss_type
@@ -619,12 +637,145 @@ struct relational_expr : public base {
     rhss_type rhss;
 
     relational_expr(node::shift_expr const& lhs, rhss_type const& rhss)
-        : lhs(lhs), rhss(rhss)
+        : expression(), lhs(lhs), rhss(rhss)
     {}
 
     std::string to_string() const override
     {
         return "RELATIONAL_EXPR";
+    }
+};
+
+struct equality_expr : public expression {
+    using rhs_type
+        = std::pair<equality_operator, node::relational_expr>;
+    using rhss_type
+        = std::vector<rhs_type>;
+
+    node::relational_expr lhs;
+    rhss_type rhss;
+
+    equality_expr(node::relational_expr const& lhs, rhss_type const& rhss)
+        : expression(), lhs(lhs), rhss(rhss)
+    {}
+
+    std::string to_string() const override
+    {
+        return "EQUALITY_EXPR";
+    }
+};
+
+struct and_expr : public expression {
+    std::vector<node::equality_expr> exprs;
+
+    explicit and_expr(node::equality_expr const& lhs, std::vector<node::equality_expr> const& rhss)
+        : expression(), exprs({lhs})
+    {
+        exprs.reserve(1+rhss.size());
+        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
+    }
+
+    std::string to_string() const override
+    {
+        return "AND_EXPR";
+    }
+};
+
+struct xor_expr : public expression {
+    std::vector<node::and_expr> exprs;
+
+    explicit xor_expr(node::and_expr const& lhs, std::vector<node::and_expr> const& rhss)
+        : expression(), exprs({lhs})
+    {
+        exprs.reserve(1+rhss.size());
+        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
+    }
+
+    std::string to_string() const override
+    {
+        return "XOR_EXPR";
+    }
+};
+
+struct or_expr : public expression {
+    std::vector<node::xor_expr> exprs;
+
+    explicit or_expr(node::xor_expr const& lhs, std::vector<node::xor_expr> const& rhss)
+        : expression(), exprs({lhs})
+    {
+        exprs.reserve(1+rhss.size());
+        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
+    }
+
+    std::string to_string() const override
+    {
+        return "OR_EXPR";
+    }
+};
+
+struct logical_and_expr : public expression {
+    std::vector<node::or_expr> exprs;
+
+    explicit logical_and_expr(node::or_expr const& lhs, std::vector<node::or_expr> const& rhss)
+        : expression(), exprs({lhs})
+    {
+        exprs.reserve(1+rhss.size());
+        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
+    }
+
+    std::string to_string() const override
+    {
+        return "LOGICAL_AND_EXPR";
+    }
+};
+
+struct logical_or_expr : public expression {
+    std::vector<node::logical_and_expr> exprs;
+
+    explicit logical_or_expr(node::logical_and_expr const& lhs, std::vector<node::logical_and_expr> const& rhss)
+        : expression(), exprs({lhs})
+    {
+        exprs.reserve(1+rhss.size());
+        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
+    }
+
+    std::string to_string() const override
+    {
+        return "LOGICAL_OR_EXPR";
+    }
+};
+
+struct if_expr : public expression {
+    if_kind kind;
+    node::compound_expr condition_expr, then_expr, else_expr;
+    if_expr(if_kind const kind,
+            node::compound_expr const& condition,
+            node::compound_expr const& then,
+            node::compound_expr const& else_)
+        : expression(), kind(kind), condition_expr(condition), then_expr(then), else_expr(else_)
+    {}
+
+    std::string to_string() const override
+    {
+        return std::string{"IF_EXPR: "} + (kind == ast::if_kind::if_ ? "if" : "unless");
+    }
+};
+
+struct compound_expr : public expression {
+    using expr_type
+        = boost::variant<node::logical_or_expr,
+                         node::if_expr>;
+    expr_type child_expr;
+    boost::optional<node::qualified_type> maybe_type;
+
+    template<class T>
+    compound_expr(T const& e, boost::optional<node::qualified_type> const& t)
+        : expression(), child_expr(e), maybe_type(t)
+    {}
+
+    std::string to_string() const override
+    {
+        return "COMPOUND_EXPR";
     }
 };
 
@@ -645,13 +796,13 @@ struct variable_decl : public base {
     }
 };
 
-struct initialize_stmt : public base {
+struct initialize_stmt : public statement {
     std::vector<node::variable_decl> var_decls;
-    boost::optional<std::vector<node::expression>> maybe_rhs_exprs;
+    boost::optional<std::vector<node::compound_expr>> maybe_rhs_exprs;
 
     initialize_stmt(std::vector<node::variable_decl> const& vars,
-                  boost::optional<std::vector<node::expression>> const& rhss)
-        : var_decls(vars), maybe_rhs_exprs(rhss)
+                  boost::optional<std::vector<node::compound_expr>> const& rhss)
+        : statement(), var_decls(vars), maybe_rhs_exprs(rhss)
     {}
 
     std::string to_string() const override
@@ -660,148 +811,15 @@ struct initialize_stmt : public base {
     }
 };
 
-struct equality_expr : public base {
-    using rhs_type
-        = std::pair<equality_operator, node::relational_expr>;
-    using rhss_type
-        = std::vector<rhs_type>;
-
-    node::relational_expr lhs;
-    rhss_type rhss;
-
-    equality_expr(node::relational_expr const& lhs, rhss_type const& rhss)
-        : lhs(lhs), rhss(rhss)
-    {}
-
-    std::string to_string() const override
-    {
-        return "EQUALITY_EXPR";
-    }
-};
-
-struct and_expr : public base {
-    std::vector<node::equality_expr> exprs;
-
-    explicit and_expr(node::equality_expr const& lhs, std::vector<node::equality_expr> const& rhss)
-        : base(), exprs({lhs})
-    {
-        exprs.reserve(1+rhss.size());
-        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
-    }
-
-    std::string to_string() const override
-    {
-        return "AND_EXPR";
-    }
-};
-
-struct xor_expr : public base {
-    std::vector<node::and_expr> exprs;
-
-    explicit xor_expr(node::and_expr const& lhs, std::vector<node::and_expr> const& rhss)
-        : base(), exprs({lhs})
-    {
-        exprs.reserve(1+rhss.size());
-        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
-    }
-
-    std::string to_string() const override
-    {
-        return "XOR_EXPR";
-    }
-};
-
-struct or_expr : public base {
-    std::vector<node::xor_expr> exprs;
-
-    explicit or_expr(node::xor_expr const& lhs, std::vector<node::xor_expr> const& rhss)
-        : base(), exprs({lhs})
-    {
-        exprs.reserve(1+rhss.size());
-        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
-    }
-
-    std::string to_string() const override
-    {
-        return "OR_EXPR";
-    }
-};
-
-struct logical_and_expr : public base {
-    std::vector<node::or_expr> exprs;
-
-    explicit logical_and_expr(node::or_expr const& lhs, std::vector<node::or_expr> const& rhss)
-        : base(), exprs({lhs})
-    {
-        exprs.reserve(1+rhss.size());
-        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
-    }
-
-    std::string to_string() const override
-    {
-        return "LOGICAL_AND_EXPR";
-    }
-};
-
-struct logical_or_expr : public base {
-    std::vector<node::logical_and_expr> exprs;
-
-    explicit logical_or_expr(node::logical_and_expr const& lhs, std::vector<node::logical_and_expr> const& rhss)
-        : base(), exprs({lhs})
-    {
-        exprs.reserve(1+rhss.size());
-        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
-    }
-
-    std::string to_string() const override
-    {
-        return "LOGICAL_OR_EXPR";
-    }
-};
-
-struct if_expr : public base {
-    if_kind kind;
-    node::expression condition_expr, then_expr, else_expr;
-    if_expr(if_kind const kind,
-            node::expression const& condition,
-            node::expression const& then,
-            node::expression const& else_)
-        : kind(kind), condition_expr(condition), then_expr(then), else_expr(else_)
-    {}
-
-    std::string to_string() const override
-    {
-        return std::string{"IF_EXPR: "} + (kind == ast::if_kind::if_ ? "if" : "unless");
-    }
-};
-
-struct expression : public base {
-    using expr_type
-        = boost::variant<node::logical_or_expr,
-                         node::if_expr>;
-    expr_type child_expr;
-    boost::optional<node::qualified_type> maybe_type;
-
-    template<class T>
-    expression(T const& e, boost::optional<node::qualified_type> const& t)
-        : child_expr(e), maybe_type(t)
-    {}
-
-    std::string to_string() const override
-    {
-        return "EXPRESSION";
-    }
-};
-
-struct assignment_stmt : public base {
+struct assignment_stmt : public statement {
     std::vector<node::postfix_expr> assignees;
     assign_operator assign_op;
-    std::vector<node::expression> rhs_exprs;
+    std::vector<node::compound_expr> rhs_exprs;
 
     assignment_stmt(std::vector<node::postfix_expr> const& assignees,
                     assign_operator assign_op,
-                    std::vector<node::expression> const& rhs_exprs)
-        : assignees(assignees), assign_op(assign_op), rhs_exprs(rhs_exprs)
+                    std::vector<node::compound_expr> const& rhs_exprs)
+        : statement(), assignees(assignees), assign_op(assign_op), rhs_exprs(rhs_exprs)
     {}
 
     std::string to_string() const override
@@ -810,24 +828,22 @@ struct assignment_stmt : public base {
     }
 };
 
-struct if_stmt : public base {
-    using stmt_list_type
-        = std::vector<node::statement>;
+struct if_stmt : public statement {
     using elseif_type
-        = std::pair<node::expression, stmt_list_type>;
+        = std::pair<node::compound_expr, alias::statement_block>;
 
     if_kind kind;
-    node::expression condition;
-    stmt_list_type then_stmts;
+    node::compound_expr condition;
+    alias::statement_block then_stmts;
     std::vector<elseif_type> elseif_stmts_list;
-    boost::optional<stmt_list_type> maybe_else_stmts;
+    boost::optional<alias::statement_block> maybe_else_stmts;
 
     if_stmt(if_kind const kind,
-            node::expression const& cond,
-            stmt_list_type const& then,
+            node::compound_expr const& cond,
+            alias::statement_block const& then,
             std::vector<elseif_type> const& elseifs,
-            boost::optional<stmt_list_type> const& maybe_else)
-        : kind(kind), condition(cond), then_stmts(then), elseif_stmts_list(elseifs), maybe_else_stmts(maybe_else)
+            boost::optional<alias::statement_block> const& maybe_else)
+        : statement(), kind(kind), condition(cond), then_stmts(then), elseif_stmts_list(elseifs), maybe_else_stmts(maybe_else)
     {}
 
     std::string to_string() const override
@@ -837,11 +853,11 @@ struct if_stmt : public base {
     }
 };
 
-struct return_stmt : public base {
-    std::vector<node::expression> ret_exprs;
+struct return_stmt : public statement {
+    std::vector<node::compound_expr> ret_exprs;
 
-    explicit return_stmt(std::vector<node::expression> const& rets)
-        : ret_exprs(rets)
+    explicit return_stmt(std::vector<node::compound_expr> const& rets)
+        : statement(), ret_exprs(rets)
     {}
 
     std::string to_string() const override
@@ -850,17 +866,15 @@ struct return_stmt : public base {
     }
 };
 
-struct case_stmt : public base {
-    using stmt_list_type
-        = std::vector<node::statement>;
+struct case_stmt : public statement {
     using when_type
-        = std::pair<node::expression, stmt_list_type>;
+        = std::pair<node::compound_expr, alias::statement_block>;
 
     std::vector<when_type> when_stmts_list;
-    boost::optional<stmt_list_type> maybe_else_stmts;
+    boost::optional<alias::statement_block> maybe_else_stmts;
 
-    case_stmt(std::vector<when_type> const& whens, boost::optional<stmt_list_type> const& elses)
-        : when_stmts_list(whens), maybe_else_stmts(elses)
+    case_stmt(std::vector<when_type> const& whens, boost::optional<alias::statement_block> const& elses)
+        : statement(), when_stmts_list(whens), maybe_else_stmts(elses)
     {}
 
     std::string to_string() const override
@@ -869,20 +883,18 @@ struct case_stmt : public base {
     }
 };
 
-struct switch_stmt : public base {
-    using stmt_list_type
-        = std::vector<node::statement>;
+struct switch_stmt : public statement {
     using when_type
-        = std::pair<node::expression, stmt_list_type>;
+        = std::pair<node::compound_expr, alias::statement_block>;
 
-    node::expression target_expr;
+    node::compound_expr target_expr;
     std::vector<when_type> when_stmts_list;
-    boost::optional<stmt_list_type> maybe_else_stmts;
+    boost::optional<alias::statement_block> maybe_else_stmts;
 
-    switch_stmt(node::expression const& target,
+    switch_stmt(node::compound_expr const& target,
                 std::vector<when_type> const& whens,
-                boost::optional<stmt_list_type> const& elses)
-        : target_expr(target), when_stmts_list(whens), maybe_else_stmts(elses)
+                boost::optional<alias::statement_block> const& elses)
+        : statement(), target_expr(target), when_stmts_list(whens), maybe_else_stmts(elses)
     {}
 
     std::string to_string() const override
@@ -891,15 +903,15 @@ struct switch_stmt : public base {
     }
 };
 
-struct for_stmt : public base {
+struct for_stmt : public statement {
     std::vector<node::parameter> iter_vars;
-    node::expression range_expr;
-    std::vector<node::statement> body_stmts;
+    node::compound_expr range_expr;
+    alias::statement_block body_stmts;
 
     for_stmt(std::vector<node::parameter> const& iters,
-             node::expression const& range,
-             std::vector<node::statement> body)
-        : iter_vars(iters), range_expr(range), body_stmts(body)
+             node::compound_expr const& range,
+             alias::statement_block body)
+        : statement(), iter_vars(iters), range_expr(range), body_stmts(body)
     {}
 
     std::string to_string() const override
@@ -908,13 +920,13 @@ struct for_stmt : public base {
     }
 };
 
-struct while_stmt : public base {
-    node::expression condition;
-    std::vector<node::statement> body_stmts;
+struct while_stmt : public statement {
+    node::compound_expr condition;
+    alias::statement_block body_stmts;
 
-    while_stmt(node::expression const& cond,
-               std::vector<node::statement> const& body)
-        : condition(cond), body_stmts(body)
+    while_stmt(node::compound_expr const& cond,
+               alias::statement_block const& body)
+        : statement(), condition(cond), body_stmts(body)
     {}
 
     std::string to_string() const override
@@ -923,13 +935,13 @@ struct while_stmt : public base {
     }
 };
 
-struct postfix_if_stmt : public base {
-    node::expression body;
+struct postfix_if_stmt : public statement {
+    node::compound_expr body;
     if_kind kind;
-    node::expression condition;
+    node::compound_expr condition;
 
-    postfix_if_stmt(node::expression const& body, if_kind const kind, node::expression const& cond)
-        : body(body), kind(kind), condition(cond)
+    postfix_if_stmt(node::compound_expr const& body, if_kind const kind, node::compound_expr const& cond)
+        : statement(), body(body), kind(kind), condition(cond)
     {}
 
     std::string to_string() const override
@@ -939,7 +951,7 @@ struct postfix_if_stmt : public base {
     }
 };
 
-struct statement : public base {
+struct compound_stmt : public statement {
     using value_type =
         boost::variant<
               node::if_stmt
@@ -951,25 +963,25 @@ struct statement : public base {
             , node::assignment_stmt
             , node::initialize_stmt
             , node::postfix_if_stmt
-            , node::expression
+            , node::compound_expr
         >;
     value_type value;
 
     template<class T>
-    explicit statement(T && v)
-        : value(std::forward<T>(v))
+    explicit compound_stmt(T && v)
+        : statement(), value(std::forward<T>(v))
     {}
 
     std::string to_string() const override
     {
-        return "STATEMENT";
+        return "COMPOUND_STMT";
     }
 };
 
 struct program : public base {
-    std::vector<node::statement> value; // TEMPORARY
+    alias::statement_block value; // TEMPORARY
 
-    program(std::vector<node::statement> const& value)
+    program(alias::statement_block const& value)
         : base(), value(value)
     {}
 
