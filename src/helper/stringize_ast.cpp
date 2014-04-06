@@ -3,6 +3,7 @@
 #include <type_traits>
 #include <functional>
 #include <cstddef>
+#include <cstring>
 #include <boost/lexical_cast.hpp>
 #include <boost/format.hpp>
 #include <boost/variant/variant.hpp>
@@ -177,7 +178,7 @@ public:
     {
         return prefix_of(p, indent)
                 + '\n' + visit(p->name, indent+lead, (p->type ? "|  " : "   "))
-                + (p->type ? '\n' + visit(*(p->type), indent+lead, "   ") : "");
+                + visit_optional_node(p->type, indent+lead, "   ");
     }
 
     std::string visit(ast::node::object_construct const& oc, std::string const& indent, char const* const lead) const
@@ -344,7 +345,7 @@ public:
                 + visit_nodes_with_predicate(is->elseif_stmts_list,
                         [this, indent, lead](auto const& cond_and_then_stmts, auto const l){
                             return visit(cond_and_then_stmts.first, indent+lead, l)
-                                + visit_nodes(cond_and_then_stmts.second, indent+lead, std::string{l}=="   ");
+                                + visit_nodes(cond_and_then_stmts.second, indent+lead, std::strcmp(l, "   ")==0);
                         }, !is->maybe_else_stmts)
                 + (is->maybe_else_stmts ? visit_nodes(*(is->maybe_else_stmts), indent+lead, true) : "");
     }
@@ -355,7 +356,7 @@ public:
                 + visit_nodes_with_predicate(cs->when_stmts_list,
                         [this, indent, lead](auto const& cond_and_when_stmts, auto const l){
                             return visit(cond_and_when_stmts.first, indent+lead, l)
-                                + visit_nodes(cond_and_when_stmts.second, indent+lead, std::string{l}=="   ");
+                                + visit_nodes(cond_and_when_stmts.second, indent+lead, std::strcmp(l, "   ")==0);
                         }, !cs->maybe_else_stmts)
                 + (cs->maybe_else_stmts ? visit_nodes(*(cs->maybe_else_stmts), indent+lead, true) : "");
     }
@@ -367,7 +368,7 @@ public:
                 + visit_nodes_with_predicate(ss->when_stmts_list,
                         [this, indent, lead](auto const& cond_and_when_stmts, auto const l){
                             return visit(cond_and_when_stmts.first, indent+lead, l)
-                                + visit_nodes(cond_and_when_stmts.second, indent+lead, std::string{l}=="   ");
+                                + visit_nodes(cond_and_when_stmts.second, indent+lead, std::strcmp(l, "   ")==0);
                         }, !ss->maybe_else_stmts)
                 + (ss->maybe_else_stmts ? visit_nodes(*(ss->maybe_else_stmts), indent+lead, true) : "");
     }
@@ -422,7 +423,7 @@ public:
     {
         return prefix_of(fd, indent)
             + visit_nodes(fd->params, indent+lead, false)
-            + (fd->return_type ? '\n' + visit(*(fd->return_type), indent+lead, "| ") : "")
+            + visit_optional_node(fd->return_type, indent+lead, "|  ")
             + visit_nodes(fd->body, indent+lead, true);
     }
 
