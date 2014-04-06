@@ -27,6 +27,7 @@ Doggy Programming Language. :dog2:
 -  Misc
   -  CMakeLists.txt
   -  Travis-CI
+  -  Option parsing
 
 This software is disributed under [The MIT License](http://opensource.org/licenses/MIT).
 
