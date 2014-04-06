@@ -183,8 +183,8 @@ public:
     std::string visit(ast::node::object_construct const& oc, std::string const& indent, char const* const lead) const
     {
         return prefix_of(oc, indent)
-            + '\n' + visit(oc->type, indent+lead, (oc->args ? "|  " : "   "))
-            + (oc->args ? '\n' + visit(*(oc->args), indent+lead, "   ") : "");
+            + '\n' + visit(oc->type, indent+lead, (oc->args.empty() ? "   " : "|  "))
+            + visit_nodes(oc->args, indent+lead, "   ");
     }
 
     std::string visit(ast::node::var_ref const& vr, std::string const& indent, char const* const lead) const

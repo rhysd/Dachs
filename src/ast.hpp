@@ -412,10 +412,11 @@ struct function_call : public expression {
 
 struct object_construct : public expression {
     node::qualified_type type;
-    boost::optional<node::function_call> args;
+    std::vector<node::compound_expr> args;
 
-    object_construct(node::qualified_type const& t, boost::optional<node::function_call> const& call)
-        : expression(), type(t), args(call)
+    object_construct(node::qualified_type const& t
+                    , std::vector<node::compound_expr> const& args)
+        : expression(), type(t), args(args)
     {}
 
     std::string to_string() const override
