@@ -126,7 +126,17 @@ public:
 
         character_literal
             = (
-                '\'' > qi::char_ > '\''
+                '\''
+                > ((qi::char_ - ascii::cntrl - '\\')
+                | ('\\' > (
+                          qi::char_('b')[_1 = '\b']
+                        | qi::char_('f')[_1 = '\f']
+                        | qi::char_('n')[_1 = '\n']
+                        | qi::char_('r')[_1 = '\r']
+                        | qi::char_('\\')[_1 = '\\']
+                        | qi::char_('\'')[_1 = '\'']
+                    ))
+                ) > '\''
             ) [
                 _val = make_node_ptr<ast::node::character_literal>(_1)
             ];

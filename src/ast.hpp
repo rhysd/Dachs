@@ -240,7 +240,14 @@ struct character_literal : public expression {
 
     std::string to_string() const override
     {
-        return "CHAR_LITERAL: " + std::string{'\'', value, '\''};
+        return "CHAR_LITERAL: "
+            + (
+                value == '\f' ? "'\\f'" :
+                value == '\b' ? "'\\b'" :
+                value == '\n' ? "'\\n'" :
+                value == '\r' ? "'\\r'" :
+                                std::string{'\'', value, '\''}
+            );
     }
 };
 
