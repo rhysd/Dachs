@@ -157,7 +157,18 @@ public:
 
         string_literal
             = (
-                qi::as_string[qi::lexeme['"' > *(qi::char_ - '"') > '"']]
+                qi::as_string[qi::lexeme['"' > *(
+                    (qi::char_ - '"' - '\\' - ascii::cntrl) |
+                    ('\\' >> (
+                          qi::char_('b')[_1 = '\b']
+                        | qi::char_('f')[_1 = '\f']
+                        | qi::char_('n')[_1 = '\n']
+                        | qi::char_('r')[_1 = '\r']
+                        | qi::char_('\\')[_1 = '\\']
+                        | qi::char_('"')[_1 = '"']
+                        | qi::char_
+                    ))
+                ) > '"']]
             ) [
                 _val = make_node_ptr<ast::node::string_literal>(_1)
             ];

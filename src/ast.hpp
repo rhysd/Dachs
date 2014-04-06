@@ -284,10 +284,7 @@ struct string_literal : public expression {
         : expression(), value(s)
     {}
 
-    std::string to_string() const override
-    {
-        return "STRING_LITERAL: \"" + value + '"';
-    }
+    std::string to_string() const override;
 };
 
 struct integer_literal : public expression {

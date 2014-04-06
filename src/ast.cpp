@@ -1,4 +1,5 @@
 #include <boost/algorithm/string/join.hpp>
+#include <boost/algorithm/string/replace.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/lexical_cast.hpp>
 
@@ -92,6 +93,18 @@ std::size_t generate_id()
 {
     static std::size_t current_id = 0;
     return ++current_id;
+}
+
+std::string string_literal::to_string() const
+{
+    std::string s = value;
+    boost::algorithm::replace_all(s, "\\", "\\\\");
+    boost::algorithm::replace_all(s, "\"", "\\\"");
+    boost::algorithm::replace_all(s, "\b", "\\b");
+    boost::algorithm::replace_all(s, "\f", "\\f");
+    boost::algorithm::replace_all(s, "\n", "\\n");
+    boost::algorithm::replace_all(s, "\r", "\\r");
+    return "STRING_LITERAL: \"" + s + '"';
 }
 
 std::string unary_expr::to_string() const
