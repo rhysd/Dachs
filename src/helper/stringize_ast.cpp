@@ -419,7 +419,7 @@ public:
     }
 
     // For terminal nodes
-    template<class T, class = typename std::enable_if<ast::is_node<T>::value>::type>
+    template<class T, class = typename std::enable_if<ast::traits::is_node<T>::value>::type>
     std::string visit(std::shared_ptr<T> const& p, std::string const& indent, char const* const) const
     {
         return prefix_of(p, indent);

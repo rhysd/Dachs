@@ -406,7 +406,7 @@ struct function_call : public expression {
 
     std::string to_string() const override
     {
-        return "function_call";
+        return "FUNCTION_CALL";
     }
 };
 
@@ -1010,8 +1010,18 @@ struct program : public base {
 
 } // namespace node_type
 
+namespace traits {
+
 template<class T>
 struct is_node : std::is_base_of<node_type::base, T> {};
+
+template<class T>
+struct is_expression : std::is_base_of<node_type::expression, T> {};
+
+template<class T>
+struct is_statement : std::is_base_of<node_type::statement, T> {};
+
+} // namespace traits
 
 struct ast {
     node::program root;
