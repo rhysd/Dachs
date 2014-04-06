@@ -9,8 +9,8 @@ Doggy Programming Language. :dog2:
 -  Parser
   - ✔ Literals
   - ✔ Expressions
-  -  Statements
-  -  Functions
+  - ✔ Statements
+  - ✔ Functions
   -  Class
   -  Lambda
   -  Block

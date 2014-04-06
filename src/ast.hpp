@@ -133,6 +133,8 @@ struct for_stmt;
 struct while_stmt;
 struct postfix_if_stmt;
 struct compound_stmt;
+struct function_definition;
+struct procedure_definition;
 struct program;
 
 }
@@ -188,6 +190,8 @@ DACHS_DEFINE_NODE_PTR(for_stmt);
 DACHS_DEFINE_NODE_PTR(while_stmt);
 DACHS_DEFINE_NODE_PTR(postfix_if_stmt);
 DACHS_DEFINE_NODE_PTR(compound_stmt);
+DACHS_DEFINE_NODE_PTR(function_definition);
+DACHS_DEFINE_NODE_PTR(procedure_definition);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
@@ -996,11 +1000,53 @@ struct compound_stmt : public statement {
     }
 };
 
-struct program : public base {
-    alias::statement_block value; // TEMPORARY
+struct function_definition : public base {
+    node::identifier name;
+    std::vector<node::parameter> params;
+    boost::optional<node::qualified_type> return_type;
+    alias::statement_block body;
 
-    program(alias::statement_block const& value)
-        : base(), value(value)
+    function_definition(node::identifier const& n
+                      , std::vector<node::parameter> const& p
+                      , boost::optional<node::qualified_type> const& ret
+                      , alias::statement_block const& block)
+        : base(), name(n), params(p), return_type(ret), body(block)
+    {}
+
+    std::string to_string() const override
+    {
+        return "FUNC_DEFINITION";
+    }
+};
+
+struct procedure_definition : public base {
+    node::identifier name;
+    std::vector<node::parameter> params;
+    alias::statement_block body;
+
+    procedure_definition(node::identifier const& n
+                      , std::vector<node::parameter> const& p
+                      , alias::statement_block const& block)
+        : base(), name(n), params(p), body(block)
+    {}
+
+    std::string to_string() const override
+    {
+        return "PROC_DEFINITION";
+    }
+};
+
+struct program : public base {
+    using func_def_type
+        = boost::variant<
+            node::function_definition,
+            node::procedure_definition
+        >;
+
+    std::vector<func_def_type> inu;
+
+    explicit program(std::vector<func_def_type> const& value)
+        : base(), inu(value)
     {}
 
     std::string to_string() const override

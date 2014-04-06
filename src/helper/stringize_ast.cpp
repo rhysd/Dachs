@@ -155,7 +155,7 @@ public:
 
     std::string visit(ast::node::program const& p, std::string const& indent) const
     {
-        return prefix_of(p, indent) + visit_nodes(p->value, indent, true);
+        return prefix_of(p, indent) + visit_node_variants(p->inu, indent, true);
     }
 
     std::string visit(ast::node::array_literal const& al, std::string const& indent, char const* const lead) const
@@ -416,6 +416,21 @@ public:
         return prefix_of(vds, indent)
             + visit_nodes(vds->var_decls, indent+lead, !vds->maybe_rhs_exprs)
             + (vds->maybe_rhs_exprs ? visit_nodes(*(vds->maybe_rhs_exprs), indent+lead, true) : "");
+    }
+
+    std::string visit(ast::node::function_definition const& fd, std::string const& indent, char const* const lead) const
+    {
+        return prefix_of(fd, indent)
+            + visit_nodes(fd->params, indent+lead, false)
+            + (fd->return_type ? '\n' + visit(*(fd->return_type), indent+lead, "| ") : "")
+            + visit_nodes(fd->body, indent+lead, true);
+    }
+
+    std::string visit(ast::node::procedure_definition const& pd, std::string const& indent, char const* const lead) const
+    {
+        return prefix_of(pd, indent)
+            + visit_nodes(pd->params, indent+lead, false)
+            + visit_nodes(pd->body, indent+lead, true);
     }
 
     // For terminal nodes

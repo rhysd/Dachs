@@ -103,10 +103,9 @@ public:
 
         sep = +(lit(';') ^ qi::eol);
 
-        // FIXME: Temporary
         program
             = (
-                (compound_stmt % sep) > -(sep) > (qi::eol | qi::eoi)
+                ((function_definition | procedure_definition) % sep) > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(_1)
             ];
@@ -550,6 +549,27 @@ public:
                 _val = make_node_ptr<ast::node::compound_stmt>(_1)
             ];
 
+        function_param_decls
+            = -('(' >> -((parameter % ',')[_val = _1]) > ')');
+
+        function_definition
+            = (
+                "func" > identifier > function_param_decls > -(':' > qualified_type) > sep
+                > (compound_stmt - "end") % sep > -sep
+                > "end"
+            )[
+                _val = make_node_ptr<ast::node::function_definition>(_1, _2, _3, _4)
+            ];
+
+        procedure_definition
+            = (
+                "proc" > identifier > function_param_decls > sep
+                > (compound_stmt - "end") % sep > -sep
+                > "end"
+            )[
+                _val = make_node_ptr<ast::node::procedure_definition>(_1, _2, _3)
+            ];
+
         // Set callback to get the position of node and show obvious compile error {{{
         detail::set_position_getter_on_success(
 
@@ -615,6 +635,8 @@ public:
             , assignment_stmt
             , postfix_if_stmt
             , compound_stmt
+            , function_definition
+            , procedure_definition
         );
 
         qi::on_error<qi::fail>(
@@ -667,7 +689,6 @@ private:
     DACHS_DEFINE_RULE(var_ref);
     DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE_WITH_LOCALS(function_call, std::vector<ast::node::compound_expr>);
-    rule<std::vector<ast::node::compound_expr>()> constructor_call;
     DACHS_DEFINE_RULE(object_construct);
     DACHS_DEFINE_RULE(primary_expr);
     DACHS_DEFINE_RULE(index_access);
@@ -703,6 +724,11 @@ private:
     DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(postfix_if_stmt);
     DACHS_DEFINE_RULE(compound_stmt);
+    DACHS_DEFINE_RULE(function_definition);
+    DACHS_DEFINE_RULE(procedure_definition);
+
+    rule<std::vector<ast::node::compound_expr>()> constructor_call;
+    rule<std::vector<ast::node::parameter>()> function_param_decls;
 
 #undef DACHS_DEFINE_RULE
 #undef DACHS_DEFINE_RULE_WITH_LOCALS
