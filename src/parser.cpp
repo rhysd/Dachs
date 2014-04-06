@@ -202,6 +202,13 @@ public:
                 _val = make_node_ptr<ast::node::identifier>(_1)
             ];
 
+        var_ref
+            = (
+                identifier
+            ) [
+                _val = make_node_ptr<ast::node::var_ref>(_1)
+            ];
+
         parameter
             = (
                 -qi::string("var")
@@ -243,7 +250,10 @@ public:
 
         primary_expr
             = (
-                object_construct | literal | identifier | '(' >> compound_expr >> ')'
+                object_construct
+                | literal
+                | var_ref
+                | '(' >> compound_expr >> ')'
             ) [
                 _val = make_node_ptr<ast::node::primary_expr>(_1)
             ];
@@ -569,6 +579,7 @@ public:
             , tuple_literal
             , symbol_literal
             , identifier
+            , var_ref
             , parameter
             , function_call
             , constructor_call
@@ -656,6 +667,7 @@ private:
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::compound_expr>);
     DACHS_DEFINE_RULE(symbol_literal);
     DACHS_DEFINE_RULE(identifier);
+    DACHS_DEFINE_RULE(var_ref);
     DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE_WITH_LOCALS(function_call, std::vector<ast::node::compound_expr>), constructor_call;
     DACHS_DEFINE_RULE(object_construct);

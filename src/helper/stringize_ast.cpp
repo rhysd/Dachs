@@ -165,6 +165,11 @@ public:
             + (oc->args ? '\n' + visit(*(oc->args), indent_level+1) : "");
     }
 
+    std::string visit(ast::node::var_ref const& vr, size_t const indent_level) const
+    {
+        return prefix_of(vr, indent_level) + '\n' + visit(vr->name, indent_level+1);
+    }
+
     std::string visit(ast::node::primary_expr const& pe, size_t const indent_level) const
     {
         return prefix_of(pe, indent_level) + '\n' + visit_variant_node(pe->value, indent_level+1);

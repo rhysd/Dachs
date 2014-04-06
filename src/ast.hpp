@@ -95,6 +95,7 @@ struct tuple_literal;
 struct symbol_literal;
 struct literal;
 struct identifier;
+struct var_ref;
 struct parameter;
 struct function_call;
 struct object_construct;
@@ -149,6 +150,7 @@ DACHS_DEFINE_NODE_PTR(tuple_literal);
 DACHS_DEFINE_NODE_PTR(symbol_literal);
 DACHS_DEFINE_NODE_PTR(literal);
 DACHS_DEFINE_NODE_PTR(identifier);
+DACHS_DEFINE_NODE_PTR(var_ref);
 DACHS_DEFINE_NODE_PTR(parameter);
 DACHS_DEFINE_NODE_PTR(function_call);
 DACHS_DEFINE_NODE_PTR(object_construct);
@@ -365,6 +367,21 @@ struct identifier : public base {
     }
 };
 
+// This node will have kind of variable (global, member and local variables)
+struct var_ref : public expression {
+    node::identifier name;
+    // KIND_TYPE kind;
+
+    explicit var_ref(node::identifier const& n)
+        : expression(), name(n)
+    {}
+
+    std::string to_string() const override
+    {
+        return "VAR_REFERENCE: ";
+    }
+};
+
 struct parameter : public base {
     bool is_var;
     node::identifier name;
@@ -389,7 +406,7 @@ struct function_call : public expression {
 
     std::string to_string() const override
     {
-        return "FUNCTION_CALL";
+        return "function_call";
     }
 };
 
@@ -411,7 +428,7 @@ struct primary_expr : public expression {
     // Note: add lambda compound_expr
     using value_type =
         boost::variant< node::object_construct
-                      , node::identifier
+                      , node::var_ref
                       , node::literal
                       , node::compound_expr
                       >;
