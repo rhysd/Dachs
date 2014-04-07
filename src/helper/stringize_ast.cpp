@@ -341,7 +341,7 @@ public:
     {
         return prefix_of(is, indent)
                 + '\n' + visit(is->condition, indent+lead, "|  ")
-                + visit_nodes(is->then_stmts, indent+lead, false)
+                + visit_nodes(is->then_stmts, indent+lead, is->then_stmts.empty() && !is->maybe_else_stmts)
                 + visit_nodes_with_predicate(is->elseif_stmts_list,
                         [this, indent, lead](auto const& cond_and_then_stmts, auto const l){
                             return visit(cond_and_then_stmts.first, indent+lead, l)
@@ -364,7 +364,7 @@ public:
     std::string visit(ast::node::switch_stmt const& ss, std::string const& indent, char const* const lead) const
     {
         return prefix_of(ss, indent)
-                + '\n' + visit(ss->target_expr, indent+lead, "|  ")
+                + '\n' + visit(ss->target_expr, indent+lead, ss->when_stmts_list.empty() && !ss->maybe_else_stmts ? "   " : "|  ")
                 + visit_nodes_with_predicate(ss->when_stmts_list,
                         [this, indent, lead](auto const& cond_and_when_stmts, auto const l){
                             return visit(cond_and_when_stmts.first, indent+lead, l)
@@ -382,14 +382,14 @@ public:
     {
         return prefix_of(fs, indent)
                 + visit_nodes(fs->iter_vars, indent+lead, false)
-                + '\n' + visit(fs->range_expr, indent+lead, "|  ")
+                + '\n' + visit(fs->range_expr, indent+lead, fs->body_stmts.empty() ? "   " : "|  ")
                 + visit_nodes(fs->body_stmts, indent+lead, true);
     }
 
     std::string visit(ast::node::while_stmt const& ws, std::string const& indent, char const* const lead) const
     {
         return prefix_of(ws, indent)
-                + '\n' + visit(ws->condition, indent+lead, "|  ")
+                + '\n' + visit(ws->condition, indent+lead, ws->body_stmts.empty() ? "   " : "|  ")
                 + visit_nodes(ws->body_stmts, indent+lead, true);
     }
 

@@ -1,7 +1,5 @@
 require 'terminfo'
 
-notification :terminal_notifier
-
 def separator
   "\e[1;33m" + '~' * (TermInfo.screen_size[1]-1) + "\e[0m"
 end
@@ -9,6 +7,10 @@ end
 def which cmd
   dir = ENV['PATH'].split(':').find {|p| File.executable? File.join(p, cmd)}
   File.join(dir, cmd) unless dir.nil?
+end
+
+if which('terminal-notifier')
+  notification :terminal_notifier
 end
 
 def notify msg
@@ -25,10 +27,13 @@ end
 guard :shell do
   watch %r{(^.+\.(?:hpp|cpp))$} do |m|
     unless m[0] =~ /marching_complete_temp\.cpp$/
-      puts(separator, Time.now.to_s)
+      start = Time.now
+      puts(separator, start.to_s)
 
       system "make -j4"
       notify "dachs: Build failed" unless $?.success?
+
+      puts("Elapsed time: #{Time.now - start} seconds.")
       $?.success?
     end
   end
