@@ -8,6 +8,7 @@
 #include <vector>
 #include <algorithm>
 #include <utility>
+#include <type_traits>
 #include <cstddef>
 
 #include <boost/format.hpp>
@@ -75,7 +76,6 @@ namespace detail {
         qi::on_success(head, getter);
         detail::set_position_getter_on_success(getter, tail...);
     }
-
 } // namespace detail
 
 template<class NodeType, class... Holders>
@@ -105,9 +105,9 @@ public:
 
         program
             = (
-                ((function_definition | procedure_definition) % sep) > (qi::eol | qi::eoi)
+                -((function_definition | procedure_definition) % sep) > (qi::eol | qi::eoi)
             ) [
-                _val = make_node_ptr<ast::node::program>(_1)
+                _val = make_node_ptr<ast::node::program>(as_vector(_1))
             ];
 
         literal
@@ -183,10 +183,10 @@ public:
         array_literal
             = (
                 '[' >> -(
-                    compound_expr[phx::push_back(_a, _1)] % ','
+                    compound_expr % ','
                 ) >> ']'
             ) [
-                _val = make_node_ptr<ast::node::array_literal>(_a)
+                _val = make_node_ptr<ast::node::array_literal>(as_vector(_1))
             ];
 
         tuple_literal
@@ -243,10 +243,10 @@ public:
         function_call
             = (
                 '(' >> -(
-                    compound_expr[phx::push_back(_a, _1)] % ','
+                    compound_expr % ','
                 ) >> ')'
             ) [
-                _val = make_node_ptr<ast::node::function_call>(_a)
+                _val = make_node_ptr<ast::node::function_call>(as_vector(_1))
             ];
 
         constructor_call
@@ -492,9 +492,9 @@ public:
 
         return_stmt
             = (
-                "return" >> -(compound_expr[phx::push_back(_a, _1)] % ',')
+                "return" >> -(compound_expr % ',')
             ) [
-                _val = make_node_ptr<ast::node::return_stmt>(_a)
+                _val = make_node_ptr<ast::node::return_stmt>(as_vector(_1))
             ];
 
         case_stmt
@@ -531,20 +531,20 @@ public:
             = (
                 // Note: "do" might colide with do-end block in compound_expr
                 "for" >> (parameter - "in") % ',' >> "in" >> compound_expr >> ("do" || sep)
-                >> (compound_stmt - "end") % sep >> -sep
+                >> -((compound_stmt - "end") % sep) >> -sep
                 >> "end"
             ) [
-                _val = make_node_ptr<ast::node::for_stmt>(_1, _2, _3)
+                _val = make_node_ptr<ast::node::for_stmt>(_1, _2, as_vector(_3))
             ];
 
         while_stmt
             = (
                 // Note: "do" might colide with do-end block in compound_expr
                 "for" >> compound_expr >> ("do" || sep)
-                >> (compound_stmt - "end") % sep >> -sep
+                >> -((compound_stmt - "end") % sep) >> -sep
                 >> "end"
             ) [
-                _val = make_node_ptr<ast::node::while_stmt>(_1, _2)
+                _val = make_node_ptr<ast::node::while_stmt>(_1, as_vector(_2))
             ];
 
         postfix_if_stmt
@@ -576,19 +576,19 @@ public:
         function_definition
             = (
                 "func" > identifier > function_param_decls > -(':' > qualified_type) > sep
-                > (compound_stmt - "end") % sep > -sep
+                > -((compound_stmt - "end") % sep) > -sep
                 > "end"
             )[
-                _val = make_node_ptr<ast::node::function_definition>(_1, _2, _3, _4)
+                _val = make_node_ptr<ast::node::function_definition>(_1, _2, _3, as_vector(_4))
             ];
 
         procedure_definition
             = (
                 "proc" > identifier > function_param_decls > sep
-                > (compound_stmt - "end") % sep > -sep
+                > -((compound_stmt - "end") % sep) > -sep
                 > "end"
             )[
-                _val = make_node_ptr<ast::node::procedure_definition>(_1, _2, _3)
+                _val = make_node_ptr<ast::node::procedure_definition>(_1, _2, as_vector(_3))
             ];
 
         // Set callback to get the position of node and show obvious compile error {{{
@@ -703,13 +703,13 @@ private:
     DACHS_DEFINE_RULE(float_literal);
     DACHS_DEFINE_RULE(boolean_literal);
     DACHS_DEFINE_RULE(string_literal);
-    DACHS_DEFINE_RULE_WITH_LOCALS(array_literal, std::vector<ast::node::compound_expr>);
+    DACHS_DEFINE_RULE(array_literal);
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::compound_expr>);
     DACHS_DEFINE_RULE(symbol_literal);
     DACHS_DEFINE_RULE(identifier);
     DACHS_DEFINE_RULE(var_ref);
     DACHS_DEFINE_RULE(parameter);
-    DACHS_DEFINE_RULE_WITH_LOCALS(function_call, std::vector<ast::node::compound_expr>);
+    DACHS_DEFINE_RULE(function_call);
     DACHS_DEFINE_RULE(object_construct);
     DACHS_DEFINE_RULE(primary_expr);
     DACHS_DEFINE_RULE(index_access);
@@ -735,7 +735,7 @@ private:
     DACHS_DEFINE_RULE(if_expr);
     DACHS_DEFINE_RULE(compound_expr);
     DACHS_DEFINE_RULE(if_stmt);
-    DACHS_DEFINE_RULE_WITH_LOCALS(return_stmt, std::vector<ast::node::compound_expr>);
+    DACHS_DEFINE_RULE(return_stmt);
     DACHS_DEFINE_RULE(case_stmt);
     DACHS_DEFINE_RULE(switch_stmt);
     DACHS_DEFINE_RULE(for_stmt);

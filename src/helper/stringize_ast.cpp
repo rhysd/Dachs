@@ -156,7 +156,7 @@ public:
 
     std::string visit(ast::node::program const& p, std::string const& indent) const
     {
-        return prefix_of(p, indent) + visit_node_variants(p->inu, indent, true);
+        return prefix_of(p, indent) + visit_node_variants(p->inu, indent + "   ", true);
     }
 
     std::string visit(ast::node::array_literal const& al, std::string const& indent, char const* const lead) const
@@ -422,14 +422,16 @@ public:
     std::string visit(ast::node::function_definition const& fd, std::string const& indent, char const* const lead) const
     {
         return prefix_of(fd, indent)
+            + '\n' + visit(fd->name, indent+lead, fd->params.empty() && !fd->return_type && fd->body.empty() ? "   " : "|  ")
             + visit_nodes(fd->params, indent+lead, false)
-            + visit_optional_node(fd->return_type, indent+lead, "|  ")
+            + visit_optional_node(fd->return_type, indent+lead, fd->body.empty() ? "   " : "|  ")
             + visit_nodes(fd->body, indent+lead, true);
     }
 
     std::string visit(ast::node::procedure_definition const& pd, std::string const& indent, char const* const lead) const
     {
         return prefix_of(pd, indent)
+            + '\n' + visit(pd->name, indent+lead, pd->params.empty() && pd->body.empty() ? "   " : "|  ")
             + visit_nodes(pd->params, indent+lead, false)
             + visit_nodes(pd->body, indent+lead, true);
     }

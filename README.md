@@ -15,6 +15,7 @@ Doggy Programming Language. :dog2:
   -  Lambda
   -  Block
   -  Variadic arguments
+  -  Module
   -  Test
 -  Sematic analysis
   -  Scope tree
@@ -28,6 +29,7 @@ Doggy Programming Language. :dog2:
   -  CMakeLists.txt
   -  Travis-CI
   -  Option parsing
+  -  Allocator customization
 
 This software is disributed under [The MIT License](http://opensource.org/licenses/MIT).
 
