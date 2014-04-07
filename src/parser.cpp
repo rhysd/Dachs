@@ -83,6 +83,20 @@ inline auto make_node_ptr(Holders &&... holders)
 {
     return phx::bind(detail::make_shared<typename NodeType::element_type>{}, std::forward<Holders>(holders)...);
 }
+
+template<class Holder>
+inline auto as_vector(Holder && h)
+{
+    return phx::bind([](auto const& optional_vector)
+                -> typename std::decay<decltype(*optional_vector)>::type {
+                if (optional_vector) {
+                    return *optional_vector;
+                } else {
+                    return {};
+                }
+            }, h);
+}
+
 // }}}
 
 template<class FloatType>
