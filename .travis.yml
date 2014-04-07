@@ -7,7 +7,7 @@ script:
     - sudo apt-get -qq install "clang-${CLANG_VERSION}"
     - uname -a
     - /usr/bin/clang++ -v
-    - cmake . $CMAKE_OPTS
+    - cmake . -DCMAKE_CXX_COMPILER=/usr/bin/clang++ $CMAKE_OPTS
     - make VERBOSE=1 && make clean
 before_install:
     - sudo add-apt-repository --yes ppa:ubuntu-toolchain-r/test
