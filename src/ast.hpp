@@ -133,6 +133,7 @@ struct for_stmt;
 struct while_stmt;
 struct postfix_if_stmt;
 struct compound_stmt;
+struct statement_block;
 struct function_definition;
 struct procedure_definition;
 struct program;
@@ -190,6 +191,7 @@ DACHS_DEFINE_NODE_PTR(for_stmt);
 DACHS_DEFINE_NODE_PTR(while_stmt);
 DACHS_DEFINE_NODE_PTR(postfix_if_stmt);
 DACHS_DEFINE_NODE_PTR(compound_stmt);
+DACHS_DEFINE_NODE_PTR(statement_block);
 DACHS_DEFINE_NODE_PTR(function_definition);
 DACHS_DEFINE_NODE_PTR(procedure_definition);
 DACHS_DEFINE_NODE_PTR(program);
@@ -856,19 +858,19 @@ struct assignment_stmt : public statement {
 
 struct if_stmt : public statement {
     using elseif_type
-        = std::pair<node::compound_expr, alias::statement_block>;
+        = std::pair<node::compound_expr, node::statement_block>;
 
     if_kind kind;
     node::compound_expr condition;
-    alias::statement_block then_stmts;
+    node::statement_block then_stmts;
     std::vector<elseif_type> elseif_stmts_list;
-    boost::optional<alias::statement_block> maybe_else_stmts;
+    boost::optional<node::statement_block> maybe_else_stmts;
 
     if_stmt(if_kind const kind,
             node::compound_expr const& cond,
-            alias::statement_block const& then,
+            node::statement_block const& then,
             std::vector<elseif_type> const& elseifs,
-            boost::optional<alias::statement_block> const& maybe_else)
+            boost::optional<node::statement_block> const& maybe_else)
         : statement(), kind(kind), condition(cond), then_stmts(then), elseif_stmts_list(elseifs), maybe_else_stmts(maybe_else)
     {}
 
@@ -894,12 +896,12 @@ struct return_stmt : public statement {
 
 struct case_stmt : public statement {
     using when_type
-        = std::pair<node::compound_expr, alias::statement_block>;
+        = std::pair<node::compound_expr, node::statement_block>;
 
     std::vector<when_type> when_stmts_list;
-    boost::optional<alias::statement_block> maybe_else_stmts;
+    boost::optional<node::statement_block> maybe_else_stmts;
 
-    case_stmt(std::vector<when_type> const& whens, boost::optional<alias::statement_block> const& elses)
+    case_stmt(std::vector<when_type> const& whens, boost::optional<node::statement_block> const& elses)
         : statement(), when_stmts_list(whens), maybe_else_stmts(elses)
     {}
 
@@ -911,15 +913,15 @@ struct case_stmt : public statement {
 
 struct switch_stmt : public statement {
     using when_type
-        = std::pair<node::compound_expr, alias::statement_block>;
+        = std::pair<node::compound_expr, node::statement_block>;
 
     node::compound_expr target_expr;
     std::vector<when_type> when_stmts_list;
-    boost::optional<alias::statement_block> maybe_else_stmts;
+    boost::optional<node::statement_block> maybe_else_stmts;
 
     switch_stmt(node::compound_expr const& target,
                 std::vector<when_type> const& whens,
-                boost::optional<alias::statement_block> const& elses)
+                boost::optional<node::statement_block> const& elses)
         : statement(), target_expr(target), when_stmts_list(whens), maybe_else_stmts(elses)
     {}
 
@@ -932,11 +934,11 @@ struct switch_stmt : public statement {
 struct for_stmt : public statement {
     std::vector<node::parameter> iter_vars;
     node::compound_expr range_expr;
-    alias::statement_block body_stmts;
+    node::statement_block body_stmts;
 
     for_stmt(std::vector<node::parameter> const& iters,
              node::compound_expr const& range,
-             alias::statement_block body)
+             node::statement_block body)
         : statement(), iter_vars(iters), range_expr(range), body_stmts(body)
     {}
 
@@ -948,10 +950,10 @@ struct for_stmt : public statement {
 
 struct while_stmt : public statement {
     node::compound_expr condition;
-    alias::statement_block body_stmts;
+    node::statement_block body_stmts;
 
     while_stmt(node::compound_expr const& cond,
-               alias::statement_block const& body)
+               node::statement_block const& body)
         : statement(), condition(cond), body_stmts(body)
     {}
 
@@ -1004,16 +1006,36 @@ struct compound_stmt : public statement {
     }
 };
 
+struct statement_block : public base {
+    using block_type
+        = std::vector<node::compound_stmt>;
+
+    block_type value;
+
+    explicit statement_block(block_type const& v)
+        : value(v)
+    {}
+
+    explicit statement_block(boost::optional<block_type> const& ov)
+        : value(ov ? *ov : block_type{})
+    {}
+
+    std::string to_string() const override
+    {
+        return "STATEMENT_BLOCK: size=" + std::to_string(value.size());
+    }
+};
+
 struct function_definition : public base {
     node::identifier name;
     std::vector<node::parameter> params;
     boost::optional<node::qualified_type> return_type;
-    alias::statement_block body;
+    node::statement_block body;
 
     function_definition(node::identifier const& n
                       , std::vector<node::parameter> const& p
                       , boost::optional<node::qualified_type> const& ret
-                      , alias::statement_block const& block)
+                      , node::statement_block const& block)
         : base(), name(n), params(p), return_type(ret), body(block)
     {}
 
@@ -1026,11 +1048,11 @@ struct function_definition : public base {
 struct procedure_definition : public base {
     node::identifier name;
     std::vector<node::parameter> params;
-    alias::statement_block body;
+    node::statement_block body;
 
     procedure_definition(node::identifier const& n
                       , std::vector<node::parameter> const& p
-                      , alias::statement_block const& block)
+                      , node::statement_block const& block)
         : base(), name(n), params(p), body(block)
     {}
 

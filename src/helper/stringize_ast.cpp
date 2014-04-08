@@ -339,15 +339,16 @@ public:
 
     std::string visit(ast::node::if_stmt const& is, std::string const& indent, char const* const lead) const
     {
+        std::cout << is->elseif_stmts_list.size() << std::endl;
         return prefix_of(is, indent)
                 + '\n' + visit(is->condition, indent+lead, "|  ")
-                + visit_nodes(is->then_stmts, indent+lead, is->then_stmts.empty() && !is->maybe_else_stmts)
+                + '\n' + visit(is->then_stmts, indent+lead, is->elseif_stmts_list.empty() && !is->maybe_else_stmts ? "   " : "|  ")
                 + visit_nodes_with_predicate(is->elseif_stmts_list,
                         [this, indent, lead](auto const& cond_and_then_stmts, auto const l){
-                            return visit(cond_and_then_stmts.first, indent+lead, l)
-                                + visit_nodes(cond_and_then_stmts.second, indent+lead, std::strcmp(l, "   ")==0);
+                            return visit(cond_and_then_stmts.first, indent+lead, "|  ")
+                                + '\n' + visit(cond_and_then_stmts.second, indent+lead, l);
                         }, !is->maybe_else_stmts)
-                + (is->maybe_else_stmts ? visit_nodes(*(is->maybe_else_stmts), indent+lead, true) : "");
+                + (is->maybe_else_stmts ? '\n' + visit(*(is->maybe_else_stmts), indent+lead, "   ") : "");
     }
 
     std::string visit(ast::node::case_stmt const& cs, std::string const& indent, char const* const lead) const
@@ -355,10 +356,10 @@ public:
         return prefix_of(cs, indent)
                 + visit_nodes_with_predicate(cs->when_stmts_list,
                         [this, indent, lead](auto const& cond_and_when_stmts, auto const l){
-                            return visit(cond_and_when_stmts.first, indent+lead, l)
-                                + visit_nodes(cond_and_when_stmts.second, indent+lead, std::strcmp(l, "   ")==0);
+                            return visit(cond_and_when_stmts.first, indent+lead, "|  ")
+                                + '\n' + visit(cond_and_when_stmts.second, indent+lead, l);
                         }, !cs->maybe_else_stmts)
-                + (cs->maybe_else_stmts ? visit_nodes(*(cs->maybe_else_stmts), indent+lead, true) : "");
+                + (cs->maybe_else_stmts ? visit(*(cs->maybe_else_stmts), indent+lead, "   ") : "");
     }
 
     std::string visit(ast::node::switch_stmt const& ss, std::string const& indent, char const* const lead) const
@@ -367,10 +368,10 @@ public:
                 + '\n' + visit(ss->target_expr, indent+lead, ss->when_stmts_list.empty() && !ss->maybe_else_stmts ? "   " : "|  ")
                 + visit_nodes_with_predicate(ss->when_stmts_list,
                         [this, indent, lead](auto const& cond_and_when_stmts, auto const l){
-                            return visit(cond_and_when_stmts.first, indent+lead, l)
-                                + visit_nodes(cond_and_when_stmts.second, indent+lead, std::strcmp(l, "   ")==0);
+                            return visit(cond_and_when_stmts.first, indent+lead, "|  ")
+                                + '\n' + visit(cond_and_when_stmts.second, indent+lead, l);
                         }, !ss->maybe_else_stmts)
-                + (ss->maybe_else_stmts ? visit_nodes(*(ss->maybe_else_stmts), indent+lead, true) : "");
+                + (ss->maybe_else_stmts ? visit(*(ss->maybe_else_stmts), indent+lead, "   ") : "");
     }
 
     std::string visit(ast::node::return_stmt const& rs, std::string const& indent, char const* const lead) const
@@ -382,15 +383,15 @@ public:
     {
         return prefix_of(fs, indent)
                 + visit_nodes(fs->iter_vars, indent+lead, false)
-                + '\n' + visit(fs->range_expr, indent+lead, fs->body_stmts.empty() ? "   " : "|  ")
-                + visit_nodes(fs->body_stmts, indent+lead, true);
+                + '\n' + visit(fs->range_expr, indent+lead, "|  ")
+                + '\n' + visit(fs->body_stmts, indent+lead, "   ");
     }
 
     std::string visit(ast::node::while_stmt const& ws, std::string const& indent, char const* const lead) const
     {
         return prefix_of(ws, indent)
-                + '\n' + visit(ws->condition, indent+lead, ws->body_stmts.empty() ? "   " : "|  ")
-                + visit_nodes(ws->body_stmts, indent+lead, true);
+                + '\n' + visit(ws->condition, indent+lead, "|  ")
+                + '\n' + visit(ws->body_stmts, indent+lead, "   ");
     }
 
     std::string visit(ast::node::postfix_if_stmt const& pis, std::string const& indent, char const* const lead) const
@@ -398,11 +399,6 @@ public:
         return prefix_of(pis, indent)
                 + '\n' + visit(pis->body, indent+lead, "|  ")
                 + '\n' + visit(pis->condition, indent+lead, "   ");
-    }
-
-    std::string visit(ast::node::compound_stmt const& s, std::string const& indent, char const* const lead) const
-    {
-        return prefix_of(s, indent) + '\n' + visit_variant_node(s->value, indent+lead, "   ");
     }
 
     std::string visit(ast::node::variable_decl const& vd, std::string const& indent, char const* const lead) const
@@ -419,21 +415,31 @@ public:
             + (vds->maybe_rhs_exprs ? visit_nodes(*(vds->maybe_rhs_exprs), indent+lead, true) : "");
     }
 
+    std::string visit(ast::node::compound_stmt const& s, std::string const& indent, char const* const lead) const
+    {
+        return prefix_of(s, indent) + '\n' + visit_variant_node(s->value, indent+lead, "   ");
+    }
+
+    std::string visit(ast::node::statement_block const& sb, std::string const& indent, char const* const lead) const
+    {
+        return prefix_of(sb, indent) + visit_nodes(sb->value, indent+lead, true);
+    }
+
     std::string visit(ast::node::function_definition const& fd, std::string const& indent, char const* const lead) const
     {
         return prefix_of(fd, indent)
-            + '\n' + visit(fd->name, indent+lead, fd->params.empty() && !fd->return_type && fd->body.empty() ? "   " : "|  ")
+            + '\n' + visit(fd->name, indent+lead, "|  ")
             + visit_nodes(fd->params, indent+lead, false)
-            + visit_optional_node(fd->return_type, indent+lead, fd->body.empty() ? "   " : "|  ")
-            + visit_nodes(fd->body, indent+lead, true);
+            + visit_optional_node(fd->return_type, indent+lead, "|  ")
+            + '\n' + visit(fd->body, indent+lead, "   ");
     }
 
     std::string visit(ast::node::procedure_definition const& pd, std::string const& indent, char const* const lead) const
     {
         return prefix_of(pd, indent)
-            + '\n' + visit(pd->name, indent+lead, pd->params.empty() && pd->body.empty() ? "   " : "|  ")
+            + '\n' + visit(pd->name, indent+lead, "|  ")
             + visit_nodes(pd->params, indent+lead, false)
-            + visit_nodes(pd->body, indent+lead, true);
+            + '\n' + visit(pd->body, indent+lead, "   ");
     }
 
     // For terminal nodes

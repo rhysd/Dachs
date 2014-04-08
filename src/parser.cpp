@@ -117,6 +117,13 @@ public:
 
         sep = +(lit(';') ^ qi::eol);
 
+        stmt_block_before_end
+            = (
+                -((compound_stmt - "end") % sep)
+            ) [
+                _val = make_node_ptr<ast::node::statement_block>(_1)
+            ];
+
         program
             = (
                 -((function_definition | procedure_definition) % sep) > (qi::eol | qi::eoi)
@@ -489,16 +496,30 @@ public:
                 _val = make_node_ptr<ast::node::initialize_stmt>(_1, _2)
             ];
 
+        if_then_stmt_block
+            = (
+                -((compound_stmt - "end" - "elseif" - "else" - "then") % sep)
+            ) [
+                _val = make_node_ptr<ast::node::statement_block>(_1)
+            ];
+
+        if_else_stmt_block
+            = (
+                -((compound_stmt - "end") % sep)
+            ) [
+                _val = make_node_ptr<ast::node::statement_block>(_1)
+            ];
+
         if_stmt
             = (
                 if_kind >> (compound_expr - "then") >> ("then" || sep)
-                >> (compound_stmt - "end" - "elseif" - "else" - "then") % sep >> -sep
+                >> if_then_stmt_block >> -sep
                 >> *(
                     qi::as<ast::node_type::if_stmt::elseif_type>()[
                         "elseif" >> (compound_expr - "then") >> ("then" || sep)
-                        >> (compound_stmt - "end" - "elseif" - "else" - "then") % sep >> -sep
+                        >> if_then_stmt_block >> -sep
                     ]
-                ) >> -("else" >> -sep >> (compound_stmt - "end") % sep >> -sep)
+                ) >> -("else" >> -sep >> if_else_stmt_block >> -sep)
                 >> "end"
             ) [
                 _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4, _5)
@@ -511,16 +532,23 @@ public:
                 _val = make_node_ptr<ast::node::return_stmt>(as_vector(_1))
             ];
 
+        case_when_stmt_block
+            = (
+                *((compound_stmt - "end" - "else") >> sep)
+            ) [
+                _val = make_node_ptr<ast::node::statement_block>(_1)
+            ];
+
         case_stmt
             = (
                 "case" >> sep
                 >> +(
                     qi::as<ast::node_type::case_stmt::when_type>()[
                         "when" >> (compound_expr - "then") >> ("then" || sep)
-                        >> +((compound_stmt - "end" - "else") >> sep)
+                        >> case_when_stmt_block
                     ]
                 ) >> -(
-                    "else" >> -sep >> (compound_stmt - "end") % sep >> -sep
+                    "else" >> -sep >> stmt_block_before_end >> -sep
                 ) >> "end"
             ) [
                 _val = make_node_ptr<ast::node::case_stmt>(_1, _2)
@@ -532,10 +560,10 @@ public:
                 >> +(
                     qi::as<ast::node_type::switch_stmt::when_type>()[
                         "when" >> (compound_expr - "then") >> ("then" || sep)
-                        >> +((compound_stmt - "end" - "else") >> sep)
+                        >> case_when_stmt_block
                     ]
                 ) >> -(
-                    "else" >> -sep >> (compound_stmt - "end") % sep >> -sep
+                    "else" >> -sep >> stmt_block_before_end >> -sep
                 ) >> "end"
             ) [
                 _val = make_node_ptr<ast::node::switch_stmt>(_1, _2, _3)
@@ -545,20 +573,20 @@ public:
             = (
                 // Note: "do" might colide with do-end block in compound_expr
                 "for" >> (parameter - "in") % ',' >> "in" >> compound_expr >> ("do" || sep)
-                >> -((compound_stmt - "end") % sep) >> -sep
+                >> stmt_block_before_end >> -sep
                 >> "end"
             ) [
-                _val = make_node_ptr<ast::node::for_stmt>(_1, _2, as_vector(_3))
+                _val = make_node_ptr<ast::node::for_stmt>(_1, _2, _3)
             ];
 
         while_stmt
             = (
                 // Note: "do" might colide with do-end block in compound_expr
                 "for" >> compound_expr >> ("do" || sep)
-                >> -((compound_stmt - "end") % sep) >> -sep
+                >> stmt_block_before_end >> -sep
                 >> "end"
             ) [
-                _val = make_node_ptr<ast::node::while_stmt>(_1, as_vector(_2))
+                _val = make_node_ptr<ast::node::while_stmt>(_1, _2)
             ];
 
         postfix_if_stmt
@@ -590,19 +618,19 @@ public:
         function_definition
             = (
                 "func" > identifier > function_param_decls > -(':' > qualified_type) > sep
-                > -((compound_stmt - "end") % sep) > -sep
+                > stmt_block_before_end > -sep
                 > "end"
             )[
-                _val = make_node_ptr<ast::node::function_definition>(_1, _2, _3, as_vector(_4))
+                _val = make_node_ptr<ast::node::function_definition>(_1, _2, _3, _4)
             ];
 
         procedure_definition
             = (
                 "proc" > identifier > function_param_decls > sep
-                > -((compound_stmt - "end") % sep) > -sep
+                > stmt_block_before_end > -sep
                 > "end"
             )[
-                _val = make_node_ptr<ast::node::procedure_definition>(_1, _2, as_vector(_3))
+                _val = make_node_ptr<ast::node::procedure_definition>(_1, _2, _3)
             ];
 
         // Set callback to get the position of node and show obvious compile error {{{
@@ -672,6 +700,10 @@ public:
             , compound_stmt
             , function_definition
             , procedure_definition
+            , if_then_stmt_block
+            , if_else_stmt_block
+            , case_when_stmt_block
+            , stmt_block_before_end
         );
 
         qi::on_error<qi::fail>(
@@ -684,7 +716,7 @@ public:
                       << phx::bind([](auto const begin, auto const err_pos) {
                               return (boost::format("line:%1%, col:%2%") % spirit::get_line(err_pos) % spirit::get_column(begin, err_pos)).str();
                           }, _1, _3) << '\n'
-                      << "expected " << qi::_4
+                      << "expected " << _4
                       << "\n\n"
                       << phx::bind([](auto const begin, auto const end, auto const err_itr) {
                               return std::string{
@@ -764,6 +796,11 @@ private:
 
     rule<std::vector<ast::node::compound_expr>()> constructor_call;
     rule<std::vector<ast::node::parameter>()> function_param_decls;
+    rule<ast::node::statement_block()> if_then_stmt_block
+                                     , if_else_stmt_block
+                                     , case_when_stmt_block
+                                     , stmt_block_before_end
+                                     ;
 
 #undef DACHS_DEFINE_RULE
 #undef DACHS_DEFINE_RULE_WITH_LOCALS
