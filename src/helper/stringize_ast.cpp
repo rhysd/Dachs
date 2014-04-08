@@ -169,6 +169,16 @@ public:
         return prefix_of(tl, indent) + visit_nodes(tl->element_exprs, indent+lead, true);
     }
 
+    std::string visit(ast::node::map_literal const& ml, std::string const& indent, char const* const lead) const
+    {
+        return prefix_of(ml, indent)
+                + visit_nodes_with_predicate(ml->value,
+                        [this, indent, lead](auto const& key_value, auto const l){
+                            return visit(key_value.first, indent+lead, "|  ")
+                                + '\n' + visit(key_value.second, indent+lead, l);
+                        }, true);
+    }
+
     std::string visit(ast::node::literal const& l, std::string const& indent, char const* const lead) const
     {
         return prefix_of(l, indent) + '\n' + visit_variant_node(l->value, indent+lead, "   ");

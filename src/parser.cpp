@@ -141,6 +141,7 @@ public:
                 | array_literal
                 | tuple_literal
                 | symbol_literal
+                | map_literal
             ) [
                 _val = make_node_ptr<ast::node::literal>(_1)
             ];
@@ -230,6 +231,19 @@ public:
                 ][
                     _val = make_node_ptr<ast::node::symbol_literal>(_1)
                 ]
+            ];
+
+        map_literal
+            = (
+                '{' >>
+                    *(
+                        qi::as<ast::node_type::map_literal::map_elem_type>()[
+                            compound_expr > "=>" > compound_expr
+                        ]
+                    )
+                >> '}'
+            ) [
+                _val = make_node_ptr<ast::node::map_literal>(_1)
             ];
 
         identifier
@@ -677,6 +691,7 @@ public:
             , array_literal
             , tuple_literal
             , symbol_literal
+            , map_literal
             , identifier
             , var_ref
             , parameter
@@ -771,6 +786,7 @@ private:
     DACHS_DEFINE_RULE(array_literal);
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::compound_expr>);
     DACHS_DEFINE_RULE(symbol_literal);
+    DACHS_DEFINE_RULE(map_literal);
     DACHS_DEFINE_RULE(identifier);
     DACHS_DEFINE_RULE(var_ref);
     DACHS_DEFINE_RULE(parameter);

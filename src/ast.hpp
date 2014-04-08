@@ -93,6 +93,7 @@ struct string_literal;
 struct array_literal;
 struct tuple_literal;
 struct symbol_literal;
+struct map_literal;
 struct literal;
 struct identifier;
 struct var_ref;
@@ -151,6 +152,7 @@ DACHS_DEFINE_NODE_PTR(string_literal);
 DACHS_DEFINE_NODE_PTR(array_literal);
 DACHS_DEFINE_NODE_PTR(tuple_literal);
 DACHS_DEFINE_NODE_PTR(symbol_literal);
+DACHS_DEFINE_NODE_PTR(map_literal);
 DACHS_DEFINE_NODE_PTR(literal);
 DACHS_DEFINE_NODE_PTR(identifier);
 DACHS_DEFINE_NODE_PTR(var_ref);
@@ -341,6 +343,24 @@ struct symbol_literal : public expression {
     }
 };
 
+struct map_literal : public expression {
+    using map_elem_type =
+        std::pair<node::compound_expr, node::compound_expr>;
+    using map_type =
+        std::vector<map_elem_type>;
+
+    map_type value;
+
+    explicit map_literal(map_type const& m)
+        : value(m)
+    {}
+
+    std::string to_string() const override
+    {
+        return "MAP_LITERAL: size=" + std::to_string(value.size());
+    }
+};
+
 struct literal : public expression {
     using value_type =
         boost::variant< node::character_literal
@@ -350,7 +370,9 @@ struct literal : public expression {
                       , node::integer_literal
                       , node::array_literal
                       , node::tuple_literal
-                      , node::symbol_literal >;
+                      , node::symbol_literal
+                      , node::map_literal
+                >;
     value_type value;
 
     template<class T>
