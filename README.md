@@ -4,6 +4,35 @@ Dachs Programming Language
 
 Doggy Programming Language. :dog2:
 
+Goals:
+- Light weight to write and execute
+- Strongly typed
+- Full OOP
+- Immutability-aware
+- Dog-friendly
+
+```
+import std.io as io
+
+# Type of parameter and returned value can be inferred
+func abs(n)
+    return if n > 0.0 then n else -n
+end
+
+# Parameters and variables are defined as immutable value by default
+func sqrt(x)
+    var z, p := x, 0.0   # but 'var' is available to declare a mutable variable
+    for abs(p-z) > 0.00001
+        p, z = z, z-(z*z-x)/(2*z)
+    end
+    return z
+end
+
+func main()
+    io.println(sqrt(10.0))
+end
+```
+
 ## Progress Report
 
 -  Parser
