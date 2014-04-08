@@ -226,7 +226,7 @@ public:
             = qi::lexeme[
                 ':' >>
                 qi::as_string[
-                    +qi::char_
+                    +(qi::alnum | qi::char_("=*/%+-><&^|&!~_"))
                 ][
                     _val = make_node_ptr<ast::node::symbol_literal>(_1)
                 ]
