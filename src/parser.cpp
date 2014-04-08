@@ -615,22 +615,40 @@ public:
         function_param_decls
             = -('(' >> -((parameter % ',')[_val = _1]) > ')');
 
+        // FIXME: Temporary
+        // Spec of precondition is not determined yet...
+        func_precondition
+            = -("begin" > sep);
+
+        func_body_stmt_block
+            = (
+                -((compound_stmt - "ensure" - "end") % sep)
+            ) [
+                _val = make_node_ptr<ast::node::statement_block>(_1)
+            ];
+
         function_definition
             = (
                 "func" > identifier > function_param_decls > -(':' > qualified_type) > sep
-                > stmt_block_before_end > -sep
-                > "end"
+                > func_precondition
+                > func_body_stmt_block > -sep
+                > -(
+                    "ensure" > sep > stmt_block_before_end > -sep
+                ) > "end"
             )[
-                _val = make_node_ptr<ast::node::function_definition>(_1, _2, _3, _4)
+                _val = make_node_ptr<ast::node::function_definition>(_1, _2, _3, _4, _5)
             ];
 
         procedure_definition
             = (
                 "proc" > identifier > function_param_decls > sep
-                > stmt_block_before_end > -sep
-                > "end"
+                > func_precondition
+                > func_body_stmt_block > -sep
+                > -(
+                    "ensure" > sep > stmt_block_before_end > -sep
+                ) > "end"
             )[
-                _val = make_node_ptr<ast::node::procedure_definition>(_1, _2, _3)
+                _val = make_node_ptr<ast::node::procedure_definition>(_1, _2, _3, _4)
             ];
 
         // Set callback to get the position of node and show obvious compile error {{{
@@ -700,10 +718,11 @@ public:
             , compound_stmt
             , function_definition
             , procedure_definition
+            , stmt_block_before_end
             , if_then_stmt_block
             , if_else_stmt_block
             , case_when_stmt_block
-            , stmt_block_before_end
+            , func_body_stmt_block
         );
 
         qi::on_error<qi::fail>(
@@ -796,11 +815,13 @@ private:
 
     rule<std::vector<ast::node::compound_expr>()> constructor_call;
     rule<std::vector<ast::node::parameter>()> function_param_decls;
-    rule<ast::node::statement_block()> if_then_stmt_block
+    rule<ast::node::statement_block()> stmt_block_before_end
+                                     , if_then_stmt_block
                                      , if_else_stmt_block
                                      , case_when_stmt_block
-                                     , stmt_block_before_end
+                                     , func_body_stmt_block
                                      ;
+    rule<qi::unused_type()/*TMP*/> func_precondition;
 
 #undef DACHS_DEFINE_RULE
 #undef DACHS_DEFINE_RULE_WITH_LOCALS

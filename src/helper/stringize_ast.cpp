@@ -431,7 +431,8 @@ public:
             + '\n' + visit(fd->name, indent+lead, "|  ")
             + visit_nodes(fd->params, indent+lead, false)
             + visit_optional_node(fd->return_type, indent+lead, "|  ")
-            + '\n' + visit(fd->body, indent+lead, "   ");
+            + '\n' + visit(fd->body, indent+lead, fd->ensure_body ? "|  " : "   ")
+            + visit_optional_node(fd->ensure_body, indent+lead, "   ");
     }
 
     std::string visit(ast::node::procedure_definition const& pd, std::string const& indent, char const* const lead) const
@@ -439,7 +440,8 @@ public:
         return prefix_of(pd, indent)
             + '\n' + visit(pd->name, indent+lead, "|  ")
             + visit_nodes(pd->params, indent+lead, false)
-            + '\n' + visit(pd->body, indent+lead, "   ");
+            + '\n' + visit(pd->body, indent+lead, pd->ensure_body ? "|  " : "   ")
+            + visit_optional_node(pd->ensure_body, indent+lead, "   ");
     }
 
     // For terminal nodes

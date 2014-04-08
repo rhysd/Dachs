@@ -1031,12 +1031,14 @@ struct function_definition : public base {
     std::vector<node::parameter> params;
     boost::optional<node::qualified_type> return_type;
     node::statement_block body;
+    boost::optional<node::statement_block> ensure_body;
 
     function_definition(node::identifier const& n
                       , std::vector<node::parameter> const& p
                       , boost::optional<node::qualified_type> const& ret
-                      , node::statement_block const& block)
-        : base(), name(n), params(p), return_type(ret), body(block)
+                      , node::statement_block const& block
+                      , boost::optional<node::statement_block> const& ensure)
+        : base(), name(n), params(p), return_type(ret), body(block), ensure_body(ensure)
     {}
 
     std::string to_string() const override
@@ -1049,11 +1051,13 @@ struct procedure_definition : public base {
     node::identifier name;
     std::vector<node::parameter> params;
     node::statement_block body;
+    boost::optional<node::statement_block> ensure_body;
 
     procedure_definition(node::identifier const& n
                       , std::vector<node::parameter> const& p
-                      , node::statement_block const& block)
-        : base(), name(n), params(p), body(block)
+                      , node::statement_block const& block
+                      , boost::optional<node::statement_block> const& ensure)
+        : base(), name(n), params(p), body(block), ensure_body(ensure)
     {}
 
     std::string to_string() const override
