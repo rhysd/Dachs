@@ -126,7 +126,7 @@ public:
 
         program
             = (
-                -((function_definition | procedure_definition) % sep) > (qi::eol | qi::eoi)
+                -sep > -((function_definition | procedure_definition) % sep) > -sep > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(as_vector(_1))
             ];
