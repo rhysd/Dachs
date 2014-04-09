@@ -353,6 +353,13 @@ public:
                 _val = make_node_ptr<ast::node::array_type>(_1)
             ];
 
+        map_type
+            = (
+                '{' >> qualified_type >> "=>" >> qualified_type >> '}'
+            ) [
+                _val = make_node_ptr<ast::node::map_type>(_1, _2)
+            ];
+
         tuple_type
             = (
                 '('
@@ -365,7 +372,7 @@ public:
 
         compound_type
             = (
-                array_type | tuple_type | primary_type
+                array_type | map_type | tuple_type | primary_type
             ) [
                 _val = make_node_ptr<ast::node::compound_type>(_1)
             ];
@@ -704,6 +711,7 @@ public:
             , unary_expr
             , primary_type
             , array_type
+            , map_type
             , tuple_type
             , compound_type
             , qualified_type
@@ -799,6 +807,7 @@ private:
     DACHS_DEFINE_RULE(unary_expr);
     DACHS_DEFINE_RULE(primary_type);
     DACHS_DEFINE_RULE(array_type);
+    DACHS_DEFINE_RULE(map_type);
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_type, std::vector<ast::node::qualified_type>);
     DACHS_DEFINE_RULE(compound_type);
     DACHS_DEFINE_RULE(qualified_type);

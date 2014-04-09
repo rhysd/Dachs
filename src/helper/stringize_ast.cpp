@@ -248,6 +248,13 @@ public:
         return prefix_of(at, indent) + '\n' + visit(at->elem_type, indent+lead, "   ");
     }
 
+    std::string visit(ast::node::map_type const& mt, std::string const& indent, char const* const lead) const
+    {
+        return prefix_of(mt, indent)
+            + '\n' + visit(mt->key_type, indent+lead, "|  ")
+            + '\n' + visit(mt->value_type, indent+lead, "   ");
+    }
+
     std::string visit(ast::node::tuple_type const& tt, std::string const& indent, char const* const lead) const
     {
         return prefix_of(tt, indent)

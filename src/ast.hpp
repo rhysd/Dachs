@@ -108,6 +108,7 @@ struct unary_expr;
 struct primary_type;
 struct tuple_type;
 struct array_type;
+struct map_type;
 struct compound_type;
 struct qualified_type;
 struct cast_expr;
@@ -167,6 +168,7 @@ DACHS_DEFINE_NODE_PTR(unary_expr);
 DACHS_DEFINE_NODE_PTR(primary_type);
 DACHS_DEFINE_NODE_PTR(tuple_type);
 DACHS_DEFINE_NODE_PTR(array_type);
+DACHS_DEFINE_NODE_PTR(map_type);
 DACHS_DEFINE_NODE_PTR(compound_type);
 DACHS_DEFINE_NODE_PTR(qualified_type);
 DACHS_DEFINE_NODE_PTR(cast_expr);
@@ -346,12 +348,12 @@ struct symbol_literal : public expression {
 struct map_literal : public expression {
     using map_elem_type =
         std::pair<node::compound_expr, node::compound_expr>;
-    using map_type =
+    using value_type =
         std::vector<map_elem_type>;
 
-    map_type value;
+    value_type value;
 
-    explicit map_literal(map_type const& m)
+    explicit map_literal(value_type const& m)
         : value(m)
     {}
 
@@ -563,6 +565,21 @@ struct array_type : public base {
     }
 };
 
+struct map_type : public base {
+    node::qualified_type key_type;
+    node::qualified_type value_type;
+
+    map_type(node::qualified_type const& key_type,
+             node::qualified_type const& value_type)
+        : key_type(key_type), value_type(value_type)
+    {}
+
+    std::string to_string() const override
+    {
+        return "MAP_TYPE";
+    }
+};
+
 struct tuple_type : public base {
     std::vector<node::qualified_type> arg_types; // Note: length of this variable should not be 1
 
@@ -578,7 +595,10 @@ struct tuple_type : public base {
 
 struct compound_type : public base {
     using value_type =
-        boost::variant<node::array_type, node::tuple_type, node::primary_type>;
+        boost::variant<node::array_type
+                     , node::tuple_type
+                     , node::map_type
+                     , node::primary_type>;
     value_type value;
 
     template<class T>
