@@ -322,7 +322,7 @@ struct array_literal : public expression {
 struct tuple_literal : public expression {
     std::vector<node::compound_expr> element_exprs;
 
-    explicit tuple_literal(std::vector<node::compound_expr> const& elems)
+    explicit tuple_literal(decltype(element_exprs) const& elems)
         : expression(), element_exprs(elems)
     {}
 
@@ -421,7 +421,7 @@ struct parameter : public base {
     node::identifier name;
     boost::optional<node::qualified_type> type;
 
-    parameter(bool const v, node::identifier const& n, boost::optional<node::qualified_type> const& t)
+    parameter(bool const v, node::identifier const& n, decltype(type) const& t)
         : base(), is_var(v), name(n), type(t)
     {}
 
@@ -434,7 +434,7 @@ struct parameter : public base {
 struct function_call : public expression {
     std::vector<node::compound_expr> args;
 
-    function_call(std::vector<node::compound_expr> const& args)
+    function_call(decltype(args) const& args)
         : expression(), args(args)
     {}
 
@@ -448,8 +448,8 @@ struct object_construct : public expression {
     node::qualified_type type;
     std::vector<node::compound_expr> args;
 
-    object_construct(node::qualified_type const& t
-                    , std::vector<node::compound_expr> const& args)
+    object_construct(node::qualified_type const& t,
+                     decltype(args) const& args)
         : expression(), type(t), args(args)
     {}
 
@@ -616,7 +616,8 @@ struct qualified_type : public base {
     boost::optional<qualifier> value;
     node::compound_type type;
 
-    qualified_type(boost::optional<qualifier> const& q, node::compound_type const& t)
+    qualified_type(decltype(value) const& q,
+                   node::compound_type const& t)
         : value(q), type(t)
     {}
 
@@ -630,7 +631,8 @@ struct cast_expr : public expression {
     std::vector<node::qualified_type> dest_types;
     node::unary_expr source_expr;
 
-    cast_expr(std::vector<node::qualified_type> const& types, node::unary_expr const& expr)
+    cast_expr(decltype(dest_types) const& types,
+              node::unary_expr const& expr)
         : expression(), dest_types(types), source_expr(expr)
     {}
 
@@ -754,7 +756,7 @@ struct and_expr : public expression {
 struct xor_expr : public expression {
     std::vector<node::and_expr> exprs;
 
-    explicit xor_expr(node::and_expr const& lhs, std::vector<node::and_expr> const& rhss)
+    explicit xor_expr(node::and_expr const& lhs, decltype(exprs) const& rhss)
         : expression(), exprs({lhs})
     {
         exprs.reserve(1+rhss.size());
@@ -770,7 +772,7 @@ struct xor_expr : public expression {
 struct or_expr : public expression {
     std::vector<node::xor_expr> exprs;
 
-    explicit or_expr(node::xor_expr const& lhs, std::vector<node::xor_expr> const& rhss)
+    explicit or_expr(node::xor_expr const& lhs, decltype(exprs) const& rhss)
         : expression(), exprs({lhs})
     {
         exprs.reserve(1+rhss.size());
@@ -786,7 +788,7 @@ struct or_expr : public expression {
 struct logical_and_expr : public expression {
     std::vector<node::or_expr> exprs;
 
-    explicit logical_and_expr(node::or_expr const& lhs, std::vector<node::or_expr> const& rhss)
+    explicit logical_and_expr(node::or_expr const& lhs, decltype(exprs) const& rhss)
         : expression(), exprs({lhs})
     {
         exprs.reserve(1+rhss.size());
@@ -802,7 +804,7 @@ struct logical_and_expr : public expression {
 struct logical_or_expr : public expression {
     std::vector<node::logical_and_expr> exprs;
 
-    explicit logical_or_expr(node::logical_and_expr const& lhs, std::vector<node::logical_and_expr> const& rhss)
+    explicit logical_or_expr(node::logical_and_expr const& lhs, decltype(exprs) const& rhss)
         : expression(), exprs({lhs})
     {
         exprs.reserve(1+rhss.size());
@@ -839,7 +841,7 @@ struct compound_expr : public expression {
     boost::optional<node::qualified_type> maybe_type;
 
     template<class T>
-    compound_expr(T const& e, boost::optional<node::qualified_type> const& t)
+    compound_expr(T const& e, decltype(maybe_type) const& t)
         : expression(), child_expr(e), maybe_type(t)
     {}
 
@@ -856,7 +858,7 @@ struct variable_decl : public base {
 
     variable_decl(bool const var,
                   node::identifier const& name,
-                  boost::optional<node::qualified_type> const& type)
+                  decltype(maybe_type) const& type)
         : is_var(var), name(name), maybe_type(type)
     {}
 
@@ -870,8 +872,8 @@ struct initialize_stmt : public statement {
     std::vector<node::variable_decl> var_decls;
     boost::optional<std::vector<node::compound_expr>> maybe_rhs_exprs;
 
-    initialize_stmt(std::vector<node::variable_decl> const& vars,
-                  boost::optional<std::vector<node::compound_expr>> const& rhss)
+    initialize_stmt(decltype(var_decls) const& vars,
+                    decltype(maybe_rhs_exprs) const& rhss)
         : statement(), var_decls(vars), maybe_rhs_exprs(rhss)
     {}
 
@@ -886,9 +888,9 @@ struct assignment_stmt : public statement {
     assign_operator assign_op;
     std::vector<node::compound_expr> rhs_exprs;
 
-    assignment_stmt(std::vector<node::postfix_expr> const& assignees,
+    assignment_stmt(decltype(assignees) const& assignees,
                     assign_operator assign_op,
-                    std::vector<node::compound_expr> const& rhs_exprs)
+                    decltype(rhs_exprs) const& rhs_exprs)
         : statement(), assignees(assignees), assign_op(assign_op), rhs_exprs(rhs_exprs)
     {}
 
@@ -911,8 +913,8 @@ struct if_stmt : public statement {
     if_stmt(if_kind const kind,
             node::compound_expr const& cond,
             node::statement_block const& then,
-            std::vector<elseif_type> const& elseifs,
-            boost::optional<node::statement_block> const& maybe_else)
+            decltype(elseif_stmts_list) const& elseifs,
+            decltype(maybe_else_stmts) const& maybe_else)
         : statement(), kind(kind), condition(cond), then_stmts(then), elseif_stmts_list(elseifs), maybe_else_stmts(maybe_else)
     {}
 
@@ -943,7 +945,8 @@ struct case_stmt : public statement {
     std::vector<when_type> when_stmts_list;
     boost::optional<node::statement_block> maybe_else_stmts;
 
-    case_stmt(std::vector<when_type> const& whens, boost::optional<node::statement_block> const& elses)
+    case_stmt(decltype(when_stmts_list) const& whens,
+              decltype(maybe_else_stmts) const& elses)
         : statement(), when_stmts_list(whens), maybe_else_stmts(elses)
     {}
 
@@ -962,8 +965,8 @@ struct switch_stmt : public statement {
     boost::optional<node::statement_block> maybe_else_stmts;
 
     switch_stmt(node::compound_expr const& target,
-                std::vector<when_type> const& whens,
-                boost::optional<node::statement_block> const& elses)
+                decltype(when_stmts_list) const& whens,
+                decltype(maybe_else_stmts) const& elses)
         : statement(), target_expr(target), when_stmts_list(whens), maybe_else_stmts(elses)
     {}
 
@@ -978,7 +981,7 @@ struct for_stmt : public statement {
     node::compound_expr range_expr;
     node::statement_block body_stmts;
 
-    for_stmt(std::vector<node::parameter> const& iters,
+    for_stmt(decltype(iter_vars) const& iters,
              node::compound_expr const& range,
              node::statement_block body)
         : statement(), iter_vars(iters), range_expr(range), body_stmts(body)
@@ -1010,7 +1013,9 @@ struct postfix_if_stmt : public statement {
     if_kind kind;
     node::compound_expr condition;
 
-    postfix_if_stmt(node::compound_expr const& body, if_kind const kind, node::compound_expr const& cond)
+    postfix_if_stmt(node::compound_expr const& body,
+                    if_kind const kind,
+                    node::compound_expr const& cond)
         : statement(), body(body), kind(kind), condition(cond)
     {}
 
@@ -1076,10 +1081,10 @@ struct function_definition : public base {
     boost::optional<node::statement_block> ensure_body;
 
     function_definition(node::identifier const& n
-                      , std::vector<node::parameter> const& p
-                      , boost::optional<node::qualified_type> const& ret
+                      , decltype(params) const& p
+                      , decltype(return_type) const& ret
                       , node::statement_block const& block
-                      , boost::optional<node::statement_block> const& ensure)
+                      , decltype(ensure_body) const& ensure)
         : base(), name(n), params(p), return_type(ret), body(block), ensure_body(ensure)
     {}
 
@@ -1096,9 +1101,9 @@ struct procedure_definition : public base {
     boost::optional<node::statement_block> ensure_body;
 
     procedure_definition(node::identifier const& n
-                      , std::vector<node::parameter> const& p
+                      , decltype(params) const& p
                       , node::statement_block const& block
-                      , boost::optional<node::statement_block> const& ensure)
+                      , decltype(ensure_body) const& ensure)
         : base(), name(n), params(p), body(block), ensure_body(ensure)
     {}
 
@@ -1117,7 +1122,7 @@ struct program : public base {
 
     std::vector<func_def_type> inu;
 
-    explicit program(std::vector<func_def_type> const& value)
+    explicit program(decltype(inu) const& value)
         : base(), inu(value)
     {}
 
