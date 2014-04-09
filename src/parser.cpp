@@ -286,9 +286,9 @@ public:
 
         constructor_call
             = (
-                -('{' >> -(
+                '{' >> -(
                     compound_expr[phx::push_back(_val, _1)] % ','
-                ) >> '}')
+                ) >> '}'
             );
 
         object_construct
