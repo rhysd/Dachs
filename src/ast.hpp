@@ -11,6 +11,7 @@
 
 namespace dachs {
 namespace ast {
+namespace symbol {
 
 enum class unary_operator {
     positive,
@@ -79,6 +80,8 @@ std::string to_string(relational_operator const o);
 std::string to_string(shift_operator const o);
 std::string to_string(equality_operator const o);
 std::string to_string(assign_operator const o);
+
+} // namespace symbol
 
 namespace node_type {
 
@@ -202,13 +205,6 @@ DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
 } // namespace node
-
-namespace alias {
-
-// handy aliases
-using statement_block = std::vector<node::compound_stmt>;
-
-} // namespace alias
 
 namespace node_type {
 
@@ -526,9 +522,9 @@ struct postfix_expr : public expression {
 };
 
 struct unary_expr : public expression {
-    std::vector<unary_operator> values;
+    std::vector<symbol::unary_operator> values;
     node::postfix_expr expr;
-    unary_expr(std::vector<unary_operator> const& ops, node::postfix_expr const& expr)
+    unary_expr(std::vector<symbol::unary_operator> const& ops, node::postfix_expr const& expr)
         : expression(), values(ops), expr(expr)
     {}
 
@@ -613,7 +609,7 @@ struct compound_type : public base {
 };
 
 struct qualified_type : public base {
-    boost::optional<qualifier> value;
+    boost::optional<symbol::qualifier> value;
     node::compound_type type;
 
     qualified_type(decltype(value) const& q,
@@ -642,23 +638,6 @@ struct cast_expr : public expression {
     }
 };
 
-#define DACHS_DEFINE_MULTI_BINARY_OPERATOR(name, fact, op, to_string) \
-    struct name : public expression { \
-        using rhs_type \
-            = std::pair<op, fact>; \
-        using rhss_type \
-            = std::vector<rhs_type>; \
-        fact lhs; \
-        rhss_type rhss; \
-        name(fact const& lhs, rhss_type const& rhss) \
-            : expression(), lhs(lhs), rhss(rhss) \
-        {} \
-        std::string to_string() const override \
-        { \
-            to_string; \
-        } \
-    }
-
 template<class FactorType, class OperatorType>
 struct multi_binary_expr : public expression {
     using rhs_type
@@ -677,7 +656,7 @@ struct multi_binary_expr : public expression {
     {}
 };
 
-struct mult_expr : public multi_binary_expr<node::cast_expr, mult_operator> {
+struct mult_expr : public multi_binary_expr<node::cast_expr, symbol::mult_operator> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
@@ -686,7 +665,7 @@ struct mult_expr : public multi_binary_expr<node::cast_expr, mult_operator> {
     }
 };
 
-struct additive_expr : public multi_binary_expr<node::mult_expr, additive_operator> {
+struct additive_expr : public multi_binary_expr<node::mult_expr, symbol::additive_operator> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
@@ -695,7 +674,7 @@ struct additive_expr : public multi_binary_expr<node::mult_expr, additive_operat
     }
 };
 
-struct shift_expr : public multi_binary_expr<node::additive_expr, shift_operator> {
+struct shift_expr : public multi_binary_expr<node::additive_expr, symbol::shift_operator> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
@@ -704,7 +683,7 @@ struct shift_expr : public multi_binary_expr<node::additive_expr, shift_operator
     }
 };
 
-struct relational_expr : public multi_binary_expr<node::shift_expr, relational_operator> {
+struct relational_expr : public multi_binary_expr<node::shift_expr, symbol::relational_operator> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
@@ -713,7 +692,7 @@ struct relational_expr : public multi_binary_expr<node::shift_expr, relational_o
     }
 };
 
-struct equality_expr : public multi_binary_expr<node::relational_expr, equality_operator> {
+struct equality_expr : public multi_binary_expr<node::relational_expr, symbol::equality_operator> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
@@ -781,9 +760,9 @@ struct logical_or_expr : public binary_expr<node::logical_and_expr> {
 };
 
 struct if_expr : public expression {
-    if_kind kind;
+    symbol::if_kind kind;
     node::compound_expr condition_expr, then_expr, else_expr;
-    if_expr(if_kind const kind,
+    if_expr(symbol::if_kind const kind,
             node::compound_expr const& condition,
             node::compound_expr const& then,
             node::compound_expr const& else_)
@@ -792,7 +771,7 @@ struct if_expr : public expression {
 
     std::string to_string() const override
     {
-        return std::string{"IF_EXPR: "} + (kind == ast::if_kind::if_ ? "if" : "unless");
+        return std::string{"IF_EXPR: "} + (kind == ast::symbol::if_kind::if_ ? "if" : "unless");
     }
 };
 
@@ -848,11 +827,11 @@ struct initialize_stmt : public statement {
 
 struct assignment_stmt : public statement {
     std::vector<node::postfix_expr> assignees;
-    assign_operator assign_op;
+    symbol::assign_operator assign_op;
     std::vector<node::compound_expr> rhs_exprs;
 
     assignment_stmt(decltype(assignees) const& assignees,
-                    assign_operator assign_op,
+                    symbol::assign_operator assign_op,
                     decltype(rhs_exprs) const& rhs_exprs)
         : statement(), assignees(assignees), assign_op(assign_op), rhs_exprs(rhs_exprs)
     {}
@@ -867,13 +846,13 @@ struct if_stmt : public statement {
     using elseif_type
         = std::pair<node::compound_expr, node::statement_block>;
 
-    if_kind kind;
+    symbol::if_kind kind;
     node::compound_expr condition;
     node::statement_block then_stmts;
     std::vector<elseif_type> elseif_stmts_list;
     boost::optional<node::statement_block> maybe_else_stmts;
 
-    if_stmt(if_kind const kind,
+    if_stmt(symbol::if_kind const kind,
             node::compound_expr const& cond,
             node::statement_block const& then,
             decltype(elseif_stmts_list) const& elseifs,
@@ -884,7 +863,7 @@ struct if_stmt : public statement {
     std::string to_string() const override
     {
         return std::string{"IF_STMT: "}
-            + (kind == if_kind::if_ ? "if" : "unless");
+            + (kind == symbol::if_kind::if_ ? "if" : "unless");
     }
 };
 
@@ -973,11 +952,11 @@ struct while_stmt : public statement {
 
 struct postfix_if_stmt : public statement {
     node::compound_expr body;
-    if_kind kind;
+    symbol::if_kind kind;
     node::compound_expr condition;
 
     postfix_if_stmt(node::compound_expr const& body,
-                    if_kind const kind,
+                    symbol::if_kind const kind,
                     node::compound_expr const& cond)
         : statement(), body(body), kind(kind), condition(cond)
     {}
@@ -985,7 +964,7 @@ struct postfix_if_stmt : public statement {
     std::string to_string() const override
     {
         return std::string{"POSTFIX_IF_STMT: "}
-            + (kind == if_kind::if_ ? "if" : "unless");
+            + (kind == symbol::if_kind::if_ ? "if" : "unless");
     }
 };
 

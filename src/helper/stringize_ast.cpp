@@ -147,7 +147,7 @@ class ast_stringizer {
                 + visit_nodes_with_predicate(
                       p->rhss,
                       [this, indent, lead](auto const& op_and_rhs, auto const l) {
-                          return yellow(indent+lead+'|') + '\n' + yellow(indent+lead+"|--") + "\033[92mOPERATOR: " + ast::to_string(op_and_rhs.first) + "\033[0m"
+                          return yellow(indent+lead+'|') + '\n' + yellow(indent+lead+"|--") + "\033[92mOPERATOR: " + ast::symbol::to_string(op_and_rhs.first) + "\033[0m"
                               + '\n' + visit(op_and_rhs.second, indent+lead, l);
                       }, true);
     }
@@ -360,7 +360,7 @@ public:
         return prefix_of(as, indent)
                + visit_nodes(as->assignees, indent+lead, false)
                + '\n' + yellow(indent+lead+'|')
-               + '\n' + yellow(indent+lead+"|--") + "\033[92mASSIGN_OPERATOR: " + ast::to_string(as->assign_op) + "\033[0m"
+               + '\n' + yellow(indent+lead+"|--") + "\033[92mASSIGN_OPERATOR: " + ast::symbol::to_string(as->assign_op) + "\033[0m"
                + visit_nodes(as->rhs_exprs, indent+lead, true);
     }
 

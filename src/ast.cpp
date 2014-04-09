@@ -7,6 +7,7 @@
 
 namespace dachs {
 namespace ast {
+namespace symbol {
 
 std::string to_string(unary_operator const o)
 {
@@ -87,6 +88,8 @@ std::string to_string(assign_operator const o)
     }
 }
 
+} // namespace symbol
+
 namespace node_type {
 
 std::size_t generate_id()
@@ -111,7 +114,7 @@ std::string unary_expr::to_string() const
 {
     return "UNARY_EXPR: " + boost::algorithm::join(
             values | boost::adaptors::transformed(
-                [](auto const op) { return ::dachs::ast::to_string(op); }
+                [](auto const op) { return symbol::to_string(op); }
             ), " ");
 }
 

@@ -853,107 +853,107 @@ private:
     // }}}
 
     // Symbol tables {{{
-    struct unary_operator_rule_type : public qi::symbols<char, ast::unary_operator> {
+    struct unary_operator_rule_type : public qi::symbols<char, ast::symbol::unary_operator> {
         unary_operator_rule_type()
         {
             add
-                ("+", ast::unary_operator::positive)
-                ("-", ast::unary_operator::negative)
-                ("~", ast::unary_operator::one_complement)
-                ("!", ast::unary_operator::logical_negate)
+                ("+", ast::symbol::unary_operator::positive)
+                ("-", ast::symbol::unary_operator::negative)
+                ("~", ast::symbol::unary_operator::one_complement)
+                ("!", ast::symbol::unary_operator::logical_negate)
             ;
         }
     } unary_operator;
 
-    struct mult_operator_rule_type : public qi::symbols<char, ast::mult_operator> {
+    struct mult_operator_rule_type : public qi::symbols<char, ast::symbol::mult_operator> {
         mult_operator_rule_type()
         {
             add
-                ("*", ast::mult_operator::mult)
-                ("/", ast::mult_operator::div)
-                ("%", ast::mult_operator::mod)
+                ("*", ast::symbol::mult_operator::mult)
+                ("/", ast::symbol::mult_operator::div)
+                ("%", ast::symbol::mult_operator::mod)
             ;
         }
     } mult_operator;
 
-    struct additive_operator_rule_type : public qi::symbols<char, ast::additive_operator> {
+    struct additive_operator_rule_type : public qi::symbols<char, ast::symbol::additive_operator> {
         additive_operator_rule_type()
         {
             add
-                ("+", ast::additive_operator::add)
-                ("-", ast::additive_operator::sub)
+                ("+", ast::symbol::additive_operator::add)
+                ("-", ast::symbol::additive_operator::sub)
             ;
         }
     } additive_operator;
 
-    struct relational_operator_rule_type : public qi::symbols<char, ast::relational_operator> {
+    struct relational_operator_rule_type : public qi::symbols<char, ast::symbol::relational_operator> {
         relational_operator_rule_type()
         {
             add
-                ("<", ast::relational_operator::less_than)
-                (">", ast::relational_operator::greater_than)
-                ("<=", ast::relational_operator::less_than_equal)
-                (">=", ast::relational_operator::greater_than_equal)
+                ("<", ast::symbol::relational_operator::less_than)
+                (">", ast::symbol::relational_operator::greater_than)
+                ("<=", ast::symbol::relational_operator::less_than_equal)
+                (">=", ast::symbol::relational_operator::greater_than_equal)
             ;
         }
     } relational_operator;
 
-    struct shift_operator_rule_type : public qi::symbols<char, ast::shift_operator> {
+    struct shift_operator_rule_type : public qi::symbols<char, ast::symbol::shift_operator> {
         shift_operator_rule_type()
         {
             add
-                (">>", ast::shift_operator::left)
-                ("<<", ast::shift_operator::right)
+                (">>", ast::symbol::shift_operator::left)
+                ("<<", ast::symbol::shift_operator::right)
             ;
         }
     } shift_operator;
 
-    struct equality_operator_rule_type : public qi::symbols<char, ast::equality_operator> {
+    struct equality_operator_rule_type : public qi::symbols<char, ast::symbol::equality_operator> {
         equality_operator_rule_type()
         {
             add
-                ("==", ast::equality_operator::equal)
-                ("!=", ast::equality_operator::not_equal)
+                ("==", ast::symbol::equality_operator::equal)
+                ("!=", ast::symbol::equality_operator::not_equal)
             ;
         }
     } equality_operator;
 
-    struct assign_operator_rule_type : public qi::symbols<char, ast::assign_operator> {
+    struct assign_operator_rule_type : public qi::symbols<char, ast::symbol::assign_operator> {
         assign_operator_rule_type()
         {
             add
-                ("=", ast::assign_operator::assign)
-                ("*=", ast::assign_operator::mult)
-                ("/=", ast::assign_operator::div)
-                ("%=", ast::assign_operator::mod)
-                ("+=", ast::assign_operator::add)
-                ("-=", ast::assign_operator::sub)
-                ("<<=", ast::assign_operator::left_shift)
-                (">>=", ast::assign_operator::right_shift)
-                ("&=", ast::assign_operator::arithmetic_and)
-                ("^=", ast::assign_operator::arithmetic_xor)
-                ("|=", ast::assign_operator::arithmetic_or)
-                ("&&=", ast::assign_operator::logical_and)
-                ("||=", ast::assign_operator::logical_or)
+                ("=", ast::symbol::assign_operator::assign)
+                ("*=", ast::symbol::assign_operator::mult)
+                ("/=", ast::symbol::assign_operator::div)
+                ("%=", ast::symbol::assign_operator::mod)
+                ("+=", ast::symbol::assign_operator::add)
+                ("-=", ast::symbol::assign_operator::sub)
+                ("<<=", ast::symbol::assign_operator::left_shift)
+                (">>=", ast::symbol::assign_operator::right_shift)
+                ("&=", ast::symbol::assign_operator::arithmetic_and)
+                ("^=", ast::symbol::assign_operator::arithmetic_xor)
+                ("|=", ast::symbol::assign_operator::arithmetic_or)
+                ("&&=", ast::symbol::assign_operator::logical_and)
+                ("||=", ast::symbol::assign_operator::logical_or)
             ;
         }
     } assign_operator;
 
-    struct if_kind_rule_type : public qi::symbols<char, ast::if_kind> {
+    struct if_kind_rule_type : public qi::symbols<char, ast::symbol::if_kind> {
         if_kind_rule_type()
         {
             add
-                ("if", ast::if_kind::if_)
-                ("unless", ast::if_kind::unless)
+                ("if", ast::symbol::if_kind::if_)
+                ("unless", ast::symbol::if_kind::unless)
             ;
         }
     } if_kind;
 
-    struct qualifier_rule_type : public qi::symbols<char, ast::qualifier> {
+    struct qualifier_rule_type : public qi::symbols<char, ast::symbol::qualifier> {
         qualifier_rule_type()
         {
             add
-                ("maybe", ast::qualifier::maybe)
+                ("maybe", ast::symbol::qualifier::maybe)
             ;
         }
     } qualifier;
