@@ -29,6 +29,7 @@ struct to_string : public boost::static_visitor<std::string> {
     template<class T>
     std::string operator()(std::shared_ptr<T> const& p) const
     {
+        static_assert(ast::traits::is_node<T>::value, "ast_stringizer: visit a object which isn't AST node.");
         return p->to_string();
     }
 
@@ -472,9 +473,10 @@ public:
     }
 
     // For terminal nodes
-    template<class T, class = typename std::enable_if<ast::traits::is_node<T>::value>::type>
+    template<class T>
     std::string visit(std::shared_ptr<T> const& p, std::string const& indent, char const* const) const
     {
+        static_assert(ast::traits::is_node<T>::value, "ast_stringizer: visit a object which isn't AST node.");
         return prefix_of(p, indent);
     }
 };
