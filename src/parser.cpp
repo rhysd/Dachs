@@ -236,14 +236,14 @@ public:
         map_literal
             = (
                 '{' >>
-                    *(
+                    -(
                         qi::as<ast::node_type::map_literal::map_elem_type>()[
                             compound_expr > "=>" > compound_expr
-                        ]
+                        ] % ','
                     )
                 >> '}'
             ) [
-                _val = make_node_ptr<ast::node::map_literal>(_1)
+                _val = make_node_ptr<ast::node::map_literal>(as_vector(_1))
             ];
 
         identifier
