@@ -246,20 +246,33 @@ public:
                 _val = make_node_ptr<ast::node::map_literal>(as_vector(_1))
             ];
 
-        identifier
+        function_name
             = (
                 qi::as_string[
                     qi::lexeme[
-                        (qi::alpha | qi::char_('_')) >> *(qi::alnum | qi::char_('_')) >> -(qi::char_('?') | qi::char_('!') | qi::char_('\''))
+                        (qi::alpha | qi::char_('_')) >> *(qi::alnum | qi::char_('_')) >> -qi::char_("?!'")
                     ]
                 ]
             ) [
                 _val = make_node_ptr<ast::node::identifier>(_1)
             ];
 
+        variable_name
+            = (
+                qi::as_string[
+                    qi::lexeme[
+                        (qi::alpha | qi::char_('_')) >> *(qi::alnum | qi::char_('_'))
+                    ]
+                ]
+            ) [
+                _val = make_node_ptr<ast::node::identifier>(_1)
+            ];
+
+        type_name = variable_name.alias();
+
         var_ref
             = (
-                identifier
+                variable_name
             ) [
                 _val = make_node_ptr<ast::node::var_ref>(_1)
             ];
@@ -267,7 +280,7 @@ public:
         parameter
             = (
                 -qi::string("var")
-                >> identifier
+                >> variable_name
                 >> -(
                     ':' >> qualified_type
                 )
@@ -320,7 +333,7 @@ public:
 
         member_access
             = (
-                '.' >> identifier
+                '.' >> function_name
             ) [
                 _val = make_node_ptr<ast::node::member_access>(_1)
             ];
@@ -341,7 +354,7 @@ public:
 
         primary_type
             = (
-                ('(' >> qualified_type >> ')') | identifier
+                ('(' >> qualified_type >> ')') | type_name
             ) [
                 _val = make_node_ptr<ast::node::primary_type>(_1)
             ];
@@ -505,7 +518,7 @@ public:
 
         variable_decl
             = (
-                -(qi::string("var")) >> identifier >> -(':' >> qualified_type)
+                -(qi::string("var")) >> variable_name >> -(':' >> qualified_type)
             ) [
                 _val = make_node_ptr<ast::node::variable_decl>(_1, _2, _3)
             ];
@@ -650,7 +663,7 @@ public:
 
         function_definition
             = (
-                "func" > identifier > function_param_decls > -(':' > qualified_type) > sep
+                "func" > function_name > function_param_decls > -(':' > qualified_type) > sep
                 > func_precondition
                 > func_body_stmt_block > -sep
                 > -(
@@ -662,7 +675,7 @@ public:
 
         procedure_definition
             = (
-                "proc" > identifier > function_param_decls > sep
+                "proc" > function_name > function_param_decls > sep
                 > func_precondition
                 > func_body_stmt_block > -sep
                 > -(
@@ -699,7 +712,9 @@ public:
             , tuple_literal
             , symbol_literal
             , map_literal
-            , identifier
+            , function_name
+            , variable_name
+            , type_name
             , var_ref
             , parameter
             , function_call
@@ -795,7 +810,6 @@ private:
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::compound_expr>);
     DACHS_DEFINE_RULE(symbol_literal);
     DACHS_DEFINE_RULE(map_literal);
-    DACHS_DEFINE_RULE(identifier);
     DACHS_DEFINE_RULE(var_ref);
     DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE(function_call);
@@ -846,6 +860,7 @@ private:
                                      , case_when_stmt_block
                                      , func_body_stmt_block
                                      ;
+    rule<ast::node::identifier()> function_name, variable_name, type_name;
     rule<qi::unused_type()/*TMP*/> func_precondition;
 
 #undef DACHS_DEFINE_RULE
@@ -949,6 +964,7 @@ private:
         }
     } if_kind;
 
+    // TODO maybe T ではなく T? に仕様変更
     struct qualifier_rule_type : public qi::symbols<char, ast::symbol::qualifier> {
         qualifier_rule_type()
         {
