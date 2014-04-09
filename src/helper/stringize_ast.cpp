@@ -79,7 +79,7 @@ class ast_stringizer {
     {
         return yellow(indent+'|') + '\n' + yellow(indent+"|--")
             + "\033[92m" + p->to_string()
-            + "\033[90m" + (boost::format(" (line:%1%, col:%2%, length:%3%)") % p->line % p->col % p->length).str()
+            + "\033[90m" + (boost::format(" (line:%1%, col:%2%, len:%3%)") % p->line % p->col % p->length).str()
             + "\033[0m";
     }
 
@@ -307,27 +307,37 @@ public:
 
     std::string visit(ast::node::and_expr const& ae, std::string const& indent, char const* const lead) const
     {
-        return prefix_of(ae, indent) + visit_nodes(ae->exprs, indent+lead, true);
+        return prefix_of(ae, indent)
+            + '\n' + visit(ae->lhs, indent+lead, ae->rhss.empty() ? "   " : "|  ")
+            + visit_nodes(ae->rhss, indent+lead, true);
     }
 
     std::string visit(ast::node::xor_expr const& xe, std::string const& indent, char const* const lead) const
     {
-        return prefix_of(xe, indent) + visit_nodes(xe->exprs, indent+lead, true);
+        return prefix_of(xe, indent)
+            + '\n' + visit(xe->lhs, indent+lead, xe->rhss.empty() ? "   " : "|  ")
+            + visit_nodes(xe->rhss, indent+lead, true);
     }
 
     std::string visit(ast::node::or_expr const& oe, std::string const& indent, char const* const lead) const
     {
-        return prefix_of(oe, indent) + visit_nodes(oe->exprs, indent+lead, true);
+        return prefix_of(oe, indent)
+            + '\n' + visit(oe->lhs, indent+lead, oe->rhss.empty() ? "   " : "|  ")
+            + visit_nodes(oe->rhss, indent+lead, true);
     }
 
     std::string visit(ast::node::logical_and_expr const& lae, std::string const& indent, char const* const lead) const
     {
-        return prefix_of(lae, indent) + visit_nodes(lae->exprs, indent+lead, true);
+        return prefix_of(lae, indent)
+            + '\n' + visit(lae->lhs, indent+lead, lae->rhss.empty() ? "   " : "|  ")
+            + visit_nodes(lae->rhss, indent+lead, true);
     }
 
     std::string visit(ast::node::logical_or_expr const& loe, std::string const& indent, char const* const lead) const
     {
-        return prefix_of(loe, indent) + visit_nodes(loe->exprs, indent+lead, true);
+        return prefix_of(loe, indent)
+            + '\n' + visit(loe->lhs, indent+lead, loe->rhss.empty() ? "   " : "|  ")
+            + visit_nodes(loe->rhss, indent+lead, true);
     }
 
     std::string visit(ast::node::if_expr const& ie, std::string const& indent, char const* const lead) const

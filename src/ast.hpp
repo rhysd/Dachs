@@ -642,18 +642,43 @@ struct cast_expr : public expression {
     }
 };
 
-struct mult_expr : public expression {
+#define DACHS_DEFINE_MULTI_BINARY_OPERATOR(name, fact, op, to_string) \
+    struct name : public expression { \
+        using rhs_type \
+            = std::pair<op, fact>; \
+        using rhss_type \
+            = std::vector<rhs_type>; \
+        fact lhs; \
+        rhss_type rhss; \
+        name(fact const& lhs, rhss_type const& rhss) \
+            : expression(), lhs(lhs), rhss(rhss) \
+        {} \
+        std::string to_string() const override \
+        { \
+            to_string; \
+        } \
+    }
+
+template<class FactorType, class OperatorType>
+struct multi_binary_expr : public expression {
     using rhs_type
-        = std::pair<mult_operator, node::cast_expr>;
+        = std::pair<OperatorType, FactorType>;
     using rhss_type
         = std::vector<rhs_type>;
 
-    node::cast_expr lhs;
+    FactorType lhs;
     rhss_type rhss;
 
-    mult_expr(node::cast_expr const& lhs, rhss_type const& rhss)
+    multi_binary_expr(FactorType const& lhs, rhss_type const& rhss)
         : expression(), lhs(lhs), rhss(rhss)
     {}
+
+    virtual ~multi_binary_expr()
+    {}
+};
+
+struct mult_expr : public multi_binary_expr<node::cast_expr, mult_operator> {
+    using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
     {
@@ -661,18 +686,8 @@ struct mult_expr : public expression {
     }
 };
 
-struct additive_expr : public expression {
-    using rhs_type
-        = std::pair<additive_operator, node::mult_expr>;
-    using rhss_type
-        = std::vector<rhs_type>;
-
-    node::mult_expr lhs;
-    rhss_type rhss;
-
-    additive_expr(node::mult_expr const& lhs, rhss_type const& rhss)
-        : expression(), lhs(lhs), rhss(rhss)
-    {}
+struct additive_expr : public multi_binary_expr<node::mult_expr, additive_operator> {
+    using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
     {
@@ -680,18 +695,8 @@ struct additive_expr : public expression {
     }
 };
 
-struct shift_expr : public expression {
-    using rhs_type
-        = std::pair<shift_operator, node::additive_expr>;
-    using rhss_type
-        = std::vector<rhs_type>;
-
-    node::additive_expr lhs;
-    rhss_type rhss;
-
-    shift_expr(node::additive_expr const& lhs, rhss_type const& rhss)
-        : expression(), lhs(lhs), rhss(rhss)
-    {}
+struct shift_expr : public multi_binary_expr<node::additive_expr, shift_operator> {
+    using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
     {
@@ -699,18 +704,8 @@ struct shift_expr : public expression {
     }
 };
 
-struct relational_expr : public expression {
-    using rhs_type
-        = std::pair<relational_operator, node::shift_expr>;
-    using rhss_type
-        = std::vector<rhs_type>;
-
-    node::shift_expr lhs;
-    rhss_type rhss;
-
-    relational_expr(node::shift_expr const& lhs, rhss_type const& rhss)
-        : expression(), lhs(lhs), rhss(rhss)
-    {}
+struct relational_expr : public multi_binary_expr<node::shift_expr, relational_operator> {
+    using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
     {
@@ -718,18 +713,8 @@ struct relational_expr : public expression {
     }
 };
 
-struct equality_expr : public expression {
-    using rhs_type
-        = std::pair<equality_operator, node::relational_expr>;
-    using rhss_type
-        = std::vector<rhs_type>;
-
-    node::relational_expr lhs;
-    rhss_type rhss;
-
-    equality_expr(node::relational_expr const& lhs, rhss_type const& rhss)
-        : expression(), lhs(lhs), rhss(rhss)
-    {}
+struct equality_expr : public multi_binary_expr<node::relational_expr, equality_operator> {
+    using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
     {
@@ -737,15 +722,21 @@ struct equality_expr : public expression {
     }
 };
 
-struct and_expr : public expression {
-    std::vector<node::equality_expr> exprs;
+template<class FactorType>
+struct binary_expr : public expression {
+    FactorType lhs;
+    std::vector<FactorType> rhss;
 
-    explicit and_expr(node::equality_expr const& lhs, std::vector<node::equality_expr> const& rhss)
-        : expression(), exprs({lhs})
-    {
-        exprs.reserve(1+rhss.size());
-        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
-    }
+    binary_expr(FactorType const& lhs, decltype(rhss) const& rhss)
+        : expression(), lhs(lhs), rhss(rhss)
+    {}
+
+    virtual ~binary_expr()
+    {}
+};
+
+struct and_expr : public binary_expr<node::equality_expr> {
+    using binary_expr::binary_expr;
 
     std::string to_string() const override
     {
@@ -753,15 +744,8 @@ struct and_expr : public expression {
     }
 };
 
-struct xor_expr : public expression {
-    std::vector<node::and_expr> exprs;
-
-    explicit xor_expr(node::and_expr const& lhs, decltype(exprs) const& rhss)
-        : expression(), exprs({lhs})
-    {
-        exprs.reserve(1+rhss.size());
-        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
-    }
+struct xor_expr : public binary_expr<node::and_expr> {
+    using binary_expr::binary_expr;
 
     std::string to_string() const override
     {
@@ -769,15 +753,8 @@ struct xor_expr : public expression {
     }
 };
 
-struct or_expr : public expression {
-    std::vector<node::xor_expr> exprs;
-
-    explicit or_expr(node::xor_expr const& lhs, decltype(exprs) const& rhss)
-        : expression(), exprs({lhs})
-    {
-        exprs.reserve(1+rhss.size());
-        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
-    }
+struct or_expr : public binary_expr<node::xor_expr> {
+    using binary_expr::binary_expr;
 
     std::string to_string() const override
     {
@@ -785,15 +762,8 @@ struct or_expr : public expression {
     }
 };
 
-struct logical_and_expr : public expression {
-    std::vector<node::or_expr> exprs;
-
-    explicit logical_and_expr(node::or_expr const& lhs, decltype(exprs) const& rhss)
-        : expression(), exprs({lhs})
-    {
-        exprs.reserve(1+rhss.size());
-        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
-    }
+struct logical_and_expr : public binary_expr<node::or_expr> {
+    using binary_expr::binary_expr;
 
     std::string to_string() const override
     {
@@ -801,15 +771,8 @@ struct logical_and_expr : public expression {
     }
 };
 
-struct logical_or_expr : public expression {
-    std::vector<node::logical_and_expr> exprs;
-
-    explicit logical_or_expr(node::logical_and_expr const& lhs, decltype(exprs) const& rhss)
-        : expression(), exprs({lhs})
-    {
-        exprs.reserve(1+rhss.size());
-        exprs.insert(std::end(exprs), std::begin(rhss), std::end(rhss));
-    }
+struct logical_or_expr : public binary_expr<node::logical_and_expr> {
+    using binary_expr::binary_expr;
 
     std::string to_string() const override
     {
