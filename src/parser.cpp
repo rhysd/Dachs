@@ -398,9 +398,9 @@ public:
 
         qualified_type
             = (
-                -qualifier >> compound_type
+                compound_type >> -qualifier
             ) [
-                _val = make_node_ptr<ast::node::qualified_type>(_1, _2)
+                _val = make_node_ptr<ast::node::qualified_type>(_2, _1)
             ];
 
         cast_expr
@@ -975,7 +975,7 @@ private:
         qualifier_rule_type()
         {
             add
-                ("maybe", ast::symbol::qualifier::maybe)
+                ("?", ast::symbol::qualifier::maybe)
             ;
         }
     } qualifier;
