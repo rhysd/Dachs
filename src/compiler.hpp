@@ -7,7 +7,7 @@
 
 namespace dachs {
 
-class compiler {
+class compiler final {
     syntax::parser parser;
 public:
     std::string /*TEMPORARY*/ compile(std::string const& code);

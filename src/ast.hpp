@@ -233,7 +233,7 @@ struct statement : public base {
     {}
 };
 
-struct character_literal : public expression {
+struct character_literal final : public expression {
     char value;
 
     explicit character_literal(char const c)
@@ -253,7 +253,7 @@ struct character_literal : public expression {
     }
 };
 
-struct float_literal : public expression {
+struct float_literal final : public expression {
     double value;
 
     explicit float_literal(double const d)
@@ -266,7 +266,7 @@ struct float_literal : public expression {
     }
 };
 
-struct boolean_literal : public expression {
+struct boolean_literal final : public expression {
     bool value;
 
     explicit boolean_literal(bool const b)
@@ -279,7 +279,7 @@ struct boolean_literal : public expression {
     }
 };
 
-struct string_literal : public expression {
+struct string_literal final : public expression {
     std::string value;
 
     explicit string_literal(std::string const& s)
@@ -289,7 +289,7 @@ struct string_literal : public expression {
     std::string to_string() const override;
 };
 
-struct integer_literal : public expression {
+struct integer_literal final : public expression {
     boost::variant< int
                   , unsigned int
     > value;
@@ -302,7 +302,7 @@ struct integer_literal : public expression {
     std::string to_string() const override;
 };
 
-struct array_literal : public expression {
+struct array_literal final : public expression {
     std::vector<node::compound_expr> element_exprs;
 
     explicit array_literal(std::vector<node::compound_expr> const& elems)
@@ -315,7 +315,7 @@ struct array_literal : public expression {
     }
 };
 
-struct tuple_literal : public expression {
+struct tuple_literal final : public expression {
     std::vector<node::compound_expr> element_exprs;
 
     explicit tuple_literal(decltype(element_exprs) const& elems)
@@ -328,7 +328,7 @@ struct tuple_literal : public expression {
     }
 };
 
-struct symbol_literal : public expression {
+struct symbol_literal final : public expression {
     std::string value;
 
     explicit symbol_literal(std::string const& s)
@@ -341,7 +341,7 @@ struct symbol_literal : public expression {
     }
 };
 
-struct map_literal : public expression {
+struct map_literal final : public expression {
     using map_elem_type =
         std::pair<node::compound_expr, node::compound_expr>;
     using value_type =
@@ -359,7 +359,7 @@ struct map_literal : public expression {
     }
 };
 
-struct literal : public expression {
+struct literal final : public expression {
     using value_type =
         boost::variant< node::character_literal
                       , node::float_literal
@@ -384,7 +384,7 @@ struct literal : public expression {
     }
 };
 
-struct identifier : public base {
+struct identifier final : public base {
     std::string value;
 
     explicit identifier(std::string const& s)
@@ -398,7 +398,7 @@ struct identifier : public base {
 };
 
 // This node will have kind of variable (global, member and local variables)
-struct var_ref : public expression {
+struct var_ref final : public expression {
     node::identifier name;
     // KIND_TYPE kind;
 
@@ -412,7 +412,7 @@ struct var_ref : public expression {
     }
 };
 
-struct parameter : public base {
+struct parameter final : public base {
     bool is_var;
     node::identifier name;
     boost::optional<node::qualified_type> type;
@@ -427,7 +427,7 @@ struct parameter : public base {
     }
 };
 
-struct function_call : public expression {
+struct function_call final : public expression {
     std::vector<node::compound_expr> args;
 
     function_call(decltype(args) const& args)
@@ -440,7 +440,7 @@ struct function_call : public expression {
     }
 };
 
-struct object_construct : public expression {
+struct object_construct final : public expression {
     node::qualified_type type;
     std::vector<node::compound_expr> args;
 
@@ -455,7 +455,7 @@ struct object_construct : public expression {
     }
 };
 
-struct primary_expr : public expression {
+struct primary_expr final : public expression {
     // Note: add lambda compound_expr
     using value_type =
         boost::variant< node::object_construct
@@ -476,7 +476,7 @@ struct primary_expr : public expression {
     }
 };
 
-struct index_access : public expression {
+struct index_access final : public expression {
     node::compound_expr index_expr;
 
     index_access(node::compound_expr const& idx_expr)
@@ -490,7 +490,7 @@ struct index_access : public expression {
     }
 };
 
-struct member_access : public expression {
+struct member_access final : public expression {
     node::identifier member_name;
     explicit member_access(node::identifier const& member_name)
         : expression(), member_name(member_name)
@@ -502,7 +502,7 @@ struct member_access : public expression {
     }
 };
 
-struct postfix_expr : public expression {
+struct postfix_expr final : public expression {
     // Note: add do-end block
     node::primary_expr prefix;
     using postfix_type =
@@ -521,7 +521,7 @@ struct postfix_expr : public expression {
     }
 };
 
-struct unary_expr : public expression {
+struct unary_expr final : public expression {
     std::vector<symbol::unary_operator> values;
     node::postfix_expr expr;
     unary_expr(std::vector<symbol::unary_operator> const& ops, node::postfix_expr const& expr)
@@ -531,7 +531,7 @@ struct unary_expr : public expression {
     std::string to_string() const override;
 };
 
-struct primary_type : public base {
+struct primary_type final : public base {
     using value_type =
         boost::variant< node::identifier
                       , node::qualified_type >;
@@ -548,7 +548,7 @@ struct primary_type : public base {
     }
 };
 
-struct array_type : public base {
+struct array_type final : public base {
     node::qualified_type elem_type;
 
     explicit array_type(node::qualified_type const& elem)
@@ -561,7 +561,7 @@ struct array_type : public base {
     }
 };
 
-struct map_type : public base {
+struct map_type final : public base {
     node::qualified_type key_type;
     node::qualified_type value_type;
 
@@ -576,7 +576,7 @@ struct map_type : public base {
     }
 };
 
-struct tuple_type : public base {
+struct tuple_type final : public base {
     std::vector<node::qualified_type> arg_types; // Note: length of this variable should not be 1
 
     explicit tuple_type(std::vector<node::qualified_type> const& args)
@@ -589,7 +589,7 @@ struct tuple_type : public base {
     }
 };
 
-struct compound_type : public base {
+struct compound_type final : public base {
     using value_type =
         boost::variant<node::array_type
                      , node::tuple_type
@@ -608,7 +608,7 @@ struct compound_type : public base {
     }
 };
 
-struct qualified_type : public base {
+struct qualified_type final : public base {
     boost::optional<symbol::qualifier> value;
     node::compound_type type;
 
@@ -623,7 +623,7 @@ struct qualified_type : public base {
     }
 };
 
-struct cast_expr : public expression {
+struct cast_expr final : public expression {
     std::vector<node::qualified_type> dest_types;
     node::unary_expr source_expr;
 
@@ -656,7 +656,7 @@ struct multi_binary_expr : public expression {
     {}
 };
 
-struct mult_expr : public multi_binary_expr<node::cast_expr, symbol::mult_operator> {
+struct mult_expr final : public multi_binary_expr<node::cast_expr, symbol::mult_operator> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
@@ -665,7 +665,7 @@ struct mult_expr : public multi_binary_expr<node::cast_expr, symbol::mult_operat
     }
 };
 
-struct additive_expr : public multi_binary_expr<node::mult_expr, symbol::additive_operator> {
+struct additive_expr final : public multi_binary_expr<node::mult_expr, symbol::additive_operator> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
@@ -674,7 +674,7 @@ struct additive_expr : public multi_binary_expr<node::mult_expr, symbol::additiv
     }
 };
 
-struct shift_expr : public multi_binary_expr<node::additive_expr, symbol::shift_operator> {
+struct shift_expr final : public multi_binary_expr<node::additive_expr, symbol::shift_operator> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
@@ -683,7 +683,7 @@ struct shift_expr : public multi_binary_expr<node::additive_expr, symbol::shift_
     }
 };
 
-struct relational_expr : public multi_binary_expr<node::shift_expr, symbol::relational_operator> {
+struct relational_expr final : public multi_binary_expr<node::shift_expr, symbol::relational_operator> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
@@ -692,7 +692,7 @@ struct relational_expr : public multi_binary_expr<node::shift_expr, symbol::rela
     }
 };
 
-struct equality_expr : public multi_binary_expr<node::relational_expr, symbol::equality_operator> {
+struct equality_expr final : public multi_binary_expr<node::relational_expr, symbol::equality_operator> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const override
@@ -714,7 +714,7 @@ struct binary_expr : public expression {
     {}
 };
 
-struct and_expr : public binary_expr<node::equality_expr> {
+struct and_expr final : public binary_expr<node::equality_expr> {
     using binary_expr::binary_expr;
 
     std::string to_string() const override
@@ -723,7 +723,7 @@ struct and_expr : public binary_expr<node::equality_expr> {
     }
 };
 
-struct xor_expr : public binary_expr<node::and_expr> {
+struct xor_expr final : public binary_expr<node::and_expr> {
     using binary_expr::binary_expr;
 
     std::string to_string() const override
@@ -732,7 +732,7 @@ struct xor_expr : public binary_expr<node::and_expr> {
     }
 };
 
-struct or_expr : public binary_expr<node::xor_expr> {
+struct or_expr final : public binary_expr<node::xor_expr> {
     using binary_expr::binary_expr;
 
     std::string to_string() const override
@@ -741,7 +741,7 @@ struct or_expr : public binary_expr<node::xor_expr> {
     }
 };
 
-struct logical_and_expr : public binary_expr<node::or_expr> {
+struct logical_and_expr final : public binary_expr<node::or_expr> {
     using binary_expr::binary_expr;
 
     std::string to_string() const override
@@ -750,7 +750,7 @@ struct logical_and_expr : public binary_expr<node::or_expr> {
     }
 };
 
-struct logical_or_expr : public binary_expr<node::logical_and_expr> {
+struct logical_or_expr final : public binary_expr<node::logical_and_expr> {
     using binary_expr::binary_expr;
 
     std::string to_string() const override
@@ -759,7 +759,7 @@ struct logical_or_expr : public binary_expr<node::logical_and_expr> {
     }
 };
 
-struct if_expr : public expression {
+struct if_expr final : public expression {
     symbol::if_kind kind;
     node::compound_expr condition_expr, then_expr, else_expr;
     if_expr(symbol::if_kind const kind,
@@ -775,7 +775,7 @@ struct if_expr : public expression {
     }
 };
 
-struct compound_expr : public expression {
+struct compound_expr final : public expression {
     using expr_type
         = boost::variant<node::logical_or_expr,
                          node::if_expr>;
@@ -793,7 +793,7 @@ struct compound_expr : public expression {
     }
 };
 
-struct variable_decl : public base {
+struct variable_decl final : public base {
     bool is_var;
     node::identifier name;
     boost::optional<node::qualified_type> maybe_type;
@@ -810,7 +810,7 @@ struct variable_decl : public base {
     }
 };
 
-struct initialize_stmt : public statement {
+struct initialize_stmt final : public statement {
     std::vector<node::variable_decl> var_decls;
     boost::optional<std::vector<node::compound_expr>> maybe_rhs_exprs;
 
@@ -825,7 +825,7 @@ struct initialize_stmt : public statement {
     }
 };
 
-struct assignment_stmt : public statement {
+struct assignment_stmt final : public statement {
     std::vector<node::postfix_expr> assignees;
     symbol::assign_operator assign_op;
     std::vector<node::compound_expr> rhs_exprs;
@@ -842,7 +842,7 @@ struct assignment_stmt : public statement {
     }
 };
 
-struct if_stmt : public statement {
+struct if_stmt final : public statement {
     using elseif_type
         = std::pair<node::compound_expr, node::statement_block>;
 
@@ -867,7 +867,7 @@ struct if_stmt : public statement {
     }
 };
 
-struct return_stmt : public statement {
+struct return_stmt final : public statement {
     std::vector<node::compound_expr> ret_exprs;
 
     explicit return_stmt(std::vector<node::compound_expr> const& rets)
@@ -880,7 +880,7 @@ struct return_stmt : public statement {
     }
 };
 
-struct case_stmt : public statement {
+struct case_stmt final : public statement {
     using when_type
         = std::pair<node::compound_expr, node::statement_block>;
 
@@ -898,7 +898,7 @@ struct case_stmt : public statement {
     }
 };
 
-struct switch_stmt : public statement {
+struct switch_stmt final : public statement {
     using when_type
         = std::pair<node::compound_expr, node::statement_block>;
 
@@ -918,7 +918,7 @@ struct switch_stmt : public statement {
     }
 };
 
-struct for_stmt : public statement {
+struct for_stmt final : public statement {
     std::vector<node::parameter> iter_vars;
     node::compound_expr range_expr;
     node::statement_block body_stmts;
@@ -935,7 +935,7 @@ struct for_stmt : public statement {
     }
 };
 
-struct while_stmt : public statement {
+struct while_stmt final : public statement {
     node::compound_expr condition;
     node::statement_block body_stmts;
 
@@ -950,7 +950,7 @@ struct while_stmt : public statement {
     }
 };
 
-struct postfix_if_stmt : public statement {
+struct postfix_if_stmt final : public statement {
     node::compound_expr body;
     symbol::if_kind kind;
     node::compound_expr condition;
@@ -968,7 +968,7 @@ struct postfix_if_stmt : public statement {
     }
 };
 
-struct compound_stmt : public statement {
+struct compound_stmt final : public statement {
     using value_type =
         boost::variant<
               node::if_stmt
@@ -995,7 +995,7 @@ struct compound_stmt : public statement {
     }
 };
 
-struct statement_block : public base {
+struct statement_block final : public base {
     using block_type
         = std::vector<node::compound_stmt>;
 
@@ -1015,7 +1015,7 @@ struct statement_block : public base {
     }
 };
 
-struct function_definition : public base {
+struct function_definition final : public base {
     node::identifier name;
     std::vector<node::parameter> params;
     boost::optional<node::qualified_type> return_type;
@@ -1036,7 +1036,7 @@ struct function_definition : public base {
     }
 };
 
-struct procedure_definition : public base {
+struct procedure_definition final : public base {
     node::identifier name;
     std::vector<node::parameter> params;
     node::statement_block body;
@@ -1055,7 +1055,7 @@ struct procedure_definition : public base {
     }
 };
 
-struct program : public base {
+struct program final : public base {
     using func_def_type
         = boost::variant<
             node::function_definition,

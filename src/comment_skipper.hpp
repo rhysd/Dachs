@@ -10,7 +10,7 @@ namespace qi = boost::spirit::qi;
 namespace ascii = boost::spirit::ascii;
 
 template<class Iterator>
-class comment_skipper : public qi::grammar<Iterator> {
+class comment_skipper final : public qi::grammar<Iterator> {
 public:
     comment_skipper()
         : comment_skipper::base_type(comment)

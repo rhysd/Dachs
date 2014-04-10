@@ -100,14 +100,14 @@ inline auto as_vector(Holder && h)
 // }}}
 
 template<class FloatType>
-struct strict_real_policies_disallowing_trailing_dot
+struct strict_real_policies_disallowing_trailing_dot final
     : qi::strict_real_policies<FloatType> {
     static bool const allow_trailing_dot = false;
     // static bool const allow_leading_dot = false;
 };
 
 template<class Iterator>
-class grammar : public qi::grammar<Iterator, ast::node::program(), comment_skipper<Iterator>> {
+class grammar final : public qi::grammar<Iterator, ast::node::program(), comment_skipper<Iterator>> {
     template<class Value, class... Extra>
     using rule = qi::rule<Iterator, Value, comment_skipper<Iterator>, Extra...>;
 

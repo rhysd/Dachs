@@ -12,12 +12,12 @@
 namespace dachs {
 namespace syntax {
 
-class parser {
+class parser final {
 public:
     ast::ast parse(std::string const& code);
 };
 
-struct parse_error : public std::runtime_error {
+struct parse_error final : public std::runtime_error {
     std::size_t line, col;
 
     parse_error(std::size_t const line, std::size_t const col)
