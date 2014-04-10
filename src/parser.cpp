@@ -272,7 +272,13 @@ public:
 
         var_ref
             = (
-                variable_name
+                // Note:
+                // This is because var_ref matches an identifier on function call.
+                // function name means an immutable function variable and its name
+                // should subject to a rule of function name.  If var_ref doesn't
+                // represent a function, it should not subject to a rule of function
+                // name.  In the case, semantic check should reject the name.
+                function_name
             ) [
                 _val = make_node_ptr<ast::node::var_ref>(_1)
             ];
