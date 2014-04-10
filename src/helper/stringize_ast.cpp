@@ -165,6 +165,13 @@ public:
         return prefix_of(al, indent) + visit_nodes(al->element_exprs, indent+lead, true);
     }
 
+    std::string visit(ast::node::array_range_literal const& arl, std::string const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(arl, indent)
+            + '\n' + visit(arl->from, indent+lead, "|  ")
+            + '\n' + visit(arl->to, indent+lead, "   ");
+    }
+
     std::string visit(ast::node::tuple_literal const& tl, std::string const& indent, char const* const lead) const noexcept
     {
         return prefix_of(tl, indent) + visit_nodes(tl->element_exprs, indent+lead, true);

@@ -139,6 +139,7 @@ public:
                 | float_literal
                 | integer_literal
                 | array_literal
+                | array_range_literal
                 | symbol_literal
                 | map_literal
                 | tuple_literal
@@ -212,6 +213,16 @@ public:
                 _val = make_node_ptr<ast::node::array_literal>(as_vector(_1))
             ];
 
+        array_range_literal
+            = (
+                '[' >> compound_expr >> (
+                    lit("...")[_a = true]
+                  | lit("..")[_a = false]
+                ) >> compound_expr >> ']'
+            ) [
+                _val = make_node_ptr<ast::node::array_range_literal>(_1, _2, _a)
+            ];
+
         tuple_literal
             = (
                 '(' >> -(
@@ -249,9 +260,12 @@ public:
 
         range_literal
             = (
-                '(' >> compound_expr >> ".." >> compound_expr >> ')'
+                '(' >> compound_expr >> (
+                        lit("...")[_a = true]
+                      | lit("..")[_a = false]
+                ) >> compound_expr >> ')'
             ) [
-                _val = make_node_ptr<ast::node::range_literal>(_1, _2)
+                _val = make_node_ptr<ast::node::range_literal>(_1, _2, _a)
             ];
 
         function_name
@@ -732,6 +746,7 @@ public:
             , boolean_literal
             , string_literal
             , array_literal
+            , array_range_literal
             , tuple_literal
             , symbol_literal
             , map_literal
@@ -832,10 +847,11 @@ private:
     DACHS_DEFINE_RULE(boolean_literal);
     DACHS_DEFINE_RULE(string_literal);
     DACHS_DEFINE_RULE(array_literal);
+    DACHS_DEFINE_RULE_WITH_LOCALS(array_range_literal, bool);
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::compound_expr>);
     DACHS_DEFINE_RULE(symbol_literal);
     DACHS_DEFINE_RULE(map_literal);
-    DACHS_DEFINE_RULE(range_literal);
+    DACHS_DEFINE_RULE_WITH_LOCALS(range_literal, bool);
     DACHS_DEFINE_RULE(var_ref);
     DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE(function_call);

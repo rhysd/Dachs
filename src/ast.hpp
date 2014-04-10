@@ -94,6 +94,7 @@ struct float_literal;
 struct boolean_literal;
 struct string_literal;
 struct array_literal;
+struct array_range_literal;
 struct tuple_literal;
 struct symbol_literal;
 struct map_literal;
@@ -156,6 +157,7 @@ DACHS_DEFINE_NODE_PTR(float_literal);
 DACHS_DEFINE_NODE_PTR(boolean_literal);
 DACHS_DEFINE_NODE_PTR(string_literal);
 DACHS_DEFINE_NODE_PTR(array_literal);
+DACHS_DEFINE_NODE_PTR(array_range_literal);
 DACHS_DEFINE_NODE_PTR(tuple_literal);
 DACHS_DEFINE_NODE_PTR(symbol_literal);
 DACHS_DEFINE_NODE_PTR(map_literal);
@@ -319,6 +321,23 @@ struct array_literal final : public expression {
     }
 };
 
+struct array_range_literal final : public expression {
+    node::compound_expr from;
+    node::compound_expr to;
+    bool is_exclusive;
+
+    array_range_literal(node::compound_expr const& from
+                      , node::compound_expr const& to
+                      , bool const is_exclusive)
+        : expression(), from(from), to(to), is_exclusive(is_exclusive)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return std::string{"ARRAY_RANGE_LITERAL: "} + (is_exclusive ? "exclusive" : "inclusive");
+    }
+};
+
 struct tuple_literal final : public expression {
     std::vector<node::compound_expr> element_exprs;
 
@@ -366,15 +385,17 @@ struct map_literal final : public expression {
 struct range_literal final : public expression {
     node::compound_expr min_expr;
     node::compound_expr max_expr;
+    bool is_exclusive;
 
     range_literal(node::compound_expr const& min
-                , node::compound_expr const& max)
-        : expression(), min_expr(min), max_expr(max)
+                , node::compound_expr const& max
+                , bool const is_exclusive)
+        : expression(), min_expr(min), max_expr(max), is_exclusive(is_exclusive)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "RANGE_LITERAL";
+        return std::string{"RANGE_LITERAL: "} + (is_exclusive ? "exclusive" : "inclusive");
     }
 };
 
@@ -386,6 +407,7 @@ struct literal final : public expression {
                       , node::string_literal
                       , node::integer_literal
                       , node::array_literal
+                      , node::array_range_literal
                       , node::symbol_literal
                       , node::map_literal
                       , node::tuple_literal
