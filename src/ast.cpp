@@ -98,7 +98,7 @@ std::size_t generate_id()
     return ++current_id;
 }
 
-std::string string_literal::to_string() const
+std::string string_literal::to_string() const noexcept
 {
     std::string s = value;
     boost::algorithm::replace_all(s, "\\", "\\\\");
@@ -110,7 +110,7 @@ std::string string_literal::to_string() const
     return "STRING_LITERAL: \"" + s + '"';
 }
 
-std::string unary_expr::to_string() const
+std::string unary_expr::to_string() const noexcept
 {
     return "UNARY_EXPR: " + boost::algorithm::join(
             values | boost::adaptors::transformed(
@@ -118,7 +118,7 @@ std::string unary_expr::to_string() const
             ), " ");
 }
 
-std::string integer_literal::to_string() const
+std::string integer_literal::to_string() const noexcept
 {
     try {
         return "INTEGER_LITERAL: " + boost::lexical_cast<std::string>(value);

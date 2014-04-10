@@ -5,14 +5,8 @@
 namespace dachs {
 std::string compiler::compile(std::string const& code)
 {
-    try {
-        auto ast = parser.parse(code);
-        return helper::stringize_ast(ast);
-    } catch (syntax::parse_error const& e) {
-        std::cerr << e.what() << std::endl;
-        std::cerr << "\033[91m〜完〜\033[0m" << std::endl;
-        std::exit(4);
-    }
+    auto ast = parser.parse(code);
+    return helper::stringize_ast(ast);
 }
 
 }  // namespace dachs

@@ -43,7 +43,13 @@ int main(int const argc, char const* const argv[])
     try {
         std::cout << compiler.compile(code) << std::endl;
         std::cout << "\033[94m〜完〜\033[0m" << std::endl;
-    } catch (std::exception const& e) {
+    }
+    catch (dachs::syntax::parse_error const& e) {
+        std::cerr << e.what() << std::endl;
+        std::cerr << "\033[91m〜完〜\033[0m" << std::endl;
+        return 4;
+    }
+    catch (std::exception const& e) {
         std::cerr << "Internal compilation error: " << e.what() << std::endl;
         return 3;
     }

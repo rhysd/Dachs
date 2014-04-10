@@ -18,13 +18,13 @@ namespace detail {
     struct static_getter : public boost::static_visitor<boost::optional<T>> {
         typedef boost::optional<T> return_type;
 
-        return_type operator()(T const& val) const
+        return_type operator()(T const& val) const noexcept
         {
             return val;
         }
 
         template<class U>
-        return_type operator()(U const&) const
+        return_type operator()(U const&) const noexcept
         {
             return boost::none;
         }
@@ -32,13 +32,13 @@ namespace detail {
 
     template<class T>
     struct type_checker : public boost::static_visitor<bool> {
-        bool operator()(T const&) const
+        bool operator()(T const&) const noexcept
         {
             return true;
         }
 
         template<class U>
-        bool operator()(U const&) const
+        bool operator()(U const&) const noexcept
         {
             return false;
         }

@@ -139,9 +139,10 @@ public:
                 | float_literal
                 | integer_literal
                 | array_literal
-                | tuple_literal
                 | symbol_literal
                 | map_literal
+                | tuple_literal
+                | range_literal
             ) [
                 _val = make_node_ptr<ast::node::literal>(_1)
             ];
@@ -188,7 +189,7 @@ public:
                         | qi::char_('r')[_1 = '\r']
                         | qi::char_('\\')[_1 = '\\']
                         | qi::char_('"')[_1 = '"']
-                        | qi::char_
+                        | (qi::char_ - ascii::cntrl)
                     ))
                 ) > '"']]
             ) [
@@ -244,6 +245,13 @@ public:
                 >> '}'
             ) [
                 _val = make_node_ptr<ast::node::map_literal>(as_vector(_1))
+            ];
+
+        range_literal
+            = (
+                '(' >> compound_expr >> ".." >> compound_expr >> ')'
+            ) [
+                _val = make_node_ptr<ast::node::range_literal>(_1, _2)
             ];
 
         function_name
@@ -358,9 +366,18 @@ public:
                 _val = make_node_ptr<ast::node::unary_expr>(_1, _2)
             ];
 
+        template_type
+            = (
+                type_name >> -(
+                    '(' >> (qualified_type % ',') >> ')'
+                )
+            ) [
+                _val = make_node_ptr<ast::node::template_type>(_1, _2)
+            ];
+
         primary_type
             = (
-                ('(' >> qualified_type >> ')') | type_name
+                ('(' >> qualified_type >> ')') | template_type
             ) [
                 _val = make_node_ptr<ast::node::primary_type>(_1)
             ];
@@ -718,6 +735,7 @@ public:
             , tuple_literal
             , symbol_literal
             , map_literal
+            , range_literal
             , function_name
             , variable_name
             , type_name
@@ -730,6 +748,7 @@ public:
             , member_access
             , postfix_expr
             , unary_expr
+            , template_type
             , primary_type
             , array_type
             , map_type
@@ -816,6 +835,7 @@ private:
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::compound_expr>);
     DACHS_DEFINE_RULE(symbol_literal);
     DACHS_DEFINE_RULE(map_literal);
+    DACHS_DEFINE_RULE(range_literal);
     DACHS_DEFINE_RULE(var_ref);
     DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE(function_call);
@@ -825,6 +845,7 @@ private:
     DACHS_DEFINE_RULE(member_access);
     DACHS_DEFINE_RULE(postfix_expr);
     DACHS_DEFINE_RULE(unary_expr);
+    DACHS_DEFINE_RULE(template_type);
     DACHS_DEFINE_RULE(primary_type);
     DACHS_DEFINE_RULE(array_type);
     DACHS_DEFINE_RULE(map_type);

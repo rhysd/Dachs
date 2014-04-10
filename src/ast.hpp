@@ -97,6 +97,7 @@ struct array_literal;
 struct tuple_literal;
 struct symbol_literal;
 struct map_literal;
+struct range_literal;
 struct literal;
 struct identifier;
 struct var_ref;
@@ -108,6 +109,7 @@ struct index_access;
 struct member_access;
 struct postfix_expr;
 struct unary_expr;
+struct template_type;
 struct primary_type;
 struct tuple_type;
 struct array_type;
@@ -157,6 +159,7 @@ DACHS_DEFINE_NODE_PTR(array_literal);
 DACHS_DEFINE_NODE_PTR(tuple_literal);
 DACHS_DEFINE_NODE_PTR(symbol_literal);
 DACHS_DEFINE_NODE_PTR(map_literal);
+DACHS_DEFINE_NODE_PTR(range_literal);
 DACHS_DEFINE_NODE_PTR(literal);
 DACHS_DEFINE_NODE_PTR(identifier);
 DACHS_DEFINE_NODE_PTR(var_ref);
@@ -168,6 +171,7 @@ DACHS_DEFINE_NODE_PTR(index_access);
 DACHS_DEFINE_NODE_PTR(member_access);
 DACHS_DEFINE_NODE_PTR(postfix_expr);
 DACHS_DEFINE_NODE_PTR(unary_expr);
+DACHS_DEFINE_NODE_PTR(template_type);
 DACHS_DEFINE_NODE_PTR(primary_type);
 DACHS_DEFINE_NODE_PTR(tuple_type);
 DACHS_DEFINE_NODE_PTR(array_type);
@@ -216,7 +220,7 @@ struct base {
     virtual ~base()
     {}
 
-    virtual std::string to_string() const = 0;
+    virtual std::string to_string() const noexcept = 0;
 
     std::size_t line = 0, col = 0, length = 0;
     std::size_t id;
@@ -240,7 +244,7 @@ struct character_literal final : public expression {
         : expression(), value(c)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "CHAR_LITERAL: "
             + (
@@ -260,7 +264,7 @@ struct float_literal final : public expression {
         : expression(), value(d)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "FLOAT_LITERAL: " + std::to_string(value);
     }
@@ -273,7 +277,7 @@ struct boolean_literal final : public expression {
         : expression(), value(b)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return std::string{"BOOL_LITERAL: "} + (value ? "true" : "false");
     }
@@ -286,7 +290,7 @@ struct string_literal final : public expression {
         : expression(), value(s)
     {}
 
-    std::string to_string() const override;
+    std::string to_string() const noexcept override;
 };
 
 struct integer_literal final : public expression {
@@ -299,7 +303,7 @@ struct integer_literal final : public expression {
         : expression(), value(std::forward<T>(v))
     {}
 
-    std::string to_string() const override;
+    std::string to_string() const noexcept override;
 };
 
 struct array_literal final : public expression {
@@ -309,7 +313,7 @@ struct array_literal final : public expression {
         : expression(), element_exprs(elems)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "ARRAY_LITERAL: size is " + std::to_string(element_exprs.size());
     }
@@ -322,7 +326,7 @@ struct tuple_literal final : public expression {
         : expression(), element_exprs(elems)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "TUPLE_LITERAL: size is " + std::to_string(element_exprs.size());
     }
@@ -335,7 +339,7 @@ struct symbol_literal final : public expression {
         : expression(), value(s)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "SYMBOL_LITERAL: " + value;
     }
@@ -353,9 +357,24 @@ struct map_literal final : public expression {
         : value(m)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "MAP_LITERAL: size=" + std::to_string(value.size());
+    }
+};
+
+struct range_literal final : public expression {
+    node::compound_expr min_expr;
+    node::compound_expr max_expr;
+
+    range_literal(node::compound_expr const& min
+                , node::compound_expr const& max)
+        : expression(), min_expr(min), max_expr(max)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "RANGE_LITERAL";
     }
 };
 
@@ -367,9 +386,10 @@ struct literal final : public expression {
                       , node::string_literal
                       , node::integer_literal
                       , node::array_literal
-                      , node::tuple_literal
                       , node::symbol_literal
                       , node::map_literal
+                      , node::tuple_literal
+                      , node::range_literal
                 >;
     value_type value;
 
@@ -378,7 +398,7 @@ struct literal final : public expression {
         : expression(), value(std::forward<T>(v))
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "LITERAL";
     }
@@ -391,7 +411,7 @@ struct identifier final : public base {
         : base(), value(s)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "IDENTIFIER: " + value;
     }
@@ -406,7 +426,7 @@ struct var_ref final : public expression {
         : expression(), name(n)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "VAR_REFERENCE: ";
     }
@@ -421,7 +441,7 @@ struct parameter final : public base {
         : base(), is_var(v), name(n), type(t)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return std::string{"PARAMETER: "} + (is_var ? "mutable" : "immutable");
     }
@@ -434,7 +454,7 @@ struct function_call final : public expression {
         : expression(), args(args)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "FUNCTION_CALL";
     }
@@ -449,7 +469,7 @@ struct object_construct final : public expression {
         : expression(), type(t), args(args)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "OBJECT_CONSTRUCT";
     }
@@ -470,7 +490,7 @@ struct primary_expr final : public expression {
         : expression(), value(std::forward<T>(v))
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "PRIMARY_EXPR";
     }
@@ -483,7 +503,7 @@ struct index_access final : public expression {
         : expression(), index_expr(idx_expr)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         // return index_access ? "INDEX_ACCESS" : "INDEX_ACCESS : (no index)";
         return "INDEX_ACCESS : (no index)";
@@ -496,7 +516,7 @@ struct member_access final : public expression {
         : expression(), member_name(member_name)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "MEMBER_ACCESS";
     }
@@ -515,7 +535,7 @@ struct postfix_expr final : public expression {
         : expression(), prefix(pe), postfixes(ps)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "POSTFIX_EXPR";
     }
@@ -528,12 +548,27 @@ struct unary_expr final : public expression {
         : expression(), values(ops), expr(expr)
     {}
 
-    std::string to_string() const override;
+    std::string to_string() const noexcept override;
+};
+
+struct template_type final : public base {
+    node::identifier template_name;
+    boost::optional<std::vector<node::qualified_type>> instantiated_types;
+
+    template_type(node::identifier const& tmpl
+                , decltype(instantiated_types) const& instantiated)
+        : base(), template_name(tmpl), instantiated_types(instantiated)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return std::string{"TEMPLATE_TYPE: "} + (instantiated_types ? "template" : "not template");
+    }
 };
 
 struct primary_type final : public base {
     using value_type =
-        boost::variant< node::identifier
+        boost::variant< node::template_type
                       , node::qualified_type >;
     value_type value;
 
@@ -542,7 +577,7 @@ struct primary_type final : public base {
         : value(v)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "PRIMARY_TYPE";
     }
@@ -555,7 +590,7 @@ struct array_type final : public base {
         : elem_type(elem)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "ARRAY_TYPE";
     }
@@ -570,7 +605,7 @@ struct map_type final : public base {
         : key_type(key_type), value_type(value_type)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "MAP_TYPE";
     }
@@ -583,7 +618,7 @@ struct tuple_type final : public base {
         : arg_types(args)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "TUPLE_TYPE";
     }
@@ -602,7 +637,7 @@ struct compound_type final : public base {
         : value(v)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "COMPOUND_TYPE";
     }
@@ -617,7 +652,7 @@ struct qualified_type final : public base {
         : value(q), type(t)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return std::string{"QUALIFIED_TYPE: "} + (value ? std::to_string(static_cast<int>(*value)) : "");
     }
@@ -632,7 +667,7 @@ struct cast_expr final : public expression {
         : expression(), dest_types(types), source_expr(expr)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "CAST_EXPR";
     }
@@ -659,7 +694,7 @@ struct multi_binary_expr : public expression {
 struct mult_expr final : public multi_binary_expr<node::cast_expr, symbol::mult_operator> {
     using multi_binary_expr::multi_binary_expr;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "MULT_EXPR";
     }
@@ -668,7 +703,7 @@ struct mult_expr final : public multi_binary_expr<node::cast_expr, symbol::mult_
 struct additive_expr final : public multi_binary_expr<node::mult_expr, symbol::additive_operator> {
     using multi_binary_expr::multi_binary_expr;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "ADDITIVE_EXPR";
     }
@@ -677,7 +712,7 @@ struct additive_expr final : public multi_binary_expr<node::mult_expr, symbol::a
 struct shift_expr final : public multi_binary_expr<node::additive_expr, symbol::shift_operator> {
     using multi_binary_expr::multi_binary_expr;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "SHIFT_EXPR";
     }
@@ -686,7 +721,7 @@ struct shift_expr final : public multi_binary_expr<node::additive_expr, symbol::
 struct relational_expr final : public multi_binary_expr<node::shift_expr, symbol::relational_operator> {
     using multi_binary_expr::multi_binary_expr;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "RELATIONAL_EXPR";
     }
@@ -695,7 +730,7 @@ struct relational_expr final : public multi_binary_expr<node::shift_expr, symbol
 struct equality_expr final : public multi_binary_expr<node::relational_expr, symbol::equality_operator> {
     using multi_binary_expr::multi_binary_expr;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "EQUALITY_EXPR";
     }
@@ -717,7 +752,7 @@ struct binary_expr : public expression {
 struct and_expr final : public binary_expr<node::equality_expr> {
     using binary_expr::binary_expr;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "AND_EXPR";
     }
@@ -726,7 +761,7 @@ struct and_expr final : public binary_expr<node::equality_expr> {
 struct xor_expr final : public binary_expr<node::and_expr> {
     using binary_expr::binary_expr;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "XOR_EXPR";
     }
@@ -735,7 +770,7 @@ struct xor_expr final : public binary_expr<node::and_expr> {
 struct or_expr final : public binary_expr<node::xor_expr> {
     using binary_expr::binary_expr;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "OR_EXPR";
     }
@@ -744,7 +779,7 @@ struct or_expr final : public binary_expr<node::xor_expr> {
 struct logical_and_expr final : public binary_expr<node::or_expr> {
     using binary_expr::binary_expr;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "LOGICAL_AND_EXPR";
     }
@@ -753,7 +788,7 @@ struct logical_and_expr final : public binary_expr<node::or_expr> {
 struct logical_or_expr final : public binary_expr<node::logical_and_expr> {
     using binary_expr::binary_expr;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "LOGICAL_OR_EXPR";
     }
@@ -769,7 +804,7 @@ struct if_expr final : public expression {
         : expression(), kind(kind), condition_expr(condition), then_expr(then), else_expr(else_)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return std::string{"IF_EXPR: "} + (kind == ast::symbol::if_kind::if_ ? "if" : "unless");
     }
@@ -787,7 +822,7 @@ struct compound_expr final : public expression {
         : expression(), child_expr(e), maybe_type(t)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "COMPOUND_EXPR";
     }
@@ -804,7 +839,7 @@ struct variable_decl final : public base {
         : is_var(var), name(name), maybe_type(type)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return std::string{"VARIABLE_DECL: "} + (is_var ? "mutable" : "immutable");
     }
@@ -819,7 +854,7 @@ struct initialize_stmt final : public statement {
         : statement(), var_decls(vars), maybe_rhs_exprs(rhss)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "INITIALIZE_STMT";
     }
@@ -836,7 +871,7 @@ struct assignment_stmt final : public statement {
         : statement(), assignees(assignees), assign_op(assign_op), rhs_exprs(rhs_exprs)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "ASSIGNMENT_STMT";
     }
@@ -860,7 +895,7 @@ struct if_stmt final : public statement {
         : statement(), kind(kind), condition(cond), then_stmts(then), elseif_stmts_list(elseifs), maybe_else_stmts(maybe_else)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return std::string{"IF_STMT: "}
             + (kind == symbol::if_kind::if_ ? "if" : "unless");
@@ -874,7 +909,7 @@ struct return_stmt final : public statement {
         : statement(), ret_exprs(rets)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "RETURN_STMT";
     }
@@ -892,7 +927,7 @@ struct case_stmt final : public statement {
         : statement(), when_stmts_list(whens), maybe_else_stmts(elses)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "CASE_STMT";
     }
@@ -912,7 +947,7 @@ struct switch_stmt final : public statement {
         : statement(), target_expr(target), when_stmts_list(whens), maybe_else_stmts(elses)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "SWITCH_STMT";
     }
@@ -929,7 +964,7 @@ struct for_stmt final : public statement {
         : statement(), iter_vars(iters), range_expr(range), body_stmts(body)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "FOR_STMT";
     }
@@ -944,7 +979,7 @@ struct while_stmt final : public statement {
         : statement(), condition(cond), body_stmts(body)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "WHILE_STMT";
     }
@@ -961,7 +996,7 @@ struct postfix_if_stmt final : public statement {
         : statement(), body(body), kind(kind), condition(cond)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return std::string{"POSTFIX_IF_STMT: "}
             + (kind == symbol::if_kind::if_ ? "if" : "unless");
@@ -989,7 +1024,7 @@ struct compound_stmt final : public statement {
         : statement(), value(std::forward<T>(v))
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "COMPOUND_STMT";
     }
@@ -1009,7 +1044,7 @@ struct statement_block final : public base {
         : value(ov ? *ov : block_type{})
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "STATEMENT_BLOCK: size=" + std::to_string(value.size());
     }
@@ -1030,7 +1065,7 @@ struct function_definition final : public base {
         : base(), name(n), params(p), return_type(ret), body(block), ensure_body(ensure)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "FUNC_DEFINITION";
     }
@@ -1049,7 +1084,7 @@ struct procedure_definition final : public base {
         : base(), name(n), params(p), body(block), ensure_body(ensure)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "PROC_DEFINITION";
     }
@@ -1068,7 +1103,7 @@ struct program final : public base {
         : base(), inu(value)
     {}
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "PROGRAM";
     }
