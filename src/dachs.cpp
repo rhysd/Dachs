@@ -6,6 +6,7 @@
 #include <boost/optional.hpp>
 
 #include "dachs.hpp"
+#include "helper/colorizer.hpp"
 
 namespace dachs {
 
@@ -38,15 +39,16 @@ int main(int const argc, char const* const argv[])
         return 2;
     }
     auto const& code = *maybe_code;
+    dachs::helper::colorizer<std::string> c;
 
     dachs::compiler compiler;
     try {
-        std::cout << compiler.compile(code) << std::endl;
-        std::cout << "\033[94m〜完〜\033[0m" << std::endl;
+        std::cout << compiler.compile(code) << std::endl
+                  << c.blue("〜完〜") << std::endl;
     }
     catch (dachs::syntax::parse_error const& e) {
-        std::cerr << e.what() << std::endl;
-        std::cerr << "\033[91m〜完〜\033[0m" << std::endl;
+        std::cerr << e.what() << std::endl
+                  << c.red("〜完〜") << std::endl;
         return 4;
     }
     catch (std::exception const& e) {
