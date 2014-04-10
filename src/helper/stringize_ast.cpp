@@ -367,7 +367,6 @@ public:
 
     std::string visit(ast::node::if_stmt const& is, std::string const& indent, char const* const lead) const
     {
-        std::cout << is->elseif_stmts_list.size() << std::endl;
         return prefix_of(is, indent)
                 + '\n' + visit(is->condition, indent+lead, "|  ")
                 + '\n' + visit(is->then_stmts, indent+lead, is->elseif_stmts_list.empty() && !is->maybe_else_stmts ? "   " : "|  ")

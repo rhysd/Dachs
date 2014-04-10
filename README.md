@@ -59,6 +59,7 @@ end
   -  Travis-CI
   -  Option parsing
   -  Allocator customization
+  -  Exception Safety
 
 This software is disributed under [The MIT License](http://opensource.org/licenses/MIT).
 
