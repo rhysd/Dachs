@@ -272,6 +272,19 @@ public:
             + visit_nodes(tt->arg_types, indent+lead, true);
     }
 
+    String visit(ast::node::func_type const& ft, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(ft, indent)
+            + visit_nodes(ft->arg_types, indent+lead, false)
+            + '\n' + visit(ft->ret_type, indent+lead, "   ");
+    }
+
+    String visit(ast::node::proc_type const& pt, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(pt, indent)
+            + visit_nodes(pt->arg_types, indent+lead, true);
+    }
+
     String visit(ast::node::compound_type const& ct, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(ct, indent) + '\n'

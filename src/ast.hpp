@@ -119,6 +119,8 @@ struct unary_expr;
 struct template_type;
 struct primary_type;
 struct tuple_type;
+struct func_type;
+struct proc_type;
 struct array_type;
 struct map_type;
 struct compound_type;
@@ -181,6 +183,8 @@ DACHS_DEFINE_NODE_PTR(unary_expr);
 DACHS_DEFINE_NODE_PTR(template_type);
 DACHS_DEFINE_NODE_PTR(primary_type);
 DACHS_DEFINE_NODE_PTR(tuple_type);
+DACHS_DEFINE_NODE_PTR(func_type);
+DACHS_DEFINE_NODE_PTR(proc_type);
 DACHS_DEFINE_NODE_PTR(array_type);
 DACHS_DEFINE_NODE_PTR(map_type);
 DACHS_DEFINE_NODE_PTR(compound_type);
@@ -616,11 +620,41 @@ struct tuple_type final : public base {
     }
 };
 
+struct func_type final : public base {
+    std::vector<node::qualified_type> arg_types;
+    node::qualified_type ret_type;
+
+    func_type(decltype(arg_types) const& arg_t
+            , node::qualified_type const& ret_t)
+        : base(), arg_types(arg_t), ret_type(ret_t)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "FUNC_TYPE";
+    }
+};
+
+struct proc_type final : public base {
+    std::vector<node::qualified_type> arg_types;
+
+    explicit proc_type(decltype(arg_types) const& arg_t)
+        : base(), arg_types(arg_t)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "PROC_TYPE";
+    }
+};
+
 struct compound_type final : public base {
     using value_type =
         boost::variant<node::array_type
                      , node::tuple_type
                      , node::map_type
+                     , node::func_type
+                     , node::proc_type
                      , node::primary_type>;
     value_type value;
 

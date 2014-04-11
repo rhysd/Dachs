@@ -94,7 +94,7 @@ inline auto as_vector(Holder && h)
                 } else {
                     return {};
                 }
-            }, h);
+            }, std::forward<Holder>(h));
 }
 
 // }}}
@@ -398,9 +398,23 @@ public:
                 _val = make_node_ptr<ast::node::tuple_type>(_a)
             ];
 
+        func_type
+            = (
+                lit("func") >> '(' >> -(qualified_type % ',') >> ')' >> ':' >> qualified_type
+            ) [
+                _val = make_node_ptr<ast::node::func_type>(as_vector(_1), _2)
+            ];
+
+        proc_type
+            = (
+                lit("proc") >> '(' >> -(qualified_type % ',') >> ')'
+            ) [
+                _val = make_node_ptr<ast::node::proc_type>(as_vector(_1))
+            ];
+
         compound_type
             = (
-                array_type | map_type | tuple_type | primary_type
+                func_type | proc_type | array_type | map_type | tuple_type | primary_type
             ) [
                 _val = make_node_ptr<ast::node::compound_type>(_1)
             ];
@@ -755,6 +769,8 @@ public:
             , array_type
             , map_type
             , tuple_type
+            , func_type
+            , proc_type
             , compound_type
             , qualified_type
             , cast_expr
@@ -852,6 +868,8 @@ private:
     DACHS_DEFINE_RULE(array_type);
     DACHS_DEFINE_RULE(map_type);
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_type, std::vector<ast::node::qualified_type>);
+    DACHS_DEFINE_RULE(func_type);
+    DACHS_DEFINE_RULE(proc_type);
     DACHS_DEFINE_RULE(compound_type);
     DACHS_DEFINE_RULE(qualified_type);
     DACHS_DEFINE_RULE(cast_expr);
