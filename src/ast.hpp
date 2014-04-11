@@ -153,6 +153,9 @@ struct compound_stmt;
 struct statement_block;
 struct function_definition;
 struct procedure_definition;
+struct constant_decl;
+struct constant_definition;
+struct global_definition;
 struct program;
 
 }
@@ -217,6 +220,9 @@ DACHS_DEFINE_NODE_PTR(compound_stmt);
 DACHS_DEFINE_NODE_PTR(statement_block);
 DACHS_DEFINE_NODE_PTR(function_definition);
 DACHS_DEFINE_NODE_PTR(procedure_definition);
+DACHS_DEFINE_NODE_PTR(global_definition);
+DACHS_DEFINE_NODE_PTR(constant_decl);
+DACHS_DEFINE_NODE_PTR(constant_definition);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
@@ -1106,7 +1112,7 @@ struct statement_block final : public base {
     }
 };
 
-struct function_definition final : public base {
+struct function_definition final : public statement {
     node::identifier name;
     std::vector<node::parameter> params;
     boost::optional<node::qualified_type> return_type;
@@ -1118,7 +1124,7 @@ struct function_definition final : public base {
                       , decltype(return_type) const& ret
                       , node::statement_block const& block
                       , decltype(ensure_body) const& ensure)
-        : base(), name(n), params(p), return_type(ret), body(block), ensure_body(ensure)
+        : statement(), name(n), params(p), return_type(ret), body(block), ensure_body(ensure)
     {}
 
     std::string to_string() const noexcept override
@@ -1127,7 +1133,7 @@ struct function_definition final : public base {
     }
 };
 
-struct procedure_definition final : public base {
+struct procedure_definition final : public statement {
     node::identifier name;
     std::vector<node::parameter> params;
     node::statement_block body;
@@ -1137,7 +1143,7 @@ struct procedure_definition final : public base {
                       , decltype(params) const& p
                       , node::statement_block const& block
                       , decltype(ensure_body) const& ensure)
-        : base(), name(n), params(p), body(block), ensure_body(ensure)
+        : statement(), name(n), params(p), body(block), ensure_body(ensure)
     {}
 
     std::string to_string() const noexcept override
@@ -1146,14 +1152,58 @@ struct procedure_definition final : public base {
     }
 };
 
-struct program final : public base {
-    using func_def_type
-        = boost::variant<
-            node::function_definition,
-            node::procedure_definition
-        >;
+struct constant_decl final : public base {
+    node::identifier name;
+    boost::optional<node::qualified_type> maybe_type;
 
-    std::vector<func_def_type> inu;
+    constant_decl(node::identifier const& name,
+                  decltype(maybe_type) const& type)
+        : base(), name(name), maybe_type(type)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "CONSTANT_DECL";
+    }
+};
+
+struct constant_definition final : public statement {
+    std::vector<node::constant_decl> const_decls;
+    std::vector<node::compound_expr> initializers;
+
+    constant_definition(decltype(const_decls) const& const_decls
+                      , decltype(initializers) const& initializers)
+        : statement(), const_decls(const_decls), initializers(initializers)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "CONSTANT_DEFINITION";
+    }
+};
+
+struct global_definition final : public base {
+    using value_type =
+        boost::variant<
+            node::function_definition,
+            node::procedure_definition,
+            node::constant_definition
+        >;
+    value_type value;
+
+    template<class T>
+    explicit global_definition(T const& v)
+        : value(v)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "GLOBAL_DEFINITION";
+    }
+};
+
+struct program final : public base {
+    std::vector<node::global_definition> inu;
 
     explicit program(decltype(inu) const& value)
         : base(), inu(value)
@@ -1161,7 +1211,7 @@ struct program final : public base {
 
     std::string to_string() const noexcept override
     {
-        return "PROGRAM";
+        return "PROGRAM: num of definitions is " + std::to_string(inu.size());
     }
 };
 

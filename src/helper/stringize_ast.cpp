@@ -160,7 +160,7 @@ public:
 
     String visit(ast::node::program const& p, String const& indent) const noexcept
     {
-        return prefix_of(p, indent) + visit_node_variants(p->inu, indent + "   ", true);
+        return prefix_of(p, indent) + visit_nodes(p->inu, indent + "   ", true);
     }
 
     String visit(ast::node::array_literal const& al, String const& indent, char const* const lead) const noexcept
@@ -499,6 +499,26 @@ public:
             + visit_nodes(pd->params, indent+lead, false)
             + '\n' + visit(pd->body, indent+lead, pd->ensure_body ? "|  " : "   ")
             + visit_optional_node(pd->ensure_body, indent+lead, "   ");
+    }
+
+    String visit(ast::node::constant_decl const& cd, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(cd, indent) +
+            '\n' + visit(cd->name, indent+lead, (cd->maybe_type ? "|  " : "   "))
+            + (cd->maybe_type ? '\n' + visit(*(cd->maybe_type), indent+lead, "   ") : "");
+    }
+
+    String visit(ast::node::constant_definition const& cd, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(cd, indent)
+            + visit_nodes(cd->const_decls, indent+lead, cd->initializers.empty())
+            + visit_nodes(cd->initializers, indent+lead, true);
+    }
+
+    String visit(ast::node::global_definition const& gd, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(gd, indent)
+            + '\n' + visit_variant_node(gd->value, indent+lead, "   ");
     }
 
     // For terminal nodes

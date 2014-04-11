@@ -126,7 +126,7 @@ public:
 
         program
             = (
-                -sep > -((function_definition | procedure_definition) % sep) > -sep > (qi::eol | qi::eoi)
+                -sep > -(global_definition % sep) > -sep > (qi::eol | qi::eoi)
             ) [
                 _val = make_node_ptr<ast::node::program>(as_vector(_1))
             ];
@@ -737,6 +737,29 @@ public:
                 _val = make_node_ptr<ast::node::procedure_definition>(_1, _2, _3, _4)
             ];
 
+        constant_decl
+            = (
+                variable_name >> -(':' >> qualified_type)
+            ) [
+                _val = make_node_ptr<ast::node::constant_decl>(_1, _2)
+            ];
+
+        constant_definition
+            = (
+                constant_decl % ',' >> ":=" >> compound_expr % ','
+            ) [
+                _val = make_node_ptr<ast::node::constant_definition>(_1, _2)
+            ];
+
+        global_definition
+            = (
+                function_definition |
+                procedure_definition |
+                constant_definition
+            ) [
+                _val = make_node_ptr<ast::node::global_definition>(_1)
+            ];
+
         // Set callback to get the position of node and show obvious compile error {{{
         detail::set_position_getter_on_success(
 
@@ -813,6 +836,9 @@ public:
             , compound_stmt
             , function_definition
             , procedure_definition
+            , constant_decl
+            , constant_definition
+            , global_definition
             , stmt_block_before_end
             , if_then_stmt_block
             , if_else_stmt_block
@@ -912,6 +938,9 @@ private:
     DACHS_DEFINE_RULE(compound_stmt);
     DACHS_DEFINE_RULE(function_definition);
     DACHS_DEFINE_RULE(procedure_definition);
+    DACHS_DEFINE_RULE(constant_decl);
+    DACHS_DEFINE_RULE(constant_definition);
+    DACHS_DEFINE_RULE(global_definition);
 
     rule<std::vector<ast::node::compound_expr>()> constructor_call;
     rule<std::vector<ast::node::parameter>()> function_param_decls;
