@@ -39,8 +39,8 @@ class colorizer {
         case color::blue:   return 94u;
         case color::purple: return 95u;
         case color::cyan:   return 96u;
-        case color::white:  return 97u;
-        case color::none:   return 0u;
+        case color::none:
+        default:            return 0u;
         }
     }
 
