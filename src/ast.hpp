@@ -73,6 +73,11 @@ enum class qualifier {
     maybe,
 };
 
+enum class range_kind {
+    exclusive,
+    inclusive,
+};
+
 std::string to_string(unary_operator const o);
 std::string to_string(mult_operator const o);
 std::string to_string(additive_operator const o);
@@ -80,6 +85,9 @@ std::string to_string(relational_operator const o);
 std::string to_string(shift_operator const o);
 std::string to_string(equality_operator const o);
 std::string to_string(assign_operator const o);
+std::string to_string(if_kind const o);
+std::string to_string(qualifier const o);
+std::string to_string(range_kind const o);
 
 } // namespace symbol
 

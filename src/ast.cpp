@@ -88,6 +88,32 @@ std::string to_string(assign_operator const o)
     }
 }
 
+std::string to_string(if_kind const o)
+{
+    switch(o) {
+    case if_kind::if_: return "if";
+    case if_kind::unless: return "unless";
+    default:    return "unknown";
+    }
+}
+
+std::string to_string(qualifier const o)
+{
+    switch(o) {
+    case qualifier::maybe: return "?";
+    default:    return "unknown";
+    }
+}
+
+std::string to_string(range_kind const o)
+{
+    switch(o) {
+    case range_kind::exclusive: return "...";
+    case range_kind::inclusive: return "..";
+    default:                    return "unknown";
+    }
+}
+
 } // namespace symbol
 
 namespace node_type {
