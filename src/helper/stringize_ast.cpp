@@ -390,7 +390,7 @@ public:
     {
         return prefix_of(as, indent)
                + visit_nodes(as->assignees, indent+lead, false)
-               + '\n' + c.yellow(indent+lead+"|\n|--")
+               + '\n' + c.yellow(indent+lead+"|\n"+indent+lead+"|--")
                + c.green("ASSIGN_OPERATOR: " + ast::symbol::to_string(as->assign_op))
                + visit_nodes(as->rhs_exprs, indent+lead, true);
     }
