@@ -8,7 +8,7 @@ func fizzbuzz(n)
 end
 
 func main()
-    for i in range(1, 100)
+    for i in 1..100
         print(fizzbuzz + '\n')
     end
 end

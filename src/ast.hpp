@@ -134,6 +134,7 @@ struct xor_expr;
 struct or_expr;
 struct logical_and_expr;
 struct logical_or_expr;
+struct range_expr;
 struct if_expr;
 struct compound_expr;
 struct assignment_stmt;
@@ -195,6 +196,7 @@ DACHS_DEFINE_NODE_PTR(xor_expr);
 DACHS_DEFINE_NODE_PTR(or_expr);
 DACHS_DEFINE_NODE_PTR(logical_and_expr);
 DACHS_DEFINE_NODE_PTR(logical_or_expr);
+DACHS_DEFINE_NODE_PTR(range_expr);
 DACHS_DEFINE_NODE_PTR(if_expr);
 DACHS_DEFINE_NODE_PTR(compound_expr);
 DACHS_DEFINE_NODE_PTR(assignment_stmt);
@@ -644,7 +646,7 @@ struct qualified_type final : public base {
 
     std::string to_string() const noexcept override
     {
-        return std::string{"QUALIFIED_TYPE: "} + (value ? std::to_string(static_cast<int>(*value)) : "");
+        return std::string{"QUALIFIED_TYPE: "} + (value ? symbol::to_string(*value) : "not qualified");
     }
 };
 
@@ -796,13 +798,38 @@ struct if_expr final : public expression {
 
     std::string to_string() const noexcept override
     {
-        return std::string{"IF_EXPR: "} + (kind == ast::symbol::if_kind::if_ ? "if" : "unless");
+        return "IF_EXPR: " + symbol::to_string(kind);
+    }
+};
+
+struct range_expr final : public expression {
+    using rhs_type
+        = std::pair<
+            symbol::range_kind,
+            node::logical_or_expr
+        >;
+    node::logical_or_expr lhs;
+    boost::optional<rhs_type> maybe_rhs;
+
+    range_expr(node::logical_or_expr const& lhs,
+               decltype(maybe_rhs) const& maybe_rhs)
+        : lhs(lhs), maybe_rhs(maybe_rhs)
+    {}
+
+    bool has_range() const
+    {
+        return maybe_rhs;
+    }
+
+    std::string to_string() const noexcept override
+    {
+        return "RANGE_EXPR: " + (maybe_rhs ? symbol::to_string((*maybe_rhs).first) : "no range");
     }
 };
 
 struct compound_expr final : public expression {
     using expr_type
-        = boost::variant<node::logical_or_expr,
+        = boost::variant<node::range_expr,
                          node::if_expr>;
     expr_type child_expr;
     boost::optional<node::qualified_type> maybe_type;
@@ -887,8 +914,7 @@ struct if_stmt final : public statement {
 
     std::string to_string() const noexcept override
     {
-        return std::string{"IF_STMT: "}
-            + (kind == symbol::if_kind::if_ ? "if" : "unless");
+        return "IF_STMT: " + symbol::to_string(kind);
     }
 };
 
@@ -988,8 +1014,7 @@ struct postfix_if_stmt final : public statement {
 
     std::string to_string() const noexcept override
     {
-        return std::string{"POSTFIX_IF_STMT: "}
-            + (kind == symbol::if_kind::if_ ? "if" : "unless");
+        return "POSTFIX_IF_STMT: " + symbol::to_string(kind);
     }
 };
 

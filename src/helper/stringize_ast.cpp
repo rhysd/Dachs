@@ -351,6 +351,13 @@ public:
             + visit_nodes(loe->rhss, indent+lead, true);
     }
 
+    String visit(ast::node::range_expr const& re, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(re, indent)
+            + '\n' + visit(re->lhs, indent+lead, re->has_range() ? "|  " : "   ")
+            + (re->has_range() ? '\n' + visit((*re->maybe_rhs).second, indent+lead, "   ") : "");
+    }
+
     String visit(ast::node::if_expr const& ie, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(ie, indent)

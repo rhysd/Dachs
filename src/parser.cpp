@@ -509,6 +509,17 @@ public:
                 _val = make_node_ptr<ast::node::logical_or_expr>(_1, _2)
             ];
 
+        range_expr
+            = (
+                logical_or_expr >> -(
+                    qi::as<ast::node_type::range_expr::rhs_type>()[
+                        range_kind >> logical_or_expr
+                    ]
+                )
+            ) [
+                _val = make_node_ptr<ast::node::range_expr>(_1, _2)
+            ];
+
         if_expr
             = (
                 if_kind >> (compound_expr - "then") >> ("then" || sep)
@@ -519,7 +530,7 @@ public:
 
         compound_expr
             = (
-                (if_expr | logical_or_expr) >> -(':' >> qualified_type)
+                (if_expr | range_expr) >> -(':' >> qualified_type)
             ) [
                 _val = make_node_ptr<ast::node::compound_expr>(_1, _2)
             ];
@@ -757,6 +768,7 @@ public:
             , or_expr
             , logical_and_expr
             , logical_or_expr
+            , range_expr
             , if_expr
             , compound_expr
             , if_stmt
@@ -853,6 +865,7 @@ private:
     DACHS_DEFINE_RULE(or_expr);
     DACHS_DEFINE_RULE(logical_and_expr);
     DACHS_DEFINE_RULE(logical_or_expr);
+    DACHS_DEFINE_RULE(range_expr);
     DACHS_DEFINE_RULE(if_expr);
     DACHS_DEFINE_RULE(compound_expr);
     DACHS_DEFINE_RULE(if_stmt);
@@ -981,7 +994,6 @@ private:
         }
     } if_kind;
 
-    // TODO maybe T ではなく T? に仕様変更
     struct qualifier_rule_type : public qi::symbols<char, ast::symbol::qualifier> {
         qualifier_rule_type()
         {
@@ -990,6 +1002,16 @@ private:
             ;
         }
     } qualifier;
+
+    struct range_kind_rule_type : public qi::symbols<char, ast::symbol::range_kind> {
+        range_kind_rule_type()
+        {
+            add
+                ("...", ast::symbol::range_kind::exclusive)
+                ("..", ast::symbol::range_kind::inclusive)
+            ;
+        }
+    } range_kind;
     // }}}
 };
 
