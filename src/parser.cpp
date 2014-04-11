@@ -663,9 +663,21 @@ public:
                 _val = make_node_ptr<ast::node::while_stmt>(_1, _2)
             ];
 
+        postfix_if_return_stmt
+            = (
+                "return" >> -((compound_expr - if_kind) % ',')
+            ) [
+                _val = make_node_ptr<ast::node::return_stmt>(as_vector(_1))
+            ];
+
         postfix_if_stmt
             = (
-                ((return_stmt | assignment_stmt | compound_expr)  - if_kind) >> if_kind >> compound_expr
+                (
+                    postfix_if_return_stmt
+                  | assignment_stmt
+                  | (compound_expr - if_kind)
+                )
+                >> if_kind >> compound_expr
             ) [
                 _val = make_node_ptr<ast::node::postfix_if_stmt>(_1, _2, _3)
             ];
@@ -673,14 +685,14 @@ public:
         compound_stmt
             = (
                   if_stmt
-                | return_stmt
                 | case_stmt
                 | switch_stmt
                 | for_stmt
                 | while_stmt
                 | initialize_stmt
-                | assignment_stmt
                 | postfix_if_stmt
+                | return_stmt
+                | assignment_stmt
                 | compound_expr
             ) [
                 _val = make_node_ptr<ast::node::compound_stmt>(_1)
@@ -796,6 +808,7 @@ public:
             , variable_decl
             , initialize_stmt
             , assignment_stmt
+            , postfix_if_return_stmt
             , postfix_if_stmt
             , compound_stmt
             , function_definition
@@ -910,6 +923,7 @@ private:
                                      ;
     rule<ast::node::identifier()> function_name, variable_name, type_name;
     rule<qi::unused_type()/*TMP*/> func_precondition;
+    decltype(return_stmt) postfix_if_return_stmt;
 
 #undef DACHS_DEFINE_RULE
 #undef DACHS_DEFINE_RULE_WITH_LOCALS
