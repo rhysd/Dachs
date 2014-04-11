@@ -168,13 +168,6 @@ public:
         return prefix_of(al, indent) + visit_nodes(al->element_exprs, indent+lead, true);
     }
 
-    String visit(ast::node::array_range_literal const& arl, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(arl, indent)
-            + '\n' + visit(arl->from, indent+lead, "|  ")
-            + '\n' + visit(arl->to, indent+lead, "   ");
-    }
-
     String visit(ast::node::tuple_literal const& tl, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(tl, indent) + visit_nodes(tl->element_exprs, indent+lead, true);
@@ -188,13 +181,6 @@ public:
                             return visit(key_value.first, indent+lead, "|  ")
                                 + '\n' + visit(key_value.second, indent+lead, l);
                         }, true);
-    }
-
-    String visit(ast::node::range_literal const& rl, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(rl, indent)
-            + '\n' + visit(rl->min_expr, indent+lead, "|  ")
-            + '\n' + visit(rl->max_expr, indent+lead, "   ");
     }
 
     String visit(ast::node::literal const& l, String const& indent, char const* const lead) const noexcept
