@@ -665,7 +665,7 @@ public:
 
         postfix_if_stmt
             = (
-                (compound_expr - if_kind) >> if_kind >> compound_expr
+                ((return_stmt | assignment_stmt | compound_expr)  - if_kind) >> if_kind >> compound_expr
             ) [
                 _val = make_node_ptr<ast::node::postfix_if_stmt>(_1, _2, _3)
             ];

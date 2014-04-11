@@ -454,7 +454,7 @@ public:
     String visit(ast::node::postfix_if_stmt const& pis, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(pis, indent)
-                + '\n' + visit(pis->body, indent+lead, "|  ")
+                + '\n' + visit_variant_node(pis->body, indent+lead, "|  ")
                 + '\n' + visit(pis->condition, indent+lead, "   ");
     }
 

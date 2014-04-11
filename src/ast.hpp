@@ -1036,11 +1036,18 @@ struct while_stmt final : public statement {
 };
 
 struct postfix_if_stmt final : public statement {
-    node::compound_expr body;
+    using body_type
+        = boost::variant<
+            node::assignment_stmt
+          , node::return_stmt
+          , node::compound_expr
+        >;
+    body_type body;
     symbol::if_kind kind;
     node::compound_expr condition;
 
-    postfix_if_stmt(node::compound_expr const& body,
+    template<class T>
+    postfix_if_stmt(T const& body,
                     symbol::if_kind const kind,
                     node::compound_expr const& cond)
         : statement(), body(body), kind(kind), condition(cond)
