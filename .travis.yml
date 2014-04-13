@@ -18,3 +18,5 @@ before_install:
 install:
     - sudo apt-get -qq update
     - sudo apt-get -qq install g++-4.8 libboost1.55-all-dev cmake llvm-${CLANG_VERSION} llvm-${CLANG_VERSION}-dev libllvm-${CLANG_VERSION} libclang-${CLANG_VERSION}-dev
+git:
+    submodules: false
