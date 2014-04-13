@@ -1,0 +1,3 @@
+[submodule "misc/vim-dachs"]
+	path = misc/vim-dachs
+	url = git@github.com:rhysd/vim-dachs.git
