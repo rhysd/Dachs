@@ -6,6 +6,7 @@ set(DACHS_VERSION_TEENY 1)
 set(PACKAGE_VERSION "${DACHS_VERSION_MAJOR}.${DACHS_VERSION_MINOR}.${DACHS_VERSION_TEENY}")
 
 cmake_minimum_required( VERSION 2.8 )
+enable_testing()
 
 if(DACHS_CXX_COMPILER)
     set(CMAKE_CXX_COMPILER "${DACHS_CXX_COMPILER}")
@@ -22,6 +23,8 @@ elseif(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     endif()
     message(STATUS "${CMAKE_CXX_COMPILER} is detected.")
 endif()
+
+add_subdirectory(test)
 
 include_directories( "${PROJECT_SOURCE_DIR}/src" )
 
