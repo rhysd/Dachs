@@ -8,5 +8,12 @@ if (Boost_FOUND)
 endif (Boost_FOUND)
 
 add_executable(dachs-parser-test parser_test.cpp)
-target_link_libraries(dachs-parser-test ${Boost_LIBRARIES})
+
+if (NOT APPLE)
+    # Do not link library explicitly in Mac because it causes SEGV on executing tests.
+    # Somehow this bug isn't reproduced when the library is not linked explicitry.
+    # https://svn.boost.org/trac/boost/ticket/7512
+    target_link_libraries(dachs-parser-test ${Boost_LIBRARIES})
+endif()
+
 add_test(dachs-parser-test ${EXECUTABLE_OUTPUT_PATH}/dachs-parser-test)
