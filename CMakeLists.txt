@@ -27,7 +27,19 @@ endif()
 include_directories( "${PROJECT_SOURCE_DIR}/src" )
 find_package(Boost 1.55.0)
 include_directories(${Boost_INCLUDE_DIRS})
-add_definitions(-std=c++1y -g -Wall -Wextra)
+add_definitions(-std=c++1y -Wall -Wextra)
+set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
+
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." FORCE)
+    message(STATUS "Dachs is under development. 'Debug' is set to $CMAKE_BUILD_TYPE as default.")
+endif()
+
+# use debug build as default
+if (NOT CMAKE_BUILD_TYPE)
+    add_definitions("${CMAKE_CXX_FLAGS_DEBUG}")
+endif ()
 
 add_subdirectory(src)
 add_subdirectory(test)
