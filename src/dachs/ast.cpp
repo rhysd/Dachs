@@ -3,7 +3,7 @@
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/lexical_cast.hpp>
 
-#include "ast.hpp"
+#include "dachs/ast.hpp"
 
 namespace dachs {
 namespace ast {

@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "ast.hpp"
+#include "dachs/ast.hpp"
 
 namespace dachs {
 namespace helper {

@@ -24,16 +24,10 @@ elseif(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     message(STATUS "${CMAKE_CXX_COMPILER} is detected.")
 endif()
 
-add_subdirectory(test)
-
 include_directories( "${PROJECT_SOURCE_DIR}/src" )
-
-add_definitions(-std=c++1y -g -Wall -Wextra)
-
 find_package(Boost 1.55.0)
 include_directories(${Boost_INCLUDE_DIRS})
+add_definitions(-std=c++1y -g -Wall -Wextra)
 
-file(GLOB_RECURSE CPPFILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
-add_executable(dachs ${CPPFILES})
-
-install(TARGETS dachs DESTINATION bin)
+add_subdirectory(src)
+add_subdirectory(test)

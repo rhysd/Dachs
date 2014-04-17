@@ -6,7 +6,7 @@
 #include <boost/optional.hpp>
 
 #include "dachs.hpp"
-#include "helper/colorizer.hpp"
+#include "dachs/helper/colorizer.hpp"
 
 namespace dachs {
 

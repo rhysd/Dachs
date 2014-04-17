@@ -13,9 +13,9 @@
 #include <boost/range/adaptor/sliced.hpp>
 #include <boost/range/numeric.hpp>
 
-#include "stringize_ast.hpp"
-#include "helper/variant.hpp"
-#include "helper/colorizer.hpp"
+#include "dachs/helper/stringize_ast.hpp"
+#include "dachs/helper/variant.hpp"
+#include "dachs/helper/colorizer.hpp"
 
 namespace dachs {
 namespace helper {

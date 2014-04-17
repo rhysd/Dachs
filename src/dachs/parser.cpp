@@ -24,9 +24,9 @@
 #include <boost/spirit/include/phoenix_bind.hpp>
 #include <boost/fusion/include/std_pair.hpp>
 
-#include "parser.hpp"
-#include "comment_skipper.hpp"
-#include "ast.hpp"
+#include "dachs/parser.hpp"
+#include "dachs/comment_skipper.hpp"
+#include "dachs/ast.hpp"
 // }}}
 
 namespace dachs {

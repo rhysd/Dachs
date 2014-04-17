@@ -5,9 +5,9 @@ add_definitions(-std=c++1y -g -Wall -Wextra)
 find_package(Boost COMPONENTS unit_test_framework REQUIRED)
 if (Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
-endif (Boost_FOUND)
+endif ()
 
-add_executable(dachs-parser-test parser_test.cpp)
+add_executable(dachs-parser-test parser_test.cpp $<TARGET_OBJECTS:dachs-objects>)
 
 if (NOT APPLE)
     # Do not link library explicitly in Mac because it causes SEGV on executing tests.

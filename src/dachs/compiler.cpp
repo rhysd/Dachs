@@ -1,6 +1,6 @@
 #include <cstdlib>
-#include "compiler.hpp"
-#include "helper/stringize_ast.hpp"
+#include "dachs/compiler.hpp"
+#include "dachs/helper/stringize_ast.hpp"
 
 namespace dachs {
 std::string compiler::compile(std::string const& code)
