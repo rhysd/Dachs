@@ -5,7 +5,7 @@ set(DACHS_VERSION_MINOR 0)
 set(DACHS_VERSION_TEENY 1)
 set(PACKAGE_VERSION "${DACHS_VERSION_MAJOR}.${DACHS_VERSION_MINOR}.${DACHS_VERSION_TEENY}")
 
-cmake_minimum_required( VERSION 2.8 )
+cmake_minimum_required( VERSION 2.8.8 )
 enable_testing()
 
 if(DACHS_CXX_COMPILER)
