@@ -2,17 +2,19 @@ set(Boost_USE_STATIC_LIBS OFF)
 include_directories( "${PROJECT_SOURCE_DIR}/src" )
 add_definitions(-std=c++1y -g -Wall -Wextra)
 
-find_package(Boost COMPONENTS unit_test_framework REQUIRED)
+add_executable(dachs-parser-test parser_test.cpp $<TARGET_OBJECTS:dachs-objects>)
+
+find_package(Boost COMPONENTS system filesystem REQUIRED)
 if (Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
 endif ()
-
-add_executable(dachs-parser-test parser_test.cpp $<TARGET_OBJECTS:dachs-objects>)
+target_link_libraries(dachs-parser-test ${Boost_LIBRARIES})
 
 if (NOT APPLE)
     # Do not link library explicitly in Mac because it causes SEGV on executing tests.
     # Somehow this bug isn't reproduced when the library is not linked explicitry.
     # https://svn.boost.org/trac/boost/ticket/7512
+    find_package(Boost COMPONENTS unit_test_framework REQUIRED)
     target_link_libraries(dachs-parser-test ${Boost_LIBRARIES})
 endif()
 

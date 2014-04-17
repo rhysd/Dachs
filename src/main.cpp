@@ -1,29 +1,9 @@
 #include <exception>
 #include <iostream>
-#include <iterator>
-#include <fstream>
-
-#include <boost/optional.hpp>
 
 #include "dachs.hpp"
 #include "dachs/helper/colorizer.hpp"
-
-namespace dachs {
-
-template <class String>
-inline boost::optional<String> read_file(std::string const& file_name)
-{
-    typedef typename String::value_type CharT;
-
-    std::basic_ifstream<CharT> input(file_name, std::ios::in);
-    if (!input.is_open()) {
-        return boost::none;
-    }
-    return String{std::istreambuf_iterator<CharT>{input},
-                  std::istreambuf_iterator<CharT>{}};
-}
-
-}  // namespace dachs
+#include "dachs/helper/util.hpp"
 
 int main(int const argc, char const* const argv[])
 {
@@ -33,7 +13,7 @@ int main(int const argc, char const* const argv[])
         return 1;
     }
 
-    auto const maybe_code = dachs::read_file<std::string>(argv[1]);
+    auto const maybe_code = dachs::helper::read_file<std::string>(argv[1]);
     if (!maybe_code) {
         std::cerr << "File cannot be opened: " << argv[1] << std::endl;
         return 2;

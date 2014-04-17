@@ -1,0 +1,40 @@
+proc hoge
+end
+
+proc hoge()
+    some_statement
+end
+
+proc hoge()
+    ; # empty statement
+end
+
+proc hoge(a)
+end
+
+proc hoge(a, b)
+end
+
+proc hoge(a : int)
+end
+
+proc hoge(a : int, b : int)
+end
+
+proc hoge()
+end
+
+proc hoge(var a)
+end
+
+proc hoge(var a, b)
+end
+
+proc hoge(var a : int)
+end
+
+proc hoge(var a : int, b : int)
+end
+
+proc main
+end

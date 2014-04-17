@@ -1,0 +1,58 @@
+func hoge()
+end
+
+func hoge()
+    some_statement
+end
+
+func hoge()
+    ; # empty statement
+end
+
+func hoge(a)
+end
+
+func hoge(a, b)
+end
+
+func hoge(a) : t
+end
+
+func hoge(a, b) : t
+end
+
+func hoge(a : int)
+end
+
+func hoge(a : int, b : int)
+end
+
+func hoge(a : int) : t
+end
+
+func hoge(a : int, b : int) : t
+end
+
+func hoge()
+end
+
+func hoge(var a)
+end
+
+func hoge(var a, b)
+end
+
+func hoge(var a) : t
+end
+
+func hoge(var a, b) : t
+end
+
+func hoge(var a : int)
+end
+
+func hoge(var a : int, b : int)
+end
+
+func main
+end
