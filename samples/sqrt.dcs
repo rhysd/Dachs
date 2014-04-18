@@ -1,5 +1,5 @@
 func abs(n : float) : float
-    return if n > 0.0 then n else -n
+    return (if n > 0.0 then n else -n)
 end
 
 func sqrt(x : float) : float

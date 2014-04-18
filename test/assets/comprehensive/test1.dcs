@@ -1,0 +1,52 @@
+func main
+    1 + if[2] if true
+
+    if true then
+        1 # This is comment
+    elseif false then 3 elseif false; 4; else;
+        2
+    end
+
+    ;
+
+    ;
+    ;
+
+
+    ;
+    ;;
+    ;;;
+
+    print(if true then 1 else 2)
+
+    for a, var b, e : int, var f : bool in any_expression # This is comment
+        a
+    end
+
+    for true
+        # infinite loop # print("aaa")
+    end
+
+    for a in arr do print("a") end
+
+    for a : int? in hoge
+        42
+    end
+
+    return 1
+
+    return 1, 2
+
+    aaa!()
+    bbb?()
+    ccc'()
+
+    # this is test # this_is_expression
+    # this is test
+
+    var h := huga
+    var h := ([int]?, [char])?{}
+
+    10.to_s()
+
+end
