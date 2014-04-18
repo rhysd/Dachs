@@ -16,11 +16,11 @@ end
 def notify msg
   case
   when which('terminal-notifier')
-    `terminal-notifier -message #{msg}`
+    `terminal-notifier -message '#{msg}'`
   when which('notify-send')
-    `notify-send #{msg}`
+    `notify-send '#{msg}'`
   when which('tmux')
-    `tmux display-message #{msg}` if `tmux list-clients 1>/dev/null 2>&1` && $?.success?
+    `tmux display-message '#{msg}'` if `tmux list-clients 1>/dev/null 2>&1` && $?.success?
   end
 end
 
@@ -31,9 +31,17 @@ guard :shell do
       puts(separator, start.to_s)
 
       system "make -j4"
-      notify "dachs: Build failed" unless $?.success?
+      if $?.success?
+        notify "dachs: Build failed" unless $?.success?
+        system "make test"
+        unless $?.success?
+          notify "dachs: Test failed" unless $?.success?
+          puts "---------------LOG-----------------"
+          system "cat Testing/Temporary/LastTest.log" if File.exists? "Testing/Temporary/LastTest.log"
+        end
+      end
 
-      puts("Elapsed time: #{Time.now - start} seconds.")
+      puts "Elapsed time: #{Time.now - start} seconds."
       $?.success?
     end
   end

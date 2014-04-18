@@ -15,21 +15,13 @@ using namespace dachs::test::parser;
 // NOTE: use global variable to avoid executing heavy construction of parser
 static dachs::syntax::parser p;
 
-inline void check_parse_no_throw(std::string const& s)
-{
-    BOOST_CHECK_NO_THROW(p.parse(s));
-}
-
-inline void check_parse_throw(std::string const& s)
-{
-    BOOST_CHECK_THROW(p.parse(s), dachs::syntax::parse_error);
-}
+#define CHECK_PARSE_THROW(...) BOOST_CHECK_THROW(p.parse((__VA_ARGS__)), dachs::syntax::parse_error)
 
 BOOST_AUTO_TEST_SUITE(parser)
 
 BOOST_AUTO_TEST_CASE(comment)
 {
-    check_parse_no_throw(R"(
+    BOOST_CHECK_NO_THROW(p.parse(R"(
             # line comment
             # block comment #
 
@@ -40,9 +32,9 @@ BOOST_AUTO_TEST_CASE(comment)
                 expr # poyo
                 #hoge# this_is_expr
             end
-        )");
+        )"));
 
-    check_parse_throw(R"(
+    CHECK_PARSE_THROW(R"(
             # Line comment is not continued
             to next line
             func main
@@ -53,10 +45,10 @@ BOOST_AUTO_TEST_CASE(comment)
 BOOST_AUTO_TEST_CASE(function)
 {
     // minimal
-    check_parse_no_throw("func main; end");
+    BOOST_CHECK_NO_THROW(p.parse("func main; end"));
 
     // general cases
-    check_parse_no_throw(R"(
+    BOOST_CHECK_NO_THROW(p.parse(R"(
         func hoge()
         end
 
@@ -126,14 +118,14 @@ BOOST_AUTO_TEST_CASE(function)
 
         func main
         end
-        )");
+        )"));
 
-    check_parse_throw(R"(
+    CHECK_PARSE_THROW(R"(
         func main
         en
         )");
 
-    check_parse_throw(R"(
+    CHECK_PARSE_THROW(R"(
         func (a, b)
         en
         )");
@@ -142,9 +134,9 @@ BOOST_AUTO_TEST_CASE(function)
 BOOST_AUTO_TEST_CASE(procedure)
 {
     // minimal
-    check_parse_no_throw("proc p; end");
+    BOOST_CHECK_NO_THROW(p.parse("proc p; end"));
 
-    check_parse_no_throw(R"(
+    BOOST_CHECK_NO_THROW(p.parse(R"(
         proc hoge
         end
 
@@ -185,19 +177,19 @@ BOOST_AUTO_TEST_CASE(procedure)
 
         proc main
         end
-        )");
+        )"));
 
-    check_parse_throw("proc hoge(); en");
+    CHECK_PARSE_THROW("proc hoge(); en");
 
-    check_parse_throw("proc (a, b); end");
+    CHECK_PARSE_THROW("proc (a, b); end");
 
     // procedure shouldn't have return type
-    check_parse_throw("proc hoge(a, b) : int; end");
+    CHECK_PARSE_THROW("proc hoge(a, b) : int; end");
 }
 
 BOOST_AUTO_TEST_CASE(literals)
 {
-    check_parse_no_throw(R"(
+        auto s = R"(
         func main
             # character
             'a'
@@ -235,9 +227,7 @@ BOOST_AUTO_TEST_CASE(literals)
             # integer
             1
             42
-            -1
-            -42
-            201948903843
+            20194890
             1u #unsigned
             10u
 
@@ -267,19 +257,20 @@ BOOST_AUTO_TEST_CASE(literals)
             {}
             {3.14 => :pi}
         end
-        )");
+        )";
 
-    check_parse_no_throw(R"(
+    BOOST_CHECK_NO_THROW(p.parse(s));
+    BOOST_CHECK_NO_THROW(p.parse(R"(
             func main
                 [(42, 'a'), (53, 'd')]
                 ([42, 13, 22], {:aaa => :BBB}, (42, [42, 42], 42), "aaaa", ["aaa", "bbb", "ccc"])
             end
-        )");
+        )"));
 
-    check_parse_throw("func main; 'aaaa' end");
-    check_parse_throw("func main; '' end");
-    check_parse_throw("func main; ''' end");
-    check_parse_throw("func main; 43. end");
+    CHECK_PARSE_THROW("func main; 'aaaa' end");
+    CHECK_PARSE_THROW("func main; '' end");
+    CHECK_PARSE_THROW("func main; ''' end");
+    CHECK_PARSE_THROW("func main; 43. end");
 }
 
 BOOST_AUTO_TEST_CASE(comprehensive_cases)
