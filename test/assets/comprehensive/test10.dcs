@@ -1,0 +1,6 @@
+
+hoge := 42
+
+func main
+    println(hoge)
+end

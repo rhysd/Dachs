@@ -1,0 +1,17 @@
+func hoge
+end
+
+func hoge?
+end
+
+func hoge!
+end
+
+func hoge'
+end
+
+func main
+    var aaaa := int{51}
+end
+
+func end; end

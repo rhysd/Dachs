@@ -1,0 +1,39 @@
+func main()
+    case a
+    when 13
+        print("hoge")
+        return
+    when 15
+        arr[3].do_something()
+    else
+        print("oops!")
+    end
+
+    case
+    when a == 13
+        print("hoge")
+        return 1, 2, 3
+    when a == 15
+        arr[3].do_something()
+    else
+        print("oops!")
+    end
+
+    for true
+        print("yes\n")
+    end
+
+    for a, b in [(1, 2), (3, 4)]
+        print(a, b)
+    end
+
+    for var a in range(1, 10) do
+        print(a*2)
+    end
+
+    h := 3
+    var h := [hoge]{[aaa, bbb, ccc]}
+    var h := ([hoge], int?)?{}
+    var h := (hoge, int)?{}
+    var i := int{42}
+end
