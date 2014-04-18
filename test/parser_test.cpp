@@ -26,7 +26,31 @@ inline void check_parse_throw(std::string const& s)
 }
 
 BOOST_AUTO_TEST_SUITE(parser)
-BOOST_AUTO_TEST_CASE(check_enable_to_parse)
+
+BOOST_AUTO_TEST_CASE(comment)
+{
+    check_parse_no_throw(R"(
+            # line comment
+            # block comment #
+
+            #
+            # main function
+            #
+            func main(#tsura#poyo)
+                expr # poyo
+                #hoge# this_is_expr
+            end
+        )");
+
+    check_parse_throw(R"(
+            # Line comment is not continued
+            to next line
+            func main
+            end
+        )");
+}
+
+BOOST_AUTO_TEST_CASE(function)
 {
     // minimal
     check_parse_no_throw("func main; end");
@@ -90,6 +114,14 @@ BOOST_AUTO_TEST_CASE(check_enable_to_parse)
         end
 
         func hoge'(a, var b) : t
+        end
+
+        func is_true?(b)
+            return b
+        end
+
+        func shinchoku_arimasu?(b)
+            return false
         end
 
         func main
@@ -161,6 +193,93 @@ BOOST_AUTO_TEST_CASE(procedure)
 
     // procedure shouldn't have return type
     check_parse_throw("proc hoge(a, b) : int; end");
+}
+
+BOOST_AUTO_TEST_CASE(literals)
+{
+    check_parse_no_throw(R"(
+        func main
+            # character
+            'a'
+            'b'
+            'Z'
+            '9'
+            '\n'
+            '\''
+            '\b'
+            '\f'
+            '\\'
+
+            # string
+            "aaaaa"
+            "bb1239aa12343#$#!!"
+            "\"aaa\""
+            "\nhoge\nbbb\n"
+            "\\aaa\\"
+            ""
+
+            # boolean
+            true
+            false
+
+            # float
+            3.14
+            0.5
+            10.0
+            1.0e10
+            -1.0e10
+            -3.14
+            -0.5
+            -5.0
+
+            # integer
+            1
+            42
+            -1
+            -42
+            201948903843
+            1u #unsigned
+            10u
+
+            # array
+            [1, 10, 100, 1000, 10000]
+            [1]
+            [2.14, 5.15]
+            []
+
+            # tuple
+            (1, 'a', "aaaa")
+            (1, 10)
+            ()
+
+            # symbol
+            :hogehoge
+            :aaa
+            :to_s
+            :inu
+            :answer_is_42
+
+            # map
+            {10 => 'a', 100 => 'b'}
+            {"aaaa" => :aaa, "bbb" => :bbb}
+            {10 => 'a', 100 => 'b',}
+            {"aaaa" => :aaa, "bbb" => :bbb,}
+            {}
+            {3.14 => :pi}
+        end
+        )");
+
+    check_parse_no_throw(R"(
+            func main
+                [(42, 'a'), (53, 'd')]
+                ([42, 13, 22], {:aaa => :BBB}, (42, [42, 42], 42), "aaaa", ["aaa", "bbb", "ccc"])
+            end
+        )");
+
+    check_parse_throw("func main; 'aaaa' end");
+    check_parse_throw("func main; '' end");
+    check_parse_throw("func main; ''' end");
+    check_parse_throw("func main; 43. end");
 }
 
 BOOST_AUTO_TEST_CASE(comprehensive_cases)
