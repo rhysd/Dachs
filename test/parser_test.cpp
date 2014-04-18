@@ -1,47 +1,26 @@
 #define BOOST_TEST_MODULE ParserTest
-
-#include <string>
-#include <exception>
-
-#include "dachs/parser.hpp"
-#include "dachs/helper/util.hpp"
-
 #define BOOST_DYN_LINK
 #define BOOST_TEST_MAIN
 
+#include "dachs/parser.hpp"
+#include "dachs/helper/util.hpp"
+#include "test_helper.hpp"
+
 #include <boost/test/included/unit_test.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/range.hpp>
 
-namespace fs = boost::filesystem;
-
-inline
-auto traverse_directory_range(std::string const& dir_name)
-{
-    fs::path const p = dir_name;
-    return boost::make_iterator_range(fs::directory_iterator{p}, fs::directory_iterator{});
-}
+using namespace dachs::test::parser;
 
 BOOST_AUTO_TEST_SUITE(parser)
-BOOST_AUTO_TEST_CASE(function)
+BOOST_AUTO_TEST_CASE(check_enable_to_parse)
 {
-    dachs::syntax::parser parser;
-
-    for( fs::path const& p : traverse_directory_range("assets/function") ) {
-        BOOST_CHECK_NO_THROW(parser.parse(*dachs::helper::read_file<std::string>(p.c_str())));
-    }
+    check_no_throw_in_all_cases_in_directory("assets/function/no_throw");
+    check_throw_in_all_cases_in_directory("assets/function/throw");
 }
 
 BOOST_AUTO_TEST_CASE(procedure)
 {
-    dachs::syntax::parser parser;
-
-    for( fs::path const& p : traverse_directory_range("assets/procedure") ) {
-        BOOST_CHECK_NO_THROW(parser.parse(*dachs::helper::read_file<std::string>(p.c_str())));
-    }
-
-    // procedure doesn't have return type
-    BOOST_CHECK_THROW(parser.parse(R"(proc hoge : int; end)"), dachs::syntax::parse_error);
+    check_no_throw_in_all_cases_in_directory("assets/procedure/no_throw");
+    check_throw_in_all_cases_in_directory("assets/procedure/throw");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
