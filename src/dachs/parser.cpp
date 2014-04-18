@@ -149,7 +149,7 @@ public:
         character_literal
             = (
                 '\''
-                > ((qi::char_ - ascii::cntrl - '\\')
+                > ((qi::char_ - ascii::cntrl - '\\' - '\'')
                 | ('\\' > (
                           qi::char_('b')[_1 = '\b']
                         | qi::char_('f')[_1 = '\f']
@@ -227,7 +227,7 @@ public:
             = qi::lexeme[
                 ':' >>
                 qi::as_string[
-                    +(qi::alnum | qi::char_("=*/%+-><&^|&!~_"))
+                    +(qi::alnum | qi::char_("=*/%+><&^|&!~_-"))
                 ][
                     _val = make_node_ptr<ast::node::symbol_literal>(_1)
                 ]
@@ -240,7 +240,7 @@ public:
                         qi::as<ast::node_type::map_literal::map_elem_type>()[
                             compound_expr > "=>" > compound_expr
                         ] % ','
-                    )
+                    ) >> -(lit(',')) // allow trailing comma
                 >> '}'
             ) [
                 _val = make_node_ptr<ast::node::map_literal>(as_vector(_1))
