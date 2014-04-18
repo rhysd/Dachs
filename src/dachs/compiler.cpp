@@ -3,10 +3,16 @@
 #include "dachs/helper/stringize_ast.hpp"
 
 namespace dachs {
-std::string compiler::compile(std::string const& code)
+void compiler::compile(std::string const& code)
 {
     auto ast = parser.parse(code);
-    return helper::stringize_ast(ast, color_output);
+    (void) ast;
+}
+
+std::string compiler::print_ast(std::string const& code, bool const colorful)
+{
+    auto ast = parser.parse(code);
+    return helper::stringize_ast(ast, colorful);
 }
 
 }  // namespace dachs
