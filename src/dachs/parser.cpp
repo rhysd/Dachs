@@ -312,10 +312,7 @@ public:
 
         object_construct
             = (
-                (
-                    ('(' >> qualified_type >> ')')
-                    | qualified_type
-                ) >> constructor_call
+                    qualified_type >> constructor_call
             ) [
                 _val = make_node_ptr<ast::node::object_construct>(_1, _2)
             ];
