@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE(procedure)
 
 BOOST_AUTO_TEST_CASE(literals)
 {
-        auto s = R"(
+    BOOST_CHECK_NO_THROW(p.parse(R"(
         func main
             # character
             'a'
@@ -249,7 +249,7 @@ BOOST_AUTO_TEST_CASE(literals)
             :inu
             :answer_is_42
 
-            # map
+            # dict
             {10 => 'a', 100 => 'b'}
             {"aaaa" => :aaa, "bbb" => :bbb}
             {10 => 'a', 100 => 'b',}
@@ -257,9 +257,8 @@ BOOST_AUTO_TEST_CASE(literals)
             {}
             {3.14 => :pi}
         end
-        )";
+        )"));
 
-    BOOST_CHECK_NO_THROW(p.parse(s));
     BOOST_CHECK_NO_THROW(p.parse(R"(
             func main
                 [(42, 'a'), (53, 'd')]
@@ -271,6 +270,125 @@ BOOST_AUTO_TEST_CASE(literals)
     CHECK_PARSE_THROW("func main; '' end");
     CHECK_PARSE_THROW("func main; ''' end");
     CHECK_PARSE_THROW("func main; 43. end");
+}
+
+BOOST_AUTO_TEST_CASE(postfix_expr)
+{
+    BOOST_CHECK_NO_THROW(p.parse(R"(
+        func main
+            foo.awesome_member_func
+            foo[index]
+            foo(function, call)
+            foo()
+            foo(a)
+
+            foo.bar(args)[3]
+            foo[3].bar.baz(args)
+            foo(hoge).bar[42]
+        end
+        )"));
+
+    CHECK_PARSE_THROW("func main; foo[42 end");
+    CHECK_PARSE_THROW("func main; foo(42 end");
+    CHECK_PARSE_THROW("func main; foo(42,a end");
+    CHECK_PARSE_THROW("func main; foo(hoge.hu end");
+}
+
+BOOST_AUTO_TEST_CASE(type)
+{
+    BOOST_CHECK_NO_THROW(p.parse(R"(
+        func main
+            expr : int
+            expr : string
+            expr : float
+            expr : [int]
+            expr : {int => string}
+            expr : (int, char)
+            expr : ()
+            expr : [(int)] # it means [int]
+            expr : (int, [string], {() => [int]}, (float, [int]))
+            expr : [{([(int, string)]) => string}]
+
+            expr : func() : int
+            expr : proc()
+            expr : func(int, aaa) : int
+            expr : proc(int, aaa)
+            expr : [func() : int]
+            expr : (func(int) : string, proc(int), [func() : int])
+            expr : {func(char) : int => proc(string)}
+
+            expr : int?
+            expr : string?
+            expr : float?
+            expr : [int]?
+            expr : [int?]?
+            expr : {int => string}?
+            expr : {int => string?}?
+            expr : (int?, char)?
+            expr : ()?
+            expr : [(int)?] # it means [int]
+            expr : (int?, [string?], {()? => [int?]?}?, (float, [int]?)?)?
+            expr : [{([(int, string?)?]?)? => string}?]?
+
+            expr : (func() : int)?
+            expr : func() : int? # it returns maybe int
+            expr : (proc())?
+            expr : (func(int, aaa) : int)?
+            expr : (proc(int, aaa))?
+            expr : [(func() : int)?]
+            expr : ((func(int) : string)?, (proc(int))?, [func() : int]?)
+            expr : {(func(char) : int)? => (proc(string))?}?
+
+            # template types
+            expr : T(int)
+            expr : T(int, string)
+            expr : [T(int)]
+            expr : (T(int), U(int))
+            expr : {T(int) => U(int)}
+            expr : T(int)?
+            expr : T(int?, string?)
+            expr : [T(int)?]
+            expr : (T(int)?, U(int)?)
+            expr : {T(int)? => U(int)?}?
+        end
+        )"));
+
+    CHECK_PARSE_THROW("func main; expr : proc() : int end # one element tuple is not allowed");
+    CHECK_PARSE_THROW("func main; expr : proc() : int end # must not have return type");
+    CHECK_PARSE_THROW("func main; expr : func() end # must have return type");
+    CHECK_PARSE_THROW("func main; expr : T() end # must have return type");
+    CHECK_PARSE_THROW("func main; expr : [T](int) end # must have return type");
+    CHECK_PARSE_THROW("func main; expr : (T)(int) end # must have return type");
+}
+
+BOOST_AUTO_TEST_CASE(primary_expr)
+{
+    BOOST_CHECK_NO_THROW(p.parse(R"(
+        func main
+            (1 + 2 * 3)
+            hogehoge # variable reference
+            int{42}
+            (int, int){42, 42}
+            {int => string}{{1 => "aaa", 2 => "bbb"}}
+        end
+        )"));
+
+    CHECK_PARSE_THROW("func main; (1 + 2; end");
+    CHECK_PARSE_THROW("func main; int{42; end");
+}
+
+BOOST_AUTO_TEST_CASE(unary_expr)
+{
+    BOOST_CHECK_NO_THROW(p.parse(R"(
+        func main
+            -42
+            +42
+            ~42
+            !true
+            -+~42
+            !!true
+        end
+        )"));
 }
 
 BOOST_AUTO_TEST_CASE(comprehensive_cases)
