@@ -391,6 +391,118 @@ BOOST_AUTO_TEST_CASE(unary_expr)
         )"));
 }
 
+BOOST_AUTO_TEST_CASE(cast_expression)
+{
+    BOOST_CHECK_NO_THROW(p.parse(R"(
+        func main
+            expr as int
+            expr as int?
+            expr as [int]
+            expr as (int, int)?
+            expr as T((int, int)?)
+        end
+        )"));
+}
+
+BOOST_AUTO_TEST_CASE(binary_expression)
+{
+    BOOST_CHECK_NO_THROW(p.parse(R"(
+        func main
+            1 + 1
+            1 - 1
+            1 * 1
+            1 / 1
+            1 % 1
+            1 < 1
+            1 > 1
+            1 & 1
+            1 ^ 1
+            1 | 1
+            1 <= 1
+            1 >= 1
+            1 == 1
+            1 != 1
+            1 >> 1
+            1 << 1
+            true && true
+            true || true
+            1..2
+            1...3
+            1 = 1
+            1 += 1
+            1 -= 1
+            1 *= 1
+            1 /= 1
+            1 %= 1
+            1 |= 1
+            1 &= 1
+            1 ^= 1
+            1 <= 1
+            1 >= 1
+            1 >>= 1
+            1 <<= 1
+
+            1 + 2 * 3 - 4 / 5 % 6 & 7 ^ 9 | 10 >> 11 << 12
+            1 + (2 * (3 - 4) / 5) % 6 & 7 ^ 9 | (10 >> 11) << 12
+
+            1 < 3 || 4 > 5 && 6 == 7 || 8 != 9
+            1 < 3 || (4 > 5) && (6 == 7) || 8 != 9
+        end
+        )"));
+
+    CHECK_PARSE_THROW("func main 1 == end");
+    CHECK_PARSE_THROW("func main 1 + end");
+    CHECK_PARSE_THROW("func main true && end");
+}
+
+BOOST_AUTO_TEST_CASE(assignment_expr)
+{
+    BOOST_CHECK_NO_THROW(p.parse(R"(
+        func main
+            aaa = 42
+            aaa, bbb = 42, 31
+            aaa, bbb = do_something()
+        end
+        )"));
+}
+
+BOOST_AUTO_TEST_CASE(if_expr)
+{
+    BOOST_CHECK_NO_THROW(p.parse(R"(
+        func main
+            (if true then 42 else 24)
+            hoge(if true then 3.14 else 4.12)
+            (if true then
+                42
+            else
+                24)
+            (if true then 42
+             else 24)
+            (if if then if else if) # 'if' is a contextual keyword
+        end
+        )"));
+
+    // it is parsed as if statement and it will fail
+    CHECK_PARSE_THROW("func main if true then 42 else 24 end");
+}
+
+BOOST_AUTO_TEST_CASE(variable_decl)
+{
+    BOOST_CHECK_NO_THROW(p.parse(R"(
+        func main
+            a := 42
+            var a := 42
+            a := int{42}
+            a, b := 42, 24
+            var a, b := 'a', 'b'
+            a, b := foo()
+            var a, b := bar()
+            var a, b := int{32}, char{'b'}
+            var a, b := [] : [int], {} : {int => string}
+        end
+        )"));
+}
+
 BOOST_AUTO_TEST_CASE(comprehensive_cases)
 {
     check_no_throw_in_all_cases_in_directory("assets/comprehensive");
