@@ -630,7 +630,7 @@ public:
                 "case" >> (compound_expr - "when") >> sep
                 >> +(
                     qi::as<ast::node_type::switch_stmt::when_type>()[
-                        "when" >> (compound_expr - "then") >> ("then" || sep)
+                        "when" >> (compound_expr - "then") % ',' >> ("then" || sep)
                         >> case_when_stmt_block
                     ]
                 ) >> -(

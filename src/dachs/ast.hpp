@@ -991,7 +991,10 @@ struct case_stmt final : public statement {
 
 struct switch_stmt final : public statement {
     using when_type
-        = std::pair<node::compound_expr, node::statement_block>;
+        = std::pair<
+            std::vector<node::compound_expr>,
+            node::statement_block
+        >;
 
     node::compound_expr target_expr;
     std::vector<when_type> when_stmts_list;

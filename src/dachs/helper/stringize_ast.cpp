@@ -425,8 +425,8 @@ public:
                 + '\n' + visit(ss->target_expr, indent+lead, ss->when_stmts_list.empty() && !ss->maybe_else_stmts ? "   " : "|  ")
                 + visit_nodes_with_predicate(ss->when_stmts_list,
                         [this, indent, lead](auto const& cond_and_when_stmts, auto const l){
-                            return visit(cond_and_when_stmts.first, indent+lead, "|  ")
-                                + '\n' + visit(cond_and_when_stmts.second, indent+lead, l);
+                            return visit_nodes(cond_and_when_stmts.first, indent+lead, false)
+                                + visit(cond_and_when_stmts.second, indent+lead, l);
                         }, !ss->maybe_else_stmts)
                 + (ss->maybe_else_stmts ? visit(*(ss->maybe_else_stmts), indent+lead, "   ") : "");
     }
