@@ -6,7 +6,8 @@ Doggy Programming Language. :dog2:
 
 Goals:
 - Light weight to write and execute
-- Strongly typed
+- Strongly and statically typed
+- Native code efficiency
 - Full OOP
 - Immutability-aware
 - Dog-friendly
@@ -49,6 +50,7 @@ end
 -  Sematic analysis
   -  Scope tree
   -  Symbol tables
+  -  Type inference
   -  Semantic checks
   -  Test
 -  Code generation
