@@ -3,6 +3,9 @@ compiler: clang
 env:
     - CLANG_VERSION="3.4" CMAKE_OPTS="-DCMAKE_CXX_FLAGS=-I/usr/lib/llvm-3.4/lib/clang/3.4.1/include"
     - CLANG_VERSION="3.5" CMAKE_OPTS=""
+matrix:
+    allow_failures:
+        - env: CLANG_VERSION="3.5" CMAKE_OPTS=""
 script:
     - sudo apt-get -qq install "clang-${CLANG_VERSION}"
     - uname -a
@@ -11,12 +14,12 @@ script:
     - cmake . -DCMAKE_CXX_COMPILER=/usr/bin/clang++ $CMAKE_OPTS
     - make VERBOSE=1 && make test && make clean
 before_install:
-    - sudo add-apt-repository --yes ppa:ubuntu-toolchain-r/test
-    - sudo add-apt-repository --yes ppa:boost-latest/ppa
-    - sudo add-apt-repository --yes ppa:george-edison55/cmake-precise
     - sudo sh -c "echo 'deb http://llvm.org/apt/precise/ llvm-toolchain-precise main' >> /etc/apt/sources.list"
     - sudo sh -c "echo 'deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.4 main' >> /etc/apt/sources.list"
     - wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -
+    - sudo add-apt-repository --yes ppa:ubuntu-toolchain-r/test
+    - sudo add-apt-repository --yes ppa:boost-latest/ppa
+    - sudo add-apt-repository --yes ppa:george-edison55/cmake-precise
 install:
     - sudo apt-get -qq update
     - sudo apt-get -qq install g++-4.8 libboost1.55-all-dev cmake llvm-${CLANG_VERSION} llvm-${CLANG_VERSION}-dev libllvm-${CLANG_VERSION} libclang-${CLANG_VERSION}-dev
