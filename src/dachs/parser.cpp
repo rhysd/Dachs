@@ -866,6 +866,67 @@ public:
         );
         // }}}
 
+        // Rule names
+        program.name("program");
+        literal.name("literal");
+        integer_literal.name("integer literal");
+        character_literal.name("character literal");
+        float_literal.name("float literal");
+        boolean_literal.name("boolean literal");
+        string_literal.name("string literal");
+        array_literal.name("array literal");
+        tuple_literal.name("tuple literal");
+        symbol_literal.name("symbol literal");
+        dict_literal.name("dictionary literal");
+        var_ref.name("variable reference");
+        parameter.name("parameter");
+        function_call.name("function call");
+        object_construct.name("object contruction");
+        primary_expr.name("primary expression");
+        index_access.name("index access");
+        member_access.name("member access");
+        postfix_expr.name("postfix expression");
+        unary_expr.name("unary expression");
+        template_type.name("template type");
+        primary_type.name("primary type");
+        array_type.name("array type");
+        dict_type.name("dictionary type");
+        tuple_type.name("tuple type");
+        func_type.name("function type");
+        proc_type.name("procedure type");
+        compound_type.name("compound type");
+        qualified_type.name("qualified type");
+        cast_expr.name("cast expression");
+        mult_expr.name("multiply expression");
+        additive_expr.name("additive expression");
+        shift_expr.name("shift expression");
+        relational_expr.name("relational expression");
+        equality_expr.name("equality expression");
+        and_expr.name("and expression");
+        xor_expr.name("exclusive or expression");
+        or_expr.name("or expression");
+        logical_and_expr.name("logical and expression");
+        logical_or_expr.name("logical or expression");
+        range_expr.name("range expression");
+        if_expr.name("if expression");
+        compound_expr.name("compound expression");
+        if_stmt.name("if statement");
+        return_stmt.name("return statement");
+        case_stmt.name("case statement");
+        switch_stmt.name("switch statement");
+        for_stmt.name("for statement");
+        while_stmt.name("while statement");
+        variable_decl.name("variable declaration");
+        initialize_stmt.name("initialize statement");
+        assignment_stmt.name("assignment statement");
+        postfix_if_stmt.name("prefix if statement");
+        compound_stmt.name("compound statement");
+        function_definition.name("function definition");
+        procedure_definition.name("procedure definition");
+        constant_decl.name("constant declaration");
+        constant_definition.name("constant definition");
+        global_definition.name("global definition");
+
     }
 
     ~grammar()
