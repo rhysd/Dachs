@@ -173,7 +173,7 @@ public:
         return prefix_of(tl, indent) + visit_nodes(tl->element_exprs, indent+lead, true);
     }
 
-    String visit(ast::node::map_literal const& ml, String const& indent, char const* const lead) const noexcept
+    String visit(ast::node::dict_literal const& ml, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(ml, indent)
                 + visit_nodes_with_predicate(ml->value,
@@ -259,7 +259,7 @@ public:
         return prefix_of(at, indent) + '\n' + visit(at->elem_type, indent+lead, "   ");
     }
 
-    String visit(ast::node::map_type const& mt, String const& indent, char const* const lead) const noexcept
+    String visit(ast::node::dict_type const& mt, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(mt, indent)
             + '\n' + visit(mt->key_type, indent+lead, "|  ")

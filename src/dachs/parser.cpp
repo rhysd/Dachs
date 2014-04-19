@@ -140,7 +140,7 @@ public:
                 | integer_literal
                 | array_literal
                 | symbol_literal
-                | map_literal
+                | dict_literal
                 | tuple_literal
             ) [
                 _val = make_node_ptr<ast::node::literal>(_1)
@@ -233,17 +233,17 @@ public:
                 ]
             ];
 
-        map_literal
+        dict_literal
             = (
                 '{' >>
                     -(
-                        qi::as<ast::node_type::map_literal::map_elem_type>()[
+                        qi::as<ast::node_type::dict_literal::dict_elem_type>()[
                             compound_expr > "=>" > compound_expr
                         ] % ','
                     ) >> -(lit(',')) // allow trailing comma
                 >> '}'
             ) [
-                _val = make_node_ptr<ast::node::map_literal>(as_vector(_1))
+                _val = make_node_ptr<ast::node::dict_literal>(as_vector(_1))
             ];
 
         function_name
@@ -381,11 +381,11 @@ public:
                 _val = make_node_ptr<ast::node::array_type>(_1)
             ];
 
-        map_type
+        dict_type
             = (
                 '{' >> qualified_type >> "=>" >> qualified_type >> '}'
             ) [
-                _val = make_node_ptr<ast::node::map_type>(_1, _2)
+                _val = make_node_ptr<ast::node::dict_type>(_1, _2)
             ];
 
         tuple_type
@@ -414,7 +414,7 @@ public:
 
         compound_type
             = (
-                func_type | proc_type | array_type | map_type | tuple_type | primary_type
+                func_type | proc_type | array_type | dict_type | tuple_type | primary_type
             ) [
                 _val = make_node_ptr<ast::node::compound_type>(_1)
             ];
@@ -786,7 +786,7 @@ public:
             , array_literal
             , tuple_literal
             , symbol_literal
-            , map_literal
+            , dict_literal
             , function_name
             , variable_name
             , type_name
@@ -802,7 +802,7 @@ public:
             , template_type
             , primary_type
             , array_type
-            , map_type
+            , dict_type
             , tuple_type
             , func_type
             , proc_type
@@ -892,7 +892,7 @@ private:
     DACHS_DEFINE_RULE(array_literal);
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::compound_expr>);
     DACHS_DEFINE_RULE(symbol_literal);
-    DACHS_DEFINE_RULE(map_literal);
+    DACHS_DEFINE_RULE(dict_literal);
     DACHS_DEFINE_RULE(var_ref);
     DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE(function_call);
@@ -905,7 +905,7 @@ private:
     DACHS_DEFINE_RULE(template_type);
     DACHS_DEFINE_RULE(primary_type);
     DACHS_DEFINE_RULE(array_type);
-    DACHS_DEFINE_RULE(map_type);
+    DACHS_DEFINE_RULE(dict_type);
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_type, std::vector<ast::node::qualified_type>);
     DACHS_DEFINE_RULE(func_type);
     DACHS_DEFINE_RULE(proc_type);

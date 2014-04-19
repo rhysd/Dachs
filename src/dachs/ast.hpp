@@ -104,7 +104,7 @@ struct string_literal;
 struct array_literal;
 struct tuple_literal;
 struct symbol_literal;
-struct map_literal;
+struct dict_literal;
 struct literal;
 struct identifier;
 struct var_ref;
@@ -122,7 +122,7 @@ struct tuple_type;
 struct func_type;
 struct proc_type;
 struct array_type;
-struct map_type;
+struct dict_type;
 struct compound_type;
 struct qualified_type;
 struct cast_expr;
@@ -171,7 +171,7 @@ DACHS_DEFINE_NODE_PTR(string_literal);
 DACHS_DEFINE_NODE_PTR(array_literal);
 DACHS_DEFINE_NODE_PTR(tuple_literal);
 DACHS_DEFINE_NODE_PTR(symbol_literal);
-DACHS_DEFINE_NODE_PTR(map_literal);
+DACHS_DEFINE_NODE_PTR(dict_literal);
 DACHS_DEFINE_NODE_PTR(literal);
 DACHS_DEFINE_NODE_PTR(identifier);
 DACHS_DEFINE_NODE_PTR(var_ref);
@@ -189,7 +189,7 @@ DACHS_DEFINE_NODE_PTR(tuple_type);
 DACHS_DEFINE_NODE_PTR(func_type);
 DACHS_DEFINE_NODE_PTR(proc_type);
 DACHS_DEFINE_NODE_PTR(array_type);
-DACHS_DEFINE_NODE_PTR(map_type);
+DACHS_DEFINE_NODE_PTR(dict_type);
 DACHS_DEFINE_NODE_PTR(compound_type);
 DACHS_DEFINE_NODE_PTR(qualified_type);
 DACHS_DEFINE_NODE_PTR(cast_expr);
@@ -363,21 +363,21 @@ struct symbol_literal final : public expression {
     }
 };
 
-struct map_literal final : public expression {
-    using map_elem_type =
+struct dict_literal final : public expression {
+    using dict_elem_type =
         std::pair<node::compound_expr, node::compound_expr>;
     using value_type =
-        std::vector<map_elem_type>;
+        std::vector<dict_elem_type>;
 
     value_type value;
 
-    explicit map_literal(value_type const& m)
+    explicit dict_literal(value_type const& m)
         : value(m)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "MAP_LITERAL: size=" + std::to_string(value.size());
+        return "dict_LITERAL: size=" + std::to_string(value.size());
     }
 };
 
@@ -390,7 +390,7 @@ struct literal final : public expression {
                       , node::integer_literal
                       , node::array_literal
                       , node::symbol_literal
-                      , node::map_literal
+                      , node::dict_literal
                       , node::tuple_literal
                 >;
     value_type value;
@@ -598,18 +598,18 @@ struct array_type final : public base {
     }
 };
 
-struct map_type final : public base {
+struct dict_type final : public base {
     node::qualified_type key_type;
     node::qualified_type value_type;
 
-    map_type(node::qualified_type const& key_type,
+    dict_type(node::qualified_type const& key_type,
              node::qualified_type const& value_type)
         : key_type(key_type), value_type(value_type)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "MAP_TYPE";
+        return "dict_TYPE";
     }
 };
 
@@ -658,7 +658,7 @@ struct compound_type final : public base {
     using value_type =
         boost::variant<node::array_type
                      , node::tuple_type
-                     , node::map_type
+                     , node::dict_type
                      , node::func_type
                      , node::proc_type
                      , node::primary_type>;
