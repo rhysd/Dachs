@@ -31,6 +31,8 @@ guard :shell do
       puts(separator, start.to_s)
 
       system "make -j4"
+      puts "Elapsed time: #{Time.now - start} seconds."
+
       if $?.success?
         notify "dachs: Build failed" unless $?.success?
         system "make test"
@@ -41,7 +43,6 @@ guard :shell do
         end
       end
 
-      puts "Elapsed time: #{Time.now - start} seconds."
       $?.success?
     end
   end
