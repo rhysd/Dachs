@@ -6,6 +6,7 @@ namespace dachs {
 void compiler::compile(std::string const& code)
 {
     auto ast = parser.parse(code);
+    // auto scope_tree = scope::make_scope_tree(ast);
     (void) ast;
 }
 

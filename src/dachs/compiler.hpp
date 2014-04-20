@@ -3,7 +3,9 @@
 
 #include <string>
 
+#include "dachs/ast.hpp"
 #include "dachs/parser.hpp"
+#include "dachs/scope.hpp"
 
 namespace dachs {
 
