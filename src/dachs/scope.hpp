@@ -44,7 +44,7 @@ using any_scope
                         , class_scope
                     >;
 
-using parent_scope_type
+using enclosing_scope_type
         = boost::variant< weak_global_scope
                         , weak_local_scope
                         , weak_func_scope
@@ -56,11 +56,11 @@ using parent_scope_type
 namespace scope_node {
 
 struct basic_scope {
-    scope::parent_scope_type parent_scope;
+    scope::enclosing_scope_type enclosing_scope;
 
     template<class AnyScope>
     explicit basic_scope(AnyScope const& parent)
-        : parent_scope(parent)
+        : enclosing_scope(parent)
     {}
 
     basic_scope()

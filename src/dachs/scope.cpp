@@ -13,7 +13,7 @@ namespace detail {
 // AST walker to generate a scope tree
 struct scope_tree_generator {
 
-    parent_scope_type current_scope;
+    enclosing_scope_type current_scope;
 
     global_scope visit(ast::node::program &p)
     {
