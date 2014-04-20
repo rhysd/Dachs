@@ -13,7 +13,7 @@ public:
 
     void /*TEMPORARY*/ compile(std::string const& code);
 
-    std::string print_ast(std::string const& code, bool const colorful = true);
+    std::string dump_ast(std::string const& code, bool const colorful = true);
 };
 
 } // namespace dachs

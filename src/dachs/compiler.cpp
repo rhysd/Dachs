@@ -9,7 +9,7 @@ void compiler::compile(std::string const& code)
     (void) ast;
 }
 
-std::string compiler::print_ast(std::string const& code, bool const colorful)
+std::string compiler::dump_ast(std::string const& code, bool const colorful)
 {
     auto ast = parser.parse(code);
     return helper::stringize_ast(ast, colorful);

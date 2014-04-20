@@ -23,7 +23,7 @@ int main(int const argc, char const* const argv[])
 
     dachs::compiler compiler;
     try {
-        std::cout << compiler.print_ast(code) << std::endl
+        std::cout << compiler.dump_ast(code) << std::endl
                   << c.blue("〜完〜") << std::endl;
     }
     catch (dachs::syntax::parse_error const& e) {
