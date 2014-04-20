@@ -27,38 +27,40 @@ struct basic_symbol {
 };
 
 struct var_symbol final : public basic_symbol {
-    explicit var_symbol(std::string && s)
-        : basic_symbol(std::forward<std::string>(s))
+    explicit var_symbol(std::string const& s)
+        : basic_symbol(s)
     {}
 };
 struct func_symbol final : public basic_symbol {
-    explicit func_symbol(std::string && s)
-        : basic_symbol(std::forward<std::string>(s))
+    explicit func_symbol(std::string const& s)
+        : basic_symbol(s)
     {}
 };
 struct class_symbol final : public basic_symbol {
-    explicit class_symbol(std::string && s)
-        : basic_symbol(std::forward<std::string>(s))
+    explicit class_symbol(std::string const& s)
+        : basic_symbol(s)
     {}
 };
 struct member_func_symbol final : public basic_symbol {
-    explicit member_func_symbol(std::string && s)
-        : basic_symbol(std::forward<std::string>(s))
+    explicit member_func_symbol(std::string const& s)
+        : basic_symbol(s)
     {}
 };
 struct member_var_symbol final : public basic_symbol {
-    explicit member_var_symbol(std::string && s)
-        : basic_symbol(std::forward<std::string>(s))
+    explicit member_var_symbol(std::string const& s)
+        : basic_symbol(s)
     {}
 };
 struct builtin_type_symbol final : public basic_symbol {
-    explicit builtin_type_symbol(std::string && s)
-        : basic_symbol(std::forward<std::string>(s))
+    explicit builtin_type_symbol(std::string const& s)
+        : basic_symbol(s)
     {}
 };
+
+// XXX: This class should be rewritten...
 struct template_type_symbol final : public basic_symbol {
-    explicit template_type_symbol(std::string && s)
-        : basic_symbol(std::forward<std::string>(s))
+    explicit template_type_symbol(std::string const& s)
+        : basic_symbol(s)
     {}
 };
 

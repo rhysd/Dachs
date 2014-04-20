@@ -81,8 +81,8 @@ struct func_scope final : public basic_scope {
     scope::local_scope body;
     std::vector<symbol::var_symbol> params;
     template<class P>
-    explicit func_scope(P const& p, std::string && s)
-        : basic_scope(p), symbol(symbol::make<symbol::func_symbol>(std::forward<std::string>(s)))
+    explicit func_scope(P const& p, std::string const& s)
+        : basic_scope(p), symbol(symbol::make<symbol::func_symbol>(s))
     {}
 };
 
@@ -124,9 +124,9 @@ struct class_scope final : public basic_scope {
     std::vector<scope::class_scope> inherited_class_scopes;
 
     template<class P>
-    explicit class_scope(P const& p, std::string && name)
+    explicit class_scope(P const& p, std::string const& name)
         : basic_scope(p)
-        , symbol(symbol::make<symbol::class_symbol>(std::forward<std::string>(name)))
+        , symbol(symbol::make<symbol::class_symbol>(name))
     {}
 
     void define_member_func(scope::func_scope const& new_func)
