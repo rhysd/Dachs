@@ -5,7 +5,6 @@
 #include <vector>
 #include <boost/variant/variant.hpp>
 
-#include "dachs/ast.hpp"
 #include "dachs/symbol.hpp"
 
 namespace dachs {
@@ -59,12 +58,12 @@ namespace scope_node {
 struct basic_scope {
     scope::parent_scope_type parent_scope;
 
-    explicit basic_scope(scope::parent_scope_type const& parent)
+    template<class AnyScope>
+    explicit basic_scope(AnyScope const& parent)
         : parent_scope(parent)
     {}
 
-    explicit basic_scope(scope::any_scope const& parent)
-        : parent_scope(parent)
+    basic_scope()
     {}
 
     virtual ~basic_scope()
@@ -76,6 +75,7 @@ struct local_scope final : public basic_scope {
     std::vector<symbol::var_symbol> var_symbols;
 };
 
+// TODO: I should make proc_scope? It depends on return type structure.
 struct func_scope final : public basic_scope {
     symbol::func_symbol symbol;
     scope::local_scope body;
@@ -87,13 +87,13 @@ struct func_scope final : public basic_scope {
 };
 
 struct global_scope final : public basic_scope {
-    std::vector<scope::func_scope> func_scopes;
+    std::vector<scope::func_scope> functions;
     std::vector<symbol::builtin_type_symbol> const builtin_type_symbols;
-    std::vector<symbol::var_symbol> var_symbols;
+    std::vector<symbol::var_symbol> const_symbols;
+    std::vector<scope::class_scope> classes;
 
-    template<class P>
-    explicit global_scope(P const& p)
-        : basic_scope(p)
+    global_scope()
+        : basic_scope()
         , builtin_type_symbols({
                 symbol::make<symbol::builtin_type_symbol>("int"),
                 symbol::make<symbol::builtin_type_symbol>("float"),
@@ -108,12 +108,17 @@ struct global_scope final : public basic_scope {
 
     void define_function(scope::func_scope const& new_func)
     {
-        func_scopes.push_back(new_func);
+        functions.push_back(new_func);
     }
 
-    void define_global_variable(symbol::var_symbol const& v)
+    void define_global_constant(symbol::var_symbol const& new_var)
     {
-        var_symbols.push_back(v);
+        const_symbols.push_back(new_var);
+    }
+
+    void define_class(scope::class_scope const& new_class)
+    {
+        classes.push_back(new_class);
     }
 };
 
@@ -142,10 +147,22 @@ struct class_scope final : public basic_scope {
 
 } // namespace scope_node
 
+namespace ast {
+struct ast;
+} // namespace ast
+
 namespace scope {
 
-struct scope_tree {
+struct scope_tree final {
     scope::global_scope root;
+
+    explicit scope_tree(scope::global_scope const& r)
+        : root(r)
+    {}
+
+    scope_tree()
+        : root{}
+    {}
 };
 
 scope_tree make_scope_tree(ast::ast &ast);
