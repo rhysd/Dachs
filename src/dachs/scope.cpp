@@ -13,18 +13,15 @@ namespace detail {
 // AST walker to generate a scope tree
 struct scope_tree_generator {
 
-    enclosing_scope_type current_scope;
-
     global_scope visit(ast::node::program &p)
     {
         auto this_scope = make<global_scope>();
-        current_scope = this_scope;
 
-        struct def_visitor_ : public boost::static_visitor<void>{
+        struct def_visitor_type : public boost::static_visitor<void>{
             global_scope &parent;
-            scope_tree_generator *generator;
+            scope_tree_generator &generator;
 
-            def_visitor_(global_scope &p, scope_tree_generator *g)
+            def_visitor_type(global_scope &p, scope_tree_generator &g)
                 : parent(p), generator(g)
             {}
 
@@ -53,7 +50,7 @@ struct scope_tree_generator {
 
             // TODO: get class definition
 
-        } def_visitor{this_scope, this};
+        } def_visitor{this_scope, *this};
 
         for( auto &def : p->inu ) {
             boost::apply_visitor(def_visitor, def->value);
