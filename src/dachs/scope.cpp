@@ -1,9 +1,11 @@
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
+#include <iostream>
 
 #include "dachs/scope.hpp"
 #include "dachs/ast.hpp"
 #include "dachs/symbol.hpp"
+#include "dachs/ast_walker.hpp"
 
 namespace dachs {
 namespace scope {
@@ -13,49 +15,12 @@ namespace detail {
 // AST walker to generate a scope tree
 struct scope_tree_generator {
 
-    global_scope visit(ast::node::program &p)
+    enclosing_scope_type current_scope;
+
+    template<class T>
+    void visit(T const&)
     {
-        auto this_scope = make<global_scope>();
-
-        struct def_visitor_type : public boost::static_visitor<void>{
-            global_scope &parent;
-            scope_tree_generator &generator;
-
-            def_visitor_type(global_scope &p, scope_tree_generator &g)
-                : parent(p), generator(g)
-            {}
-
-            void operator()(ast::node::function_definition &def)
-            {
-                auto func = make<func_scope>(parent, def->name->value);
-                // TODO: visit function scope by generator
-                parent->define_function(func);
-            }
-
-            void operator()(ast::node::procedure_definition &def)
-            {
-                auto proc = make<func_scope>(parent, def->name->value);
-                // TODO: visit procedure scope by generator
-                parent->define_function(proc);
-            }
-
-            void operator()(ast::node::constant_definition const& def)
-            {
-                for (auto const& const_decl : def->const_decls) {
-                    parent->define_global_constant(
-                                symbol::make<symbol::var_symbol>(const_decl->name->value)
-                            );
-                }
-            }
-
-            // TODO: get class definition
-
-        } def_visitor{this_scope, *this};
-
-        for( auto &def : p->inu ) {
-            boost::apply_visitor(def_visitor, def->value);
-        }
-        return this_scope;
+        // Do nothing as default behavior
     }
 };
 
@@ -63,7 +28,11 @@ struct scope_tree_generator {
 
 scope_tree make_scope_tree(ast::ast &a)
 {
-    return scope_tree{detail::scope_tree_generator{}.visit(a.root)};
+    global_scope tree_root;
+    detail::scope_tree_generator generator{tree_root};
+    ast::walker<detail::scope_tree_generator> walker{generator};
+    walker.walk(a.root);
+    return scope_tree{tree_root};
 }
 
 std::string dump_scope_tree(scope_tree const&)
