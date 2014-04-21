@@ -72,18 +72,35 @@ struct basic_scope {
 
 struct local_scope final : public basic_scope {
     std::vector<scope::local_scope> children;
-    std::vector<symbol::var_symbol> var_symbols;
+    std::vector<symbol::var_symbol> local_vars;
+
+    void define_child(scope::local_scope const& child)
+    {
+        children.push_back(child);
+    }
+
+    void define_local_var(symbol::var_symbol const& new_var)
+    {
+        local_vars.push_back(new_var);
+    }
 };
 
 // TODO: I should make proc_scope? It depends on return type structure.
 struct func_scope final : public basic_scope {
-    symbol::func_symbol symbol;
+    symbol::func_symbol name;
     scope::local_scope body;
     std::vector<symbol::var_symbol> params;
     template<class P>
     explicit func_scope(P const& p, std::string const& s)
-        : basic_scope(p), symbol(symbol::make<symbol::func_symbol>(s))
+        : basic_scope(p)
+        , name(symbol::make<symbol::func_symbol>(s))
+        , body(scope::make<scope::local_scope>())
     {}
+
+    void define_param(symbol::var_symbol const& new_var)
+    {
+        params.push_back(new_var);
+    }
 };
 
 struct global_scope final : public basic_scope {
