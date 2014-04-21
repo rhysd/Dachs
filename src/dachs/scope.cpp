@@ -23,33 +23,25 @@ struct scope_tree_generator {
 
     void visit(ast::node::constant_definition const& const_def)
     {
-        /*
-         * XXX:
-         * Below code causes SEGV because shared_ptr's ownership overs.
-         */
-        // auto maybe_global_scope = get<scope::global_scope>(current_scope);
-        // assert(maybe_global_scope);
-        // auto& global_scope = *maybe_global_scope;
-        // for (auto const& decl : const_def->const_decls) {
-        //     auto var = symbol::make<symbol::var_symbol>(decl->name->value);
-        //     // TODO add symbol to AST node
-        //     global_scope->define_global_constant(var);
-        // }
+        auto maybe_global_scope = get<scope::global_scope>(current_scope);
+        assert(maybe_global_scope);
+        auto& global_scope = *maybe_global_scope;
+        for (auto const& decl : const_def->const_decls) {
+            auto var = symbol::make<symbol::var_symbol>(decl->name->value);
+            // TODO add symbol to AST node
+            global_scope->define_global_constant(var);
+        }
     }
 
     void visit(ast::node::function_definition const& func_def)
     {
-        /*
-         * XXX:
-         * Below code causes SEGV because shared_ptr's ownership overs.
-         */
-        // auto maybe_global_scope = get<scope::global_scope>(current_scope);
-        // assert(maybe_global_scope);
-        // auto& global_scope = *maybe_global_scope;
-        // assert(global_scope);
-        // auto new_func = make<func_scope>(global_scope, func_def->name->value);
-        // // TODO add scope to AST node?
-        // global_scope->define_function(new_func);
+        auto maybe_global_scope = get<scope::global_scope>(current_scope);
+        assert(maybe_global_scope);
+        auto& global_scope = *maybe_global_scope;
+        assert(global_scope);
+        auto new_func = make<func_scope>(global_scope, func_def->name->value);
+        // TODO add scope to AST node?
+        global_scope->define_function(new_func);
     }
 
     template<class T>
@@ -63,7 +55,7 @@ struct scope_tree_generator {
 
 scope_tree make_scope_tree(ast::ast &a)
 {
-    global_scope tree_root;
+    auto tree_root = make<global_scope>();
     detail::scope_tree_generator generator{tree_root};
     ast::walker<detail::scope_tree_generator> walker{generator};
     walker.walk(a.root);
