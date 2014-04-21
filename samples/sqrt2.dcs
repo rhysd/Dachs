@@ -13,6 +13,6 @@ func sqrt(x)
     return sqrt'(0.0, x, x)
 end
 
-func main()
+func main
     println(sqrt(10.0))
 end

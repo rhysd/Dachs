@@ -7,7 +7,7 @@ func fizzbuzz(n)
     end
 end
 
-func main()
+func main
     for i in 1..100
         print(fizzbuzz + '\n')
     end
