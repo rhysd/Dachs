@@ -17,41 +17,64 @@ namespace detail {
 using dachs::helper::variant::get;
 
 // Walk to generate a scope tree
-struct scope_tree_generator {
+class scope_tree_generator {
 
     any_scope current_scope;
 
-    template<class F>
-    void visit(ast::node::constant_definition const& const_def, F const& walk_recursive)
+    // Introduce a new scope and ensure to restore the old scope
+    // after the visit process
+    template<class Scope, class Walker>
+    void with_new_scope(Scope && new_scope, Walker const& f)
+    {
+        auto const tmp_scope = current_scope;
+        current_scope = new_scope;
+        f();
+        current_scope = tmp_scope;
+    }
+
+public:
+
+    explicit scope_tree_generator(any_scope const& s)
+        : current_scope(s)
+    {}
+
+    template<class Walker>
+    void visit(ast::node::constant_definition const& const_def, Walker const& recursive_walker)
     {
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
         for (auto const& decl : const_def->const_decls) {
             auto var = symbol::make<symbol::var_symbol>(decl->name->value);
-            // TODO add symbol to AST node
             global_scope->define_global_constant(var);
         }
-        walk_recursive();
+        recursive_walker(); // Note: walk recursively for lambda expression(it doesn't exist yet)
     }
 
-    template<class F>
-    void visit(ast::node::function_definition const& func_def, F const& walk_recursive)
+    template<class Walker>
+    void visit(ast::node::function_definition const& func_def, Walker const& recursive_walker)
     {
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
-        assert(global_scope);
         auto new_func = make<func_scope>(global_scope, func_def->name->value);
-        // TODO add scope to AST node?
         global_scope->define_function(new_func);
-        current_scope = new_func;
-        walk_recursive();
-        current_scope = global_scope; // restore scope
+        with_new_scope(std::move(new_func), recursive_walker);
     }
 
-    template<class T, class F>
-    void visit(T const&, F const& f)
+    template<class Walker>
+    void visit(ast::node::procedure_definition const& proc_def, Walker const& recursive_walker)
+    {
+        auto maybe_global_scope = get<scope::global_scope>(current_scope);
+        assert(maybe_global_scope);
+        auto& global_scope = *maybe_global_scope;
+        auto new_proc = make<func_scope>(global_scope, proc_def->name->value);
+        global_scope->define_function(new_proc);
+        with_new_scope(std::move(new_proc), recursive_walker);
+    }
+
+    template<class T, class Walker>
+    void visit(T const&, Walker const& f)
     {
         // simply visit children recursively
         f();
