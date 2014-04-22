@@ -33,6 +33,12 @@ struct ast_walker_variant_visitor
 
 } // namespace detail
 
+// Note:
+// A walker can have some callbacks.
+// I can implement them when needed.
+//   - initialize() : will be called at the beginning of visiting AST node
+//   - finalize()   : will be called at the end of visiting AST node
+
 template<class Visitor>
 class walker {
 
@@ -78,14 +84,6 @@ class walker {
         walk_vector(e->rhss);
     }
 
-    // Execute callbacks
-    template<class Node, class Func>
-    void body(Node const& n, Func && f)
-    {
-        visitor.visit(n);
-        f();
-    }
-
 public:
 
     explicit walker(Visitor &v)
@@ -94,21 +92,21 @@ public:
 
     void walk(node::array_literal &al)
     {
-        body(al, [&]{
+        visitor.visit(al, [&]{
             walk_vector(al->element_exprs);
         });
     }
 
     void walk(node::tuple_literal &tl)
     {
-        body(tl, [&]{
+        visitor.visit(tl, [&]{
             walk_vector(tl->element_exprs);
         });
     }
 
     void walk(node::dict_literal &dl)
     {
-        body(dl, [&]{
+        visitor.visit(dl, [&]{
             for (auto &p : dl->value) {
                 walk_pair(p);
             }
@@ -117,21 +115,21 @@ public:
 
     void walk(node::literal &l)
     {
-        body(l, [&]{
+        visitor.visit(l, [&]{
             boost::apply_visitor(variant_visitor, l->value);
         });
     }
 
     void walk(node::var_ref &vr)
     {
-        body(vr, [&]{
+        visitor.visit(vr, [&]{
             walk(vr->name);
         });
     }
 
     void walk(node::parameter &p)
     {
-        body(p, [&]{
+        visitor.visit(p, [&]{
             walk(p->name);
             walk_optional(p->type);
         });
@@ -139,14 +137,14 @@ public:
 
     void walk(node::function_call &fc)
     {
-        body(fc, [&]{
+        visitor.visit(fc, [&]{
             walk_vector(fc->args);
         });
     }
 
     void walk(node::object_construct &oc)
     {
-        body(oc, [&]{
+        visitor.visit(oc, [&]{
             walk(oc->type);
             walk_vector(oc->args);
         });
@@ -154,28 +152,28 @@ public:
 
     void walk(node::primary_expr &pe)
     {
-        body(pe, [&]{
+        visitor.visit(pe, [&]{
             boost::apply_visitor(variant_visitor, pe->value);
         });
     }
 
     void walk(node::index_access &ia)
     {
-        body(ia, [&]{
+        visitor.visit(ia, [&]{
             walk(ia->index_expr);
         });
     }
 
     void walk(node::member_access &ma)
     {
-        body(ma, [&]{
+        visitor.visit(ma, [&]{
             walk(ma->member_name);
         });
     }
 
     void walk(node::postfix_expr &ue)
     {
-        body(ue, [&]{
+        visitor.visit(ue, [&]{
             walk(ue->prefix);
             for (auto &p : ue->postfixes) {
                 boost::apply_visitor(variant_visitor, p);
@@ -185,14 +183,14 @@ public:
 
     void walk(node::unary_expr &ue)
     {
-        body(ue, [&]{
+        visitor.visit(ue, [&]{
             walk(ue->expr);
         });
     }
 
     void walk(node::template_type &tt)
     {
-        body(tt, [&]{
+        visitor.visit(tt, [&]{
             walk(tt->template_name);
             if (tt->instantiated_types) {
                 walk_vector(*(tt->instantiated_types));
@@ -202,21 +200,21 @@ public:
 
     void walk(node::primary_type &pt)
     {
-        body(pt, [&]{
+        visitor.visit(pt, [&]{
             boost::apply_visitor(variant_visitor, pt->value);
         });
     }
 
     void walk(node::array_type &at)
     {
-        body(at, [&]{
+        visitor.visit(at, [&]{
             walk(at->elem_type);
         });
     }
 
     void walk(node::dict_type &dt)
     {
-        body(dt, [&]{
+        visitor.visit(dt, [&]{
             walk(dt->key_type);
             walk(dt->value_type);
         });
@@ -224,14 +222,14 @@ public:
 
     void walk(node::tuple_type &tt)
     {
-        body(tt, [&]{
+        visitor.visit(tt, [&]{
             walk_vector(tt->arg_types);
         });
     }
 
     void walk(node::func_type &ft)
     {
-        body(ft, [&]{
+        visitor.visit(ft, [&]{
             walk_vector(ft->arg_types);
             walk(ft->ret_type);
         });
@@ -239,28 +237,28 @@ public:
 
     void walk(node::proc_type &pt)
     {
-        body(pt, [&]{
+        visitor.visit(pt, [&]{
             walk_vector(pt->arg_types);
         });
     }
 
     void walk(node::compound_type &ct)
     {
-        body(ct, [&]{
+        visitor.visit(ct, [&]{
             boost::apply_visitor(variant_visitor, ct->value);
         });
     }
 
     void walk(node::qualified_type &qt)
     {
-        body(qt, [&]{
+        visitor.visit(qt, [&]{
             walk(qt->type);
         });
     }
 
     void walk(node::cast_expr &ce)
     {
-        body(ce, [&]{
+        visitor.visit(ce, [&]{
             walk_vector(ce->dest_types);
             walk(ce->source_expr);
         });
@@ -268,77 +266,77 @@ public:
 
     void walk(node::mult_expr &e)
     {
-        body(e, [&]{
+        visitor.visit(e, [&]{
             walk_mult_binary_expr(e);
         });
     }
 
     void walk(node::additive_expr &e)
     {
-        body(e, [&]{
+        visitor.visit(e, [&]{
             walk_mult_binary_expr(e);
         });
     }
 
     void walk(node::shift_expr &e)
     {
-        body(e, [&]{
+        visitor.visit(e, [&]{
             walk_mult_binary_expr(e);
         });
     }
 
     void walk(node::relational_expr &e)
     {
-        body(e, [&]{
+        visitor.visit(e, [&]{
             walk_mult_binary_expr(e);
         });
     }
 
     void walk(node::equality_expr &e)
     {
-        body(e, [&]{
+        visitor.visit(e, [&]{
             walk_mult_binary_expr(e);
         });
     }
 
     void walk(node::and_expr &e)
     {
-        body(e, [&]{
+        visitor.visit(e, [&]{
             walk_binary_expr(e);
         });
     }
 
     void walk(node::xor_expr &e)
     {
-        body(e, [&]{
+        visitor.visit(e, [&]{
             walk_binary_expr(e);
         });
     }
 
     void walk(node::or_expr &e)
     {
-        body(e, [&]{
+        visitor.visit(e, [&]{
             walk_binary_expr(e);
         });
     }
 
     void walk(node::logical_and_expr &e)
     {
-        body(e, [&]{
+        visitor.visit(e, [&]{
             walk_binary_expr(e);
         });
     }
 
     void walk(node::logical_or_expr &e)
     {
-        body(e, [&]{
+        visitor.visit(e, [&]{
             walk_binary_expr(e);
         });
     }
 
     void walk(node::if_expr &ie)
     {
-        body(ie, [&]{
+        visitor.visit(ie, [&]{
             walk(ie->condition_expr);
             walk(ie->then_expr);
             walk(ie->else_expr);
@@ -347,7 +345,7 @@ public:
 
     void walk(node::range_expr &re)
     {
-        body(re, [&]{
+        visitor.visit(re, [&]{
             walk(re->lhs);
             if (re->maybe_rhs) {
                 walk(re->maybe_rhs->second);
@@ -357,7 +355,7 @@ public:
 
     void walk(node::compound_expr &ce)
     {
-        body(ce, [&]{
+        visitor.visit(ce, [&]{
             boost::apply_visitor(variant_visitor, ce->child_expr);
             walk_optional(ce->maybe_type);
         });
@@ -365,7 +363,7 @@ public:
 
     void walk(node::variable_decl &vd)
     {
-        body(vd, [&]{
+        visitor.visit(vd, [&]{
             walk(vd->name);
             walk_optional(vd->maybe_type);
         });
@@ -373,7 +371,7 @@ public:
 
     void walk(node::initialize_stmt &is)
     {
-        body(is, [&]{
+        visitor.visit(is, [&]{
             walk_vector(is->var_decls);
             if (is->maybe_rhs_exprs) {
                 walk_vector(*(is->maybe_rhs_exprs));
@@ -383,7 +381,7 @@ public:
 
     void walk(node::assignment_stmt &as)
     {
-        body(as, [&]{
+        visitor.visit(as, [&]{
             walk_vector(as->assignees);
             walk_vector(as->rhs_exprs);
         });
@@ -391,7 +389,7 @@ public:
 
     void walk(node::if_stmt &is)
     {
-        body(is, [&]{
+        visitor.visit(is, [&]{
             walk(is->condition);
             walk(is->then_stmts);
             for (auto &p : is->elseif_stmts_list) {
@@ -403,14 +401,14 @@ public:
 
     void walk(node::return_stmt &rs)
     {
-        body(rs, [&]{
+        visitor.visit(rs, [&]{
             walk_vector(rs->ret_exprs);
         });
     }
 
     void walk(node::case_stmt &cs)
     {
-        body(cs, [&]{
+        visitor.visit(cs, [&]{
             for (auto &p : cs->when_stmts_list) {
                 walk_pair(p);
             }
@@ -420,7 +418,7 @@ public:
 
     void walk(node::switch_stmt &ss)
     {
-        body(ss, [&]{
+        visitor.visit(ss, [&]{
             walk(ss->target_expr);
             for (auto &p : ss->when_stmts_list) {
                 walk_vector(p.first);
@@ -432,7 +430,7 @@ public:
 
     void walk(node::for_stmt &fs)
     {
-        body(fs, [&]{
+        visitor.visit(fs, [&]{
             walk_vector(fs->iter_vars);
             walk(fs->range_expr);
             walk(fs->body_stmts);
@@ -441,7 +439,7 @@ public:
 
     void walk(node::while_stmt &ws)
     {
-        body(ws, [&]{
+        visitor.visit(ws, [&]{
             walk(ws->condition);
             walk(ws->body_stmts);
         });
@@ -449,7 +447,7 @@ public:
 
     void walk(node::postfix_if_stmt &pif)
     {
-        body(pif, [&]{
+        visitor.visit(pif, [&]{
             boost::apply_visitor(variant_visitor, pif->body);
             walk(pif->condition);
         });
@@ -457,21 +455,21 @@ public:
 
     void walk(node::compound_stmt &cs)
     {
-        body(cs, [&]{
+        visitor.visit(cs, [&]{
             boost::apply_visitor(variant_visitor, cs->value);
         });
     }
 
     void walk(node::statement_block &sb)
     {
-        body(sb, [&]{
+        visitor.visit(sb, [&]{
             walk_vector(sb->value);
         });
     }
 
     void walk(node::function_definition &fd)
     {
-        body(fd, [&]{
+        visitor.visit(fd, [&]{
             walk(fd->name);
             for (auto &p : fd->params) {
                 walk(p);
@@ -484,7 +482,7 @@ public:
 
     void walk(node::procedure_definition &pd)
     {
-        body(pd, [&]{
+        visitor.visit(pd, [&]{
             walk(pd->name);
             for (auto &p : pd->params) {
                 walk(p);
@@ -496,7 +494,7 @@ public:
 
     void walk(node::constant_decl &cd)
     {
-        body(cd, [&]{
+        visitor.visit(cd, [&]{
             walk(cd->name);
             walk_optional(cd->maybe_type);
         });
@@ -504,7 +502,7 @@ public:
 
     void walk(node::constant_definition &cd)
     {
-        body(cd, [&]{
+        visitor.visit(cd, [&]{
             walk_vector(cd->const_decls);
             walk_vector(cd->initializers);
         });
@@ -512,14 +510,14 @@ public:
 
     void walk(node::global_definition &gd)
     {
-        body(gd, [&]{
+        visitor.visit(gd, [&]{
             boost::apply_visitor(variant_visitor, gd->value);
         });
     }
 
     void walk(node::program &p)
     {
-        body(p, [&]{
+        visitor.visit(p, [&]{
             walk_vector(p->inu);
         });
     }
@@ -527,10 +525,16 @@ public:
     template<class Terminal>
     void walk(std::shared_ptr<Terminal> const& p)
     {
-        body(p, [&]{});
+        visitor.visit(p, [&]{});
     }
 
 };
+
+template<class Visitor>
+inline auto make_walker(Visitor &v)
+{
+    return walker<Visitor>{v};
+}
 
 } // namespace ast
 
