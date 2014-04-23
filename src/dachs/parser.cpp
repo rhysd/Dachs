@@ -866,7 +866,7 @@ public:
         );
         // }}}
 
-        // Rule names
+        // Rule names {{{
         program.name("program");
         literal.name("literal");
         integer_literal.name("integer literal");
@@ -939,7 +939,7 @@ public:
         type_name.name("type name");
         func_precondition.name("precondition in function");
         postfix_if_return_stmt.name("return statement in postfix if statement");
-
+        // }}}
     }
 
     ~grammar()

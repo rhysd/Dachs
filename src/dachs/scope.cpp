@@ -41,12 +41,14 @@ public:
     template<class Walker>
     void visit(ast::node::statement_block const& /*block*/, Walker const& recursive_walker)
     {
-        auto new_local_scope = make<local_scope>();
+        // TODO add symbols
+        auto new_local_scope = make<local_scope>(current_scope);
         if (auto maybe_local_scope = get<local_scope>(current_scope)) {
             auto &enclosing_scope = *maybe_local_scope;
             enclosing_scope->define_child(new_local_scope);
         } else if (auto maybe_func_scope = get<func_scope>(current_scope)) {
-            // Local scope for functions is already defined in ctor of func_scope class
+            auto &enclosing_scope = *maybe_func_scope;
+            enclosing_scope->body = new_local_scope;
         } else {
             assert(false); // Should not reach here
         }
@@ -72,7 +74,8 @@ public:
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
-        auto new_func = make<func_scope>(global_scope, func_def->name->value);
+        auto const func_name = symbol::make<symbol::func_symbol>(func_def->name->value);
+        auto new_func = make<func_scope>(global_scope, func_name);
         global_scope->define_function(new_func);
         with_new_scope(std::move(new_func), recursive_walker);
     }
@@ -83,7 +86,8 @@ public:
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
-        auto new_proc = make<func_scope>(global_scope, proc_def->name->value);
+        auto const proc_name = symbol::make<symbol::func_symbol>(proc_def->name->value);
+        auto new_proc = make<func_scope>(global_scope, proc_name);
         global_scope->define_function(new_proc);
         with_new_scope(std::move(new_proc), recursive_walker);
     }
@@ -105,11 +109,6 @@ scope_tree make_scope_tree(ast::ast &a)
     auto walker = ast::make_walker(generator);
     walker.walk(a.root);
     return scope_tree{tree_root};
-}
-
-std::string dump_scope_tree(scope_tree const&)
-{
-    return ""; // TODO
 }
 
 } // namespace scope

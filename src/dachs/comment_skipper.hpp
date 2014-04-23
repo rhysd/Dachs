@@ -17,7 +17,9 @@ public:
     {
         comment
             = ascii::blank
-            | ('#' >> *(qi::char_ - qi::eol - '#') >> -(qi::lit('#')));
+            | ('#' >> *(
+                "\\#" | (qi::char_ - qi::eol - '#')
+            ) >> -(qi::lit('#')));
     }
 private:
     qi::rule<Iterator> comment;

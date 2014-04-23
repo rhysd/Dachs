@@ -74,6 +74,11 @@ struct local_scope final : public basic_scope {
     std::vector<scope::local_scope> children;
     std::vector<symbol::var_symbol> local_vars;
 
+    template<class AnyScope>
+    explicit local_scope(AnyScope const& enclosing)
+        : basic_scope(enclosing)
+    {}
+
     void define_child(scope::local_scope const& child)
     {
         children.push_back(child);
@@ -90,11 +95,11 @@ struct func_scope final : public basic_scope {
     symbol::func_symbol name;
     scope::local_scope body;
     std::vector<symbol::var_symbol> params;
+
     template<class P>
-    explicit func_scope(P const& p, std::string const& s)
+    explicit func_scope(P const& p, symbol::func_symbol const& s)
         : basic_scope(p)
-        , name(symbol::make<symbol::func_symbol>(s))
-        , body(scope::make<scope::local_scope>())
+        , name(s)
     {}
 
     void define_param(symbol::var_symbol const& new_var)
@@ -114,9 +119,9 @@ struct global_scope final : public basic_scope {
         , builtin_type_symbols({
                 symbol::make<symbol::builtin_type_symbol>("int"),
                 symbol::make<symbol::builtin_type_symbol>("float"),
-                symbol::make<symbol::builtin_type_symbol>("fhar"),
-                symbol::make<symbol::builtin_type_symbol>("ftring"),
-                symbol::make<symbol::builtin_type_symbol>("fymbol"),
+                symbol::make<symbol::builtin_type_symbol>("char"),
+                symbol::make<symbol::builtin_type_symbol>("string"),
+                symbol::make<symbol::builtin_type_symbol>("symbol"),
             // {"dict"}
             // {"array"}
             // {"tuple"}
@@ -146,9 +151,9 @@ struct class_scope final : public basic_scope {
     std::vector<scope::class_scope> inherited_class_scopes;
 
     template<class P>
-    explicit class_scope(P const& p, std::string const& name)
+    explicit class_scope(P const& p, symbol::class_symbol const& name)
         : basic_scope(p)
-        , symbol(symbol::make<symbol::class_symbol>(name))
+        , symbol(name)
     {}
 
     void define_member_func(scope::func_scope const& new_func)
@@ -183,8 +188,6 @@ struct scope_tree final {
 };
 
 scope_tree make_scope_tree(ast::ast &ast);
-
-std::string dump_scope_tree(scope_tree const& tree);
 
 } // namespace scope
 } // namespace dachs

@@ -16,6 +16,7 @@ public:
     void /*TEMPORARY*/ compile(std::string const& code);
 
     std::string dump_ast(std::string const& code, bool const colorful = true);
+    std::string dump_scopes(std::string const& code);
 };
 
 } // namespace dachs

@@ -24,6 +24,7 @@ BOOST_AUTO_TEST_CASE(comment)
     BOOST_CHECK_NO_THROW(p.parse(R"(
             # line comment
             # block comment #
+            # escapable \# hoge huga
 
             #
             # main function
