@@ -56,19 +56,6 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::constant_definition const& const_def, Walker const& recursive_walker)
-    {
-        auto maybe_global_scope = get<scope::global_scope>(current_scope);
-        assert(maybe_global_scope);
-        auto& global_scope = *maybe_global_scope;
-        for (auto const& decl : const_def->const_decls) {
-            auto var = symbol::make<symbol::var_symbol>(decl->name->value);
-            global_scope->define_global_constant(var);
-        }
-        recursive_walker(); // Note: walk recursively for lambda expression(it doesn't exist yet)
-    }
-
-    template<class Walker>
     void visit(ast::node::function_definition const& func_def, Walker const& recursive_walker)
     {
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
@@ -91,6 +78,48 @@ public:
         global_scope->define_function(new_proc);
         with_new_scope(std::move(new_proc), recursive_walker);
     }
+
+    template<class Walker>
+    void visit(ast::node::constant_definition const& const_def, Walker const& recursive_walker)
+    {
+        auto maybe_global_scope = get<scope::global_scope>(current_scope);
+        assert(maybe_global_scope);
+        auto& global_scope = *maybe_global_scope;
+        for (auto const& decl : const_def->const_decls) {
+            auto var = symbol::make<symbol::var_symbol>(decl->name->value);
+            global_scope->define_global_constant(var);
+        }
+        recursive_walker(); // Note: walk recursively for lambda expression(it doesn't exist yet)
+    }
+
+    template<class Walker>
+    void visit(ast::node::parameter const& param, Walker const& recursive_walker)
+    {
+        auto new_param = symbol::make<symbol::var_symbol>(param->name->value);
+        if (auto maybe_func = get<func_scope>(current_scope)) {
+            auto& func = *maybe_func;
+            func->define_param(new_param);
+        } else if (auto maybe_local = get<local_scope>(current_scope)) {
+            // When for statement
+            auto& local = *maybe_local;
+            local->define_local_var(new_param);
+        } else {
+            assert(false);
+        }
+        recursive_walker();
+    }
+
+    template<class Walker>
+    void visit(ast::node::variable_decl const& decl, Walker const& recursive_walker)
+    {
+        auto maybe_local = get<local_scope>(current_scope);
+        assert(maybe_local);
+        auto& local = *maybe_local;
+        auto new_var = symbol::make<symbol::var_symbol>(decl->name->value);
+        local->define_local_var(new_var);
+    }
+
+    // TODO: class scope and member function scope
 
     template<class T, class Walker>
     void visit(T const&, Walker const& f)
