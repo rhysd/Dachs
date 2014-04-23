@@ -9,6 +9,9 @@
 #include <boost/variant/variant.hpp>
 #include <boost/optional.hpp>
 
+#include "scope_fwd.hpp"
+#include "symbol.hpp"
+
 namespace dachs {
 namespace ast {
 namespace symbol {
@@ -438,6 +441,7 @@ struct parameter final : public base {
     bool is_var;
     node::identifier name;
     boost::optional<node::qualified_type> type;
+    dachs::symbol::weak_var_symbol symbol;
 
     parameter(bool const v, node::identifier const& n, decltype(type) const& t)
         : base(), is_var(v), name(n), type(t)
@@ -889,6 +893,7 @@ struct variable_decl final : public base {
     bool is_var;
     node::identifier name;
     boost::optional<node::qualified_type> maybe_type;
+    dachs::symbol::weak_var_symbol symbol;
 
     variable_decl(bool const var,
                   node::identifier const& name,
@@ -1100,6 +1105,7 @@ struct statement_block final : public base {
         = std::vector<node::compound_stmt>;
 
     block_type value;
+    scope::weak_local_scope scope;
 
     explicit statement_block(block_type const& v)
         : value(v)
@@ -1121,6 +1127,7 @@ struct function_definition final : public statement {
     boost::optional<node::qualified_type> return_type;
     node::statement_block body;
     boost::optional<node::statement_block> ensure_body;
+    scope::weak_func_scope scope;
 
     function_definition(node::identifier const& n
                       , decltype(params) const& p
@@ -1141,6 +1148,7 @@ struct procedure_definition final : public statement {
     std::vector<node::parameter> params;
     node::statement_block body;
     boost::optional<node::statement_block> ensure_body;
+    scope::weak_func_scope scope;
 
     procedure_definition(node::identifier const& n
                       , decltype(params) const& p
@@ -1158,6 +1166,7 @@ struct procedure_definition final : public statement {
 struct constant_decl final : public base {
     node::identifier name;
     boost::optional<node::qualified_type> maybe_type;
+    dachs::symbol::weak_var_symbol symbol;
 
     constant_decl(node::identifier const& name,
                   decltype(maybe_type) const& type)

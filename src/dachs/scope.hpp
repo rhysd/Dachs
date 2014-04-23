@@ -1,10 +1,10 @@
 #if !defined DACHS_SCOPE_HPP_INCLUDED
 #define      DACHS_SCOPE_HPP_INCLUDED
 
-#include <memory>
 #include <vector>
 #include <boost/variant/variant.hpp>
 
+#include "scope_fwd.hpp"
 #include "dachs/symbol.hpp"
 
 namespace dachs {
@@ -21,15 +21,6 @@ struct class_scope;
 
 // Dynamic resources to use actually
 namespace scope {
-
-#define DACHS_DEFINE_SCOPE(s) \
-   using s = std::shared_ptr<scope_node::s>; \
-   using weak_##s = std::weak_ptr<scope_node::s>
-DACHS_DEFINE_SCOPE(global_scope);
-DACHS_DEFINE_SCOPE(local_scope);
-DACHS_DEFINE_SCOPE(func_scope);
-DACHS_DEFINE_SCOPE(class_scope);
-#undef DACHS_DEFINE_SCOPE
 
 template<class Scope, class... Args>
 inline Scope make(Args &&... args)

@@ -69,7 +69,8 @@ struct template_type_symbol final : public basic_symbol {
 namespace symbol {
 
 #define DACHS_DEFINE_SYMBOL(n) \
-   using n = std::shared_ptr<symbol_node::n>
+   using n = std::shared_ptr<symbol_node::n>; \
+   using weak_##n = std::weak_ptr<symbol_node::n>
 DACHS_DEFINE_SYMBOL(var_symbol);
 DACHS_DEFINE_SYMBOL(func_symbol);
 DACHS_DEFINE_SYMBOL(class_symbol);
