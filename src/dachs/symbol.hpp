@@ -3,6 +3,8 @@
 
 #include <memory>
 
+#include "type.hpp"
+
 namespace dachs {
 namespace symbol_node {
 
