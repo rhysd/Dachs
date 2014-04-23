@@ -39,6 +39,21 @@ public:
     {}
 
     template<class Walker>
+    void visit(ast::node::statement_block const& /*block*/, Walker const& recursive_walker)
+    {
+        auto new_local_scope = make<local_scope>();
+        if (auto maybe_local_scope = get<local_scope>(current_scope)) {
+            auto &enclosing_scope = *maybe_local_scope;
+            enclosing_scope->define_child(new_local_scope);
+        } else if (auto maybe_func_scope = get<func_scope>(current_scope)) {
+            // Local scope for functions is already defined in ctor of func_scope class
+        } else {
+            assert(false); // Should not reach here
+        }
+        with_new_scope(std::move(new_local_scope), recursive_walker);
+    }
+
+    template<class Walker>
     void visit(ast::node::constant_definition const& const_def, Walker const& recursive_walker)
     {
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
