@@ -926,19 +926,19 @@ public:
         constant_decl.name("constant declaration");
         constant_definition.name("constant definition");
         global_definition.name("global definition");
-        sep("separater");
-        constructor_call("constructor call");
-        function_param_decls("parameter declarations of function");
-        stmt_block_before_end("statements block before 'end'");
-        if_then_stmt_block("'then' clause in if statement");
-        if_else_stmt_block("'else' clause in if statement");
-        case_when_stmt_block("'when' clause in case statement");
-        func_body_stmt_block("statements in body of function");
-        function_name("function name");
-        variable_name("variable name");
-        type_name("type name");
-        func_precondition("precondition in function");
-        postfix_if_return_stmt("return statement in postfix if statement");
+        sep.name("separater");
+        constructor_call.name("constructor call");
+        function_param_decls.name("parameter declarations of function");
+        stmt_block_before_end.name("statements block before 'end'");
+        if_then_stmt_block.name("'then' clause in if statement");
+        if_else_stmt_block.name("'else' clause in if statement");
+        case_when_stmt_block.name("'when' clause in case statement");
+        func_body_stmt_block.name("statements in body of function");
+        function_name.name("function name");
+        variable_name.name("variable name");
+        type_name.name("type name");
+        func_precondition.name("precondition in function");
+        postfix_if_return_stmt.name("return statement in postfix if statement");
 
     }
 
