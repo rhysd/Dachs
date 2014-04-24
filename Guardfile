@@ -26,25 +26,25 @@ end
 
 guard :shell do
   watch %r{(^.+\.(?:hpp|cpp))$} do |m|
-    unless m[0] =~ /marching_complete_temp\.cpp$/
-      start = Time.now
-      puts(separator, start.to_s)
+    start = Time.now
+    puts separator, start.to_s
+    system "make -j4"
+    puts "Elapsed time: #{Time.now - start} seconds."
 
-      system "make -j4"
-      puts "Elapsed time: #{Time.now - start} seconds."
-
-      if $?.success?
-        notify "dachs: Build failed" unless $?.success?
-        system "make test"
-        unless $?.success?
-          notify "dachs: Test failed" unless $?.success?
+    if $?.success?
+      system "make test"
+      unless $?.success?
+        notify "dachs: Test failed"
+        if File.exists? "Testing/Temporary/LastTest.log"
           puts "---------------LOG-----------------"
-          system "cat Testing/Temporary/LastTest.log" if File.exists? "Testing/Temporary/LastTest.log"
+          system "cat Testing/Temporary/LastTest.log" 
         end
       end
-
-      $?.success?
+    else
+      notify "dachs: Build failed" unless $?.success?
     end
+
+    $?.success?
   end
 
   watch /CMakeLists.txt/ do |m|
