@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <cassert>
+
 #include <boost/variant/variant.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/algorithm/string/join.hpp>
@@ -61,6 +62,13 @@ using any_type
 
 using type = any_type ; // For external use
 
+template<class Type, class... Args>
+inline Type make(Args &&... args)
+{
+    return std::make_shared<typename Type::element_type>(std::forward<Args>(args)...);
+}
+
+// Considering about the ability to add more qualifiers
 enum class qualifier {
     maybe,
 };

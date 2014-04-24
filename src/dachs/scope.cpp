@@ -17,7 +17,7 @@ namespace detail {
 using dachs::helper::variant::get;
 
 // Walk to generate a scope tree
-class scope_tree_generator {
+class scope_analyzer {
 
     any_scope current_scope;
 
@@ -34,7 +34,7 @@ class scope_tree_generator {
 
 public:
 
-    explicit scope_tree_generator(any_scope const& s)
+    explicit scope_analyzer(any_scope const& s)
         : current_scope(s)
     {}
 
@@ -136,8 +136,8 @@ public:
 scope_tree make_scope_tree(ast::ast &a)
 {
     auto tree_root = make<global_scope>();
-    detail::scope_tree_generator generator{tree_root};
-    auto walker = ast::make_walker(generator);
+    detail::scope_analyzer analyzer{tree_root};
+    auto walker = ast::make_walker(analyzer);
     walker.walk(a.root);
     return scope_tree{tree_root};
 }
