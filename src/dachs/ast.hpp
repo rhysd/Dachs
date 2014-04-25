@@ -96,7 +96,7 @@ std::string to_string(range_kind const o);
 
 namespace node_type {
 
-std::size_t generate_id();
+std::size_t generate_id() noexcept;
 
 // Forward class declarations
 struct integer_literal;
@@ -234,11 +234,11 @@ DACHS_DEFINE_NODE_PTR(program);
 namespace node_type {
 
 struct base {
-    base()
+    base() noexcept
         : id(generate_id())
     {}
 
-    virtual ~base()
+    virtual ~base() noexcept
     {}
 
     virtual std::string to_string() const noexcept = 0;
@@ -249,19 +249,19 @@ struct base {
 
 struct expression : public base {
     // Type type;
-    virtual ~expression()
+    virtual ~expression() noexcept
     {}
 };
 
 struct statement : public base {
-    virtual ~statement()
+    virtual ~statement() noexcept
     {}
 };
 
 struct character_literal final : public expression {
     char value;
 
-    explicit character_literal(char const c)
+    explicit character_literal(char const c) noexcept
         : expression(), value(c)
     {}
 
@@ -281,7 +281,7 @@ struct character_literal final : public expression {
 struct float_literal final : public expression {
     double value;
 
-    explicit float_literal(double const d)
+    explicit float_literal(double const d) noexcept
         : expression(), value(d)
     {}
 
@@ -294,7 +294,7 @@ struct float_literal final : public expression {
 struct boolean_literal final : public expression {
     bool value;
 
-    explicit boolean_literal(bool const b)
+    explicit boolean_literal(bool const b) noexcept
         : expression(), value(b)
     {}
 
@@ -307,7 +307,7 @@ struct boolean_literal final : public expression {
 struct string_literal final : public expression {
     std::string value;
 
-    explicit string_literal(std::string const& s)
+    explicit string_literal(std::string const& s) noexcept
         : expression(), value(s)
     {}
 
@@ -320,7 +320,7 @@ struct integer_literal final : public expression {
     > value;
 
     template<class T>
-    explicit integer_literal(T && v)
+    explicit integer_literal(T && v) noexcept
         : expression(), value(std::forward<T>(v))
     {}
 
@@ -330,7 +330,7 @@ struct integer_literal final : public expression {
 struct array_literal final : public expression {
     std::vector<node::compound_expr> element_exprs;
 
-    explicit array_literal(std::vector<node::compound_expr> const& elems)
+    explicit array_literal(std::vector<node::compound_expr> const& elems) noexcept
         : expression(), element_exprs(elems)
     {}
 
@@ -343,7 +343,7 @@ struct array_literal final : public expression {
 struct tuple_literal final : public expression {
     std::vector<node::compound_expr> element_exprs;
 
-    explicit tuple_literal(decltype(element_exprs) const& elems)
+    explicit tuple_literal(decltype(element_exprs) const& elems) noexcept
         : expression(), element_exprs(elems)
     {}
 
@@ -356,7 +356,7 @@ struct tuple_literal final : public expression {
 struct symbol_literal final : public expression {
     std::string value;
 
-    explicit symbol_literal(std::string const& s)
+    explicit symbol_literal(std::string const& s) noexcept
         : expression(), value(s)
     {}
 
@@ -374,7 +374,7 @@ struct dict_literal final : public expression {
 
     value_type value;
 
-    explicit dict_literal(value_type const& m)
+    explicit dict_literal(value_type const& m) noexcept
         : value(m)
     {}
 
@@ -399,7 +399,7 @@ struct literal final : public expression {
     value_type value;
 
     template<class T>
-    explicit literal(T && v)
+    explicit literal(T && v) noexcept
         : expression(), value(std::forward<T>(v))
     {}
 
@@ -412,7 +412,7 @@ struct literal final : public expression {
 struct identifier final : public base {
     std::string value;
 
-    explicit identifier(std::string const& s)
+    explicit identifier(std::string const& s) noexcept
         : base(), value(s)
     {}
 
@@ -427,7 +427,7 @@ struct var_ref final : public expression {
     node::identifier name;
     // KIND_TYPE kind;
 
-    explicit var_ref(node::identifier const& n)
+    explicit var_ref(node::identifier const& n) noexcept
         : expression(), name(n)
     {}
 
@@ -443,7 +443,7 @@ struct parameter final : public base {
     boost::optional<node::qualified_type> type;
     dachs::symbol::weak_var_symbol symbol;
 
-    parameter(bool const v, node::identifier const& n, decltype(type) const& t)
+    parameter(bool const v, node::identifier const& n, decltype(type) const& t) noexcept
         : base(), is_var(v), name(n), type(t)
     {}
 
@@ -456,7 +456,7 @@ struct parameter final : public base {
 struct function_call final : public expression {
     std::vector<node::compound_expr> args;
 
-    function_call(decltype(args) const& args)
+    function_call(decltype(args) const& args) noexcept
         : expression(), args(args)
     {}
 
@@ -471,7 +471,7 @@ struct object_construct final : public expression {
     std::vector<node::compound_expr> args;
 
     object_construct(node::qualified_type const& t,
-                     decltype(args) const& args)
+                     decltype(args) const& args) noexcept
         : expression(), type(t), args(args)
     {}
 
@@ -492,7 +492,7 @@ struct primary_expr final : public expression {
     value_type value;
 
     template<class T>
-    explicit primary_expr(T && v)
+    explicit primary_expr(T && v) noexcept
         : expression(), value(std::forward<T>(v))
     {}
 
@@ -505,7 +505,7 @@ struct primary_expr final : public expression {
 struct index_access final : public expression {
     node::compound_expr index_expr;
 
-    index_access(node::compound_expr const& idx_expr)
+    index_access(node::compound_expr const& idx_expr) noexcept
         : expression(), index_expr(idx_expr)
     {}
 
@@ -518,7 +518,8 @@ struct index_access final : public expression {
 
 struct member_access final : public expression {
     node::identifier member_name;
-    explicit member_access(node::identifier const& member_name)
+
+    explicit member_access(node::identifier const& member_name) noexcept
         : expression(), member_name(member_name)
     {}
 
@@ -537,7 +538,7 @@ struct postfix_expr final : public expression {
                       , node::function_call >;
     std::vector<postfix_type> postfixes;
 
-    postfix_expr(node::primary_expr const& pe, std::vector<postfix_type> const& ps)
+    postfix_expr(node::primary_expr const& pe, std::vector<postfix_type> const& ps) noexcept
         : expression(), prefix(pe), postfixes(ps)
     {}
 
@@ -550,7 +551,8 @@ struct postfix_expr final : public expression {
 struct unary_expr final : public expression {
     std::vector<symbol::unary_operator> values;
     node::postfix_expr expr;
-    unary_expr(std::vector<symbol::unary_operator> const& ops, node::postfix_expr const& expr)
+
+    unary_expr(std::vector<symbol::unary_operator> const& ops, node::postfix_expr const& expr) noexcept
         : expression(), values(ops), expr(expr)
     {}
 
@@ -562,7 +564,7 @@ struct template_type final : public base {
     boost::optional<std::vector<node::qualified_type>> instantiated_types;
 
     template_type(node::identifier const& tmpl
-                , decltype(instantiated_types) const& instantiated)
+                , decltype(instantiated_types) const& instantiated) noexcept
         : base(), template_name(tmpl), instantiated_types(instantiated)
     {}
 
@@ -579,7 +581,7 @@ struct primary_type final : public base {
     value_type value;
 
     template<class T>
-    explicit primary_type(T const& v)
+    explicit primary_type(T const& v) noexcept
         : value(v)
     {}
 
@@ -592,7 +594,7 @@ struct primary_type final : public base {
 struct array_type final : public base {
     node::qualified_type elem_type;
 
-    explicit array_type(node::qualified_type const& elem)
+    explicit array_type(node::qualified_type const& elem) noexcept
         : elem_type(elem)
     {}
 
@@ -607,7 +609,7 @@ struct dict_type final : public base {
     node::qualified_type value_type;
 
     dict_type(node::qualified_type const& key_type,
-             node::qualified_type const& value_type)
+             node::qualified_type const& value_type) noexcept
         : key_type(key_type), value_type(value_type)
     {}
 
@@ -620,7 +622,7 @@ struct dict_type final : public base {
 struct tuple_type final : public base {
     std::vector<node::qualified_type> arg_types; // Note: length of this variable should not be 1
 
-    explicit tuple_type(std::vector<node::qualified_type> const& args)
+    explicit tuple_type(std::vector<node::qualified_type> const& args) noexcept
         : arg_types(args)
     {}
 
@@ -635,7 +637,7 @@ struct func_type final : public base {
     node::qualified_type ret_type;
 
     func_type(decltype(arg_types) const& arg_t
-            , node::qualified_type const& ret_t)
+            , node::qualified_type const& ret_t) noexcept
         : base(), arg_types(arg_t), ret_type(ret_t)
     {}
 
@@ -648,7 +650,7 @@ struct func_type final : public base {
 struct proc_type final : public base {
     std::vector<node::qualified_type> arg_types;
 
-    explicit proc_type(decltype(arg_types) const& arg_t)
+    explicit proc_type(decltype(arg_types) const& arg_t) noexcept
         : base(), arg_types(arg_t)
     {}
 
@@ -669,7 +671,7 @@ struct compound_type final : public base {
     value_type value;
 
     template<class T>
-    explicit compound_type(T const& v)
+    explicit compound_type(T const& v) noexcept
         : value(v)
     {}
 
@@ -684,7 +686,7 @@ struct qualified_type final : public base {
     node::compound_type type;
 
     qualified_type(decltype(value) const& q,
-                   node::compound_type const& t)
+                   node::compound_type const& t) noexcept
         : value(q), type(t)
     {}
 
@@ -699,7 +701,7 @@ struct cast_expr final : public expression {
     node::unary_expr source_expr;
 
     cast_expr(decltype(dest_types) const& types,
-              node::unary_expr const& expr)
+              node::unary_expr const& expr) noexcept
         : expression(), dest_types(types), source_expr(expr)
     {}
 
@@ -719,7 +721,7 @@ struct multi_binary_expr : public expression {
     FactorType lhs;
     rhss_type rhss;
 
-    multi_binary_expr(FactorType const& lhs, rhss_type const& rhss)
+    multi_binary_expr(FactorType const& lhs, rhss_type const& rhss) noexcept
         : expression(), lhs(lhs), rhss(rhss)
     {}
 
@@ -777,7 +779,7 @@ struct binary_expr : public expression {
     FactorType lhs;
     std::vector<FactorType> rhss;
 
-    binary_expr(FactorType const& lhs, decltype(rhss) const& rhss)
+    binary_expr(FactorType const& lhs, decltype(rhss) const& rhss) noexcept
         : expression(), lhs(lhs), rhss(rhss)
     {}
 
@@ -833,10 +835,11 @@ struct logical_or_expr final : public binary_expr<node::logical_and_expr> {
 struct if_expr final : public expression {
     symbol::if_kind kind;
     node::compound_expr condition_expr, then_expr, else_expr;
+
     if_expr(symbol::if_kind const kind,
             node::compound_expr const& condition,
             node::compound_expr const& then,
-            node::compound_expr const& else_)
+            node::compound_expr const& else_) noexcept
         : expression(), kind(kind), condition_expr(condition), then_expr(then), else_expr(else_)
     {}
 
@@ -856,11 +859,11 @@ struct range_expr final : public expression {
     boost::optional<rhs_type> maybe_rhs;
 
     range_expr(node::logical_or_expr const& lhs,
-               decltype(maybe_rhs) const& maybe_rhs)
+               decltype(maybe_rhs) const& maybe_rhs) noexcept
         : lhs(lhs), maybe_rhs(maybe_rhs)
     {}
 
-    bool has_range() const
+    bool has_range() const noexcept
     {
         return maybe_rhs;
     }
@@ -879,7 +882,7 @@ struct compound_expr final : public expression {
     boost::optional<node::qualified_type> maybe_type;
 
     template<class T>
-    compound_expr(T const& e, decltype(maybe_type) const& t)
+    compound_expr(T const& e, decltype(maybe_type) const& t) noexcept
         : expression(), child_expr(e), maybe_type(t)
     {}
 
@@ -897,7 +900,7 @@ struct variable_decl final : public base {
 
     variable_decl(bool const var,
                   node::identifier const& name,
-                  decltype(maybe_type) const& type)
+                  decltype(maybe_type) const& type) noexcept
         : is_var(var), name(name), maybe_type(type)
     {}
 
@@ -912,7 +915,7 @@ struct initialize_stmt final : public statement {
     boost::optional<std::vector<node::compound_expr>> maybe_rhs_exprs;
 
     initialize_stmt(decltype(var_decls) const& vars,
-                    decltype(maybe_rhs_exprs) const& rhss)
+                    decltype(maybe_rhs_exprs) const& rhss) noexcept
         : statement(), var_decls(vars), maybe_rhs_exprs(rhss)
     {}
 
@@ -929,7 +932,7 @@ struct assignment_stmt final : public statement {
 
     assignment_stmt(decltype(assignees) const& assignees,
                     symbol::assign_operator assign_op,
-                    decltype(rhs_exprs) const& rhs_exprs)
+                    decltype(rhs_exprs) const& rhs_exprs) noexcept
         : statement(), assignees(assignees), assign_op(assign_op), rhs_exprs(rhs_exprs)
     {}
 
@@ -953,7 +956,7 @@ struct if_stmt final : public statement {
             node::compound_expr const& cond,
             node::statement_block const& then,
             decltype(elseif_stmts_list) const& elseifs,
-            decltype(maybe_else_stmts) const& maybe_else)
+            decltype(maybe_else_stmts) const& maybe_else) noexcept
         : statement(), kind(kind), condition(cond), then_stmts(then), elseif_stmts_list(elseifs), maybe_else_stmts(maybe_else)
     {}
 
@@ -966,7 +969,7 @@ struct if_stmt final : public statement {
 struct return_stmt final : public statement {
     std::vector<node::compound_expr> ret_exprs;
 
-    explicit return_stmt(std::vector<node::compound_expr> const& rets)
+    explicit return_stmt(std::vector<node::compound_expr> const& rets) noexcept
         : statement(), ret_exprs(rets)
     {}
 
@@ -984,7 +987,7 @@ struct case_stmt final : public statement {
     boost::optional<node::statement_block> maybe_else_stmts;
 
     case_stmt(decltype(when_stmts_list) const& whens,
-              decltype(maybe_else_stmts) const& elses)
+              decltype(maybe_else_stmts) const& elses) noexcept
         : statement(), when_stmts_list(whens), maybe_else_stmts(elses)
     {}
 
@@ -1007,7 +1010,7 @@ struct switch_stmt final : public statement {
 
     switch_stmt(node::compound_expr const& target,
                 decltype(when_stmts_list) const& whens,
-                decltype(maybe_else_stmts) const& elses)
+                decltype(maybe_else_stmts) const& elses) noexcept
         : statement(), target_expr(target), when_stmts_list(whens), maybe_else_stmts(elses)
     {}
 
@@ -1024,7 +1027,7 @@ struct for_stmt final : public statement {
 
     for_stmt(decltype(iter_vars) const& iters,
              node::compound_expr const& range,
-             node::statement_block body)
+             node::statement_block body) noexcept
         : statement(), iter_vars(iters), range_expr(range), body_stmts(body)
     {}
 
@@ -1039,7 +1042,7 @@ struct while_stmt final : public statement {
     node::statement_block body_stmts;
 
     while_stmt(node::compound_expr const& cond,
-               node::statement_block const& body)
+               node::statement_block const& body) noexcept
         : statement(), condition(cond), body_stmts(body)
     {}
 
@@ -1063,7 +1066,7 @@ struct postfix_if_stmt final : public statement {
     template<class T>
     postfix_if_stmt(T const& body,
                     symbol::if_kind const kind,
-                    node::compound_expr const& cond)
+                    node::compound_expr const& cond) noexcept
         : statement(), body(body), kind(kind), condition(cond)
     {}
 
@@ -1090,7 +1093,7 @@ struct compound_stmt final : public statement {
     value_type value;
 
     template<class T>
-    explicit compound_stmt(T && v)
+    explicit compound_stmt(T && v) noexcept
         : statement(), value(std::forward<T>(v))
     {}
 
@@ -1107,11 +1110,11 @@ struct statement_block final : public base {
     block_type value;
     scope::weak_local_scope scope;
 
-    explicit statement_block(block_type const& v)
+    explicit statement_block(block_type const& v) noexcept
         : value(v)
     {}
 
-    explicit statement_block(boost::optional<block_type> const& ov)
+    explicit statement_block(boost::optional<block_type> const& ov) noexcept
         : value(ov ? *ov : block_type{})
     {}
 
@@ -1133,7 +1136,7 @@ struct function_definition final : public statement {
                       , decltype(params) const& p
                       , decltype(return_type) const& ret
                       , node::statement_block const& block
-                      , decltype(ensure_body) const& ensure)
+                      , decltype(ensure_body) const& ensure) noexcept
         : statement(), name(n), params(p), return_type(ret), body(block), ensure_body(ensure)
     {}
 
@@ -1153,7 +1156,7 @@ struct procedure_definition final : public statement {
     procedure_definition(node::identifier const& n
                       , decltype(params) const& p
                       , node::statement_block const& block
-                      , decltype(ensure_body) const& ensure)
+                      , decltype(ensure_body) const& ensure) noexcept
         : statement(), name(n), params(p), body(block), ensure_body(ensure)
     {}
 
@@ -1169,7 +1172,7 @@ struct constant_decl final : public base {
     dachs::symbol::weak_var_symbol symbol;
 
     constant_decl(node::identifier const& name,
-                  decltype(maybe_type) const& type)
+                  decltype(maybe_type) const& type) noexcept
         : base(), name(name), maybe_type(type)
     {}
 
@@ -1184,7 +1187,7 @@ struct constant_definition final : public statement {
     std::vector<node::compound_expr> initializers;
 
     constant_definition(decltype(const_decls) const& const_decls
-                      , decltype(initializers) const& initializers)
+                      , decltype(initializers) const& initializers) noexcept
         : statement(), const_decls(const_decls), initializers(initializers)
     {}
 
@@ -1204,7 +1207,7 @@ struct global_definition final : public base {
     value_type value;
 
     template<class T>
-    explicit global_definition(T const& v)
+    explicit global_definition(T const& v) noexcept
         : value(v)
     {}
 
@@ -1217,7 +1220,7 @@ struct global_definition final : public base {
 struct program final : public base {
     std::vector<node::global_definition> inu;
 
-    explicit program(decltype(inu) const& value)
+    explicit program(decltype(inu) const& value) noexcept
         : base(), inu(value)
     {}
 

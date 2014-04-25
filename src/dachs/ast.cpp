@@ -118,7 +118,7 @@ std::string to_string(range_kind const o)
 
 namespace node_type {
 
-std::size_t generate_id()
+std::size_t generate_id() noexcept
 {
     static std::size_t current_id = 0;
     return ++current_id;

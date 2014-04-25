@@ -1,7 +1,7 @@
 #include <exception>
 #include <iostream>
 
-#include "dachs.hpp"
+#include "dachs/compiler.hpp"
 #include "dachs/helper/colorizer.hpp"
 #include "dachs/helper/util.hpp"
 

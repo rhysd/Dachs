@@ -112,7 +112,8 @@ class grammar final : public qi::grammar<Iterator, ast::node::program(), comment
     using rule = qi::rule<Iterator, Value, comment_skipper<Iterator>, Extra...>;
 
 public:
-    grammar(Iterator const code_begin) : grammar::base_type(program)
+    grammar(Iterator const code_begin) noexcept
+        : grammar::base_type(program)
     {
 
         sep = +(lit(';') ^ qi::eol);

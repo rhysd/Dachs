@@ -4,8 +4,9 @@
 #include <vector>
 #include <boost/variant/variant.hpp>
 
-#include "scope_fwd.hpp"
+#include "dachs/scope_fwd.hpp"
 #include "dachs/symbol.hpp"
+#include "dachs/helper/make.hpp"
 
 namespace dachs {
 
@@ -22,11 +23,7 @@ struct class_scope;
 // Dynamic resources to use actually
 namespace scope {
 
-template<class Scope, class... Args>
-inline Scope make(Args &&... args)
-{
-    return std::make_shared<typename Scope::element_type>(std::forward<Args>(args)...);
-}
+using dachs::helper::make;
 
 using any_scope
         = boost::variant< global_scope
@@ -50,14 +47,14 @@ struct basic_scope {
     scope::enclosing_scope_type enclosing_scope;
 
     template<class AnyScope>
-    explicit basic_scope(AnyScope const& parent)
+    explicit basic_scope(AnyScope const& parent) noexcept
         : enclosing_scope(parent)
     {}
 
-    basic_scope()
+    basic_scope() noexcept
     {}
 
-    virtual ~basic_scope()
+    virtual ~basic_scope() noexcept
     {}
 };
 
@@ -66,16 +63,16 @@ struct local_scope final : public basic_scope {
     std::vector<symbol::var_symbol> local_vars;
 
     template<class AnyScope>
-    explicit local_scope(AnyScope const& enclosing)
+    explicit local_scope(AnyScope const& enclosing) noexcept
         : basic_scope(enclosing)
     {}
 
-    void define_child(scope::local_scope const& child)
+    void define_child(scope::local_scope const& child) noexcept
     {
         children.push_back(child);
     }
 
-    void define_local_var(symbol::var_symbol const& new_var)
+    void define_local_var(symbol::var_symbol const& new_var) noexcept
     {
         local_vars.push_back(new_var);
     }
@@ -87,12 +84,12 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     std::vector<symbol::var_symbol> params;
 
     template<class P>
-    explicit func_scope(P const& p, std::string const& s)
+    explicit func_scope(P const& p, std::string const& s) noexcept
         : basic_scope(p)
         , basic_symbol(s)
     {}
 
-    void define_param(symbol::var_symbol const& new_var)
+    void define_param(symbol::var_symbol const& new_var) noexcept
     {
         params.push_back(new_var);
     }
@@ -104,7 +101,7 @@ struct global_scope final : public basic_scope {
     std::vector<symbol::var_symbol> const_symbols;
     std::vector<scope::class_scope> classes;
 
-    global_scope()
+    global_scope() noexcept
         : basic_scope()
         , builtin_type_symbols({
                 symbol::make<symbol::builtin_type_symbol>("int"),
@@ -120,17 +117,17 @@ struct global_scope final : public basic_scope {
         })
     {}
 
-    void define_function(scope::func_scope const& new_func)
+    void define_function(scope::func_scope const& new_func) noexcept
     {
         functions.push_back(new_func);
     }
 
-    void define_global_constant(symbol::var_symbol const& new_var)
+    void define_global_constant(symbol::var_symbol const& new_var) noexcept
     {
         const_symbols.push_back(new_var);
     }
 
-    void define_class(scope::class_scope const& new_class)
+    void define_class(scope::class_scope const& new_class) noexcept
     {
         classes.push_back(new_class);
     }
@@ -144,17 +141,17 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
     // std::vector<type> for instanciated types (if this isn't template, it should contains only one element)
 
     template<class P>
-    explicit class_scope(P const& p, std::string const& name)
+    explicit class_scope(P const& p, std::string const& name) noexcept
         : basic_scope(p)
         , basic_symbol(name)
     {}
 
-    void define_member_func(scope::func_scope const& new_func)
+    void define_member_func(scope::func_scope const& new_func) noexcept
     {
         member_func_scopes.push_back(new_func);
     }
 
-    void define_member_var_symbols(symbol::member_var_symbol const& new_var)
+    void define_member_var_symbols(symbol::member_var_symbol const& new_var) noexcept
     {
         member_var_symbols.push_back(new_var);
     }
@@ -171,7 +168,7 @@ namespace scope {
 struct scope_tree final {
     scope::global_scope root;
 
-    explicit scope_tree(scope::global_scope const& r)
+    explicit scope_tree(scope::global_scope const& r) noexcept
         : root(r)
     {}
 

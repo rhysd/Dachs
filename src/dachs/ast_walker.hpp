@@ -9,6 +9,7 @@
 #include <boost/variant/apply_visitor.hpp>
 
 #include "dachs/ast.hpp"
+#include "dachs/helper/util.hpp"
 
 namespace dachs {
 namespace ast {
@@ -20,7 +21,7 @@ struct ast_walker_variant_visitor
         : public boost::static_visitor<void> {
     Walker &walker;
 
-    explicit ast_walker_variant_visitor(Walker &w)
+    explicit ast_walker_variant_visitor(Walker &w) noexcept
         : walker(w)
     {}
 
@@ -86,7 +87,7 @@ class walker {
 
 public:
 
-    explicit walker(Visitor &v)
+    explicit walker(Visitor &v) noexcept
         : visitor(v)
     {}
 
@@ -534,6 +535,20 @@ template<class Visitor>
 inline auto make_walker(Visitor &v)
 {
     return walker<Visitor>{v};
+}
+
+template<class ASTNode, class Visitor>
+inline void walk_topdown(ASTNode &n, Visitor &v)
+{
+    static_assert(helper::is_shared_ptr<ASTNode>, "walk on somthing which isn't AST node");
+    make_walker(v).walk(n);
+}
+
+template<class ASTNode, class Visitor>
+inline void walk_topdown(ASTNode &n, Visitor && v)
+{
+    static_assert(helper::is_shared_ptr<ASTNode>, "walk on somthing which isn't AST node");
+    make_walker(v).walk(n);
 }
 
 } // namespace ast

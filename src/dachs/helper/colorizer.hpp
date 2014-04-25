@@ -63,7 +63,7 @@ class colorizer {
 
 public:
 
-    explicit colorizer(bool const colorful_output=true)
+    explicit colorizer(bool const colorful_output=true) noexcept
         : enabled(colorful_output)
     {}
 

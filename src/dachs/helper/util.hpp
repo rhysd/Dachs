@@ -3,6 +3,7 @@
 
 #include <iterator>
 #include <fstream>
+#include <memory>
 #include <boost/optional.hpp>
 
 namespace dachs {
@@ -20,6 +21,21 @@ inline boost::optional<String> read_file(std::string const& file_name)
     return String{std::istreambuf_iterator<CharT>{input},
                   std::istreambuf_iterator<CharT>{}};
 }
+
+namespace detail {
+
+template<class T>
+class is_shared_ptr_impl : public std::false_type
+{};
+
+template<class T>
+class is_shared_ptr_impl<std::shared_ptr<T>> : public std::true_type
+{};
+
+} // namespace detail
+
+template<class T>
+constexpr bool is_shared_ptr = detail::is_shared_ptr_impl<T>::value;
 
 } // namespace helper
 }  // namespace dachs

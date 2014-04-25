@@ -16,6 +16,7 @@
 #include "dachs/helper/stringize_ast.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/colorizer.hpp"
+#include "dachs/helper/util.hpp"
 
 namespace dachs {
 namespace helper {
@@ -34,15 +35,7 @@ struct to_string : public boost::static_visitor<std::string> {
         return p->to_string();
     }
 
-    template<class T>
-    class is_shared_ptr : std::false_type
-    {};
-
-    template<class T>
-    class is_shared_ptr<std::shared_ptr<T>> : std::true_type
-    {};
-
-    template<class T, class = typename std::enable_if<!is_shared_ptr<T>::value>::type>
+    template<class T, class = typename std::enable_if<!is_shared_ptr<T>>::type>
     std::string operator()(T const& value) const noexcept
     {
         try {

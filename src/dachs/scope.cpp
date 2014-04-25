@@ -34,7 +34,7 @@ class scope_analyzer {
 
 public:
 
-    explicit scope_analyzer(any_scope const& s)
+    explicit scope_analyzer(any_scope const& s) noexcept
         : current_scope(s)
     {}
 
@@ -133,10 +133,8 @@ public:
 
 scope_tree make_scope_tree(ast::ast &a)
 {
-    auto tree_root = make<global_scope>();
-    detail::scope_analyzer analyzer{tree_root};
-    auto walker = ast::make_walker(analyzer);
-    walker.walk(a.root);
+    auto const tree_root = make<global_scope>();
+    ast::walk_topdown(a.root, detail::scope_analyzer{tree_root});
     return scope_tree{tree_root};
 }
 
