@@ -33,26 +33,19 @@ struct var_symbol final : public basic_symbol {
         : basic_symbol(s)
     {}
 };
-struct func_symbol final : public basic_symbol {
-    explicit func_symbol(std::string const& s)
-        : basic_symbol(s)
-    {}
-};
-struct class_symbol final : public basic_symbol {
-    explicit class_symbol(std::string const& s)
-        : basic_symbol(s)
-    {}
-};
+
 struct member_func_symbol final : public basic_symbol {
     explicit member_func_symbol(std::string const& s)
         : basic_symbol(s)
     {}
 };
+
 struct member_var_symbol final : public basic_symbol {
     explicit member_var_symbol(std::string const& s)
         : basic_symbol(s)
     {}
 };
+
 struct builtin_type_symbol final : public basic_symbol {
     explicit builtin_type_symbol(std::string const& s)
         : basic_symbol(s)
@@ -66,6 +59,7 @@ struct template_type_symbol final : public basic_symbol {
     {}
 };
 
+
 } // namespace symbol_node
 
 namespace symbol {
@@ -74,8 +68,6 @@ namespace symbol {
    using n = std::shared_ptr<symbol_node::n>; \
    using weak_##n = std::weak_ptr<symbol_node::n>
 DACHS_DEFINE_SYMBOL(var_symbol);
-DACHS_DEFINE_SYMBOL(func_symbol);
-DACHS_DEFINE_SYMBOL(class_symbol);
 DACHS_DEFINE_SYMBOL(member_func_symbol);
 DACHS_DEFINE_SYMBOL(member_var_symbol);
 DACHS_DEFINE_SYMBOL(builtin_type_symbol);

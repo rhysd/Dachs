@@ -82,15 +82,14 @@ struct local_scope final : public basic_scope {
 };
 
 // TODO: I should make proc_scope? It depends on return type structure.
-struct func_scope final : public basic_scope {
-    symbol::func_symbol name;
+struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     scope::local_scope body;
     std::vector<symbol::var_symbol> params;
 
     template<class P>
-    explicit func_scope(P const& p, symbol::func_symbol const& s)
+    explicit func_scope(P const& p, std::string const& s)
         : basic_scope(p)
-        , name(s)
+        , basic_symbol(s)
     {}
 
     void define_param(symbol::var_symbol const& new_var)
@@ -116,6 +115,8 @@ struct global_scope final : public basic_scope {
             // {"dict"}
             // {"array"}
             // {"tuple"}
+            // {"func"}
+            // {"class"}
         })
     {}
 
@@ -135,16 +136,17 @@ struct global_scope final : public basic_scope {
     }
 };
 
-struct class_scope final : public basic_scope {
-    symbol::class_symbol symbol;
+struct class_scope final : public basic_scope, public symbol_node::basic_symbol {
     std::vector<scope::func_scope> member_func_scopes;
     std::vector<symbol::member_var_symbol> member_var_symbols;
     std::vector<scope::class_scope> inherited_class_scopes;
 
+    // std::vector<type> for instanciated types (if this isn't template, it should contains only one element)
+
     template<class P>
-    explicit class_scope(P const& p, symbol::class_symbol const& name)
+    explicit class_scope(P const& p, std::string const& name)
         : basic_scope(p)
-        , symbol(name)
+        , basic_symbol(name)
     {}
 
     void define_member_func(scope::func_scope const& new_func)

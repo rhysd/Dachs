@@ -62,8 +62,7 @@ public:
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
-        auto const func_name = symbol::make<symbol::func_symbol>(func_def->name->value);
-        auto new_func = make<func_scope>(global_scope, func_name);
+        auto new_func = make<func_scope>(global_scope, func_def->name->value);
         func_def->scope = new_func;
         global_scope->define_function(new_func);
         with_new_scope(std::move(new_func), recursive_walker);
@@ -75,8 +74,7 @@ public:
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
-        auto const proc_name = symbol::make<symbol::func_symbol>(proc_def->name->value);
-        auto new_proc = make<func_scope>(global_scope, proc_name);
+        auto new_proc = make<func_scope>(global_scope, proc_def->name->value);
         proc_def->scope = new_proc;
         global_scope->define_function(new_proc);
         with_new_scope(std::move(new_proc), recursive_walker);

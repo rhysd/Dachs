@@ -58,7 +58,7 @@ public:
 
     std::string visit(scope::func_scope const& f, size_t const i) const
     {
-        return indent(i) + "FUNCTION_SCOPE: " + f->name->name
+        return indent(i) + "FUNCTION_SCOPE: " + f->name
             + '\n' + visit(f->body, i+1)
             + visit_symbols(f->params, i+1);
     }
@@ -74,7 +74,7 @@ public:
 
     std::string visit(scope::class_scope const& c, size_t const i) const
     {
-        return indent(i) + "CLASS_SCOPE: " + c->symbol->name
+        return indent(i) + "CLASS_SCOPE: " + c->name
             + visit_scopes(c->member_func_scopes, i+1)
             + visit_symbols(c->member_var_symbols, i+1)
             + visit_scopes(c->inherited_class_scopes, i+1);
