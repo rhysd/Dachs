@@ -11,7 +11,7 @@ namespace helper {
 template<class Ptr, class... Args>
 inline Ptr make(Args &&... args)
 {
-    static_assert(is_shared_ptr<Ptr>, "make<>(): Ptr is not shared_ptr.");
+    static_assert(is_shared_ptr<Ptr>::value, "make<>(): Ptr is not shared_ptr.");
     return std::make_shared<typename Ptr::element_type>(std::forward<Args>(args)...);
 }
 

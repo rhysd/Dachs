@@ -540,14 +540,14 @@ inline auto make_walker(Visitor &v)
 template<class ASTNode, class Visitor>
 inline void walk_topdown(ASTNode &n, Visitor &v)
 {
-    static_assert(helper::is_shared_ptr<ASTNode>, "walk on somthing which isn't AST node");
+    static_assert(helper::is_shared_ptr<ASTNode>::value, "walk on somthing which isn't AST node");
     make_walker(v).walk(n);
 }
 
 template<class ASTNode, class Visitor>
 inline void walk_topdown(ASTNode &n, Visitor && v)
 {
-    static_assert(helper::is_shared_ptr<ASTNode>, "walk on somthing which isn't AST node");
+    static_assert(helper::is_shared_ptr<ASTNode>::value, "walk on somthing which isn't AST node");
     make_walker(v).walk(n);
 }
 

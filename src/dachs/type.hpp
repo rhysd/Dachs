@@ -13,6 +13,7 @@
 #include <boost/variant/apply_visitor.hpp>
 
 #include "dachs/helper/variant.hpp"
+#include "dachs/helper/make.hpp"
 
 namespace dachs {
 namespace type_node {
@@ -62,16 +63,12 @@ using any_type
 
 using type = any_type ; // For external use
 
-template<class Type, class... Args>
-inline Type make(Args &&... args)
-{
-    return std::make_shared<typename Type::element_type>(std::forward<Args>(args)...);
-}
-
 // Considering about the ability to add more qualifiers
 enum class qualifier {
     maybe,
 };
+
+using dachs::helper::make;
 
 } // namespace type
 

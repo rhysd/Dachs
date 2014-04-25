@@ -35,7 +35,7 @@ struct to_string : public boost::static_visitor<std::string> {
         return p->to_string();
     }
 
-    template<class T, class = typename std::enable_if<!is_shared_ptr<T>>::type>
+    template<class T, class = typename std::enable_if<!is_shared_ptr<T>::value>::type>
     std::string operator()(T const& value) const noexcept
     {
         try {

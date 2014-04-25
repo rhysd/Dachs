@@ -23,10 +23,12 @@ inline boost::optional<String> read_file(std::string const& file_name)
 }
 
 template<class T>
-constexpr bool is_shared_ptr = false;
+class is_shared_ptr : public std::false_type
+{};
 
 template<class T>
-constexpr bool is_shared_ptr<std::shared_ptr<T>> = true;
+class is_shared_ptr<std::shared_ptr<T>> : public std::true_type
+{};
 
 } // namespace helper
 }  // namespace dachs
