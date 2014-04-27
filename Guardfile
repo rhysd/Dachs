@@ -15,12 +15,12 @@ end
 
 def notify msg
   case
+  when which('tmux')
+    `tmux display-message '#{msg}'` if system('tmux list-clients 1>/dev/null 2>&1') && $?.success?
   when which('terminal-notifier')
     `terminal-notifier -message '#{msg}'`
   when which('notify-send')
     `notify-send '#{msg}'`
-  when which('tmux')
-    `tmux display-message '#{msg}'` if `tmux list-clients 1>/dev/null 2>&1` && $?.success?
   end
 end
 

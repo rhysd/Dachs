@@ -83,6 +83,8 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     scope::local_scope body;
     std::vector<symbol::var_symbol> params;
 
+    // std::vector<type> for instanciated types (if this isn't template, it should contains only one element)
+
     template<class P>
     explicit func_scope(P const& p, std::string const& s) noexcept
         : basic_scope(p)

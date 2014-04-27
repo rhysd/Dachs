@@ -120,6 +120,7 @@ struct template_holder_type final : public basic_type {
     }
 };
 
+// This class may not be needed because class from class template is instanciated at the point on resolving a symbol of class templates
 struct class_template_type final : public basic_type {
     std::string name;
     std::vector<type::any_type> holder_types;

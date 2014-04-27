@@ -41,7 +41,6 @@ public:
     template<class Walker>
     void visit(ast::node::statement_block const& block, Walker const& recursive_walker)
     {
-        // TODO add symbols
         auto new_local_scope = make<local_scope>(current_scope);
         block->scope = new_local_scope;
         if (auto maybe_local_scope = get<local_scope>(current_scope)) {
@@ -86,7 +85,7 @@ public:
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
-        auto new_var = symbol::make<symbol::var_symbol>(const_decl->name->value);
+        auto new_var = symbol::make<symbol::var_symbol>(const_decl, const_decl->name->value);
         const_decl->symbol = new_var;
         global_scope->define_global_constant(new_var);
     }
@@ -94,7 +93,7 @@ public:
     template<class Walker>
     void visit(ast::node::parameter const& param, Walker const& /*unused*/)
     {
-        auto new_param = symbol::make<symbol::var_symbol>(param->name->value);
+        auto new_param = symbol::make<symbol::var_symbol>(param, param->name->value);
         param->symbol = new_param;
         if (auto maybe_func = get<func_scope>(current_scope)) {
             auto& func = *maybe_func;
@@ -114,7 +113,7 @@ public:
         auto maybe_local = get<local_scope>(current_scope);
         assert(maybe_local);
         auto& local = *maybe_local;
-        auto new_var = symbol::make<symbol::var_symbol>(decl->name->value);
+        auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name->value);
         decl->symbol = new_var;
         local->define_local_var(new_var);
     }

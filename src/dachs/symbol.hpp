@@ -3,7 +3,8 @@
 
 #include <memory>
 
-#include "type.hpp"
+#include "dachs/type.hpp"
+#include "dachs/ast_fwd.hpp"
 #include "dachs/helper/make.hpp"
 
 namespace dachs {
@@ -14,10 +15,16 @@ namespace symbol_node {
 
 struct basic_symbol {
     std::string name;
-    // Type type;
+    type::type type;
+    ast::node::any_node ast_node;
 
     explicit basic_symbol(std::string const& s) noexcept
-        : name(s)
+        : name(s), type{}, ast_node{}
+    {}
+
+    template<class Node>
+    basic_symbol(Node const& node, std::string const& s) noexcept
+        : name(s), type{}, ast_node{node}
     {}
 
     std::string to_string() const noexcept
@@ -30,27 +37,19 @@ struct basic_symbol {
 };
 
 struct var_symbol final : public basic_symbol {
-    explicit var_symbol(std::string const& s) noexcept
-        : basic_symbol(s)
-    {}
+    using basic_symbol::basic_symbol;
 };
 
 struct member_func_symbol final : public basic_symbol {
-    explicit member_func_symbol(std::string const& s) noexcept
-        : basic_symbol(s)
-    {}
+    using basic_symbol::basic_symbol;
 };
 
 struct member_var_symbol final : public basic_symbol {
-    explicit member_var_symbol(std::string const& s) noexcept
-        : basic_symbol(s)
-    {}
+    using basic_symbol::basic_symbol;
 };
 
 struct builtin_type_symbol final : public basic_symbol {
-    explicit builtin_type_symbol(std::string const& s) noexcept
-        : basic_symbol(s)
-    {}
+    using basic_symbol::basic_symbol;
 };
 
 } // namespace symbol_node
