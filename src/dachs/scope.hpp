@@ -246,8 +246,10 @@ struct global_scope final : public basic_scope {
         : basic_scope()
         , builtin_type_symbols({
                 symbol::make<symbol::builtin_type_symbol>("int"),
+                symbol::make<symbol::builtin_type_symbol>("uint"),
                 symbol::make<symbol::builtin_type_symbol>("float"),
                 symbol::make<symbol::builtin_type_symbol>("char"),
+                symbol::make<symbol::builtin_type_symbol>("bool"),
                 symbol::make<symbol::builtin_type_symbol>("string"),
                 symbol::make<symbol::builtin_type_symbol>("symbol"),
             // {"dict"}

@@ -2,6 +2,7 @@
 
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
+#include <boost/range/algorithm/find_if.hpp>
 
 #include "dachs/scope.hpp"
 #include "dachs/ast.hpp"
@@ -15,6 +16,7 @@ namespace scope {
 namespace detail {
 
 using dachs::helper::variant::get;
+using dachs::helper::variant::has;
 
 // Walk to generate a scope tree
 class scope_analyzer {
@@ -24,17 +26,18 @@ class scope_analyzer {
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
     template<class Scope, class Walker>
-    void with_new_scope(Scope && new_scope, Walker const& f)
+    void with_new_scope(Scope && new_scope, Walker const& walker)
     {
         auto const tmp_scope = current_scope;
         current_scope = new_scope;
-        f();
+        walker();
         current_scope = tmp_scope;
     }
 
 public:
 
-    explicit scope_analyzer(any_scope const& s) noexcept
+    template<class Scope>
+    explicit scope_analyzer(Scope const& s) noexcept
         : current_scope(s)
     {}
 
@@ -121,11 +124,114 @@ public:
     // TODO: class scope and member function scope
 
     template<class T, class Walker>
-    void visit(T const&, Walker const& f)
+    void visit(T const&, Walker const& walker)
     {
         // simply visit children recursively
-        f();
+        walker();
     }
+};
+
+struct weak_ptr_locker : public boost::static_visitor<any_scope> {
+    template<class WeakScope>
+    any_scope operator()(WeakScope const& w) const
+    {
+        assert(!w.expired());
+        return w.lock();
+    }
+};
+
+// Walk to resolve symbol references
+class symbol_analyzer {
+
+    any_scope current_scope;
+    global_scope global;
+
+    // Introduce a new scope and ensure to restore the old scope
+    // after the visit process
+    template<class Scope, class Walker>
+    void with_new_scope(Scope const& new_scope, Walker const& walker)
+    {
+        auto const tmp_scope = current_scope;
+        current_scope = new_scope;
+        walker();
+        current_scope = tmp_scope;
+    }
+
+public:
+
+    template<class Scope>
+    explicit symbol_analyzer(Scope const& root, global_scope const& global)
+        : current_scope(root), global(global)
+    {}
+
+    template<class Walker>
+    void visit(ast::node::statement_block const& block, Walker const& recursive_walker)
+    {
+        with_new_scope(boost::apply_visitor(weak_ptr_locker{}, block->scope), recursive_walker);
+    }
+
+    template<class Walker>
+    void visit(ast::node::function_definition const& func, Walker const& recursive_walker)
+    {
+        with_new_scope(boost::apply_visitor(weak_ptr_locker{}, func->scope), recursive_walker);
+    }
+
+    template<class Walker>
+    void visit(ast::node::procedure_definition const& proc, Walker const& recursive_walker)
+    {
+        with_new_scope(boost::apply_visitor(weak_ptr_locker{}, proc->scope), recursive_walker);
+    }
+
+    template<class Walker>
+    void visit(ast::node::character_literal const& char_lit, Walker const& /*unused*/)
+    {
+        auto const r = boost::find_if(global->builtin_type_symbols, [](auto const& s){ return s->name == "char"; });
+        assert(r != std::end(global->builtin_type_symbols));
+        char_lit->symbol = *r;
+    }
+
+    template<class Walker>
+    void visit(ast::node::float_literal const& float_lit, Walker const& /*unused*/)
+    {
+        auto const r = boost::find_if(global->builtin_type_symbols, [](auto const& s){ return s->name == "float"; });
+        assert(r != std::end(global->builtin_type_symbols));
+        float_lit->symbol = *r;
+    }
+
+    template<class Walker>
+    void visit(ast::node::boolean_literal const& bool_lit, Walker const& /*unused*/)
+    {
+        auto const r = boost::find_if(global->builtin_type_symbols, [](auto const& s){ return s->name == "boolean"; });
+        assert(r != std::end(global->builtin_type_symbols));
+        bool_lit->symbol = *r;
+    }
+
+    template<class Walker>
+    void visit(ast::node::string_literal const& string_lit, Walker const& /*unused*/)
+    {
+        auto const r = boost::find_if(global->builtin_type_symbols, [](auto const& s){ return s->name == "string"; });
+        assert(r != std::end(global->builtin_type_symbols));
+        string_lit->symbol = *r;
+    }
+
+    template<class Walker>
+    void visit(ast::node::symbol_literal const& symbol_lit, Walker const& /*unused*/)
+    {
+        auto const r = boost::find_if(global->builtin_type_symbols, [](auto const& s){ return s->name == "symbol"; });
+        assert(r != std::end(global->builtin_type_symbols));
+        symbol_lit->symbol = *r;
+    }
+
+    template<class Walker>
+    void visit(ast::node::integer_literal const& int_lit, Walker const& /*unused*/)
+    {
+        auto const t = has<int>(int_lit->value) ? "int" : "uint";
+        auto const r = boost::find_if(global->builtin_type_symbols, [&t](auto const& s){ return s->name == t; });
+        assert(r != std::end(global->builtin_type_symbols));
+        int_lit->symbol = *r;
+    }
+
+    // TODO: resolve builtin template types like array, tuple, dict and func
 };
 
 } // namespace detail
