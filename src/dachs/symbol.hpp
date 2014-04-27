@@ -22,6 +22,11 @@ struct basic_symbol {
         : name(s), type{}, ast_node{}
     {}
 
+    template<class Type>
+    basic_symbol(std::string const& s, Type const& t)
+        : name(s), type{t}, ast_node{}
+    {}
+
     template<class Node>
     basic_symbol(Node const& node, std::string const& s) noexcept
         : name(s), type{}, ast_node{node}
@@ -50,6 +55,10 @@ struct member_var_symbol final : public basic_symbol {
 
 struct builtin_type_symbol final : public basic_symbol {
     using basic_symbol::basic_symbol;
+
+    explicit builtin_type_symbol(std::string const& s) noexcept
+        : basic_symbol(s, type::make<type::builtin_type>(s))
+    {}
 };
 
 } // namespace symbol_node

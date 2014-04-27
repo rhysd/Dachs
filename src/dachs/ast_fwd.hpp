@@ -241,6 +241,11 @@ public:
         : node{}
     {}
 
+    bool empty() const noexcept
+    {
+        return node.expired();
+    }
+
     template<class Ptr>
     void set_node(Ptr const& n) noexcept
     {

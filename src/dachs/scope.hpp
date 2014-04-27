@@ -2,7 +2,10 @@
 #define      DACHS_SCOPE_HPP_INCLUDED
 
 #include <vector>
+#include <cassert>
 #include <boost/variant/variant.hpp>
+#include <boost/variant/static_visitor.hpp>
+#include <boost/variant/apply_visitor.hpp>
 
 #include "dachs/scope_fwd.hpp"
 #include "dachs/symbol.hpp"
@@ -38,12 +41,80 @@ using enclosing_scope_type
                         , weak_func_scope
                         , weak_class_scope
                     >;
+
 } // namespace scope
 
 // Implementation of nodes of scope tree
 namespace scope_node {
 
+namespace detail {
+
+struct func_resolver : public boost::static_visitor<boost::optional<scope::func_scope>> {
+    std::string const& name;
+
+    explicit func_resolver(std::string const& n) noexcept
+        : name(n)
+    {}
+
+    template<class WeakScope>
+    result_type operator()(WeakScope const& w) const
+    {
+        assert(!w.expired());
+        return w.lock()->resolve_func(name);
+    }
+};
+
+struct class_resolver : public boost::static_visitor<boost::optional<scope::class_scope>> {
+    std::string const& name;
+
+    explicit class_resolver(std::string const& n) noexcept
+        : name(n)
+    {}
+
+    template<class WeakScope>
+    result_type operator()(WeakScope const& w) const
+    {
+        assert(!w.expired());
+        return w.lock()->resolve_class(name);
+    }
+};
+
+struct var_resolver : public boost::static_visitor<boost::optional<symbol::var_symbol>> {
+    std::string const& name;
+
+    explicit var_resolver(std::string const& n) noexcept
+        : name(n)
+    {}
+
+    template<class WeakScope>
+    result_type operator()(WeakScope const& w) const
+    {
+        assert(!w.expired());
+        return w.lock()->resolve_var(name);
+    }
+};
+
+struct builtin_type_resolver : public boost::static_visitor<boost::optional<symbol::builtin_type_symbol>> {
+    std::string const& name;
+
+    explicit builtin_type_resolver(std::string const& n) noexcept
+        : name(n)
+    {}
+
+    template<class WeakScope>
+    result_type operator()(WeakScope const& w) const
+    {
+        assert(!w.expired());
+        return w.lock()->resolve_builtin_type(name);
+    }
+};
+
+} // namespace detail
+
 struct basic_scope {
+    // Note:
+    // I don't use base class pointer to check the parent is alive or not.
+    // Or should I?
     scope::enclosing_scope_type enclosing_scope;
 
     template<class AnyScope>
@@ -56,6 +127,28 @@ struct basic_scope {
 
     virtual ~basic_scope() noexcept
     {}
+
+    // TODO resolve member variables and member functions
+
+    virtual boost::optional<scope::func_scope> resolve_func(std::string const& name) const
+    {
+        return boost::apply_visitor(detail::func_resolver{name}, enclosing_scope);
+    }
+
+    virtual boost::optional<scope::class_scope> resolve_class(std::string const& name) const
+    {
+        return boost::apply_visitor(detail::class_resolver{name}, enclosing_scope);
+    }
+
+    virtual boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const
+    {
+        return boost::apply_visitor(detail::var_resolver{name}, enclosing_scope);
+    }
+
+    virtual boost::optional<symbol::builtin_type_symbol> resolve_builtin_type(std::string const& name) const
+    {
+        return boost::apply_visitor(detail::builtin_type_resolver{name}, enclosing_scope);
+    }
 };
 
 struct local_scope final : public basic_scope {
@@ -76,6 +169,16 @@ struct local_scope final : public basic_scope {
     {
         local_vars.push_back(new_var);
     }
+
+    boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
+    {
+        for (auto const& s : local_vars) {
+            if (s->name == name) {
+                return s;
+            }
+        }
+        return boost::apply_visitor(detail::var_resolver{name}, enclosing_scope);
+    }
 };
 
 // TODO: I should make proc_scope? It depends on return type structure.
@@ -95,6 +198,42 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     {
         params.push_back(new_var);
     }
+
+    virtual boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
+    {
+        for (auto const& p : params) {
+            if (p->name == name) {
+                return p;
+            }
+        }
+        return boost::apply_visitor(detail::var_resolver{name}, enclosing_scope);
+    }
+};
+
+struct class_scope final : public basic_scope, public symbol_node::basic_symbol {
+    std::vector<scope::func_scope> member_func_scopes;
+    std::vector<symbol::member_var_symbol> member_var_symbols;
+    std::vector<scope::class_scope> inherited_class_scopes;
+
+    // std::vector<type> for instanciated types (if this isn't template, it should contains only one element)
+
+    template<class P>
+    explicit class_scope(P const& p, std::string const& name) noexcept
+        : basic_scope(p)
+        , basic_symbol(name)
+    {}
+
+    void define_member_func(scope::func_scope const& new_func) noexcept
+    {
+        member_func_scopes.push_back(new_func);
+    }
+
+    void define_member_var_symbols(symbol::member_var_symbol const& new_var) noexcept
+    {
+        member_var_symbols.push_back(new_var);
+    }
+
+    // TODO: Resolve member functions and member variables
 };
 
 struct global_scope final : public basic_scope {
@@ -133,29 +272,45 @@ struct global_scope final : public basic_scope {
     {
         classes.push_back(new_class);
     }
-};
 
-struct class_scope final : public basic_scope, public symbol_node::basic_symbol {
-    std::vector<scope::func_scope> member_func_scopes;
-    std::vector<symbol::member_var_symbol> member_var_symbols;
-    std::vector<scope::class_scope> inherited_class_scopes;
-
-    // std::vector<type> for instanciated types (if this isn't template, it should contains only one element)
-
-    template<class P>
-    explicit class_scope(P const& p, std::string const& name) noexcept
-        : basic_scope(p)
-        , basic_symbol(name)
-    {}
-
-    void define_member_func(scope::func_scope const& new_func) noexcept
+    virtual boost::optional<scope::func_scope> resolve_func(std::string const& name) const
     {
-        member_func_scopes.push_back(new_func);
+        for( auto const& f : functions ) {
+            if (f->name == name) {
+                return f;
+            }
+        }
+        return boost::none;
     }
 
-    void define_member_var_symbols(symbol::member_var_symbol const& new_var) noexcept
+    virtual boost::optional<scope::class_scope> resolve_class(std::string const& name) const
     {
-        member_var_symbols.push_back(new_var);
+        for( auto const& c : classes ) {
+            if (c->name == name) {
+                return c;
+            }
+        }
+        return boost::none;
+    }
+
+    virtual boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const
+    {
+        for( auto const& v : const_symbols ) {
+            if (v->name == name) {
+                return v;
+            }
+        }
+        return boost::none;
+    }
+
+    virtual boost::optional<symbol::builtin_type_symbol> resolve_builtin_type(std::string const& name) const
+    {
+        for( auto const& t : builtin_type_symbols ) {
+            if (t->name == name) {
+                return t;
+            }
+        }
+        return boost::none;
     }
 };
 

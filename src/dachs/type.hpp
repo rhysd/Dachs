@@ -96,6 +96,10 @@ struct basic_type {
 struct builtin_type final : public basic_type {
     std::string name;
 
+    explicit builtin_type(std::string const& s) noexcept
+        : name{s}
+    {}
+
     std::string to_string() const override
     {
         return name;
