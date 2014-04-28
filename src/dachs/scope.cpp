@@ -157,6 +157,14 @@ class symbol_analyzer {
         current_scope = tmp_scope;
     }
 
+    template<class Node>
+    void set_builtin_type_symbol(Node const& node, char const* const name)
+    {
+        auto const r = boost::find_if(global->builtin_type_symbols, [&name](auto const& s){ return s->name == name; });
+        assert(r != std::end(global->builtin_type_symbols));
+        node->symbol = *r;
+    }
+
 public:
 
     template<class Scope>
@@ -182,53 +190,42 @@ public:
         with_new_scope(boost::apply_visitor(weak_ptr_locker{}, proc->scope), recursive_walker);
     }
 
+    // use global scope instead of resolve_builtin_type() because of shortcut
     template<class Walker>
     void visit(ast::node::character_literal const& char_lit, Walker const& /*unused*/)
     {
-        auto const r = boost::find_if(global->builtin_type_symbols, [](auto const& s){ return s->name == "char"; });
-        assert(r != std::end(global->builtin_type_symbols));
-        char_lit->symbol = *r;
+        set_builtin_type_symbol(char_lit, "char");
     }
 
     template<class Walker>
     void visit(ast::node::float_literal const& float_lit, Walker const& /*unused*/)
     {
-        auto const r = boost::find_if(global->builtin_type_symbols, [](auto const& s){ return s->name == "float"; });
-        assert(r != std::end(global->builtin_type_symbols));
-        float_lit->symbol = *r;
+        set_builtin_type_symbol(float_lit, "float");
     }
 
     template<class Walker>
     void visit(ast::node::boolean_literal const& bool_lit, Walker const& /*unused*/)
     {
-        auto const r = boost::find_if(global->builtin_type_symbols, [](auto const& s){ return s->name == "boolean"; });
-        assert(r != std::end(global->builtin_type_symbols));
-        bool_lit->symbol = *r;
+        set_builtin_type_symbol(bool_lit, "boolean");
     }
 
     template<class Walker>
     void visit(ast::node::string_literal const& string_lit, Walker const& /*unused*/)
     {
-        auto const r = boost::find_if(global->builtin_type_symbols, [](auto const& s){ return s->name == "string"; });
-        assert(r != std::end(global->builtin_type_symbols));
-        string_lit->symbol = *r;
+        set_builtin_type_symbol(string_lit, "string");
     }
 
     template<class Walker>
     void visit(ast::node::symbol_literal const& symbol_lit, Walker const& /*unused*/)
     {
-        auto const r = boost::find_if(global->builtin_type_symbols, [](auto const& s){ return s->name == "symbol"; });
-        assert(r != std::end(global->builtin_type_symbols));
-        symbol_lit->symbol = *r;
+        set_builtin_type_symbol(symbol_lit, "symbol");
     }
 
     template<class Walker>
     void visit(ast::node::integer_literal const& int_lit, Walker const& /*unused*/)
     {
         auto const t = has<int>(int_lit->value) ? "int" : "uint";
-        auto const r = boost::find_if(global->builtin_type_symbols, [&t](auto const& s){ return s->name == t; });
-        assert(r != std::end(global->builtin_type_symbols));
-        int_lit->symbol = *r;
+        set_builtin_type_symbol(int_lit, t);
     }
 
     // TODO: resolve builtin template types like array, tuple, dict and func
