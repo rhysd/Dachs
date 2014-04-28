@@ -770,7 +770,7 @@ public:
                 {
                     node_ptr->line = spirit::get_line(before);
                     node_ptr->col = spirit::get_column(code_begin, before);
-                    node_ptr->length = std::distance(before, after);
+                    node_ptr->length = std::distance(before.base(), after.base());
                 }
                 , _val, _1, _3)
 
