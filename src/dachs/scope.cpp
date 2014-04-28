@@ -18,8 +18,8 @@ namespace detail {
 using dachs::helper::variant::get;
 using dachs::helper::variant::has;
 
-// Walk to generate a scope tree
-class scope_analyzer {
+// Walk to analyze functions, classes and member variables symbols to make forward reference possible
+class forward_symbol_analyzer {
 
     any_scope current_scope;
 
@@ -37,7 +37,7 @@ class scope_analyzer {
 public:
 
     template<class Scope>
-    explicit scope_analyzer(Scope const& s) noexcept
+    explicit forward_symbol_analyzer(Scope const& s) noexcept
         : current_scope(s)
     {}
 
@@ -82,6 +82,79 @@ public:
         with_new_scope(std::move(new_proc), recursive_walker);
     }
 
+    // TODO: class scope and member function scope
+
+    template<class T, class Walker>
+    void visit(T const&, Walker const& walker)
+    {
+        // simply visit children recursively
+        walker();
+    }
+};
+
+struct weak_ptr_locker : public boost::static_visitor<any_scope> {
+    template<class WeakScope>
+    any_scope operator()(WeakScope const& w) const
+    {
+        assert(!w.expired());
+        return w.lock();
+    }
+};
+
+// Walk to resolve symbol references
+class symbol_analyzer {
+
+    any_scope current_scope;
+    global_scope const global;
+
+    // Introduce a new scope and ensure to restore the old scope
+    // after the visit process
+    template<class Scope, class Walker>
+    void with_new_scope(Scope const& new_scope, Walker const& walker)
+    {
+        auto const tmp_scope = current_scope;
+        current_scope = new_scope;
+        walker();
+        current_scope = tmp_scope;
+    }
+
+    template<class Node>
+    void set_builtin_type_symbol(Node const& node, char const* const name)
+    {
+        auto const r = boost::find_if(global->builtin_type_symbols, [&name](auto const& s){ return s->name == name; });
+        assert(r != std::end(global->builtin_type_symbols));
+        node->symbol = *r;
+    }
+
+public:
+
+    template<class Scope>
+    explicit symbol_analyzer(Scope const& root, global_scope const& global)
+        : current_scope(root), global(global)
+    {}
+
+    template<class Walker>
+    void visit(ast::node::statement_block const& block, Walker const& recursive_walker)
+    {
+        assert(!block->scope.expired());
+        with_new_scope(block->scope.lock(), recursive_walker);
+    }
+
+    template<class Walker>
+    void visit(ast::node::function_definition const& func, Walker const& recursive_walker)
+    {
+        assert(!func->scope.expired());
+        with_new_scope(func->scope.lock(), recursive_walker);
+    }
+
+    template<class Walker>
+    void visit(ast::node::procedure_definition const& proc, Walker const& recursive_walker)
+    {
+        assert(!proc->scope.expired());
+        with_new_scope(proc->scope.lock(), recursive_walker);
+    }
+
+    // Do not analyze in forward_symbol_analyzer because variables can't be referenced forward {{{
     template<class Walker>
     void visit(ast::node::constant_decl const& const_decl, Walker const& /*unused*/)
     {
@@ -120,75 +193,7 @@ public:
         decl->symbol = new_var;
         local->define_local_var(new_var);
     }
-
-    // TODO: class scope and member function scope
-
-    template<class T, class Walker>
-    void visit(T const&, Walker const& walker)
-    {
-        // simply visit children recursively
-        walker();
-    }
-};
-
-struct weak_ptr_locker : public boost::static_visitor<any_scope> {
-    template<class WeakScope>
-    any_scope operator()(WeakScope const& w) const
-    {
-        assert(!w.expired());
-        return w.lock();
-    }
-};
-
-// Walk to resolve symbol references
-class symbol_analyzer {
-
-    any_scope current_scope;
-    global_scope global;
-
-    // Introduce a new scope and ensure to restore the old scope
-    // after the visit process
-    template<class Scope, class Walker>
-    void with_new_scope(Scope const& new_scope, Walker const& walker)
-    {
-        auto const tmp_scope = current_scope;
-        current_scope = new_scope;
-        walker();
-        current_scope = tmp_scope;
-    }
-
-    template<class Node>
-    void set_builtin_type_symbol(Node const& node, char const* const name)
-    {
-        auto const r = boost::find_if(global->builtin_type_symbols, [&name](auto const& s){ return s->name == name; });
-        assert(r != std::end(global->builtin_type_symbols));
-        node->symbol = *r;
-    }
-
-public:
-
-    template<class Scope>
-    explicit symbol_analyzer(Scope const& root, global_scope const& global)
-        : current_scope(root), global(global)
-    {}
-
-    template<class Walker>
-    void visit(ast::node::statement_block const& block, Walker const& recursive_walker)
-    {
-        with_new_scope(boost::apply_visitor(weak_ptr_locker{}, block->scope), recursive_walker);
-    }
-
-    template<class Walker>
-    void visit(ast::node::function_definition const& func, Walker const& recursive_walker)
-    {
-        with_new_scope(boost::apply_visitor(weak_ptr_locker{}, func->scope), recursive_walker);
-    }
-
-    template<class Walker>
-    void visit(ast::node::procedure_definition const& proc, Walker const& recursive_walker)
-    {
-        with_new_scope(boost::apply_visitor(weak_ptr_locker{}, proc->scope), recursive_walker);
-    }
+    // }}}
 
     // use global scope instead of resolve_builtin_type() because of shortcut
     template<class Walker>
@@ -229,6 +234,13 @@ public:
     }
 
     // TODO: resolve builtin template types like array, tuple, dict and func
+
+    template<class T, class Walker>
+    void visit(T const&, Walker const& walker)
+    {
+        // simply visit children recursively
+        walker();
+    }
 };
 
 } // namespace detail
@@ -236,7 +248,8 @@ public:
 scope_tree make_scope_tree(ast::ast &a)
 {
     auto const tree_root = make<global_scope>();
-    ast::walk_topdown(a.root, detail::scope_analyzer{tree_root});
+    ast::walk_topdown(a.root, detail::forward_symbol_analyzer{tree_root});
+    ast::walk_topdown(a.root, detail::symbol_analyzer{tree_root, tree_root});
     return scope_tree{tree_root};
 }
 
