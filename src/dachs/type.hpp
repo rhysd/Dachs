@@ -17,15 +17,11 @@
 
 namespace dachs {
 namespace type_node {
-struct class_type;
+struct primary_class_type;
 struct template_holder_type;
 struct class_template_type;
-struct tuple_type;
 struct func_type;
 struct proc_type;
-struct dict_type;
-struct array_type;
-struct dict_type;
 struct qualified_type;
 }
 
@@ -33,28 +29,20 @@ namespace type {
 #define DACHS_DEFINE_TYPE(n) \
    using n = std::shared_ptr<type_node::n>; \
    using weak_##n = std::weak_ptr<type_node::n>
-DACHS_DEFINE_TYPE(class_type);
+DACHS_DEFINE_TYPE(primary_class_type);
 DACHS_DEFINE_TYPE(template_holder_type);
 DACHS_DEFINE_TYPE(class_template_type);
-DACHS_DEFINE_TYPE(tuple_type);
 DACHS_DEFINE_TYPE(func_type);
 DACHS_DEFINE_TYPE(proc_type);
-DACHS_DEFINE_TYPE(dict_type);
-DACHS_DEFINE_TYPE(array_type);
-DACHS_DEFINE_TYPE(dict_type);
 DACHS_DEFINE_TYPE(qualified_type);
 #undef DACHS_DEFINE_TYPE
 
 using any_type
-    = boost::variant< class_type
+    = boost::variant< primary_class_type
                     , template_holder_type
                     , class_template_type
-                    , tuple_type
                     , func_type
                     , proc_type
-                    , dict_type
-                    , array_type
-                    , dict_type
                     , qualified_type
                 >;
 
@@ -77,7 +65,7 @@ using boost::adaptors::transformed;
 namespace detail {
 struct to_string : public boost::static_visitor<std::string> {
     template<class Type>
-    std::string operator()(Type const& t) const
+    std::string operator()(Type const& t) const noexcept
     {
         return t->to_string();
     }
@@ -85,24 +73,32 @@ struct to_string : public boost::static_visitor<std::string> {
 } // namespace detail
 
 struct basic_type {
-    virtual std::string to_string() const = 0;
+    std::string name;
+
+    explicit basic_type(std::string && name) noexcept
+        : name(std::forward<std::string>(name))
+    {}
+
+    explicit basic_type(std::string const& name) noexcept
+        : name(name)
+    {}
+
+    virtual std::string to_string() const noexcept = 0;
     virtual ~basic_type()
     {}
 };
 
-struct class_type final : public basic_type {
-    std::string name;
-
-    std::string to_string() const override
+struct primary_class_type final : public basic_type {
+    using basic_type::basic_type;
+    std::string to_string() const noexcept override
     {
         return name;
     }
 };
 
 struct template_holder_type final : public basic_type {
-    std::string name;
-
-    std::string to_string() const override
+    using basic_type::basic_type;
+    std::string to_string() const noexcept override
     {
         return name;
     }
@@ -110,42 +106,56 @@ struct template_holder_type final : public basic_type {
 
 // This class may not be needed because class from class template is instanciated at the point on resolving a symbol of class templates
 struct class_template_type final : public basic_type {
-    std::string name;
     std::vector<type::any_type> holder_types;
 
-    std::string to_string() const override
-    {
-        return name + '(' +
-            join(holder_types | transformed([](auto const& t){
-                        return boost::apply_visitor(detail::to_string{}, t);
-                    }), ",")
-            + ')';
-    }
-};
+    using basic_type::basic_type;
 
-struct tuple_type final : public basic_type {
-    std::vector<type::any_type> element_types;
-
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
-        return '(' +
-            join(element_types | transformed([](auto const& t){
-                        return boost::apply_visitor(detail::to_string{}, t);
-                    }), ",")
-            + ')';
+
+        if (name == "tuple" ) {
+            return '(' +
+                join(holder_types | transformed([](auto const& t){
+                            return boost::apply_visitor(detail::to_string{}, t);
+                        }), ",")
+                + ')';
+        } else if (name == "array") {
+            assert(holder_types.size() == 1);
+            return '[' + boost::apply_visitor(detail::to_string{}, holder_types[0]) + ']';
+        } else if (name == "dict") {
+            assert(holder_types.size() == 2);
+            return '{'
+                + boost::apply_visitor(detail::to_string{}, holder_types[0])
+                + " => "
+                + boost::apply_visitor(detail::to_string{}, holder_types[1])
+                + '}';
+        } else {
+            return name + '(' +
+                join(holder_types | transformed([](auto const& t){
+                            return boost::apply_visitor(detail::to_string{}, t);
+                        }), ",")
+                + ')';
+        }
     }
 };
 
 struct func_type final : public basic_type {
-    std::string name;
     std::vector<type::any_type> param_types;
     // If return type is not specified, it will be treated as template type
     type::any_type return_type;
 
-    std::string to_string() const override
+    func_type() noexcept
+        : basic_type("func")
+    {}
+
+    explicit func_type(std::vector<type::any_type> const& params, type::any_type ret) noexcept
+        : basic_type("func"), param_types(params), return_type(ret)
+    {}
+
+    std::string to_string() const noexcept override
     {
         auto const maybe_template_holder = helper::variant::get<type::template_holder_type>(return_type);
-        return name + '(' +
+        return "func " + name + '(' +
             join(param_types | transformed([](auto const& t){
                         return boost::apply_visitor(detail::to_string{}, t);
                     }), ",")
@@ -155,10 +165,18 @@ struct func_type final : public basic_type {
 };
 
 struct proc_type final : public basic_type {
-    std::string name;
     std::vector<type::any_type> param_types;
 
-    std::string to_string() const override
+    proc_type() noexcept
+        : basic_type("func")
+    {}
+
+    explicit proc_type(std::vector<type::any_type> const& params) noexcept
+        : basic_type("func"), param_types(params)
+    {}
+
+
+    std::string to_string() const noexcept override
     {
         return name + '(' +
             join(param_types | transformed([](auto const& t){
@@ -168,35 +186,15 @@ struct proc_type final : public basic_type {
     }
 };
 
-struct dict_type final : public basic_type {
-    type::any_type key_type, value_type;
-
-    std::string to_string() const override
-    {
-        detail::to_string v;
-        return '{'
-            + boost::apply_visitor(v, key_type) + " => "
-            + boost::apply_visitor(v, value_type)
-            + '}';
-    }
-};
-
-struct array_type final : public basic_type {
-    type::any_type element_type;
-
-    std::string to_string() const override
-    {
-        return '{'
-            + boost::apply_visitor(detail::to_string{}, element_type)
-            + '}';
-    }
-};
-
 struct qualified_type final : public basic_type {
     type::qualifier qualifier;
     type::any_type contained_type;
 
-    std::string to_string() const override
+    qualified_type() noexcept
+        : basic_type("maybe")
+    {}
+
+    std::string to_string() const noexcept override
     {
         auto const contained_type_name =  boost::apply_visitor(detail::to_string{}, contained_type);
         switch (qualifier) {
