@@ -18,8 +18,7 @@
 namespace dachs {
 namespace type_node {
 struct builtin_type;
-struct class_type;
-struct template_holder_type;
+struct primary_class_type;
 struct class_template_type;
 struct tuple_type;
 struct func_type;
@@ -35,8 +34,7 @@ namespace type {
    using n = std::shared_ptr<type_node::n>; \
    using weak_##n = std::weak_ptr<type_node::n>
 DACHS_DEFINE_TYPE(builtin_type);
-DACHS_DEFINE_TYPE(class_type);
-DACHS_DEFINE_TYPE(template_holder_type);
+DACHS_DEFINE_TYPE(primary_class_type);
 DACHS_DEFINE_TYPE(class_template_type);
 DACHS_DEFINE_TYPE(tuple_type);
 DACHS_DEFINE_TYPE(func_type);
@@ -49,8 +47,7 @@ DACHS_DEFINE_TYPE(qualified_type);
 
 using any_type
     = boost::variant< builtin_type
-                    , class_type
-                    , template_holder_type
+                    , primary_class_type
                     , class_template_type
                     , tuple_type
                     , func_type
@@ -106,16 +103,7 @@ struct builtin_type final : public basic_type {
     }
 };
 
-struct class_type final : public basic_type {
-    std::string name;
-
-    std::string to_string() const override
-    {
-        return name;
-    }
-};
-
-struct template_holder_type final : public basic_type {
+struct primary_class_type final : public basic_type {
     std::string name;
 
     std::string to_string() const override
@@ -160,13 +148,12 @@ struct func_type final : public basic_type {
 
     std::string to_string() const override
     {
-        auto const maybe_template_holder = helper::variant::get<type::template_holder_type>(return_type);
-        return name + '(' +
+        return "func " + name + '(' +
             join(param_types | transformed([](auto const& t){
                         return boost::apply_visitor(detail::to_string{}, t);
                     }), ",")
-            + ')'
-            + (maybe_template_holder ?  (*maybe_template_holder)->to_string() : std::string{});
+            + ") : "
+            + boost::apply_visitor(detail::to_string{}, return_type);
     }
 };
 
