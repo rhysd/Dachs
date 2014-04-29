@@ -17,7 +17,6 @@
 
 namespace dachs {
 namespace type_node {
-struct builtin_type;
 struct class_type;
 struct template_holder_type;
 struct class_template_type;
@@ -34,7 +33,6 @@ namespace type {
 #define DACHS_DEFINE_TYPE(n) \
    using n = std::shared_ptr<type_node::n>; \
    using weak_##n = std::weak_ptr<type_node::n>
-DACHS_DEFINE_TYPE(builtin_type);
 DACHS_DEFINE_TYPE(class_type);
 DACHS_DEFINE_TYPE(template_holder_type);
 DACHS_DEFINE_TYPE(class_template_type);
@@ -48,8 +46,7 @@ DACHS_DEFINE_TYPE(qualified_type);
 #undef DACHS_DEFINE_TYPE
 
 using any_type
-    = boost::variant< builtin_type
-                    , class_type
+    = boost::variant< class_type
                     , template_holder_type
                     , class_template_type
                     , tuple_type
@@ -91,19 +88,6 @@ struct basic_type {
     virtual std::string to_string() const = 0;
     virtual ~basic_type()
     {}
-};
-
-struct builtin_type final : public basic_type {
-    std::string name;
-
-    explicit builtin_type(std::string const& s) noexcept
-        : name{s}
-    {}
-
-    std::string to_string() const override
-    {
-        return name;
-    }
 };
 
 struct class_type final : public basic_type {

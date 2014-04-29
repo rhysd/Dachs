@@ -53,14 +53,6 @@ struct member_var_symbol final : public basic_symbol {
     using basic_symbol::basic_symbol;
 };
 
-struct builtin_type_symbol final : public basic_symbol {
-    using basic_symbol::basic_symbol;
-
-    explicit builtin_type_symbol(std::string const& s) noexcept
-        : basic_symbol(s, type::make<type::builtin_type>(s))
-    {}
-};
-
 } // namespace symbol_node
 
 namespace symbol {
@@ -71,7 +63,6 @@ namespace symbol {
 DACHS_DEFINE_SYMBOL(var_symbol);
 DACHS_DEFINE_SYMBOL(member_func_symbol);
 DACHS_DEFINE_SYMBOL(member_var_symbol);
-DACHS_DEFINE_SYMBOL(builtin_type_symbol);
 #undef DACHS_DEFINE_SYMBOL
 
 using dachs::helper::make;

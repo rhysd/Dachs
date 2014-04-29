@@ -19,7 +19,7 @@ using dachs::helper::variant::get;
 using dachs::helper::variant::has;
 
 // Walk to analyze functions, classes and member variables symbols to make forward reference possible
-class forward_symbol_analyzer {
+class forward_definition_creater {
 
     any_scope current_scope;
 
@@ -37,7 +37,7 @@ class forward_symbol_analyzer {
 public:
 
     template<class Scope>
-    explicit forward_symbol_analyzer(Scope const& s) noexcept
+    explicit forward_definition_creater(Scope const& s) noexcept
         : current_scope(s)
     {}
 
@@ -101,8 +101,10 @@ struct weak_ptr_locker : public boost::static_visitor<any_scope> {
     }
 };
 
+
+
 // Walk to resolve symbol references
-class symbol_analyzer {
+class symbol_resolver {
 
     any_scope current_scope;
     global_scope const global;
@@ -118,18 +120,10 @@ class symbol_analyzer {
         current_scope = tmp_scope;
     }
 
-    template<class Node>
-    void set_builtin_type_symbol(Node const& node, char const* const name)
-    {
-        auto const r = boost::find_if(global->builtin_type_symbols, [&name](auto const& s){ return s->name == name; });
-        assert(r != std::end(global->builtin_type_symbols));
-        node->symbol = *r;
-    }
-
 public:
 
     template<class Scope>
-    explicit symbol_analyzer(Scope const& root, global_scope const& global)
+    explicit symbol_resolver(Scope const& root, global_scope const& global)
         : current_scope(root), global(global)
     {}
 
@@ -154,7 +148,7 @@ public:
         with_new_scope(proc->scope.lock(), recursive_walker);
     }
 
-    // Do not analyze in forward_symbol_analyzer because variables can't be referenced forward {{{
+    // Do not analyze below symbols in forward_definition_creater because variables can't be referenced forward {{{
     template<class Walker>
     void visit(ast::node::constant_decl const& const_decl, Walker const& /*unused*/)
     {
@@ -195,44 +189,6 @@ public:
     }
     // }}}
 
-    // use global scope instead of resolve_builtin_type() because of shortcut
-    template<class Walker>
-    void visit(ast::node::character_literal const& char_lit, Walker const& /*unused*/)
-    {
-        set_builtin_type_symbol(char_lit, "char");
-    }
-
-    template<class Walker>
-    void visit(ast::node::float_literal const& float_lit, Walker const& /*unused*/)
-    {
-        set_builtin_type_symbol(float_lit, "float");
-    }
-
-    template<class Walker>
-    void visit(ast::node::boolean_literal const& bool_lit, Walker const& /*unused*/)
-    {
-        set_builtin_type_symbol(bool_lit, "boolean");
-    }
-
-    template<class Walker>
-    void visit(ast::node::string_literal const& string_lit, Walker const& /*unused*/)
-    {
-        set_builtin_type_symbol(string_lit, "string");
-    }
-
-    template<class Walker>
-    void visit(ast::node::symbol_literal const& symbol_lit, Walker const& /*unused*/)
-    {
-        set_builtin_type_symbol(symbol_lit, "symbol");
-    }
-
-    template<class Walker>
-    void visit(ast::node::integer_literal const& int_lit, Walker const& /*unused*/)
-    {
-        auto const t = has<int>(int_lit->value) ? "int" : "uint";
-        set_builtin_type_symbol(int_lit, t);
-    }
-
     // TODO: resolve builtin template types like array, tuple, dict and func
 
     template<class T, class Walker>
@@ -248,8 +204,20 @@ public:
 scope_tree make_scope_tree(ast::ast &a)
 {
     auto const tree_root = make<global_scope>();
-    ast::walk_topdown(a.root, detail::forward_symbol_analyzer{tree_root});
-    ast::walk_topdown(a.root, detail::symbol_analyzer{tree_root, tree_root});
+    // Define built-in classes
+    for(auto const& t : {"int", "uint", "float", "char", "bool", "string", "symbol"}) {
+        tree_root->define_class(make<class_scope>(tree_root, t));
+    }
+    // {"dict"}
+    // {"array"}
+    // {"tuple"}
+    // {"func"}
+    // {"class"}
+
+    // TODO: Define built-in functions
+
+    ast::walk_topdown(a.root, detail::forward_definition_creater{tree_root});
+    ast::walk_topdown(a.root, detail::symbol_resolver{tree_root, tree_root});
     return scope_tree{tree_root};
 }
 
