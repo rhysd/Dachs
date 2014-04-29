@@ -204,11 +204,15 @@ public:
 scope_tree make_scope_tree(ast::ast &a)
 {
     auto const tree_root = make<global_scope>();
-
     // Define built-in classes
-    for (auto const& t : {"int", "uint", "float", "char", "bool", "string", "symbol", "tuple", "array", "dict", "func"}) {
-        auto const s = make<class_scope>(tree_root, t);
+    for(auto const& t : {"int", "uint", "float", "char", "bool", "string", "symbol"}) {
+        tree_root->define_class(make<class_scope>(tree_root, t));
     }
+    // {"dict"}
+    // {"array"}
+    // {"tuple"}
+    // {"func"}
+    // {"class"}
 
     // TODO: Define built-in functions
 

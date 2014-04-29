@@ -166,7 +166,6 @@ struct local_scope final : public basic_scope {
 struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     scope::local_scope body;
     std::vector<symbol::var_symbol> params;
-    // std::vector<template_type> template_type_symbols;
 
     // std::vector<type> for instanciated types (if this isn't template, it should contains only one element)
 
@@ -196,7 +195,6 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
     std::vector<scope::func_scope> member_func_scopes;
     std::vector<symbol::member_var_symbol> member_var_symbols;
     std::vector<scope::class_scope> inherited_class_scopes;
-    // std::vector<template_type> template_type_symbols;
 
     // std::vector<type> for instanciated types (if this isn't template, it should contains only one element)
 
