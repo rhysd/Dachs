@@ -47,6 +47,7 @@ struct statement : public base {
 
 struct character_literal final : public expression {
     char value;
+    dachs::symbol::weak_builtin_type_symbol symbol;
 
     explicit character_literal(char const c) noexcept
         : expression(), value(c)
@@ -67,6 +68,7 @@ struct character_literal final : public expression {
 
 struct float_literal final : public expression {
     double value;
+    dachs::symbol::weak_builtin_type_symbol symbol;
 
     explicit float_literal(double const d) noexcept
         : expression(), value(d)
@@ -80,6 +82,7 @@ struct float_literal final : public expression {
 
 struct boolean_literal final : public expression {
     bool value;
+    dachs::symbol::weak_builtin_type_symbol symbol;
 
     explicit boolean_literal(bool const b) noexcept
         : expression(), value(b)
@@ -93,6 +96,7 @@ struct boolean_literal final : public expression {
 
 struct string_literal final : public expression {
     std::string value;
+    dachs::symbol::weak_builtin_type_symbol symbol;
 
     explicit string_literal(std::string const& s) noexcept
         : expression(), value(s)
@@ -105,6 +109,7 @@ struct integer_literal final : public expression {
     boost::variant< int
                   , unsigned int
     > value;
+    dachs::symbol::weak_builtin_type_symbol symbol;
 
     template<class T>
     explicit integer_literal(T && v) noexcept
@@ -142,6 +147,7 @@ struct tuple_literal final : public expression {
 
 struct symbol_literal final : public expression {
     std::string value;
+    dachs::symbol::weak_builtin_type_symbol symbol;
 
     explicit symbol_literal(std::string const& s) noexcept
         : expression(), value(s)
