@@ -11,7 +11,6 @@
 
 #include "dachs/ast_fwd.hpp"
 #include "dachs/scope_fwd.hpp"
-#include "dachs/symbol.hpp"
 
 namespace dachs {
 namespace ast {
@@ -234,7 +233,8 @@ struct parameter final : public base {
     bool is_var;
     node::identifier name;
     boost::optional<node::qualified_type> param_type;
-    dachs::symbol::weak_var_symbol symbol;
+    dachs::symbol::weak_var_symbol param_symbol;
+    dachs::symbol::weak_type_symbol type_symbol;
 
     parameter(bool const v, node::identifier const& n, decltype(param_type) const& t) noexcept
         : base(), is_var(v), name(n), param_type(t)

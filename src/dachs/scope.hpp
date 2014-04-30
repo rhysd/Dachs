@@ -8,7 +8,6 @@
 #include <boost/variant/apply_visitor.hpp>
 
 #include "dachs/scope_fwd.hpp"
-#include "dachs/symbol.hpp"
 #include "dachs/helper/make.hpp"
 
 namespace dachs {
@@ -28,26 +27,14 @@ namespace scope {
 
 using dachs::helper::make;
 
-using any_scope
-        = boost::variant< global_scope
-                        , local_scope
-                        , func_scope
-                        , class_scope
-                    >;
-
-using enclosing_scope_type
-        = boost::variant< weak_global_scope
-                        , weak_local_scope
-                        , weak_func_scope
-                        , weak_class_scope
-                    >;
-
 } // namespace scope
 
 // Implementation of nodes of scope tree
 namespace scope_node {
 
 namespace detail {
+
+// FIXME: reduce duplicate of below classes
 
 struct func_resolver : public boost::static_visitor<boost::optional<scope::func_scope>> {
     std::string const& name;
@@ -109,6 +96,21 @@ struct builtin_type_resolver : public boost::static_visitor<boost::optional<symb
     }
 };
 
+struct template_type_resolver : public boost::static_visitor<boost::optional<symbol::template_type_symbol>> {
+    std::string const& name;
+
+    explicit template_type_resolver(std::string const& n) noexcept
+        : name(n)
+    {}
+
+    template<class WeakScope>
+    result_type operator()(WeakScope const& w) const
+    {
+        assert(!w.expired());
+        return w.lock()->resolve_template_type(name);
+    }
+};
+
 } // namespace detail
 
 struct basic_scope {
@@ -148,6 +150,11 @@ struct basic_scope {
     virtual boost::optional<symbol::builtin_type_symbol> resolve_builtin_type(std::string const& name) const
     {
         return boost::apply_visitor(detail::builtin_type_resolver{name}, enclosing_scope);
+    }
+
+    virtual boost::optional<symbol::template_type_symbol> resolve_template_type(std::string const& var_name) const
+    {
+        return boost::apply_visitor(detail::template_type_resolver{var_name}, enclosing_scope);
     }
 };
 
@@ -206,7 +213,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         templates.push_back(new_template);
     }
 
-    virtual boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
+    boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
     {
         for (auto const& p : params) {
             if (p->name == name) {
@@ -214,6 +221,17 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
             }
         }
         return boost::apply_visitor(detail::var_resolver{name}, enclosing_scope);
+    }
+
+    boost::optional<symbol::template_type_symbol> resolve_template_type(std::string const& var_name) const override
+    {
+        for (auto const& t : templates) {
+            if (t->name == var_name) {
+                return t;
+            }
+        }
+        return boost::none;
+        // Do not recursive because function isn't allowed to nest
     }
 };
 
@@ -291,7 +309,7 @@ struct global_scope final : public basic_scope {
         classes.push_back(new_class);
     }
 
-    virtual boost::optional<scope::func_scope> resolve_func(std::string const& name) const
+    boost::optional<scope::func_scope> resolve_func(std::string const& name) const override
     {
         for( auto const& f : functions ) {
             if (f->name == name) {
@@ -301,7 +319,7 @@ struct global_scope final : public basic_scope {
         return boost::none;
     }
 
-    virtual boost::optional<scope::class_scope> resolve_class(std::string const& name) const
+    boost::optional<scope::class_scope> resolve_class(std::string const& name) const override
     {
         for( auto const& c : classes ) {
             if (c->name == name) {
@@ -311,7 +329,7 @@ struct global_scope final : public basic_scope {
         return boost::none;
     }
 
-    virtual boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const
+    boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
     {
         for( auto const& v : const_symbols ) {
             if (v->name == name) {
@@ -321,13 +339,18 @@ struct global_scope final : public basic_scope {
         return boost::none;
     }
 
-    virtual boost::optional<symbol::builtin_type_symbol> resolve_builtin_type(std::string const& name) const
+    boost::optional<symbol::builtin_type_symbol> resolve_builtin_type(std::string const& name) const override
     {
         for( auto const& t : builtin_type_symbols ) {
             if (t->name == name) {
                 return t;
             }
         }
+        return boost::none;
+    }
+
+    virtual boost::optional<symbol::template_type_symbol> resolve_template_type(std::string const&) const override
+    {
         return boost::none;
     }
 };

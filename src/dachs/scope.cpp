@@ -170,10 +170,29 @@ public:
     void visit(ast::node::parameter const& param, Walker const& /*unused*/)
     {
         auto new_param = symbol::make<symbol::var_symbol>(param, param->name->value);
-        param->symbol = new_param;
+        param->param_symbol = new_param;
         if (auto maybe_func = get<func_scope>(current_scope)) {
             auto& func = *maybe_func;
             func->define_param(new_param);
+
+            if (auto maybe_param_type = param->param_type) {
+                // TODO: check non-template param(define and use resolve_type() member function in scopes)
+                // auto const& t = (*maybe_param_type)->type;
+                //
+                // struct compound_type_resolver : public boost::static_visitor {
+                //     any_scope const& current_scope;
+                //     compound_type_resolver(any_scope const& s)
+                //         : current_scope(s)
+                //     {}
+                // } resolver = current_scope;
+
+            } else {
+                // Type is not specified. Register template parameter.
+                auto const tmpl = dachs::symbol::make<dachs::symbol::template_type_symbol>(new_param->name);
+                func->define_template_param(tmpl);
+                param->type_symbol = tmpl;
+            }
+
         } else if (auto maybe_local = get<local_scope>(current_scope)) {
             // When for statement
             auto& local = *maybe_local;
