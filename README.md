@@ -37,31 +37,31 @@ end
 ## Progress Report
 
 -  Parser
-  - ✔ Literals
-  - ✔ Expressions
-  - ✔ Statements
-  - ✔ Functions
-  -  Class
-  -  Lambda
-  -  Block
-  -  Variadic arguments
-  -  Module
-  -  Test
+  - [x] Literals
+  - [x] Expressions
+  - [x] Statements
+  - [x] Functions
+  - [ ] Class
+  - [ ] Lambda
+  - [ ] Block
+  - [ ] Variadic arguments
+  - [ ] Module
+  - [ ] Test
 -  Sematic analysis
-  -  Scope tree
-  -  Symbol tables
-  -  Type inference
-  -  Semantic checks
-  -  Test
+  - [ ] Scope tree
+  - [ ] Symbol tables
+  - [ ] Type inference
+  - [ ] Semantic checks
+  - [ ] Test
 -  Code generation
-  -  LLVM IR code generation
-  -  Test
+  - [ ] LLVM IR code generation
+  - [ ] Test
 -  Misc
-  -  CMakeLists.txt
-  -  Travis-CI
-  -  Option parsing
-  -  Allocator customization
-  -  Exception Safety
+  - [ ] CMakeLists.txt
+  - [ ] Travis-CI
+  - [ ] Option parsing
+  - [ ] Allocator customization
+  - [ ] Exception Safety
 
 This software is disributed under [The MIT License](http://opensource.org/licenses/MIT).
 
