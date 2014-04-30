@@ -165,6 +165,7 @@ struct local_scope final : public basic_scope {
         children.push_back(child);
     }
 
+    // TODO: check duplication
     void define_local_var(symbol::var_symbol const& new_var) noexcept
     {
         local_vars.push_back(new_var);
@@ -185,8 +186,7 @@ struct local_scope final : public basic_scope {
 struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     scope::local_scope body;
     std::vector<symbol::var_symbol> params;
-
-    // std::vector<type> for instanciated types (if this isn't template, it should contains only one element)
+    std::vector<symbol::template_type_symbol> templates;
 
     template<class P>
     explicit func_scope(P const& p, std::string const& s) noexcept
@@ -194,9 +194,16 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         , basic_symbol(s)
     {}
 
+    // TODO: check duplication
     void define_param(symbol::var_symbol const& new_var) noexcept
     {
         params.push_back(new_var);
+    }
+
+    // TODO: check duplication
+    void define_template_param(symbol::template_type_symbol const& new_template) noexcept
+    {
+        templates.push_back(new_template);
     }
 
     virtual boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
@@ -214,6 +221,7 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
     std::vector<scope::func_scope> member_func_scopes;
     std::vector<symbol::member_var_symbol> member_var_symbols;
     std::vector<scope::class_scope> inherited_class_scopes;
+    std::vector<symbol::template_type_symbol> templates;
 
     // std::vector<type> for instanciated types (if this isn't template, it should contains only one element)
 
@@ -223,14 +231,22 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
         , basic_symbol(name)
     {}
 
+    // TODO: check duplication
     void define_member_func(scope::func_scope const& new_func) noexcept
     {
         member_func_scopes.push_back(new_func);
     }
 
+    // TODO: check duplication
     void define_member_var_symbols(symbol::member_var_symbol const& new_var) noexcept
     {
         member_var_symbols.push_back(new_var);
+    }
+
+    // TODO: check duplication
+    void define_template_param(symbol::template_type_symbol const& new_template) noexcept
+    {
+        templates.push_back(new_template);
     }
 
     // TODO: Resolve member functions and member variables

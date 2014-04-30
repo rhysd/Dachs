@@ -233,11 +233,11 @@ struct var_ref final : public expression {
 struct parameter final : public base {
     bool is_var;
     node::identifier name;
-    boost::optional<node::qualified_type> type;
+    boost::optional<node::qualified_type> param_type;
     dachs::symbol::weak_var_symbol symbol;
 
-    parameter(bool const v, node::identifier const& n, decltype(type) const& t) noexcept
-        : base(), is_var(v), name(n), type(t)
+    parameter(bool const v, node::identifier const& n, decltype(param_type) const& t) noexcept
+        : base(), is_var(v), name(n), param_type(t)
     {}
 
     std::string to_string() const noexcept override
@@ -260,12 +260,12 @@ struct function_call final : public expression {
 };
 
 struct object_construct final : public expression {
-    node::qualified_type type;
+    node::qualified_type obj_type;
     std::vector<node::compound_expr> args;
 
     object_construct(node::qualified_type const& t,
                      decltype(args) const& args) noexcept
-        : expression(), type(t), args(args)
+        : expression(), obj_type(t), args(args)
     {}
 
     std::string to_string() const noexcept override

@@ -132,7 +132,7 @@ public:
     {
         visitor.visit(p, [&]{
             walk(p->name);
-            walk_optional(p->type);
+            walk_optional(p->param_type);
         });
     }
 
@@ -146,7 +146,7 @@ public:
     void walk(node::object_construct &oc)
     {
         visitor.visit(oc, [&]{
-            walk(oc->type);
+            walk(oc->obj_type);
             walk_vector(oc->args);
         });
     }

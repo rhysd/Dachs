@@ -184,14 +184,14 @@ public:
     String visit(ast::node::parameter const& p, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(p, indent)
-                + '\n' + visit(p->name, indent+lead, (p->type ? "|  " : "   "))
-                + visit_optional_node(p->type, indent+lead, "   ");
+                + '\n' + visit(p->name, indent+lead, (p->param_type ? "|  " : "   "))
+                + visit_optional_node(p->param_type, indent+lead, "   ");
     }
 
     String visit(ast::node::object_construct const& oc, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(oc, indent)
-            + '\n' + visit(oc->type, indent+lead, (oc->args.empty() ? "   " : "|  "))
+            + '\n' + visit(oc->obj_type, indent+lead, (oc->args.empty() ? "   " : "|  "))
             + visit_nodes(oc->args, indent+lead, "   ");
     }
 
