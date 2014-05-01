@@ -356,20 +356,20 @@ public:
                 _val = make_node_ptr<ast::node::unary_expr>(_1, _2)
             ];
 
-        template_type
+        primary_type
             = (
                 type_name >> -(
                     '(' >> (qualified_type % ',') >> ')'
                 )
             ) [
-                _val = make_node_ptr<ast::node::template_type>(_1, _2)
+                _val = make_node_ptr<ast::node::primary_type>(_1, _2)
             ];
 
-        primary_type
+        nested_type
             = (
-                ('(' >> qualified_type >> ')') | template_type
+                ('(' >> qualified_type >> ')') | primary_type
             ) [
-                _val = make_node_ptr<ast::node::primary_type>(_1)
+                _val = make_node_ptr<ast::node::nested_type>(_1)
             ];
 
         array_type
@@ -412,7 +412,7 @@ public:
 
         compound_type
             = (
-                func_type | proc_type | array_type | dict_type | tuple_type | primary_type
+                func_type | proc_type | array_type | dict_type | tuple_type | nested_type
             ) [
                 _val = make_node_ptr<ast::node::compound_type>(_1)
             ];
@@ -797,8 +797,8 @@ public:
             , member_access
             , postfix_expr
             , unary_expr
-            , template_type
             , primary_type
+            , nested_type
             , array_type
             , dict_type
             , tuple_type
@@ -888,8 +888,8 @@ public:
         member_access.name("member access");
         postfix_expr.name("postfix expression");
         unary_expr.name("unary expression");
-        template_type.name("template type");
-        primary_type.name("primary type");
+        primary_type.name("template type");
+        nested_type.name("primary type");
         array_type.name("array type");
         dict_type.name("dictionary type");
         tuple_type.name("tuple type");
@@ -974,8 +974,8 @@ private:
     DACHS_DEFINE_RULE(member_access);
     DACHS_DEFINE_RULE(postfix_expr);
     DACHS_DEFINE_RULE(unary_expr);
-    DACHS_DEFINE_RULE(template_type);
     DACHS_DEFINE_RULE(primary_type);
+    DACHS_DEFINE_RULE(nested_type);
     DACHS_DEFINE_RULE(array_type);
     DACHS_DEFINE_RULE(dict_type);
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_type, std::vector<ast::node::qualified_type>);

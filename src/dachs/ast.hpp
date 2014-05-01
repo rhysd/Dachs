@@ -347,35 +347,40 @@ struct unary_expr final : public expression {
     std::string to_string() const noexcept override;
 };
 
-struct template_type final : public base {
+struct primary_type final : public base {
     node::identifier template_name;
-    boost::optional<std::vector<node::qualified_type>> instantiated_types;
+    boost::optional<std::vector<node::qualified_type>> instantiated_templates;
 
-    template_type(node::identifier const& tmpl
-                , decltype(instantiated_types) const& instantiated) noexcept
-        : base(), template_name(tmpl), instantiated_types(instantiated)
+    primary_type(node::identifier const& tmpl
+                , decltype(instantiated_templates) const& instantiated) noexcept
+        : base(), template_name(tmpl), instantiated_templates(instantiated)
     {}
+
+    bool is_template() const noexcept
+    {
+        return instantiated_templates;
+    }
 
     std::string to_string() const noexcept override
     {
-        return std::string{"TEMPLATE_TYPE: "} + (instantiated_types ? "template" : "not template");
+        return std::string{"PRIMARY_TYPE: "} + (instantiated_templates ? "template" : "not template");
     }
 };
 
-struct primary_type final : public base {
+struct nested_type final : public base {
     using value_type =
-        boost::variant< node::template_type
+        boost::variant< node::primary_type
                       , node::qualified_type >;
     value_type value;
 
     template<class T>
-    explicit primary_type(T const& v) noexcept
+    explicit nested_type(T const& v) noexcept
         : value(v)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "PRIMARY_TYPE";
+        return "NESTED_TYPE";
     }
 };
 
@@ -455,7 +460,7 @@ struct compound_type final : public base {
                      , node::dict_type
                      , node::func_type
                      , node::proc_type
-                     , node::primary_type>;
+                     , node::nested_type>;
     value_type value;
 
     template<class T>

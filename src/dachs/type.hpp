@@ -18,8 +18,7 @@
 namespace dachs {
 namespace type_node {
 struct builtin_type;
-struct primary_class_type;
-struct class_template_type;
+struct class_type;
 struct tuple_type;
 struct func_type;
 struct proc_type;
@@ -34,8 +33,7 @@ namespace type {
    using n = std::shared_ptr<type_node::n>; \
    using weak_##n = std::weak_ptr<type_node::n>
 DACHS_DEFINE_TYPE(builtin_type);
-DACHS_DEFINE_TYPE(primary_class_type);
-DACHS_DEFINE_TYPE(class_template_type);
+DACHS_DEFINE_TYPE(class_type);
 DACHS_DEFINE_TYPE(tuple_type);
 DACHS_DEFINE_TYPE(func_type);
 DACHS_DEFINE_TYPE(proc_type);
@@ -47,8 +45,7 @@ DACHS_DEFINE_TYPE(qualified_type);
 
 using any_type
     = boost::variant< builtin_type
-                    , primary_class_type
-                    , class_template_type
+                    , class_type
                     , tuple_type
                     , func_type
                     , proc_type
@@ -77,7 +74,7 @@ using boost::adaptors::transformed;
 namespace detail {
 struct to_string : public boost::static_visitor<std::string> {
     template<class Type>
-    std::string operator()(Type const& t) const
+    std::string operator()(Type const& t) const noexcept
     {
         return t->to_string();
     }
@@ -85,8 +82,8 @@ struct to_string : public boost::static_visitor<std::string> {
 } // namespace detail
 
 struct basic_type {
-    virtual std::string to_string() const = 0;
-    virtual ~basic_type()
+    virtual std::string to_string() const noexcept = 0;
+    virtual ~basic_type() noexcept
     {}
 };
 
@@ -97,27 +94,18 @@ struct builtin_type final : public basic_type {
         : name{s}
     {}
 
-    std::string to_string() const override
-    {
-        return name;
-    }
-};
-
-struct primary_class_type final : public basic_type {
-    std::string name;
-
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return name;
     }
 };
 
 // This class may not be needed because class from class template is instanciated at the point on resolving a symbol of class templates
-struct class_template_type final : public basic_type {
+struct class_type final : public basic_type {
     std::string name;
     std::vector<type::any_type> holder_types;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return name + '(' +
             join(holder_types | transformed([](auto const& t){
@@ -130,7 +118,7 @@ struct class_template_type final : public basic_type {
 struct tuple_type final : public basic_type {
     std::vector<type::any_type> element_types;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return '(' +
             join(element_types | transformed([](auto const& t){
@@ -146,7 +134,7 @@ struct func_type final : public basic_type {
     // If return type is not specified, it will be treated as template type
     type::any_type return_type;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return "func " + name + '(' +
             join(param_types | transformed([](auto const& t){
@@ -161,7 +149,7 @@ struct proc_type final : public basic_type {
     std::string name;
     std::vector<type::any_type> param_types;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return name + '(' +
             join(param_types | transformed([](auto const& t){
@@ -174,7 +162,7 @@ struct proc_type final : public basic_type {
 struct dict_type final : public basic_type {
     type::any_type key_type, value_type;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         detail::to_string v;
         return '{'
@@ -187,7 +175,7 @@ struct dict_type final : public basic_type {
 struct array_type final : public basic_type {
     type::any_type element_type;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         return '{'
             + boost::apply_visitor(detail::to_string{}, element_type)
@@ -199,7 +187,7 @@ struct qualified_type final : public basic_type {
     type::qualifier qualifier;
     type::any_type contained_type;
 
-    std::string to_string() const override
+    std::string to_string() const noexcept override
     {
         auto const contained_type_name =  boost::apply_visitor(detail::to_string{}, contained_type);
         switch (qualifier) {

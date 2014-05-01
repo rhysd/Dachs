@@ -189,17 +189,17 @@ public:
         });
     }
 
-    void walk(node::template_type &tt)
+    void walk(node::primary_type &tt)
     {
         visitor.visit(tt, [&]{
             walk(tt->template_name);
-            if (tt->instantiated_types) {
-                walk_vector(*(tt->instantiated_types));
+            if (tt->instantiated_templates) {
+                walk_vector(*(tt->instantiated_templates));
             }
         });
     }
 
-    void walk(node::primary_type &pt)
+    void walk(node::nested_type &pt)
     {
         visitor.visit(pt, [&]{
             boost::apply_visitor(variant_visitor, pt->value);

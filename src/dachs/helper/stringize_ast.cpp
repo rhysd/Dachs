@@ -234,14 +234,14 @@ public:
                 + visit(ue->expr, indent+lead, "   ");
     }
 
-    String visit(ast::node::template_type const& tt, String const& indent, char const* const lead) const noexcept
+    String visit(ast::node::primary_type const& tt, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(tt, indent)
-            + '\n' + visit(tt->template_name, indent+lead, tt->instantiated_types ? "   " : "|  ")
-            + (tt->instantiated_types ? visit_nodes(*(tt->instantiated_types), indent+lead, true) : "");
+            + '\n' + visit(tt->template_name, indent+lead, tt->instantiated_templates ? "   " : "|  ")
+            + (tt->instantiated_templates ? visit_nodes(*(tt->instantiated_templates), indent+lead, true) : "");
     }
 
-    String visit(ast::node::primary_type const& pt, String const& indent, char const* const lead) const noexcept
+    String visit(ast::node::nested_type const& pt, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(pt, indent) + '\n'
                 + visit_variant_node(pt->value, indent+lead, "   ");
