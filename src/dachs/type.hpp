@@ -12,6 +12,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
 
+#include "scope_fwd.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/make.hpp"
 
@@ -87,12 +88,24 @@ struct basic_type {
     {}
 };
 
-struct builtin_type final : public basic_type {
+struct named_type : public basic_type {
     std::string name;
 
-    explicit builtin_type(std::string const& s) noexcept
-        : name{s}
+    explicit named_type(std::string const& name) noexcept
+        : name{name}
     {}
+
+    explicit named_type(std::string && name) noexcept
+        : name{std::forward<std::string>(name)}
+    {}
+
+    virtual ~named_type() noexcept
+    {}
+};
+
+struct builtin_type final : public named_type {
+
+    using named_type::named_type;
 
     std::string to_string() const noexcept override
     {
@@ -101,9 +114,13 @@ struct builtin_type final : public basic_type {
 };
 
 // This class may not be needed because class from class template is instanciated at the point on resolving a symbol of class templates
-struct class_type final : public basic_type {
-    std::string name;
+struct class_type final : public named_type {
     std::vector<type::any_type> holder_types;
+    scope::class_scope symbol;
+
+    class_type(std::string const& n, scope::class_scope const& s) noexcept
+        : named_type(n), symbol(s)
+    {}
 
     std::string to_string() const noexcept override
     {
@@ -118,6 +135,13 @@ struct class_type final : public basic_type {
 struct tuple_type final : public basic_type {
     std::vector<type::any_type> element_types;
 
+    tuple_type() = default;
+
+    template<class Vec>
+    explicit tuple_type(Vec && v) noexcept
+        : element_types{std::forward<decltype(element_types)>(v)}
+    {}
+
     std::string to_string() const noexcept override
     {
         return '(' +
@@ -129,14 +153,20 @@ struct tuple_type final : public basic_type {
 };
 
 struct func_type final : public basic_type {
-    std::string name;
     std::vector<type::any_type> param_types;
     // If return type is not specified, it will be treated as template type
     type::any_type return_type;
 
+    func_type() = default;
+
+    template<class Vec, class Ret>
+    func_type(Vec && p, Ret const& r) noexcept
+        : param_types{std::forward<decltype(param_types)>(p)}, return_type(r)
+    {}
+
     std::string to_string() const noexcept override
     {
-        return "func " + name + '(' +
+        return "func (" +
             join(param_types | transformed([](auto const& t){
                         return boost::apply_visitor(detail::to_string{}, t);
                     }), ",")
@@ -146,12 +176,18 @@ struct func_type final : public basic_type {
 };
 
 struct proc_type final : public basic_type {
-    std::string name;
     std::vector<type::any_type> param_types;
+
+    proc_type() = default;
+
+    template<class Vec>
+    explicit proc_type(Vec && p) noexcept
+        : param_types{std::forward<decltype(param_types)>(p)}
+    {}
 
     std::string to_string() const noexcept override
     {
-        return name + '(' +
+        return "proc (" +
             join(param_types | transformed([](auto const& t){
                         return boost::apply_visitor(detail::to_string{}, t);
                     }), ",")
@@ -161,6 +197,13 @@ struct proc_type final : public basic_type {
 
 struct dict_type final : public basic_type {
     type::any_type key_type, value_type;
+
+    dict_type() = default;
+
+    template<class Key, class Value>
+    dict_type(Key const& k, Value const& v) noexcept
+        : key_type{k}, value_type{v}
+    {}
 
     std::string to_string() const noexcept override
     {
@@ -175,6 +218,13 @@ struct dict_type final : public basic_type {
 struct array_type final : public basic_type {
     type::any_type element_type;
 
+    array_type() = default;
+
+    template<class Elem>
+    explicit array_type(Elem const& e) noexcept
+        : element_type(e)
+    {}
+
     std::string to_string() const noexcept override
     {
         return '{'
@@ -186,6 +236,11 @@ struct array_type final : public basic_type {
 struct qualified_type final : public basic_type {
     type::qualifier qualifier;
     type::any_type contained_type;
+
+    template<class Contained>
+    qualified_type(type::qualifier const q, Contained const& c) noexcept
+        : qualifier{q}, contained_type{c}
+    {}
 
     std::string to_string() const noexcept override
     {
