@@ -67,6 +67,8 @@ public:
         auto new_func = make<func_scope>(global_scope, func_def->name->value);
         func_def->scope = new_func;
         global_scope->define_function(new_func);
+        auto new_func_var = symbol::make<symbol::var_symbol>(func_def->name->value);
+        global_scope->define_global_constant(new_func_var);
         with_new_scope(std::move(new_func), recursive_walker);
     }
 
@@ -79,6 +81,8 @@ public:
         auto new_proc = make<func_scope>(global_scope, proc_def->name->value);
         proc_def->scope = new_proc;
         global_scope->define_function(new_proc);
+        auto new_proc_var = symbol::make<symbol::var_symbol>(proc_def->name->value);
+        global_scope->define_global_constant(new_proc_var);
         with_new_scope(std::move(new_proc), recursive_walker);
     }
 
@@ -210,6 +214,9 @@ scope_tree make_scope_tree(ast::ast &a)
     auto const tree_root = make<global_scope>();
     ast::walk_topdown(a.root, detail::forward_symbol_analyzer{tree_root});
     ast::walk_topdown(a.root, detail::symbol_analyzer{tree_root, tree_root});
+
+    // TODO: get type of global function variables' type on visit node::function_definition and node::procedure_definition
+
     return scope_tree{tree_root};
 }
 

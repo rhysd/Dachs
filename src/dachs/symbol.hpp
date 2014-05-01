@@ -5,6 +5,7 @@
 
 #include "dachs/type.hpp"
 #include "dachs/ast_fwd.hpp"
+#include "dachs/scope_fwd.hpp"
 #include "dachs/helper/make.hpp"
 
 namespace dachs {
@@ -23,7 +24,7 @@ struct basic_symbol {
     {}
 
     template<class Type>
-    basic_symbol(std::string const& s, Type const& t)
+    basic_symbol(std::string const& s, Type const& t) noexcept
         : name(s), type{t}, ast_node{}
     {}
 
@@ -45,12 +46,14 @@ struct var_symbol final : public basic_symbol {
     using basic_symbol::basic_symbol;
 };
 
-struct member_func_symbol final : public basic_symbol {
-    using basic_symbol::basic_symbol;
-};
-
 struct member_var_symbol final : public basic_symbol {
     using basic_symbol::basic_symbol;
+
+    scope::class_scope its_class;
+
+    member_var_symbol(std::string const& name, scope::class_scope c) noexcept
+        : basic_symbol(name), its_class(c)
+    {}
 };
 
 struct template_type_symbol final : public basic_symbol {
@@ -65,7 +68,6 @@ namespace symbol {
    using n = std::shared_ptr<symbol_node::n>; \
    using weak_##n = std::weak_ptr<symbol_node::n>
 DACHS_DEFINE_SYMBOL(var_symbol);
-DACHS_DEFINE_SYMBOL(member_func_symbol);
 DACHS_DEFINE_SYMBOL(member_var_symbol);
 DACHS_DEFINE_SYMBOL(template_type_symbol);
 #undef DACHS_DEFINE_SYMBOL

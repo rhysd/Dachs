@@ -11,6 +11,7 @@
 
 #include "dachs/ast_fwd.hpp"
 #include "dachs/scope_fwd.hpp"
+#include "symbol.hpp"
 
 namespace dachs {
 namespace ast {

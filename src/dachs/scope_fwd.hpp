@@ -5,8 +5,6 @@
 
 #include <boost/variant/variant.hpp>
 
-#include "dachs/symbol.hpp"
-
 namespace dachs {
 
 // Forward declarations to define node pointers

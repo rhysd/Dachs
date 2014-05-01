@@ -8,19 +8,10 @@
 #include <boost/variant/apply_visitor.hpp>
 
 #include "dachs/scope_fwd.hpp"
+#include "dachs/symbol.hpp"
 #include "dachs/helper/make.hpp"
 
 namespace dachs {
-
-// Forward declarations to define node pointers
-namespace scope_node {
-
-struct global_scope;
-struct local_scope;
-struct func_scope;
-struct class_scope;
-
-} // namespace scope
 
 // Dynamic resources to use actually
 namespace scope {
