@@ -81,21 +81,6 @@ struct var_resolver : public boost::static_visitor<boost::optional<symbol::var_s
     }
 };
 
-struct builtin_type_resolver : public boost::static_visitor<boost::optional<symbol::builtin_type_symbol>> {
-    std::string const& name;
-
-    explicit builtin_type_resolver(std::string const& n) noexcept
-        : name(n)
-    {}
-
-    template<class WeakScope>
-    result_type operator()(WeakScope const& w) const
-    {
-        assert(!w.expired());
-        return w.lock()->resolve_builtin_type(name);
-    }
-};
-
 struct template_type_resolver : public boost::static_visitor<boost::optional<symbol::template_type_symbol>> {
     std::string const& name;
 
@@ -145,11 +130,6 @@ struct basic_scope {
     virtual boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const
     {
         return boost::apply_visitor(detail::var_resolver{name}, enclosing_scope);
-    }
-
-    virtual boost::optional<symbol::builtin_type_symbol> resolve_builtin_type(std::string const& name) const
-    {
-        return boost::apply_visitor(detail::builtin_type_resolver{name}, enclosing_scope);
     }
 
     virtual boost::optional<symbol::template_type_symbol> resolve_template_type(std::string const& var_name) const
@@ -272,26 +252,11 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
 
 struct global_scope final : public basic_scope {
     std::vector<scope::func_scope> functions;
-    std::vector<symbol::builtin_type_symbol> const builtin_type_symbols;
     std::vector<symbol::var_symbol> const_symbols;
     std::vector<scope::class_scope> classes;
 
     global_scope() noexcept
         : basic_scope()
-        , builtin_type_symbols({
-                symbol::make<symbol::builtin_type_symbol>("int"),
-                symbol::make<symbol::builtin_type_symbol>("uint"),
-                symbol::make<symbol::builtin_type_symbol>("float"),
-                symbol::make<symbol::builtin_type_symbol>("char"),
-                symbol::make<symbol::builtin_type_symbol>("bool"),
-                symbol::make<symbol::builtin_type_symbol>("string"),
-                symbol::make<symbol::builtin_type_symbol>("symbol"),
-            // {"dict"}
-            // {"array"}
-            // {"tuple"}
-            // {"func"}
-            // {"class"}
-        })
     {}
 
     void define_function(scope::func_scope const& new_func) noexcept
@@ -339,17 +304,7 @@ struct global_scope final : public basic_scope {
         return boost::none;
     }
 
-    boost::optional<symbol::builtin_type_symbol> resolve_builtin_type(std::string const& name) const override
-    {
-        for( auto const& t : builtin_type_symbols ) {
-            if (t->name == name) {
-                return t;
-            }
-        }
-        return boost::none;
-    }
-
-    virtual boost::optional<symbol::template_type_symbol> resolve_template_type(std::string const&) const override
+    boost::optional<symbol::template_type_symbol> resolve_template_type(std::string const&) const override
     {
         return boost::none;
     }

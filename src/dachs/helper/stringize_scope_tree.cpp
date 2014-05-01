@@ -66,7 +66,6 @@ public:
     std::string visit(scope::global_scope const& g, size_t const i) const
     {
         return indent(i) + "GLOBAL_SCOPE"
-            + visit_symbols(g->builtin_type_symbols, i+1)
             + visit_scopes(g->functions, i+1)
             + visit_symbols(g->const_symbols, i+1)
             + visit_scopes(g->classes, i+1);

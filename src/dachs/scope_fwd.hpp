@@ -46,16 +46,6 @@ using enclosing_scope_type
 
 } // namespace scope
 
-namespace symbol {
-
-using weak_type_symbol
-        = boost::variant< weak_builtin_type_symbol
-                        , weak_template_type_symbol
-                        , scope::class_scope
-                    >;
-
-} // namespace symbol
-
 } // namespace dachs
 
 #endif    // DACHS_SCOPE_FWD_HPP_INCLUDED

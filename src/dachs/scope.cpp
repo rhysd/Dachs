@@ -118,14 +118,6 @@ class symbol_analyzer {
         current_scope = tmp_scope;
     }
 
-    template<class Node>
-    void set_builtin_type_symbol(Node const& node, char const* const name)
-    {
-        auto const r = boost::find_if(global->builtin_type_symbols, [&name](auto const& s){ return s->name == name; });
-        assert(r != std::end(global->builtin_type_symbols));
-        node->symbol = *r;
-    }
-
 public:
 
     template<class Scope>
@@ -175,22 +167,11 @@ public:
             auto& func = *maybe_func;
             func->define_param(new_param);
 
-            if (auto maybe_param_type = param->param_type) {
-                // TODO: check non-template param(define and use resolve_type() member function in scopes)
-                // auto const& t = (*maybe_param_type)->type;
-                //
-                // struct compound_type_resolver : public boost::static_visitor {
-                //     any_scope const& current_scope;
-                //     compound_type_resolver(any_scope const& s)
-                //         : current_scope(s)
-                //     {}
-                // } resolver = current_scope;
-
-            } else {
+            if (!param->param_type) {
                 // Type is not specified. Register template parameter.
                 auto const tmpl = dachs::symbol::make<dachs::symbol::template_type_symbol>(new_param->name);
                 func->define_template_param(tmpl);
-                param->type_symbol = tmpl;
+                param->template_type_ref = tmpl;
             }
 
         } else if (auto maybe_local = get<local_scope>(current_scope)) {
@@ -213,46 +194,6 @@ public:
         local->define_local_var(new_var);
     }
     // }}}
-
-    // use global scope instead of resolve_builtin_type() because of shortcut
-    template<class Walker>
-    void visit(ast::node::character_literal const& char_lit, Walker const& /*unused*/)
-    {
-        set_builtin_type_symbol(char_lit, "char");
-    }
-
-    template<class Walker>
-    void visit(ast::node::float_literal const& float_lit, Walker const& /*unused*/)
-    {
-        set_builtin_type_symbol(float_lit, "float");
-    }
-
-    template<class Walker>
-    void visit(ast::node::boolean_literal const& bool_lit, Walker const& /*unused*/)
-    {
-        set_builtin_type_symbol(bool_lit, "boolean");
-    }
-
-    template<class Walker>
-    void visit(ast::node::string_literal const& string_lit, Walker const& /*unused*/)
-    {
-        set_builtin_type_symbol(string_lit, "string");
-    }
-
-    template<class Walker>
-    void visit(ast::node::symbol_literal const& symbol_lit, Walker const& /*unused*/)
-    {
-        set_builtin_type_symbol(symbol_lit, "symbol");
-    }
-
-    template<class Walker>
-    void visit(ast::node::integer_literal const& int_lit, Walker const& /*unused*/)
-    {
-        auto const t = has<int>(int_lit->value) ? "int" : "uint";
-        set_builtin_type_symbol(int_lit, t);
-    }
-
-    // TODO: resolve builtin template types like array, tuple, dict and func
 
     template<class T, class Walker>
     void visit(T const&, Walker const& walker)
