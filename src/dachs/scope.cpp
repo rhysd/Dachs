@@ -36,9 +36,11 @@ class forward_symbol_analyzer {
 
 public:
 
+    bool failed;
+
     template<class Scope>
     explicit forward_symbol_analyzer(Scope const& s) noexcept
-        : current_scope(s)
+        : current_scope(s), failed(false)
     {}
 
     template<class Walker>
@@ -86,12 +88,12 @@ public:
         with_new_scope(std::move(new_proc), recursive_walker);
     }
 
-    // TODO: class scope and member function scope
+    // TODO: class scopes and member function scopes
 
     template<class T, class Walker>
     void visit(T const&, Walker const& walker)
     {
-        // simply visit children recursively
+        // Simply visit children recursively
         walker();
     }
 };
@@ -102,6 +104,21 @@ struct weak_ptr_locker : public boost::static_visitor<any_scope> {
     {
         assert(!w.expired());
         return w.lock();
+    }
+};
+
+struct var_symbol_resolver_for_shared_scope
+    : boost::static_visitor<boost::optional<symbol::var_symbol>> {
+    std::string const& name;
+
+    explicit var_symbol_resolver_for_shared_scope(std::string const& n) noexcept
+        : name{n}
+    {}
+
+    template<class T>
+    boost::optional<symbol::var_symbol> operator()(std::shared_ptr<T> const& scope) const noexcept
+    {
+        return scope->resolve_var(name);
     }
 };
 
@@ -124,11 +141,14 @@ class symbol_analyzer {
 
 public:
 
+    bool failed;
+
     template<class Scope>
-    explicit symbol_analyzer(Scope const& root, global_scope const& global)
-        : current_scope(root), global(global)
+    explicit symbol_analyzer(Scope const& root, global_scope const& global) noexcept
+        : current_scope{root}, global{global}, failed{false}
     {}
 
+    // Push and pop current scope {{{
     template<class Walker>
     void visit(ast::node::statement_block const& block, Walker const& recursive_walker)
     {
@@ -149,10 +169,11 @@ public:
         assert(!proc->scope.expired());
         with_new_scope(proc->scope.lock(), recursive_walker);
     }
+    // }}}
 
     // Do not analyze in forward_symbol_analyzer because variables can't be referenced forward {{{
     template<class Walker>
-    void visit(ast::node::constant_decl const& const_decl, Walker const& /*unused*/)
+    void visit(ast::node::constant_decl const& const_decl, Walker const& recursive_walker)
     {
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
@@ -160,10 +181,11 @@ public:
         auto new_var = symbol::make<symbol::var_symbol>(const_decl, const_decl->name->value);
         const_decl->symbol = new_var;
         global_scope->define_global_constant(new_var);
+        recursive_walker();
     }
 
     template<class Walker>
-    void visit(ast::node::parameter const& param, Walker const& /*unused*/)
+    void visit(ast::node::parameter const& param, Walker const& recursive_walker)
     {
         auto new_param = symbol::make<symbol::var_symbol>(param, param->name->value);
         param->param_symbol = new_param;
@@ -185,10 +207,11 @@ public:
         } else {
             assert(false);
         }
+        recursive_walker();
     }
 
     template<class Walker>
-    void visit(ast::node::variable_decl const& decl, Walker const& /*unused*/)
+    void visit(ast::node::variable_decl const& decl, Walker const& recursive_walker)
     {
         auto maybe_local = get<local_scope>(current_scope);
         assert(maybe_local);
@@ -196,8 +219,25 @@ public:
         auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name->value);
         decl->symbol = new_var;
         local->define_local_var(new_var);
+        recursive_walker();
     }
     // }}}
+
+    template<class Walker>
+    void visit(ast::node::var_ref const& var, Walker const& recursive_walker)
+    {
+        auto maybe_resolved_symbol = boost::apply_visitor(var_symbol_resolver_for_shared_scope{var->name->value}, current_scope);
+        if (maybe_resolved_symbol) {
+            var->symbol = *maybe_resolved_symbol;
+        } else {
+            std::cerr << "Semantic error at line:" << var->line << ", col:" << var->col << "\nSymbol '" << var->name->value << "' is not found." << std::endl;
+            failed = true;
+        }
+        recursive_walker();
+    }
+
+    // TODO: member variable accesses
+    // TODO: method accesses
 
     template<class T, class Walker>
     void visit(T const&, Walker const& walker)
@@ -212,8 +252,15 @@ public:
 scope_tree make_scope_tree(ast::ast &a)
 {
     auto const tree_root = make<global_scope>();
-    ast::walk_topdown(a.root, detail::forward_symbol_analyzer{tree_root});
-    ast::walk_topdown(a.root, detail::symbol_analyzer{tree_root, tree_root});
+    detail::forward_symbol_analyzer forward_resolver{tree_root};
+    ast::walk_topdown(a.root, forward_resolver);
+
+    // TODO: if (forward_resolver.failed)
+
+    detail::symbol_analyzer resolver{tree_root, tree_root};
+    ast::walk_topdown(a.root, resolver);
+
+    // TODO: if (resolver.failed) {
 
     // TODO: get type of global function variables' type on visit node::function_definition and node::procedure_definition
 

@@ -11,7 +11,8 @@
 
 #include "dachs/ast_fwd.hpp"
 #include "dachs/scope_fwd.hpp"
-#include "symbol.hpp"
+#include "dachs/symbol.hpp"
+#include "dachs/type.hpp"
 
 namespace dachs {
 namespace ast {
@@ -35,7 +36,7 @@ struct base {
 };
 
 struct expression : public base {
-    // Type type;
+    type::type type;
     virtual ~expression() noexcept
     {}
 };
@@ -212,7 +213,7 @@ struct identifier final : public base {
 // This node will have kind of variable (global, member, local variables and functions)
 struct var_ref final : public expression {
     node::identifier name;
-    boost::variant<dachs::symbol::weak_var_symbol, scope::weak_func_scope> symbol;
+    dachs::symbol::weak_var_symbol symbol;
 
     explicit var_ref(node::identifier const& n) noexcept
         : expression(), name(n)

@@ -25,7 +25,6 @@ struct func_type;
 struct proc_type;
 struct dict_type;
 struct array_type;
-struct dict_type;
 struct qualified_type;
 }
 
@@ -40,7 +39,6 @@ DACHS_DEFINE_TYPE(func_type);
 DACHS_DEFINE_TYPE(proc_type);
 DACHS_DEFINE_TYPE(dict_type);
 DACHS_DEFINE_TYPE(array_type);
-DACHS_DEFINE_TYPE(dict_type);
 DACHS_DEFINE_TYPE(qualified_type);
 #undef DACHS_DEFINE_TYPE
 
@@ -52,7 +50,6 @@ using any_type
                     , proc_type
                     , dict_type
                     , array_type
-                    , dict_type
                     , qualified_type
                 >;
 
@@ -154,7 +151,6 @@ struct tuple_type final : public basic_type {
 
 struct func_type final : public basic_type {
     std::vector<type::any_type> param_types;
-    // If return type is not specified, it will be treated as template type
     type::any_type return_type;
 
     func_type() = default;
