@@ -19,22 +19,6 @@ namespace ast {
 
 namespace node_type {
 
-std::size_t generate_id() noexcept;
-
-struct base {
-    base() noexcept
-        : id(generate_id())
-    {}
-
-    virtual ~base() noexcept
-    {}
-
-    virtual std::string to_string() const noexcept = 0;
-
-    std::size_t line = 0, col = 0, length = 0;
-    std::size_t id;
-};
-
 struct expression : public base {
     type::type type;
     virtual ~expression() noexcept

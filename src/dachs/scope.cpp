@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstddef>
 
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
@@ -16,6 +17,7 @@ namespace scope {
 
 namespace detail {
 
+using std::size_t;
 using dachs::helper::variant::get;
 using dachs::helper::variant::has;
 
@@ -37,11 +39,11 @@ class forward_symbol_analyzer {
 
 public:
 
-    bool failed;
+    size_t failed;
 
     template<class Scope>
     explicit forward_symbol_analyzer(Scope const& s) noexcept
-        : current_scope(s), failed(false)
+        : current_scope(s), failed(0)
     {}
 
     template<class Walker>
@@ -67,11 +69,15 @@ public:
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
-        auto new_func = make<func_scope>(global_scope, func_def->name->value);
+        auto new_func = make<func_scope>(func_def, global_scope, func_def->name->value);
         func_def->scope = new_func;
-        global_scope->define_function(new_func);
-        auto new_func_var = symbol::make<symbol::var_symbol>(func_def->name->value);
-        global_scope->define_global_constant(new_func_var);
+        if (!global_scope->define_function(new_func)) {
+            failed++;
+        } else {
+            // If the symbol passes duplication check, it also defines as variable
+            auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name->value);
+            global_scope->define_global_constant(new_func_var);
+        }
         with_new_scope(std::move(new_func), recursive_walker);
     }
 
@@ -81,11 +87,14 @@ public:
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
-        auto new_proc = make<func_scope>(global_scope, proc_def->name->value);
+        auto new_proc = make<func_scope>(proc_def, global_scope, proc_def->name->value);
         proc_def->scope = new_proc;
-        global_scope->define_function(new_proc);
-        auto new_proc_var = symbol::make<symbol::var_symbol>(proc_def->name->value);
-        global_scope->define_global_constant(new_proc_var);
+        if (!global_scope->define_function(new_proc)) {
+            failed++;
+        } else {
+            auto new_proc_var = symbol::make<symbol::var_symbol>(proc_def, proc_def->name->value);
+            global_scope->define_global_constant(new_proc_var);
+        }
         with_new_scope(std::move(new_proc), recursive_walker);
     }
 
@@ -142,11 +151,11 @@ class symbol_analyzer {
 
 public:
 
-    bool failed;
+    size_t failed;
 
     template<class Scope>
     explicit symbol_analyzer(Scope const& root, global_scope const& global) noexcept
-        : current_scope{root}, global{global}, failed{false}
+        : current_scope{root}, global{global}, failed{0}
     {}
 
     // Push and pop current scope {{{
@@ -181,7 +190,9 @@ public:
         auto& global_scope = *maybe_global_scope;
         auto new_var = symbol::make<symbol::var_symbol>(const_decl, const_decl->name->value);
         const_decl->symbol = new_var;
-        global_scope->define_global_constant(new_var);
+        if (global_scope->define_global_constant(new_var)) {
+            failed++;
+        }
         recursive_walker();
     }
 
@@ -192,7 +203,9 @@ public:
         param->param_symbol = new_param;
         if (auto maybe_func = get<func_scope>(current_scope)) {
             auto& func = *maybe_func;
-            func->define_param(new_param);
+            if (!func->define_param(new_param)) {
+                failed++;
+            }
 
             if (!param->param_type) {
                 // Type is not specified. Register template parameter.
@@ -204,7 +217,9 @@ public:
         } else if (auto maybe_local = get<local_scope>(current_scope)) {
             // When for statement
             auto& local = *maybe_local;
-            local->define_local_var(new_param);
+            if (!local->define_local_var(new_param)) {
+                failed++;
+            }
         } else {
             assert(false);
         }
@@ -219,7 +234,9 @@ public:
         auto& local = *maybe_local;
         auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name->value);
         decl->symbol = new_var;
-        local->define_local_var(new_var);
+        if (!local->define_local_var(new_var)) {
+            failed++;
+        }
         recursive_walker();
     }
     // }}}
@@ -232,7 +249,7 @@ public:
             var->symbol = *maybe_resolved_symbol;
         } else {
             std::cerr << "Semantic error at line:" << var->line << ", col:" << var->col << "\nSymbol '" << var->name->value << "' is not found." << std::endl;
-            failed = true;
+            failed++;
         }
         recursive_walker();
     }
@@ -264,19 +281,20 @@ scope_tree make_scope_tree(ast::ast &a)
         // Builtin functions
 
         // func print(str)
-        auto print_func = make<func_scope>(tree_root, "print");
+        auto print_func = make<func_scope>(a.root, tree_root, "print");
         print_func->body = make<local_scope>(print_func);
-        print_func->define_param(symbol::make<symbol::var_symbol>("str"));
+        // Note: These definitions are never duplicate
+        print_func->define_param(symbol::make<symbol::var_symbol>(a.root, "str"));
         tree_root->define_function(print_func);
-        tree_root->define_global_constant(symbol::make<symbol::var_symbol>("print"));
+        tree_root->define_global_constant(symbol::make<symbol::var_symbol>(a.root, "print"));
     }
 
     {
         detail::forward_symbol_analyzer forward_resolver{tree_root};
         ast::walk_topdown(a.root, forward_resolver);
 
-        if (forward_resolver.failed) {
-            throw dachs::semantic_check_error{"forward symbol resolution"};
+        if (forward_resolver.failed > 0) {
+            throw dachs::semantic_check_error{forward_resolver.failed, "forward symbol resolution"};
         }
     }
 
@@ -284,8 +302,8 @@ scope_tree make_scope_tree(ast::ast &a)
         detail::symbol_analyzer resolver{tree_root, tree_root};
         ast::walk_topdown(a.root, resolver);
 
-        if (resolver.failed) {
-            throw dachs::semantic_check_error{"symbol resolution"};
+        if (resolver.failed > 0) {
+            throw dachs::semantic_check_error{resolver.failed, "symbol resolution"};
         }
     }
 

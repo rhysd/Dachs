@@ -89,8 +89,23 @@ std::string to_string(range_kind const o);
 
 namespace node_type {
 
+std::size_t generate_id() noexcept;
+
+struct base {
+    base() noexcept
+        : id(generate_id())
+    {}
+
+    virtual ~base() noexcept
+    {}
+
+    virtual std::string to_string() const noexcept = 0;
+
+    std::size_t line = 0, col = 0, length = 0;
+    std::size_t id;
+};
+
 // Forward class declarations
-struct base;
 struct integer_literal;
 struct character_literal;
 struct float_literal;

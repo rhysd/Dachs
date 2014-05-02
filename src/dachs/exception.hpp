@@ -31,8 +31,8 @@ struct parse_error final : public std::runtime_error {
 
 struct semantic_check_error final : public std::runtime_error {
 public:
-    semantic_check_error(char const* const stage) noexcept
-        : std::runtime_error((boost::format("Sematic error generated in %1%") % stage).str())
+    semantic_check_error(std::size_t const num, char const* const stage) noexcept
+        : std::runtime_error((boost::format("%1% sematic error(s) generated in %2%") % num % stage).str())
     {}
 };
 
