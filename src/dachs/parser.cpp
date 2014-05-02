@@ -27,6 +27,7 @@
 #include "dachs/parser.hpp"
 #include "dachs/comment_skipper.hpp"
 #include "dachs/ast.hpp"
+#include "dachs/exception.hpp"
 // }}}
 
 namespace dachs {

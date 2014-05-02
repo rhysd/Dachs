@@ -8,6 +8,7 @@
 #include "dachs/ast.hpp"
 #include "dachs/symbol.hpp"
 #include "dachs/ast_walker.hpp"
+#include "dachs/exception.hpp"
 #include "dachs/helper/variant.hpp"
 
 namespace dachs {
@@ -236,6 +237,12 @@ public:
         recursive_walker();
     }
 
+    template<class Walker>
+    void visit(ast::node::member_access const& /*member_access*/, Walker const& /*unused*/)
+    {
+        throw not_implemented_error{__FILE__, __func__, __LINE__, "member access"};
+    }
+
     // TODO: member variable accesses
     // TODO: method accesses
 
@@ -252,15 +259,24 @@ public:
 scope_tree make_scope_tree(ast::ast &a)
 {
     auto const tree_root = make<global_scope>();
-    detail::forward_symbol_analyzer forward_resolver{tree_root};
-    ast::walk_topdown(a.root, forward_resolver);
 
-    // TODO: if (forward_resolver.failed)
+    {
+        detail::forward_symbol_analyzer forward_resolver{tree_root};
+        ast::walk_topdown(a.root, forward_resolver);
 
-    detail::symbol_analyzer resolver{tree_root, tree_root};
-    ast::walk_topdown(a.root, resolver);
+        if (forward_resolver.failed) {
+            throw dachs::semantic_check_error{"forward symbol resolution"};
+        }
+    }
 
-    // TODO: if (resolver.failed) {
+    {
+        detail::symbol_analyzer resolver{tree_root, tree_root};
+        ast::walk_topdown(a.root, resolver);
+
+        if (resolver.failed) {
+            throw dachs::semantic_check_error{"symbol resolution"};
+        }
+    }
 
     // TODO: get type of global function variables' type on visit node::function_definition and node::procedure_definition
 

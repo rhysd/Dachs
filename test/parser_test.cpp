@@ -3,6 +3,7 @@
 #define BOOST_TEST_MAIN
 
 #include "dachs/parser.hpp"
+#include "dachs/exception.hpp"
 #include "dachs/helper/util.hpp"
 #include "test_helper.hpp"
 
@@ -15,7 +16,7 @@ using namespace dachs::test::parser;
 // NOTE: use global variable to avoid executing heavy construction of parser
 static dachs::syntax::parser p;
 
-#define CHECK_PARSE_THROW(...) BOOST_CHECK_THROW(p.parse((__VA_ARGS__)), dachs::syntax::parse_error)
+#define CHECK_PARSE_THROW(...) BOOST_CHECK_THROW(p.parse((__VA_ARGS__)), dachs::parse_error)
 
 BOOST_AUTO_TEST_SUITE(parser)
 

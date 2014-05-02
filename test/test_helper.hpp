@@ -62,7 +62,7 @@ void check_throw_in_all_cases_in_directory(std::string const& dir_name)
                     parser.parse(
                         *dachs::helper::read_file<std::string>(p.c_str())
                     )
-                    , dachs::syntax::parse_error
+                    , dachs::parse_error
                 );
             });
 }

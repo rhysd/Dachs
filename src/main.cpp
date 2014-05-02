@@ -4,6 +4,7 @@
 #include "dachs/compiler.hpp"
 #include "dachs/helper/colorizer.hpp"
 #include "dachs/helper/util.hpp"
+#include "dachs/exception.hpp"
 
 int main(int const argc, char const* const argv[])
 {
@@ -26,14 +27,24 @@ int main(int const argc, char const* const argv[])
         std::cout << compiler.dump_ast(code) << std::endl
                   << c.blue("〜完〜") << std::endl;
     }
-    catch (dachs::syntax::parse_error const& e) {
+    catch (dachs::parse_error const& e) {
+        std::cerr << e.what() << std::endl
+                  << c.red("〜完〜") << std::endl;
+        return 3;
+    }
+    catch (dachs::semantic_check_error const& e) {
         std::cerr << e.what() << std::endl
                   << c.red("〜完〜") << std::endl;
         return 4;
     }
+    catch (dachs::not_implemented_error const& e) {
+        std::cerr << e.what() << std::endl
+                  << c.red("〜完〜") << std::endl;
+        return 5;
+    }
     catch (std::exception const& e) {
         std::cerr << "Internal compilation error: " << e.what() << std::endl;
-        return 3;
+        return -1;
     }
 
     return 0;
