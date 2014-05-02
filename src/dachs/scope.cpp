@@ -261,6 +261,17 @@ scope_tree make_scope_tree(ast::ast &a)
     auto const tree_root = make<global_scope>();
 
     {
+        // Builtin functions
+
+        // func print(str)
+        auto print_func = make<func_scope>(tree_root, "print");
+        print_func->body = make<local_scope>(print_func);
+        print_func->define_param(symbol::make<symbol::var_symbol>("str"));
+        tree_root->define_function(print_func);
+        tree_root->define_global_constant(symbol::make<symbol::var_symbol>("print"));
+    }
+
+    {
         detail::forward_symbol_analyzer forward_resolver{tree_root};
         ast::walk_topdown(a.root, forward_resolver);
 
