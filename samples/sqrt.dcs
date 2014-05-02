@@ -12,5 +12,5 @@ func sqrt(x : float) : float
 end
 
 func main
-    println(sqrt(10.0))
+    print(sqrt(10.0))
 end

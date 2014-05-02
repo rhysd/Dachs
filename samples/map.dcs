@@ -1,0 +1,17 @@
+func map(array, predicate)
+    var ret := array
+    for i in (1..array.len-1)
+        ret[i] = predicate(array[i])
+    end
+    return ret
+end
+
+func twice(x)
+    return x * 2
+end
+
+func main
+    var a := [1, 2, 3, 4]
+    print(map(a, twice))
+end
+
