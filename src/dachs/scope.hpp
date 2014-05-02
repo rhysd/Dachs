@@ -125,7 +125,7 @@ struct basic_scope {
         >
     bool define_symbol(std::vector<Symbol> &container, Symbol const& symbol)
     {
-        if (auto maybe_duplication = helper::find_if(container, [&symbol](auto const& v){ return v->name == symbol->name; })) {
+        if (auto maybe_duplication = helper::find(container, symbol)) {
             print_duplication_error(symbol->ast_node.get_shared(), (*maybe_duplication)->ast_node.get_shared(), symbol->name);
             return false;
         }

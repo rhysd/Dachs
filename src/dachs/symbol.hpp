@@ -1,6 +1,7 @@
 #if !defined DACHS_SYMBOL_HPP_INCLUDED
 #define      DACHS_SYMBOL_HPP_INCLUDED
 
+#include <type_traits>
 #include <memory>
 
 #include "dachs/type.hpp"
@@ -74,7 +75,23 @@ DACHS_DEFINE_SYMBOL(template_type_symbol);
 
 using dachs::helper::make;
 
-} // namespace symbol
-} // namespace dachs
+template<class T>
+struct is_symbol_node : std::is_base_of<dachs::symbol_node::basic_symbol, T>{};
 
+} // namespace symbol
+
+// operator==(AnySymbol, AnySymbol)
+template<class T
+       , class U
+       , class = typename std::enable_if<
+                    symbol::is_symbol_node<T>::value
+                 && symbol::is_symbol_node<U>::value
+                >::type
+            >
+inline bool operator==(T const& l, U const& r) noexcept
+{
+    return l->name == r->name;
+}
+
+} // namespace dachs
 #endif    // DACHS_SYMBOL_HPP_INCLUDED
