@@ -1,0 +1,38 @@
+func map(array, predicate)
+    var ret := array
+    for i in (1..array.len()-1)
+        ret[i] = predicate(array[i])
+    end
+    return ret
+end
+
+func filter(array, predicate)
+    var ret := []
+    for e in array
+        ret << e if predicate(e)
+    end
+    return ret
+end
+
+func foldl1(array, predicate)
+    var ret := array[0]
+    for i in (1..array.len()-1)
+        ret := predicate(ret, array[i])
+    end
+    return ret
+end
+
+func twice(x)
+    return x * 2
+end
+
+func even(n)
+    return n % 2 == 0
+end
+
+func main
+    var a := [1, 2, 3, 4]
+    print(map(a, twice))
+    print(filter(a, even))
+end
+
