@@ -21,6 +21,14 @@ namespace node_type {
 
 struct expression : public base {
     type::type type;
+
+    expression() = default;
+
+    template<class Type>
+    explicit expression(Type && t)
+        : type{std::forward<Type>(t)}
+    {}
+
     virtual ~expression() noexcept
     {}
 };

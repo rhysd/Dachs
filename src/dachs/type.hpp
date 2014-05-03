@@ -17,6 +17,7 @@
 #include "dachs/helper/make.hpp"
 
 namespace dachs {
+
 namespace type_node {
 struct builtin_type;
 struct class_type;
@@ -25,6 +26,7 @@ struct func_type;
 struct proc_type;
 struct dict_type;
 struct array_type;
+struct range_type;
 struct qualified_type;
 }
 
@@ -39,6 +41,7 @@ DACHS_DEFINE_TYPE(func_type);
 DACHS_DEFINE_TYPE(proc_type);
 DACHS_DEFINE_TYPE(dict_type);
 DACHS_DEFINE_TYPE(array_type);
+DACHS_DEFINE_TYPE(range_type);
 DACHS_DEFINE_TYPE(qualified_type);
 #undef DACHS_DEFINE_TYPE
 
@@ -50,6 +53,7 @@ using any_type
                     , proc_type
                     , dict_type
                     , array_type
+                    , range_type
                     , qualified_type
                 >;
 
@@ -214,6 +218,25 @@ struct dict_type final : public basic_type {
             + boost::apply_visitor(v, key_type) + " => "
             + boost::apply_visitor(v, value_type)
             + '}';
+    }
+};
+
+struct range_type final : public basic_type {
+    type::any_type from_type, to_type;
+
+    range_type() = default;
+
+    template<class From, class To>
+    range_type(From const& f, To const& t) noexcept
+        : from_type{f}, to_type{t}
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        detail::to_string v;
+        return boost::apply_visitor(v, from_type)
+             + ".."
+             + boost::apply_visitor(v, to_type);
     }
 };
 

@@ -171,7 +171,6 @@ struct local_scope final : public basic_scope {
         children.push_back(child);
     }
 
-    // TODO: check duplication
     bool define_local_var(symbol::var_symbol const& new_var) noexcept
     {
         return define_symbol(local_vars, new_var);
@@ -196,13 +195,11 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         , basic_symbol(n, s)
     {}
 
-    // TODO: check duplication
     bool define_param(symbol::var_symbol const& new_var) noexcept
     {
         return define_symbol(params, new_var);
     }
 
-    // TODO: check duplication
     void define_template_param(symbol::template_type_symbol const& new_template) noexcept
     {
         // Note: No need to check duplication bacause param is already sure to be unique
@@ -236,13 +233,11 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
         , basic_symbol(ast_node, name)
     {}
 
-    // TODO: check duplication
     bool define_member_func(scope::func_scope const& new_func) noexcept
     {
         return define_symbol(member_func_scopes, new_func);
     }
 
-    // TODO: check duplication
     bool define_member_var_symbols(symbol::member_var_symbol const& new_var) noexcept
     {
         return define_symbol(member_var_symbols, new_var);

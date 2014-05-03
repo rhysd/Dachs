@@ -100,39 +100,6 @@ public:
 
     // TODO: class scopes and member function scopes
 
-    template<class Walker>
-    void visit(ast::node::integer_literal const& int_lit, Walker const& /*unused because it doesn't has child*/)
-    {
-        int_lit->type = type::get_builtin_type(
-                    int_lit->has_int() ? "int" : "uint"
-                );
-    }
-
-    template<class Walker>
-    void visit(ast::node::character_literal const& char_lit, Walker const& /*unused because it doesn't has child*/)
-    {
-        char_lit->type = type::get_builtin_type("char");
-    }
-
-    template<class Walker>
-    void visit(ast::node::float_literal const& float_lit, Walker const& /*unused because it doesn't has child*/)
-    {
-        float_lit->type = type::get_builtin_type("float");
-    }
-
-    template<class Walker>
-    void visit(ast::node::boolean_literal const& bool_lit, Walker const& /*unused because it doesn't has child*/)
-    {
-        bool_lit->type = type::get_builtin_type("bool");
-    }
-
-    template<class Walker>
-    void visit(ast::node::string_literal const& str_lit, Walker const& /*unused because it doesn't has child*/)
-    {
-        str_lit->type = type::get_builtin_type("string");
-    }
-
-
     template<class T, class Walker>
     void visit(T const&, Walker const& walker)
     {
@@ -287,10 +254,91 @@ public:
         recursive_walker();
     }
 
+
+    // Get built-in data types {{{
+    template<class Walker>
+    void visit(ast::node::integer_literal const& int_lit, Walker const& /*unused because it doesn't has child*/)
+    {
+        int_lit->type = type::get_builtin_type(
+                    int_lit->has_int() ? "int" : "uint"
+                );
+    }
+
+    template<class Walker>
+    void visit(ast::node::character_literal const& char_lit, Walker const& /*unused because it doesn't has child*/)
+    {
+        char_lit->type = type::get_builtin_type("char");
+    }
+
+    template<class Walker>
+    void visit(ast::node::float_literal const& float_lit, Walker const& /*unused because it doesn't has child*/)
+    {
+        float_lit->type = type::get_builtin_type("float");
+    }
+
+    template<class Walker>
+    void visit(ast::node::boolean_literal const& bool_lit, Walker const& /*unused because it doesn't has child*/)
+    {
+        bool_lit->type = type::get_builtin_type("bool");
+    }
+
+    template<class Walker>
+    void visit(ast::node::string_literal const& str_lit, Walker const& /*unused because it doesn't has child*/)
+    {
+        str_lit->type = type::get_builtin_type("string");
+    }
+
+    template<class Walker>
+    void visit(ast::node::array_literal const& arr_lit, Walker const& recursive_walker)
+    {
+        recursive_walker();
+        // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
+        arr_lit->type = type::make<type::array_type>(arr_lit->element_exprs[0]->type);
+    }
+
+    template<class Walker>
+    void visit(ast::node::tuple_literal const& tuple_lit, Walker const& recursive_walker)
+    {
+        recursive_walker();
+        auto const type = type::make<type::tuple_type>();
+        type->element_types.reserve(tuple_lit->element_exprs.size());
+        for (auto const& e : tuple_lit->element_exprs) {
+            type->element_types.push_back(e->type);
+        }
+        tuple_lit->type = type;
+    }
+
+    template<class Walker>
+    void visit(ast::node::dict_literal const& dict_lit, Walker const& recursive_walker)
+    {
+        recursive_walker();
+        // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
+        auto const& p = dict_lit->value[0];
+        dict_lit->type = type::make<type::dict_type>(p.first->type, p.second->type);
+    }
+
+    template<class Walker>
+    void visit(ast::node::range_expr const& range, Walker const& recursive_walker)
+    {
+        recursive_walker();
+        if (range->maybe_rhs) {
+            range->type = type::make<type::range_type>(range->lhs->type, (*(range->maybe_rhs)).second->type);
+        } else {
+            range->type = range->lhs->type;
+        }
+    }
+    // }}}
+
     template<class Walker>
     void visit(ast::node::member_access const& /*member_access*/, Walker const& /*unused*/)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "member access"};
+    }
+
+    template<class Walker>
+    void visit(ast::node::object_construct const& /*member_access*/, Walker const& /*unused*/)
+    {
+        throw not_implemented_error{__FILE__, __func__, __LINE__, "object construction"};
     }
 
     // TODO: member variable accesses
