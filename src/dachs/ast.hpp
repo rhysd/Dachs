@@ -91,6 +91,16 @@ struct integer_literal final : public expression {
                   , unsigned int
     > value;
 
+    bool has_int() const noexcept
+    {
+        return value.which() == 0;
+    }
+
+    bool has_uint() const noexcept
+    {
+        return value.which() == 1;
+    }
+
     template<class T>
     explicit integer_literal(T && v) noexcept
         : expression(), value(std::forward<T>(v))

@@ -100,6 +100,39 @@ public:
 
     // TODO: class scopes and member function scopes
 
+    template<class Walker>
+    void visit(ast::node::integer_literal const& int_lit, Walker const& /*unused because it doesn't has child*/)
+    {
+        int_lit->type = type::get_builtin_type(
+                    int_lit->has_int() ? "int" : "uint"
+                );
+    }
+
+    template<class Walker>
+    void visit(ast::node::character_literal const& char_lit, Walker const& /*unused because it doesn't has child*/)
+    {
+        char_lit->type = type::get_builtin_type("char");
+    }
+
+    template<class Walker>
+    void visit(ast::node::float_literal const& float_lit, Walker const& /*unused because it doesn't has child*/)
+    {
+        float_lit->type = type::get_builtin_type("float");
+    }
+
+    template<class Walker>
+    void visit(ast::node::boolean_literal const& bool_lit, Walker const& /*unused because it doesn't has child*/)
+    {
+        bool_lit->type = type::get_builtin_type("bool");
+    }
+
+    template<class Walker>
+    void visit(ast::node::string_literal const& str_lit, Walker const& /*unused because it doesn't has child*/)
+    {
+        str_lit->type = type::get_builtin_type("string");
+    }
+
+
     template<class T, class Walker>
     void visit(T const&, Walker const& walker)
     {
