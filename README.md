@@ -47,21 +47,25 @@ end
   - [ ] Variadic arguments
   - [ ] Module
   - [ ] Test
+
 -  Sematic analysis
-  - [ ] Scope tree
+  - [x] Scope tree
   - [ ] Symbol tables
   - [ ] Type inference
   - [ ] Semantic checks
   - [ ] Test
+
 -  Code generation
   - [ ] LLVM IR code generation
   - [ ] Test
+
 -  Misc
-  - [ ] CMakeLists.txt
-  - [ ] Travis-CI
+  - [x] CMakeLists.txt
+  - [x] Travis-CI
   - [ ] Option parsing
   - [ ] Allocator customization
-  - [ ] Exception Safety
+  - [ ] Exception safety
+  - [ ] Parallel processing
 
 This software is disributed under [The MIT License](http://opensource.org/licenses/MIT).
 
