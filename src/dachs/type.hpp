@@ -121,11 +121,15 @@ struct class_type final : public named_type {
 
     std::string to_string() const noexcept override
     {
-        return name + '(' +
-            join(holder_types | transformed([](auto const& t){
-                        return boost::apply_visitor(detail::to_string{}, t);
-                    }), ",")
-            + ')';
+        if (holder_types.empty()) {
+            return name;
+        } else {
+            return name + '(' +
+                join(holder_types | transformed([](auto const& t){
+                            return boost::apply_visitor(detail::to_string{}, t);
+                        }), ",")
+                + ')';
+        }
     }
 };
 
