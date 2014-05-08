@@ -9,41 +9,6 @@ namespace ast {
 
 namespace symbol {
 
-enum class unary_operator {
-    positive,
-    negative,
-    one_complement,
-    logical_negate,
-};
-
-enum class mult_operator {
-    mult,
-    div,
-    mod,
-};
-
-enum class additive_operator {
-    add,
-    sub,
-};
-
-enum class relational_operator {
-    less_than,
-    greater_than,
-    less_than_equal,
-    greater_than_equal,
-};
-
-enum class shift_operator {
-    left,
-    right,
-};
-
-enum class equality_operator {
-    equal,
-    not_equal,
-};
-
 enum class assign_operator {
     assign,
     mult,
@@ -69,26 +34,14 @@ enum class qualifier {
     maybe,
 };
 
-enum class range_kind {
-    exclusive,
-    inclusive,
-};
-
 enum class func_kind {
     func,
     proc,
 };
 
-std::string to_string(unary_operator const o);
-std::string to_string(mult_operator const o);
-std::string to_string(additive_operator const o);
-std::string to_string(relational_operator const o);
-std::string to_string(shift_operator const o);
-std::string to_string(equality_operator const o);
 std::string to_string(assign_operator const o);
 std::string to_string(if_kind const o);
 std::string to_string(qualifier const o);
-std::string to_string(range_kind const o);
 std::string to_string(func_kind const o);
 
 } // namespace symbol

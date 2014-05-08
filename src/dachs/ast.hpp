@@ -281,10 +281,10 @@ struct postfix_expr final : public expression {
 };
 
 struct unary_expr final : public expression {
-    std::vector<symbol::unary_operator> values;
+    std::vector<std::string> values;
     node::postfix_expr expr;
 
-    unary_expr(std::vector<symbol::unary_operator> const& ops, node::postfix_expr const& expr) noexcept
+    unary_expr(std::vector<std::string> const& ops, node::postfix_expr const& expr) noexcept
         : expression(), values(ops), expr(expr)
     {}
 
@@ -410,10 +410,10 @@ struct cast_expr final : public expression {
     }
 };
 
-template<class FactorType, class OperatorType>
+template<class FactorType>
 struct multi_binary_expr : public expression {
     using rhs_type
-        = std::pair<OperatorType, FactorType>;
+        = std::pair<std::string, FactorType>;
     using rhss_type
         = std::vector<rhs_type>;
 
@@ -428,7 +428,7 @@ struct multi_binary_expr : public expression {
     {}
 };
 
-struct mult_expr final : public multi_binary_expr<node::cast_expr, symbol::mult_operator> {
+struct mult_expr final : public multi_binary_expr<node::cast_expr> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const noexcept override
@@ -437,7 +437,7 @@ struct mult_expr final : public multi_binary_expr<node::cast_expr, symbol::mult_
     }
 };
 
-struct additive_expr final : public multi_binary_expr<node::mult_expr, symbol::additive_operator> {
+struct additive_expr final : public multi_binary_expr<node::mult_expr> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const noexcept override
@@ -446,7 +446,7 @@ struct additive_expr final : public multi_binary_expr<node::mult_expr, symbol::a
     }
 };
 
-struct shift_expr final : public multi_binary_expr<node::additive_expr, symbol::shift_operator> {
+struct shift_expr final : public multi_binary_expr<node::additive_expr> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const noexcept override
@@ -455,7 +455,7 @@ struct shift_expr final : public multi_binary_expr<node::additive_expr, symbol::
     }
 };
 
-struct relational_expr final : public multi_binary_expr<node::shift_expr, symbol::relational_operator> {
+struct relational_expr final : public multi_binary_expr<node::shift_expr> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const noexcept override
@@ -464,7 +464,7 @@ struct relational_expr final : public multi_binary_expr<node::shift_expr, symbol
     }
 };
 
-struct equality_expr final : public multi_binary_expr<node::relational_expr, symbol::equality_operator> {
+struct equality_expr final : public multi_binary_expr<node::relational_expr> {
     using multi_binary_expr::multi_binary_expr;
 
     std::string to_string() const noexcept override
@@ -551,7 +551,7 @@ struct if_expr final : public expression {
 struct range_expr final : public expression {
     using rhs_type
         = std::pair<
-            symbol::range_kind,
+            std::string,
             node::logical_or_expr
         >;
     node::logical_or_expr lhs;
@@ -569,7 +569,7 @@ struct range_expr final : public expression {
 
     std::string to_string() const noexcept override
     {
-        return "RANGE_EXPR: " + (maybe_rhs ? symbol::to_string((*maybe_rhs).first) : "no range");
+        return "RANGE_EXPR: " + (maybe_rhs ? (*maybe_rhs).first : "no range");
     }
 };
 

@@ -11,77 +11,6 @@ namespace dachs {
 namespace ast {
 namespace symbol {
 
-std::string to_string(unary_operator const o)
-{
-    switch(o) {
-    case unary_operator::positive:       return "+";
-    case unary_operator::negative:       return "-" ;
-    case unary_operator::one_complement: return "~" ;
-    case unary_operator::logical_negate: return "!" ;
-    default:
-        assert(false);
-        return "unknown";
-    }
-}
-
-std::string to_string(mult_operator const o)
-{
-    switch(o) {
-    case mult_operator::mult: return "*";
-    case mult_operator::div:  return "/";
-    case mult_operator::mod:  return "%";
-    default:
-        assert(false);
-        return "unknown";
-    }
-}
-
-std::string to_string(additive_operator const o)
-{
-    switch(o) {
-    case additive_operator::add: return "+";
-    case additive_operator::sub: return "-";
-    default:
-        assert(false);
-        return "unknown";
-    }
-}
-
-std::string to_string(relational_operator const o)
-{
-    switch(o) {
-    case relational_operator::less_than:          return "<";
-    case relational_operator::greater_than:       return ">";
-    case relational_operator::less_than_equal:    return "<=";
-    case relational_operator::greater_than_equal: return ">=";
-    default:
-        assert(false);
-        return "unknown";
-    }
-}
-
-std::string to_string(shift_operator const o)
-{
-    switch(o) {
-    case shift_operator::left:  return "<<";
-    case shift_operator::right: return ">>";
-    default:
-        assert(false);
-        return "unknown";
-    }
-}
-
-std::string to_string(equality_operator const o)
-{
-    switch(o) {
-    case equality_operator::equal:     return "==";
-    case equality_operator::not_equal: return "!=";
-    default:
-        assert(false);
-        return "unknown";
-    }
-}
-
 std::string to_string(assign_operator const o)
 {
     switch(o) {
@@ -125,17 +54,6 @@ std::string to_string(qualifier const o)
     }
 }
 
-std::string to_string(range_kind const o)
-{
-    switch(o) {
-    case range_kind::exclusive: return "...";
-    case range_kind::inclusive: return "..";
-    default:
-        assert(false);
-        return "unknown";
-    }
-}
-
 std::string to_string(func_kind const o) 
 {
     switch(o) {
@@ -171,10 +89,7 @@ std::string string_literal::to_string() const noexcept
 
 std::string unary_expr::to_string() const noexcept
 {
-    return "UNARY_EXPR: " + boost::algorithm::join(
-            values | boost::adaptors::transformed(
-                [](auto const op) { return symbol::to_string(op); }
-            ), " ");
+    return "UNARY_EXPR: " + boost::algorithm::join(values , " ");
 }
 
 std::string integer_literal::to_string() const noexcept

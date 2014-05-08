@@ -345,7 +345,7 @@ public:
 
         unary_expr
             = (
-                *unary_operator >> postfix_expr
+                *qi::as_string[lit('+') | '-' | '~' | '!'] >> postfix_expr
             ) [
                 _val = make_node_ptr<ast::node::unary_expr>(_1, _2)
             ];
@@ -425,7 +425,7 @@ public:
             = (
                 cast_expr >> *(
                     qi::as<ast::node_type::mult_expr::rhs_type>()[
-                        mult_operator >> cast_expr
+                        qi::as_string[lit('*') | '/' | '%'] >> cast_expr
                     ]
                 )
             ) [
@@ -436,7 +436,7 @@ public:
             = (
                 mult_expr >> *(
                     qi::as<ast::node_type::additive_expr::rhs_type>()[
-                        additive_operator >> mult_expr
+                        qi::as_string[lit('+') | '-'] >> mult_expr
                     ]
                 )
             ) [
@@ -447,7 +447,7 @@ public:
             = (
                 additive_expr >> *(
                     qi::as<ast::node_type::shift_expr::rhs_type>()[
-                        shift_operator >> additive_expr
+                        qi::as_string[lit("<<") | ">>"] >> additive_expr
                     ]
                 )
             ) [
@@ -458,7 +458,7 @@ public:
             = (
                 shift_expr >> *(
                     qi::as<ast::node_type::relational_expr::rhs_type>()[
-                        relational_operator >> shift_expr
+                        qi::as_string[lit('<') | '>' | "<=" | ">="] >> shift_expr
                     ]
                 )
             ) [
@@ -469,7 +469,7 @@ public:
             = (
                 relational_expr >> *(
                     qi::as<ast::node_type::equality_expr::rhs_type>()[
-                        equality_operator >> relational_expr
+                        qi::as_string[lit("==") | "!="] >> relational_expr
                     ]
                 )
             ) [
@@ -515,7 +515,7 @@ public:
             = (
                 logical_or_expr >> -(
                     qi::as<ast::node_type::range_expr::rhs_type>()[
-                        range_kind >> logical_or_expr
+                        qi::as_string[lit("...") | ".."] >> logical_or_expr
                     ]
                 )
             ) [
@@ -991,71 +991,6 @@ private:
     // }}}
 
     // Symbol tables {{{
-    struct unary_operator_rule_type : public qi::symbols<char, ast::symbol::unary_operator> {
-        unary_operator_rule_type()
-        {
-            add
-                ("+", ast::symbol::unary_operator::positive)
-                ("-", ast::symbol::unary_operator::negative)
-                ("~", ast::symbol::unary_operator::one_complement)
-                ("!", ast::symbol::unary_operator::logical_negate)
-            ;
-        }
-    } unary_operator;
-
-    struct mult_operator_rule_type : public qi::symbols<char, ast::symbol::mult_operator> {
-        mult_operator_rule_type()
-        {
-            add
-                ("*", ast::symbol::mult_operator::mult)
-                ("/", ast::symbol::mult_operator::div)
-                ("%", ast::symbol::mult_operator::mod)
-            ;
-        }
-    } mult_operator;
-
-    struct additive_operator_rule_type : public qi::symbols<char, ast::symbol::additive_operator> {
-        additive_operator_rule_type()
-        {
-            add
-                ("+", ast::symbol::additive_operator::add)
-                ("-", ast::symbol::additive_operator::sub)
-            ;
-        }
-    } additive_operator;
-
-    struct relational_operator_rule_type : public qi::symbols<char, ast::symbol::relational_operator> {
-        relational_operator_rule_type()
-        {
-            add
-                ("<", ast::symbol::relational_operator::less_than)
-                (">", ast::symbol::relational_operator::greater_than)
-                ("<=", ast::symbol::relational_operator::less_than_equal)
-                (">=", ast::symbol::relational_operator::greater_than_equal)
-            ;
-        }
-    } relational_operator;
-
-    struct shift_operator_rule_type : public qi::symbols<char, ast::symbol::shift_operator> {
-        shift_operator_rule_type()
-        {
-            add
-                (">>", ast::symbol::shift_operator::left)
-                ("<<", ast::symbol::shift_operator::right)
-            ;
-        }
-    } shift_operator;
-
-    struct equality_operator_rule_type : public qi::symbols<char, ast::symbol::equality_operator> {
-        equality_operator_rule_type()
-        {
-            add
-                ("==", ast::symbol::equality_operator::equal)
-                ("!=", ast::symbol::equality_operator::not_equal)
-            ;
-        }
-    } equality_operator;
-
     struct assign_operator_rule_type : public qi::symbols<char, ast::symbol::assign_operator> {
         assign_operator_rule_type()
         {
@@ -1095,16 +1030,6 @@ private:
             ;
         }
     } qualifier;
-
-    struct range_kind_rule_type : public qi::symbols<char, ast::symbol::range_kind> {
-        range_kind_rule_type()
-        {
-            add
-                ("...", ast::symbol::range_kind::exclusive)
-                ("..", ast::symbol::range_kind::inclusive)
-            ;
-        }
-    } range_kind;
 
     struct func_kind_rule_type : public qi::symbols<char, ast::symbol::func_kind> {
         func_kind_rule_type()

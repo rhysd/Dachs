@@ -144,7 +144,7 @@ class ast_stringizer {
                       p->rhss,
                       [this, indent, lead](auto const& op_and_rhs, auto const l) {
                           return c.yellow(indent+lead+"|\n"+indent+lead+"|--", false)
-                                + c.green("OPERATOR: " + ast::symbol::to_string(op_and_rhs.first))
+                                + c.green("OPERATOR: " + op_and_rhs.first)
                               + '\n' + visit(op_and_rhs.second, indent+lead, l);
                       }, true);
     }
