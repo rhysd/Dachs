@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <iostream>
 
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/numeric.hpp>

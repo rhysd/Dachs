@@ -255,9 +255,7 @@ public:
                         (qi::alpha | qi::char_('_')) >> *(qi::alnum | qi::char_('_')) >> -qi::char_("?!'")
                     ]
                 ]
-            ) [
-                _val = make_node_ptr<ast::node::identifier>(_1)
-            ];
+            );
 
         variable_name
             = (
@@ -266,9 +264,7 @@ public:
                         (qi::alpha | qi::char_('_')) >> *(qi::alnum | qi::char_('_'))
                     ]
                 ]
-            ) [
-                _val = make_node_ptr<ast::node::identifier>(_1)
-            ];
+            );
 
         type_name = variable_name.alias();
 
@@ -786,9 +782,6 @@ public:
             , tuple_literal
             , symbol_literal
             , dict_literal
-            , function_name
-            , variable_name
-            , type_name
             , var_ref
             , parameter
             , function_call
@@ -1023,7 +1016,7 @@ private:
                                      , case_when_stmt_block
                                      , func_body_stmt_block
                                      ;
-    rule<ast::node::identifier()> function_name, variable_name, type_name;
+    rule<std::string()> function_name, variable_name, type_name;
     rule<qi::unused_type()/*TMP*/> func_precondition;
     decltype(return_stmt) postfix_if_return_stmt;
 

@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <type_traits>
+#include <iostream>
 #include <cassert>
 #include <boost/variant/variant.hpp>
 #include <boost/variant/static_visitor.hpp>

@@ -69,13 +69,13 @@ public:
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
-        auto new_func = make<func_scope>(func_def, global_scope, func_def->name->value);
+        auto new_func = make<func_scope>(func_def, global_scope, func_def->name);
         func_def->scope = new_func;
         if (!global_scope->define_function(new_func)) {
             failed++;
         } else {
             // If the symbol passes duplication check, it also defines as variable
-            auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name->value);
+            auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);
             global_scope->define_global_constant(new_func_var);
         }
         with_new_scope(std::move(new_func), recursive_walker);
@@ -87,12 +87,12 @@ public:
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
-        auto new_proc = make<func_scope>(proc_def, global_scope, proc_def->name->value);
+        auto new_proc = make<func_scope>(proc_def, global_scope, proc_def->name);
         proc_def->scope = new_proc;
         if (!global_scope->define_function(new_proc)) {
             failed++;
         } else {
-            auto new_proc_var = symbol::make<symbol::var_symbol>(proc_def, proc_def->name->value);
+            auto new_proc_var = symbol::make<symbol::var_symbol>(proc_def, proc_def->name);
             global_scope->define_global_constant(new_proc_var);
         }
         with_new_scope(std::move(new_proc), recursive_walker);
@@ -188,7 +188,7 @@ public:
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
-        auto new_var = symbol::make<symbol::var_symbol>(const_decl, const_decl->name->value);
+        auto new_var = symbol::make<symbol::var_symbol>(const_decl, const_decl->name);
         const_decl->symbol = new_var;
         if (global_scope->define_global_constant(new_var)) {
             failed++;
@@ -199,7 +199,7 @@ public:
     template<class Walker>
     void visit(ast::node::parameter const& param, Walker const& recursive_walker)
     {
-        auto new_param = symbol::make<symbol::var_symbol>(param, param->name->value);
+        auto new_param = symbol::make<symbol::var_symbol>(param, param->name);
         param->param_symbol = new_param;
         if (auto maybe_func = get<func_scope>(current_scope)) {
             auto& func = *maybe_func;
@@ -232,7 +232,7 @@ public:
         auto maybe_local = get<local_scope>(current_scope);
         assert(maybe_local);
         auto& local = *maybe_local;
-        auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name->value);
+        auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name);
         decl->symbol = new_var;
         if (!local->define_local_var(new_var)) {
             failed++;
@@ -244,11 +244,11 @@ public:
     template<class Walker>
     void visit(ast::node::var_ref const& var, Walker const& recursive_walker)
     {
-        auto maybe_resolved_symbol = boost::apply_visitor(var_symbol_resolver_for_shared_scope{var->name->value}, current_scope);
+        auto maybe_resolved_symbol = boost::apply_visitor(var_symbol_resolver_for_shared_scope{var->name}, current_scope);
         if (maybe_resolved_symbol) {
             var->symbol = *maybe_resolved_symbol;
         } else {
-            std::cerr << "Semantic error at line:" << var->line << ", col:" << var->col << "\nSymbol '" << var->name->value << "' is not found." << std::endl;
+            std::cerr << "Semantic error at line:" << var->line << ", col:" << var->col << "\nSymbol '" << var->name << "' is not found." << std::endl;
             failed++;
         }
         recursive_walker();

@@ -184,7 +184,6 @@ public:
     String visit(ast::node::parameter const& p, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(p, indent)
-                + '\n' + visit(p->name, indent+lead, (p->param_type ? "|  " : "   "))
                 + visit_optional_node(p->param_type, indent+lead, "   ");
     }
 
@@ -195,11 +194,6 @@ public:
             + visit_nodes(oc->args, indent+lead, "   ");
     }
 
-    String visit(ast::node::var_ref const& vr, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(vr, indent) + '\n' + visit(vr->name, indent+lead, "   ");
-    }
-
     String visit(ast::node::primary_expr const& pe, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(pe, indent) + '\n' + visit_variant_node(pe->value, indent+lead, "   ");
@@ -208,12 +202,6 @@ public:
     String visit(ast::node::index_access const& ia, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(ia, indent) + '\n' + visit(ia->index_expr, indent+lead, "   ");
-    }
-
-    String visit(ast::node::member_access const& ma, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(ma, indent) + '\n'
-                + visit(ma->member_name, indent+lead, "   ");
     }
 
     String visit(ast::node::function_call const& fc, String const& indent, char const* const lead) const noexcept
@@ -237,7 +225,6 @@ public:
     String visit(ast::node::primary_type const& tt, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(tt, indent)
-            + '\n' + visit(tt->template_name, indent+lead, tt->instantiated_templates ? "   " : "|  ")
             + (tt->instantiated_templates ? visit_nodes(*(tt->instantiated_templates), indent+lead, true) : "");
     }
 
@@ -453,8 +440,7 @@ public:
 
     String visit(ast::node::variable_decl const& vd, String const& indent, char const* const lead) const noexcept
     {
-        return prefix_of(vd, indent) +
-            '\n' + visit(vd->name, indent+lead, (vd->maybe_type ? "|  " : "   "))
+        return prefix_of(vd, indent)
             + (vd->maybe_type ? '\n' + visit(*(vd->maybe_type), indent+lead, "   ") : "");
     }
 
@@ -478,7 +464,6 @@ public:
     String visit(ast::node::function_definition const& fd, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(fd, indent)
-            + '\n' + visit(fd->name, indent+lead, "|  ")
             + visit_nodes(fd->params, indent+lead, false)
             + visit_optional_node(fd->return_type, indent+lead, "|  ")
             + '\n' + visit(fd->body, indent+lead, fd->ensure_body ? "|  " : "   ")
@@ -488,7 +473,6 @@ public:
     String visit(ast::node::procedure_definition const& pd, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(pd, indent)
-            + '\n' + visit(pd->name, indent+lead, "|  ")
             + visit_nodes(pd->params, indent+lead, false)
             + '\n' + visit(pd->body, indent+lead, pd->ensure_body ? "|  " : "   ")
             + visit_optional_node(pd->ensure_body, indent+lead, "   ");
@@ -496,8 +480,7 @@ public:
 
     String visit(ast::node::constant_decl const& cd, String const& indent, char const* const lead) const noexcept
     {
-        return prefix_of(cd, indent) +
-            '\n' + visit(cd->name, indent+lead, (cd->maybe_type ? "|  " : "   "))
+        return prefix_of(cd, indent)
             + (cd->maybe_type ? '\n' + visit(*(cd->maybe_type), indent+lead, "   ") : "");
     }
 

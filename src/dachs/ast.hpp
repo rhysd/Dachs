@@ -170,7 +170,7 @@ struct dict_literal final : public expression {
 
     std::string to_string() const noexcept override
     {
-        return "dict_LITERAL: size=" + std::to_string(value.size());
+        return "DICT_LITERAL: size=" + std::to_string(value.size());
     }
 };
 
@@ -199,48 +199,35 @@ struct literal final : public expression {
     }
 };
 
-struct identifier final : public base {
-    std::string value;
-
-    explicit identifier(std::string const& s) noexcept
-        : base(), value(s)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "IDENTIFIER: " + value;
-    }
-};
-
 // This node will have kind of variable (global, member, local variables and functions)
 struct var_ref final : public expression {
-    node::identifier name;
+    std::string name;
     dachs::symbol::weak_var_symbol symbol;
 
-    explicit var_ref(node::identifier const& n) noexcept
+    explicit var_ref(std::string const& n) noexcept
         : expression(), name(n)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "VAR_REFERENCE: ";
+        return "VAR_REFERENCE: " + name;
     }
 };
 
 struct parameter final : public base {
     bool is_var;
-    node::identifier name;
+    std::string name;
     boost::optional<node::qualified_type> param_type;
     dachs::symbol::weak_var_symbol param_symbol;
     boost::optional<dachs::symbol::template_type_symbol> template_type_ref;
 
-    parameter(bool const v, node::identifier const& n, decltype(param_type) const& t) noexcept
+    parameter(bool const v, std::string const& n, decltype(param_type) const& t) noexcept
         : base(), is_var(v), name(n), param_type(t)
     {}
 
     std::string to_string() const noexcept override
     {
-        return std::string{"PARAMETER: "} + (is_var ? "mutable" : "immutable");
+        return "PARAMETER: " + name + " (" + (is_var ? "mutable)" : "immutable)");
     }
 };
 
@@ -308,15 +295,15 @@ struct index_access final : public expression {
 };
 
 struct member_access final : public expression {
-    node::identifier member_name;
+    std::string member_name;
 
-    explicit member_access(node::identifier const& member_name) noexcept
+    explicit member_access(std::string const& member_name) noexcept
         : expression(), member_name(member_name)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "MEMBER_ACCESS";
+        return "MEMBER_ACCESS: " + member_name;
     }
 };
 
@@ -351,10 +338,10 @@ struct unary_expr final : public expression {
 };
 
 struct primary_type final : public base {
-    node::identifier template_name;
+    std::string template_name;
     boost::optional<std::vector<node::qualified_type>> instantiated_templates;
 
-    primary_type(node::identifier const& tmpl
+    primary_type(std::string const& tmpl
                 , decltype(instantiated_templates) const& instantiated) noexcept
         : base(), template_name(tmpl), instantiated_templates(instantiated)
     {}
@@ -366,7 +353,7 @@ struct primary_type final : public base {
 
     std::string to_string() const noexcept override
     {
-        return std::string{"PRIMARY_TYPE: "} + (instantiated_templates ? "template" : "not template");
+        return "PRIMARY_TYPE: " + template_name + " (" + (instantiated_templates ? "template)" : "not template)");
     }
 };
 
@@ -411,7 +398,7 @@ struct dict_type final : public base {
 
     std::string to_string() const noexcept override
     {
-        return "dict_TYPE";
+        return "DICT_TYPE";
     }
 };
 
@@ -690,19 +677,19 @@ struct compound_expr final : public expression {
 
 struct variable_decl final : public base {
     bool is_var;
-    node::identifier name;
+    std::string name;
     boost::optional<node::qualified_type> maybe_type;
     dachs::symbol::weak_var_symbol symbol;
 
     variable_decl(bool const var,
-                  node::identifier const& name,
+                  std::string const& name,
                   decltype(maybe_type) const& type) noexcept
         : is_var(var), name(name), maybe_type(type)
     {}
 
     std::string to_string() const noexcept override
     {
-        return std::string{"VARIABLE_DECL: "} + (is_var ? "mutable" : "immutable");
+        return "VARIABLE_DECL: " + name + " (" + (is_var ? "mutable)" : "immutable)");
     }
 };
 
@@ -921,14 +908,14 @@ struct statement_block final : public base {
 };
 
 struct function_definition final : public statement {
-    node::identifier name;
+    std::string name;
     std::vector<node::parameter> params;
     boost::optional<node::qualified_type> return_type;
     node::statement_block body;
     boost::optional<node::statement_block> ensure_body;
     scope::weak_func_scope scope;
 
-    function_definition(node::identifier const& n
+    function_definition(std::string const& n
                       , decltype(params) const& p
                       , decltype(return_type) const& ret
                       , node::statement_block const& block
@@ -938,18 +925,18 @@ struct function_definition final : public statement {
 
     std::string to_string() const noexcept override
     {
-        return "FUNC_DEFINITION";
+        return "FUNC_DEFINITION: " + name;
     }
 };
 
 struct procedure_definition final : public statement {
-    node::identifier name;
+    std::string name;
     std::vector<node::parameter> params;
     node::statement_block body;
     boost::optional<node::statement_block> ensure_body;
     scope::weak_func_scope scope;
 
-    procedure_definition(node::identifier const& n
+    procedure_definition(std::string const& n
                       , decltype(params) const& p
                       , node::statement_block const& block
                       , decltype(ensure_body) const& ensure) noexcept
@@ -958,23 +945,23 @@ struct procedure_definition final : public statement {
 
     std::string to_string() const noexcept override
     {
-        return "PROC_DEFINITION";
+        return "PROC_DEFINITION: " + name;
     }
 };
 
 struct constant_decl final : public base {
-    node::identifier name;
+    std::string name;
     boost::optional<node::qualified_type> maybe_type;
     dachs::symbol::weak_var_symbol symbol;
 
-    constant_decl(node::identifier const& name,
+    constant_decl(std::string const& name,
                   decltype(maybe_type) const& type) noexcept
         : base(), name(name), maybe_type(type)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "CONSTANT_DECL";
+        return "CONSTANT_DECL: " + name;
     }
 };
 

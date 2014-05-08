@@ -121,17 +121,9 @@ public:
         });
     }
 
-    void walk(node::var_ref &vr)
-    {
-        visitor.visit(vr, [&]{
-            walk(vr->name);
-        });
-    }
-
     void walk(node::parameter &p)
     {
         visitor.visit(p, [&]{
-            walk(p->name);
             walk_optional(p->param_type);
         });
     }
@@ -165,13 +157,6 @@ public:
         });
     }
 
-    void walk(node::member_access &ma)
-    {
-        visitor.visit(ma, [&]{
-            walk(ma->member_name);
-        });
-    }
-
     void walk(node::postfix_expr &ue)
     {
         visitor.visit(ue, [&]{
@@ -192,7 +177,6 @@ public:
     void walk(node::primary_type &tt)
     {
         visitor.visit(tt, [&]{
-            walk(tt->template_name);
             if (tt->instantiated_templates) {
                 walk_vector(*(tt->instantiated_templates));
             }
@@ -365,7 +349,6 @@ public:
     void walk(node::variable_decl &vd)
     {
         visitor.visit(vd, [&]{
-            walk(vd->name);
             walk_optional(vd->maybe_type);
         });
     }
@@ -471,7 +454,6 @@ public:
     void walk(node::function_definition &fd)
     {
         visitor.visit(fd, [&]{
-            walk(fd->name);
             for (auto &p : fd->params) {
                 walk(p);
             }
@@ -484,7 +466,6 @@ public:
     void walk(node::procedure_definition &pd)
     {
         visitor.visit(pd, [&]{
-            walk(pd->name);
             for (auto &p : pd->params) {
                 walk(p);
             }
@@ -496,7 +477,6 @@ public:
     void walk(node::constant_decl &cd)
     {
         visitor.visit(cd, [&]{
-            walk(cd->name);
             walk_optional(cd->maybe_type);
         });
     }
