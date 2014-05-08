@@ -169,12 +169,6 @@ public:
         });
     }
 
-    template<class... Args>
-    void walk(boost::variant<Args...> &v)
-    {
-        boost::apply_visitor(variant_visitor, v);
-    }
-
     void walk(node::array_type &at)
     {
         visitor.visit(at, [&]{
@@ -456,8 +450,14 @@ public:
         });
     }
 
+    template<class... Nodes>
+    void walk(boost::variant<Nodes...> &v)
+    {
+        boost::apply_visitor(variant_visitor, v);
+    }
+
     template<class Terminal>
-    void walk(std::shared_ptr<Terminal> const& p)
+    void walk(std::shared_ptr<Terminal> &p)
     {
         visitor.visit(p, [&]{});
     }

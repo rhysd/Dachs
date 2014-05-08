@@ -24,13 +24,25 @@ inline boost::optional<String> read_file(std::string const& file_name)
                   std::istreambuf_iterator<CharT>{}};
 }
 
+namespace detail {
+
 template<class T>
-class is_shared_ptr : public std::false_type
+struct is_shared_ptr_impl : std::false_type
 {};
 
 template<class T>
-class is_shared_ptr<std::shared_ptr<T>> : public std::true_type
+struct is_shared_ptr_impl<std::shared_ptr<T>> : std::true_type
 {};
+
+} // namespace detail
+
+template<class T>
+struct is_shared_ptr
+    : detail::is_shared_ptr_impl<
+          typename std::remove_cv<T>::type
+      >
+{};
+
 
 // When you don't want to copy result object, use boost::range_reference<T>::type
 template<class Range, class Value>

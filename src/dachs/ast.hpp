@@ -869,13 +869,13 @@ struct program final : public base {
 namespace traits {
 
 template<class T>
-struct is_node : std::is_base_of<node_type::base, T> {};
+struct is_node : std::is_base_of<node_type::base, typename std::remove_cv<T>::type> {};
 
 template<class T>
-struct is_expression : std::is_base_of<node_type::expression, T> {};
+struct is_expression : std::is_base_of<node_type::expression, typename std::remove_cv<T>::type> {};
 
 template<class T>
-struct is_statement : std::is_base_of<node_type::statement, T> {};
+struct is_statement : std::is_base_of<node_type::statement, typename std::remove_cv<T>::type> {};
 
 } // namespace traits
 
