@@ -740,9 +740,10 @@ public:
             phx::bind(
                 [code_begin](auto &node_ptr, auto const before, auto const after)
                 {
+                    auto const d = std::distance(before.base(), after.base());
                     node_ptr->line = spirit::get_line(before);
                     node_ptr->col = spirit::get_column(code_begin, before);
-                    node_ptr->length = std::distance(before.base(), after.base());
+                    node_ptr->length = d < 0 ? 0 : d;
                 }
                 , _val, _1, _3)
 
