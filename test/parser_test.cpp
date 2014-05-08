@@ -184,9 +184,6 @@ BOOST_AUTO_TEST_CASE(procedure)
     CHECK_PARSE_THROW("proc hoge(); en");
 
     CHECK_PARSE_THROW("proc (a, b); end");
-
-    // procedure shouldn't have return type
-    CHECK_PARSE_THROW("proc hoge(a, b) : int; end");
 }
 
 BOOST_AUTO_TEST_CASE(literals)

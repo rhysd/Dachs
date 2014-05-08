@@ -463,17 +463,6 @@ public:
         });
     }
 
-    void walk(node::procedure_definition &pd)
-    {
-        visitor.visit(pd, [&]{
-            for (auto &p : pd->params) {
-                walk(p);
-            }
-            walk(pd->body);
-            walk_optional(pd->ensure_body);
-        });
-    }
-
     void walk(node::constant_decl &cd)
     {
         visitor.visit(cd, [&]{

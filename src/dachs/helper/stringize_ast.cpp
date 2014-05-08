@@ -470,14 +470,6 @@ public:
             + visit_optional_node(fd->ensure_body, indent+lead, "   ");
     }
 
-    String visit(ast::node::procedure_definition const& pd, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(pd, indent)
-            + visit_nodes(pd->params, indent+lead, false)
-            + '\n' + visit(pd->body, indent+lead, pd->ensure_body ? "|  " : "   ")
-            + visit_optional_node(pd->ensure_body, indent+lead, "   ");
-    }
-
     String visit(ast::node::constant_decl const& cd, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(cd, indent)

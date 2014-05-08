@@ -74,6 +74,11 @@ enum class range_kind {
     inclusive,
 };
 
+enum class func_kind {
+    func,
+    proc,
+};
+
 std::string to_string(unary_operator const o);
 std::string to_string(mult_operator const o);
 std::string to_string(additive_operator const o);
@@ -84,6 +89,7 @@ std::string to_string(assign_operator const o);
 std::string to_string(if_kind const o);
 std::string to_string(qualifier const o);
 std::string to_string(range_kind const o);
+std::string to_string(func_kind const o);
 
 } // namespace symbol
 
@@ -161,7 +167,6 @@ struct postfix_if_stmt;
 struct compound_stmt;
 struct statement_block;
 struct function_definition;
-struct procedure_definition;
 struct constant_decl;
 struct constant_definition;
 struct global_definition;
@@ -227,7 +232,6 @@ DACHS_DEFINE_NODE_PTR(postfix_if_stmt);
 DACHS_DEFINE_NODE_PTR(compound_stmt);
 DACHS_DEFINE_NODE_PTR(statement_block);
 DACHS_DEFINE_NODE_PTR(function_definition);
-DACHS_DEFINE_NODE_PTR(procedure_definition);
 DACHS_DEFINE_NODE_PTR(global_definition);
 DACHS_DEFINE_NODE_PTR(constant_decl);
 DACHS_DEFINE_NODE_PTR(constant_definition);

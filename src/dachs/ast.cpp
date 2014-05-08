@@ -1,3 +1,5 @@
+#include <cassert>
+
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/range/adaptor/transformed.hpp>
@@ -16,7 +18,9 @@ std::string to_string(unary_operator const o)
     case unary_operator::negative:       return "-" ;
     case unary_operator::one_complement: return "~" ;
     case unary_operator::logical_negate: return "!" ;
-    default:                             return "unknown";
+    default:
+        assert(false);
+        return "unknown";
     }
 }
 
@@ -26,7 +30,9 @@ std::string to_string(mult_operator const o)
     case mult_operator::mult: return "*";
     case mult_operator::div:  return "/";
     case mult_operator::mod:  return "%";
-    default:                  return "unknown";
+    default:
+        assert(false);
+        return "unknown";
     }
 }
 
@@ -35,7 +41,9 @@ std::string to_string(additive_operator const o)
     switch(o) {
     case additive_operator::add: return "+";
     case additive_operator::sub: return "-";
-    default:                     return "unknown";
+    default:
+        assert(false);
+        return "unknown";
     }
 }
 
@@ -46,7 +54,9 @@ std::string to_string(relational_operator const o)
     case relational_operator::greater_than:       return ">";
     case relational_operator::less_than_equal:    return "<=";
     case relational_operator::greater_than_equal: return ">=";
-    default:                                      return "unknown";
+    default:
+        assert(false);
+        return "unknown";
     }
 }
 
@@ -55,7 +65,9 @@ std::string to_string(shift_operator const o)
     switch(o) {
     case shift_operator::left:  return "<<";
     case shift_operator::right: return ">>";
-    default:                    return "unknown";
+    default:
+        assert(false);
+        return "unknown";
     }
 }
 
@@ -64,7 +76,9 @@ std::string to_string(equality_operator const o)
     switch(o) {
     case equality_operator::equal:     return "==";
     case equality_operator::not_equal: return "!=";
-    default:                           return "unknown";
+    default:
+        assert(false);
+        return "unknown";
     }
 }
 
@@ -84,7 +98,9 @@ std::string to_string(assign_operator const o)
     case assign_operator::arithmetic_or:  return "|=";
     case assign_operator::logical_and:    return "&&=";
     case assign_operator::logical_or:     return "||=";
-    default:                              return "unknown";
+    default:
+        assert(false);
+        return "unknown";
     }
 }
 
@@ -93,7 +109,9 @@ std::string to_string(if_kind const o)
     switch(o) {
     case if_kind::if_: return "if";
     case if_kind::unless: return "unless";
-    default:    return "unknown";
+    default:
+        assert(false);
+        return "unknown";
     }
 }
 
@@ -101,7 +119,9 @@ std::string to_string(qualifier const o)
 {
     switch(o) {
     case qualifier::maybe: return "?";
-    default:    return "unknown";
+    default:
+        assert(false);
+        return "unknown";
     }
 }
 
@@ -110,7 +130,20 @@ std::string to_string(range_kind const o)
     switch(o) {
     case range_kind::exclusive: return "...";
     case range_kind::inclusive: return "..";
-    default:                    return "unknown";
+    default:
+        assert(false);
+        return "unknown";
+    }
+}
+
+std::string to_string(func_kind const o) 
+{
+    switch(o) {
+    case func_kind::func: return "func";
+    case func_kind::proc: return "proc";
+    default:
+        assert(false);
+        return "unknown";
     }
 }
 

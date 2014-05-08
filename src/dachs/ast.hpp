@@ -908,6 +908,7 @@ struct statement_block final : public base {
 };
 
 struct function_definition final : public statement {
+    symbol::func_kind kind;
     std::string name;
     std::vector<node::parameter> params;
     boost::optional<node::qualified_type> return_type;
@@ -915,37 +916,18 @@ struct function_definition final : public statement {
     boost::optional<node::statement_block> ensure_body;
     scope::weak_func_scope scope;
 
-    function_definition(std::string const& n
+    function_definition(symbol::func_kind const k
+                      , std::string const& n
                       , decltype(params) const& p
                       , decltype(return_type) const& ret
                       , node::statement_block const& block
                       , decltype(ensure_body) const& ensure) noexcept
-        : statement(), name(n), params(p), return_type(ret), body(block), ensure_body(ensure)
+        : statement(), kind(k), name(n), params(p), return_type(ret), body(block), ensure_body(ensure)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "FUNC_DEFINITION: " + name;
-    }
-};
-
-struct procedure_definition final : public statement {
-    std::string name;
-    std::vector<node::parameter> params;
-    node::statement_block body;
-    boost::optional<node::statement_block> ensure_body;
-    scope::weak_func_scope scope;
-
-    procedure_definition(std::string const& n
-                      , decltype(params) const& p
-                      , node::statement_block const& block
-                      , decltype(ensure_body) const& ensure) noexcept
-        : statement(), name(n), params(p), body(block), ensure_body(ensure)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "PROC_DEFINITION: " + name;
+        return "FUNC_DEFINITION: " + symbol::to_string(kind) + ' ' + name;
     }
 };
 
@@ -984,7 +966,6 @@ struct global_definition final : public base {
     using value_type =
         boost::variant<
             node::function_definition,
-            node::procedure_definition,
             node::constant_definition
         >;
     value_type value;

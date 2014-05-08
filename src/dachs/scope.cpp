@@ -81,23 +81,6 @@ public:
         with_new_scope(std::move(new_func), recursive_walker);
     }
 
-    template<class Walker>
-    void visit(ast::node::procedure_definition const& proc_def, Walker const& recursive_walker)
-    {
-        auto maybe_global_scope = get<scope::global_scope>(current_scope);
-        assert(maybe_global_scope);
-        auto& global_scope = *maybe_global_scope;
-        auto new_proc = make<func_scope>(proc_def, global_scope, proc_def->name);
-        proc_def->scope = new_proc;
-        if (!global_scope->define_function(new_proc)) {
-            failed++;
-        } else {
-            auto new_proc_var = symbol::make<symbol::var_symbol>(proc_def, proc_def->name);
-            global_scope->define_global_constant(new_proc_var);
-        }
-        with_new_scope(std::move(new_proc), recursive_walker);
-    }
-
     // TODO: class scopes and member function scopes
 
     template<class T, class Walker>
@@ -171,13 +154,6 @@ public:
     {
         assert(!func->scope.expired());
         with_new_scope(func->scope.lock(), recursive_walker);
-    }
-
-    template<class Walker>
-    void visit(ast::node::procedure_definition const& proc, Walker const& recursive_walker)
-    {
-        assert(!proc->scope.expired());
-        with_new_scope(proc->scope.lock(), recursive_walker);
     }
     // }}}
 

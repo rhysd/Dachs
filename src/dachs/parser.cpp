@@ -45,6 +45,7 @@ using qi::_2;
 using qi::_3;
 using qi::_4;
 using qi::_5;
+using qi::_6;
 using qi::_a;
 using qi::_val;
 using qi::lit;
@@ -710,26 +711,14 @@ public:
 
         function_definition
             = (
-                "func" > function_name > function_param_decls > -(':' > qualified_type) > sep
+                func_kind > function_name > function_param_decls > -(':' > qualified_type) > sep
                 > func_precondition
                 > func_body_stmt_block > -sep
                 > -(
                     "ensure" > sep > stmt_block_before_end > -sep
                 ) > "end"
             )[
-                _val = make_node_ptr<ast::node::function_definition>(_1, _2, _3, _4, _5)
-            ];
-
-        procedure_definition
-            = (
-                "proc" > function_name > function_param_decls > sep
-                > func_precondition
-                > func_body_stmt_block > -sep
-                > -(
-                    "ensure" > sep > stmt_block_before_end > -sep
-                ) > "end"
-            )[
-                _val = make_node_ptr<ast::node::procedure_definition>(_1, _2, _3, _4)
+                _val = make_node_ptr<ast::node::function_definition>(_1, _2, _3, _4, _5, _6)
             ];
 
         constant_decl
@@ -748,9 +737,7 @@ public:
 
         global_definition
             = (
-                function_definition |
-                procedure_definition |
-                constant_definition
+                function_definition | constant_definition
             ) [
                 _val = make_node_ptr<ast::node::global_definition>(_1)
             ];
@@ -827,7 +814,6 @@ public:
             , postfix_if_stmt
             , compound_stmt
             , function_definition
-            , procedure_definition
             , constant_decl
             , constant_definition
             , global_definition
@@ -917,7 +903,6 @@ public:
         postfix_if_stmt.name("prefix if statement");
         compound_stmt.name("compound statement");
         function_definition.name("function definition");
-        procedure_definition.name("procedure definition");
         constant_decl.name("constant declaration");
         constant_definition.name("constant definition");
         global_definition.name("global definition");
@@ -1003,7 +988,6 @@ private:
     DACHS_DEFINE_RULE(postfix_if_stmt);
     DACHS_DEFINE_RULE(compound_stmt);
     DACHS_DEFINE_RULE(function_definition);
-    DACHS_DEFINE_RULE(procedure_definition);
     DACHS_DEFINE_RULE(constant_decl);
     DACHS_DEFINE_RULE(constant_definition);
     DACHS_DEFINE_RULE(global_definition);
@@ -1139,6 +1123,16 @@ private:
             ;
         }
     } range_kind;
+
+    struct func_kind_rule_type : public qi::symbols<char, ast::symbol::func_kind> {
+        func_kind_rule_type()
+        {
+            add
+                ("func", ast::symbol::func_kind::func)
+                ("proc", ast::symbol::func_kind::proc)
+            ;
+        }
+    } func_kind;
     // }}}
 };
 
