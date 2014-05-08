@@ -458,7 +458,7 @@ public:
             = (
                 shift_expr >> *(
                     qi::as<ast::node_type::relational_expr::rhs_type>()[
-                        qi::as_string[lit('<') | '>' | "<=" | ">="] >> shift_expr
+                        qi::as_string[lit("<=") | ">=" | '<' | '>'] >> shift_expr
                     ]
                 )
             ) [
