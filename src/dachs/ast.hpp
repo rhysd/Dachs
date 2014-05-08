@@ -174,31 +174,6 @@ struct dict_literal final : public expression {
     }
 };
 
-struct literal final : public expression {
-    using value_type =
-        boost::variant< node::character_literal
-                      , node::float_literal
-                      , node::boolean_literal
-                      , node::string_literal
-                      , node::integer_literal
-                      , node::array_literal
-                      , node::symbol_literal
-                      , node::dict_literal
-                      , node::tuple_literal
-                >;
-    value_type value;
-
-    template<class T>
-    explicit literal(T && v) noexcept
-        : expression(), value(std::forward<T>(v))
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "LITERAL";
-    }
-};
-
 // This node will have kind of variable (global, member, local variables and functions)
 struct var_ref final : public expression {
     std::string name;
@@ -256,27 +231,6 @@ struct object_construct final : public expression {
     std::string to_string() const noexcept override
     {
         return "OBJECT_CONSTRUCT";
-    }
-};
-
-struct primary_expr final : public expression {
-    // Note: add lambda compound_expr
-    using value_type =
-        boost::variant< node::object_construct
-                      , node::var_ref
-                      , node::literal
-                      , node::compound_expr
-                      >;
-    value_type value;
-
-    template<class T>
-    explicit primary_expr(T && v) noexcept
-        : expression(), value(std::forward<T>(v))
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "PRIMARY_EXPR";
     }
 };
 
@@ -357,23 +311,6 @@ struct primary_type final : public base {
     }
 };
 
-struct nested_type final : public base {
-    using value_type =
-        boost::variant< node::primary_type
-                      , node::qualified_type >;
-    value_type value;
-
-    template<class T>
-    explicit nested_type(T const& v) noexcept
-        : value(v)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "NESTED_TYPE";
-    }
-};
-
 struct array_type final : public base {
     node::qualified_type elem_type;
 
@@ -440,27 +377,6 @@ struct proc_type final : public base {
     std::string to_string() const noexcept override
     {
         return "PROC_TYPE";
-    }
-};
-
-struct compound_type final : public base {
-    using value_type =
-        boost::variant<node::array_type
-                     , node::tuple_type
-                     , node::dict_type
-                     , node::func_type
-                     , node::proc_type
-                     , node::nested_type>;
-    value_type value;
-
-    template<class T>
-    explicit compound_type(T const& v) noexcept
-        : value(v)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "COMPOUND_TYPE";
     }
 };
 
@@ -859,33 +775,6 @@ struct postfix_if_stmt final : public statement {
     }
 };
 
-struct compound_stmt final : public statement {
-    using value_type =
-        boost::variant<
-              node::if_stmt
-            , node::return_stmt
-            , node::case_stmt
-            , node::switch_stmt
-            , node::for_stmt
-            , node::while_stmt
-            , node::assignment_stmt
-            , node::initialize_stmt
-            , node::postfix_if_stmt
-            , node::compound_expr
-        >;
-    value_type value;
-
-    template<class T>
-    explicit compound_stmt(T && v) noexcept
-        : statement(), value(std::forward<T>(v))
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "COMPOUND_STMT";
-    }
-};
-
 struct statement_block final : public base {
     using block_type
         = std::vector<node::compound_stmt>;
@@ -959,25 +848,6 @@ struct constant_definition final : public statement {
     std::string to_string() const noexcept override
     {
         return "CONSTANT_DEFINITION";
-    }
-};
-
-struct global_definition final : public base {
-    using value_type =
-        boost::variant<
-            node::function_definition,
-            node::constant_definition
-        >;
-    value_type value;
-
-    template<class T>
-    explicit global_definition(T const& v) noexcept
-        : value(v)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "GLOBAL_DEFINITION";
     }
 };
 

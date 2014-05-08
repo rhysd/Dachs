@@ -61,6 +61,12 @@ struct node_variant_visitor : public boost::static_visitor<std::string> {
     {
         return visitor.visit(p, indent, lead);
     }
+
+    template<class... Args>
+    std::string operator()(boost::variant<Args...> const& v) const noexcept
+    {
+        return visitor.visit(v, indent, lead);
+    }
 };
 
 template<class String>
@@ -176,11 +182,6 @@ public:
                         }, true);
     }
 
-    String visit(ast::node::literal const& l, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(l, indent) + '\n' + visit_variant_node(l->value, indent+lead, "   ");
-    }
-
     String visit(ast::node::parameter const& p, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(p, indent)
@@ -192,11 +193,6 @@ public:
         return prefix_of(oc, indent)
             + '\n' + visit(oc->obj_type, indent+lead, (oc->args.empty() ? "   " : "|  "))
             + visit_nodes(oc->args, indent+lead, "   ");
-    }
-
-    String visit(ast::node::primary_expr const& pe, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(pe, indent) + '\n' + visit_variant_node(pe->value, indent+lead, "   ");
     }
 
     String visit(ast::node::index_access const& ia, String const& indent, char const* const lead) const noexcept
@@ -228,12 +224,6 @@ public:
             + (tt->instantiated_templates ? visit_nodes(*(tt->instantiated_templates), indent+lead, true) : "");
     }
 
-    String visit(ast::node::nested_type const& pt, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(pt, indent) + '\n'
-                + visit_variant_node(pt->value, indent+lead, "   ");
-    }
-
     String visit(ast::node::array_type const& at, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(at, indent) + '\n' + visit(at->elem_type, indent+lead, "   ");
@@ -263,12 +253,6 @@ public:
     {
         return prefix_of(pt, indent)
             + visit_nodes(pt->arg_types, indent+lead, true);
-    }
-
-    String visit(ast::node::compound_type const& ct, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(ct, indent) + '\n'
-                + visit_variant_node(ct->value, indent+lead, "   ");
     }
 
     String visit(ast::node::qualified_type const& qt, String const& indent, char const* const lead) const noexcept
@@ -451,11 +435,6 @@ public:
             + (vds->maybe_rhs_exprs ? visit_nodes(*(vds->maybe_rhs_exprs), indent+lead, true) : "");
     }
 
-    String visit(ast::node::compound_stmt const& s, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(s, indent) + '\n' + visit_variant_node(s->value, indent+lead, "   ");
-    }
-
     String visit(ast::node::statement_block const& sb, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(sb, indent) + visit_nodes(sb->value, indent+lead, true);
@@ -483,10 +462,10 @@ public:
             + visit_nodes(cd->initializers, indent+lead, true);
     }
 
-    String visit(ast::node::global_definition const& gd, String const& indent, char const* const lead) const noexcept
+    template<class... Args>
+    String visit(boost::variant<Args...> const& v, String const& indent, char const* const lead) const noexcept
     {
-        return prefix_of(gd, indent)
-            + '\n' + visit_variant_node(gd->value, indent+lead, "   ");
+        return visit_variant_node(v, indent, lead);
     }
 
     // For terminal nodes

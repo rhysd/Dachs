@@ -145,9 +145,7 @@ public:
                 | symbol_literal
                 | dict_literal
                 | tuple_literal
-            ) [
-                _val = make_node_ptr<ast::node::literal>(_1)
-            ];
+            );
 
         character_literal
             = (
@@ -322,9 +320,7 @@ public:
                 | literal
                 | var_ref
                 | '(' >> compound_expr >> ')'
-            ) [
-                _val = make_node_ptr<ast::node::primary_expr>(_1)
-            ];
+            );
 
         index_access
             = (
@@ -366,9 +362,7 @@ public:
         nested_type
             = (
                 ('(' >> qualified_type >> ')') | primary_type
-            ) [
-                _val = make_node_ptr<ast::node::nested_type>(_1)
-            ];
+            );
 
         array_type
             = (
@@ -411,9 +405,7 @@ public:
         compound_type
             = (
                 func_type | proc_type | array_type | dict_type | tuple_type | nested_type
-            ) [
-                _val = make_node_ptr<ast::node::compound_type>(_1)
-            ];
+            );
 
         qualified_type
             = (
@@ -690,9 +682,7 @@ public:
                 | return_stmt
                 | assignment_stmt
                 | compound_expr
-            ) [
-                _val = make_node_ptr<ast::node::compound_stmt>(_1)
-            ];
+            );
 
         function_param_decls
             = -('(' >> -((parameter % ',')[_val = _1]) > ')');
@@ -738,9 +728,7 @@ public:
         global_definition
             = (
                 function_definition | constant_definition
-            ) [
-                _val = make_node_ptr<ast::node::global_definition>(_1)
-            ];
+            );
 
         // Set callback to get the position of node and show obvious compile error {{{
         detail::set_position_getter_on_success(
@@ -759,7 +747,6 @@ public:
                 , _val, _1, _3)
 
             , program
-            , literal
             , integer_literal
             , character_literal
             , float_literal
@@ -773,19 +760,16 @@ public:
             , parameter
             , function_call
             , object_construct
-            , primary_expr
             , index_access
             , member_access
             , postfix_expr
             , unary_expr
             , primary_type
-            , nested_type
             , array_type
             , dict_type
             , tuple_type
             , func_type
             , proc_type
-            , compound_type
             , qualified_type
             , cast_expr
             , mult_expr
@@ -812,11 +796,9 @@ public:
             , assignment_stmt
             , postfix_if_return_stmt
             , postfix_if_stmt
-            , compound_stmt
             , function_definition
             , constant_decl
             , constant_definition
-            , global_definition
             , stmt_block_before_end
             , if_then_stmt_block
             , if_else_stmt_block
@@ -869,7 +851,7 @@ public:
         postfix_expr.name("postfix expression");
         unary_expr.name("unary expression");
         primary_type.name("template type");
-        nested_type.name("primary type");
+        nested_type.name("nested type");
         array_type.name("array type");
         dict_type.name("dictionary type");
         tuple_type.name("tuple type");

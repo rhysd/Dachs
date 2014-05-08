@@ -114,13 +114,6 @@ public:
         });
     }
 
-    void walk(node::literal &l)
-    {
-        visitor.visit(l, [&]{
-            boost::apply_visitor(variant_visitor, l->value);
-        });
-    }
-
     void walk(node::parameter &p)
     {
         visitor.visit(p, [&]{
@@ -140,13 +133,6 @@ public:
         visitor.visit(oc, [&]{
             walk(oc->obj_type);
             walk_vector(oc->args);
-        });
-    }
-
-    void walk(node::primary_expr &pe)
-    {
-        visitor.visit(pe, [&]{
-            boost::apply_visitor(variant_visitor, pe->value);
         });
     }
 
@@ -183,11 +169,10 @@ public:
         });
     }
 
-    void walk(node::nested_type &pt)
+    template<class... Args>
+    void walk(boost::variant<Args...> &v)
     {
-        visitor.visit(pt, [&]{
-            boost::apply_visitor(variant_visitor, pt->value);
-        });
+        boost::apply_visitor(variant_visitor, v);
     }
 
     void walk(node::array_type &at)
@@ -224,13 +209,6 @@ public:
     {
         visitor.visit(pt, [&]{
             walk_vector(pt->arg_types);
-        });
-    }
-
-    void walk(node::compound_type &ct)
-    {
-        visitor.visit(ct, [&]{
-            boost::apply_visitor(variant_visitor, ct->value);
         });
     }
 
@@ -437,13 +415,6 @@ public:
         });
     }
 
-    void walk(node::compound_stmt &cs)
-    {
-        visitor.visit(cs, [&]{
-            boost::apply_visitor(variant_visitor, cs->value);
-        });
-    }
-
     void walk(node::statement_block &sb)
     {
         visitor.visit(sb, [&]{
@@ -475,13 +446,6 @@ public:
         visitor.visit(cd, [&]{
             walk_vector(cd->const_decls);
             walk_vector(cd->initializers);
-        });
-    }
-
-    void walk(node::global_definition &gd)
-    {
-        visitor.visit(gd, [&]{
-            boost::apply_visitor(variant_visitor, gd->value);
         });
     }
 

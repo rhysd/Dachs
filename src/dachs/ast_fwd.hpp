@@ -121,24 +121,20 @@ struct array_literal;
 struct tuple_literal;
 struct symbol_literal;
 struct dict_literal;
-struct literal;
 struct var_ref;
 struct parameter;
 struct function_call;
 struct object_construct;
-struct primary_expr;
 struct index_access;
 struct member_access;
 struct postfix_expr;
 struct unary_expr;
 struct primary_type;
-struct nested_type;
 struct tuple_type;
 struct func_type;
 struct proc_type;
 struct array_type;
 struct dict_type;
-struct compound_type;
 struct qualified_type;
 struct cast_expr;
 struct mult_expr;
@@ -164,12 +160,10 @@ struct switch_stmt;
 struct for_stmt;
 struct while_stmt;
 struct postfix_if_stmt;
-struct compound_stmt;
 struct statement_block;
 struct function_definition;
 struct constant_decl;
 struct constant_definition;
-struct global_definition;
 struct program;
 
 }
@@ -186,24 +180,20 @@ DACHS_DEFINE_NODE_PTR(array_literal);
 DACHS_DEFINE_NODE_PTR(tuple_literal);
 DACHS_DEFINE_NODE_PTR(symbol_literal);
 DACHS_DEFINE_NODE_PTR(dict_literal);
-DACHS_DEFINE_NODE_PTR(literal);
 DACHS_DEFINE_NODE_PTR(var_ref);
 DACHS_DEFINE_NODE_PTR(parameter);
 DACHS_DEFINE_NODE_PTR(function_call);
 DACHS_DEFINE_NODE_PTR(object_construct);
-DACHS_DEFINE_NODE_PTR(primary_expr);
 DACHS_DEFINE_NODE_PTR(index_access);
 DACHS_DEFINE_NODE_PTR(member_access);
 DACHS_DEFINE_NODE_PTR(postfix_expr);
 DACHS_DEFINE_NODE_PTR(unary_expr);
 DACHS_DEFINE_NODE_PTR(primary_type);
-DACHS_DEFINE_NODE_PTR(nested_type);
 DACHS_DEFINE_NODE_PTR(tuple_type);
 DACHS_DEFINE_NODE_PTR(func_type);
 DACHS_DEFINE_NODE_PTR(proc_type);
 DACHS_DEFINE_NODE_PTR(array_type);
 DACHS_DEFINE_NODE_PTR(dict_type);
-DACHS_DEFINE_NODE_PTR(compound_type);
 DACHS_DEFINE_NODE_PTR(qualified_type);
 DACHS_DEFINE_NODE_PTR(cast_expr);
 DACHS_DEFINE_NODE_PTR(mult_expr);
@@ -229,14 +219,63 @@ DACHS_DEFINE_NODE_PTR(return_stmt);
 DACHS_DEFINE_NODE_PTR(for_stmt);
 DACHS_DEFINE_NODE_PTR(while_stmt);
 DACHS_DEFINE_NODE_PTR(postfix_if_stmt);
-DACHS_DEFINE_NODE_PTR(compound_stmt);
 DACHS_DEFINE_NODE_PTR(statement_block);
 DACHS_DEFINE_NODE_PTR(function_definition);
-DACHS_DEFINE_NODE_PTR(global_definition);
 DACHS_DEFINE_NODE_PTR(constant_decl);
 DACHS_DEFINE_NODE_PTR(constant_definition);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
+
+using literal =
+    boost::variant< character_literal
+                    , float_literal
+                    , boolean_literal
+                    , string_literal
+                    , integer_literal
+                    , array_literal
+                    , symbol_literal
+                    , dict_literal
+                    , tuple_literal
+            >;
+
+using primary_expr =
+    boost::variant< object_construct
+                    , var_ref
+                    , literal
+                    , compound_expr
+                    >;
+
+using nested_type =
+    boost::variant< primary_type
+                    , qualified_type >;
+
+using compound_type =
+    boost::variant<array_type
+                    , tuple_type
+                    , dict_type
+                    , func_type
+                    , proc_type
+                    , nested_type>;
+
+using compound_stmt =
+    boost::variant<
+            if_stmt
+        , return_stmt
+        , case_stmt
+        , switch_stmt
+        , for_stmt
+        , while_stmt
+        , assignment_stmt
+        , initialize_stmt
+        , postfix_if_stmt
+        , compound_expr
+    >;
+
+using global_definition =
+    boost::variant<
+        function_definition,
+        constant_definition
+    >;
 
 } // namespace node
 
