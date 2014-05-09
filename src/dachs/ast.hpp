@@ -14,6 +14,189 @@
 #include "dachs/symbol.hpp"
 #include "dachs/type.hpp"
 
+
+// Note:
+// This AST is heterogeneous (patially homogeneous).
+// Homogeneous AST with boost::variant is too hard because of high compile-time cost.
+//
+//     boost::variant<Node1, Node2, ..., NodeX> node;
+//
+// I now consider about type erasure technique to deal with all heterogeneous nodes
+// as the same node like below.  This requires the list of all nodes at 'FIXME:' points.
+// But I can reduce to one list using preprocessor macro.  Though double dispatch technique
+// resolve this all nodes enumeration, it requires virtual function implementation in all nodes.
+//
+//
+// #include <memory>
+//
+// template<class T, class... Args>
+// inline
+// std::unique_ptr<T> make_unique(Args &&... args)
+// {
+//     return std::unique_ptr<T>{new T{std::forward<Args>(args)...}};
+// }
+//
+// // Forward declaration for test nodes
+// struct ast_node_1;
+// struct ast_node_2;
+//
+// class visitor {
+//
+//     struct visitor_holder_base {
+//
+//         virtual void visit(ast_node_1 const& lit) const = 0;
+//         virtual void visit(ast_node_1 &lit) = 0;
+//         virtual void visit(ast_node_2 const& lit) const = 0;
+//         virtual void visit(ast_node_2 &lit) = 0;
+//         // ...
+//         // FIXME: So many pure virtual functions
+//
+//         virtual ~visitor_holder_base()
+//         {}
+//     };
+//
+//     template<class Visitor>
+//     struct visitor_holder : visitor_holder_base {
+//         Visitor &v;
+//
+//         void visit(ast_node_1 const& lit) const override { v(lit); }
+//         void visit(ast_node_1 &lit) override { v(lit); }
+//         void visit(ast_node_2 const& lit) const override { v(lit); }
+//         void visit(ast_node_2 &lit) override { v(lit); }
+//         // ...
+//         // FIXME: So many virtual functions
+//
+//         visitor_holder(Visitor &v)
+//             : v(v)
+//         {}
+//
+//         virtual ~visitor_holder()
+//         {}
+//     };
+//
+//     std::unique_ptr<visitor_holder_base> holder;
+//
+// public:
+//
+//     template<class AnyVisitor>
+//     explicit visitor(AnyVisitor &v)
+//         : holder(make_unique<visitor_holder<AnyVisitor>>(v))
+//     {}
+//
+//     visitor(visitor const&) = delete;
+//     visitor &operator=(visitor const&) = delete;
+//
+//     template<class T>
+//     void visit(T const& node) const
+//     {
+//         holder->visit(node);
+//     }
+//
+//     template<class T>
+//     void visit(T &node)
+//     {
+//         holder->visit(node);
+//     }
+// };
+//
+// class node {
+//
+//     struct node_holder_base {
+//
+//         // Interfaces here
+//         virtual void apply(visitor const& v) const = 0;
+//         virtual void apply(visitor &v) = 0;
+//
+//         virtual ~node_holder_base()
+//         {}
+//     };
+//
+//     template<class Node>
+//     struct node_holder : node_holder_base {
+//         Node node;
+//
+//         node_holder(Node const& node)
+//             : node(node)
+//         {}
+//
+//         node_holder(Node && node)
+//             : node(node)
+//         {}
+//
+//         void apply(visitor const& v) const override
+//         {
+//             v.visit(node);
+//         }
+//
+//         void apply(visitor &v) override
+//         {
+//             v.visit(node);
+//         }
+//
+//         virtual ~node_holder()
+//         {}
+//     };
+//
+//     std::shared_ptr<node_holder_base> holder;
+//
+// public:
+//
+//     template<class AnyNode>
+//     node(AnyNode const& n)
+//         : holder(std::make_shared<node_holder<AnyNode>>(n))
+//     {}
+//
+//     void apply(visitor const& v)
+//     {
+//         holder->apply(v);
+//     }
+//
+//     template<class V>
+//     void apply(V const& v) const
+//     {
+//         holder->apply(visitor{v});
+//     }
+//
+//     template<class V>
+//     void apply(V &v)
+//     {
+//         holder->apply(visitor{v});
+//     }
+// };
+//
+// #include <iostream>
+//
+// // Test nodes
+// struct ast_node_1 {
+//     char value;
+// };
+// struct ast_node_2 {
+//     float value;
+// };
+//
+// // Test visitor
+// struct printer {
+//     template<class T>
+//     void operator()(T const& t) const
+//     {
+//         std::cout << t.value << std::endl;
+//     }
+// };
+//
+// int main()
+// {
+//     node n1 = ast_node_1{'c'};
+//     node n2 = ast_node_2{3.14};
+//
+//     printer p;
+//     n1.apply(p);
+//     n2.apply(p);
+//
+//     return 0;
+// }
+//
+
+
 namespace dachs {
 namespace ast {
 

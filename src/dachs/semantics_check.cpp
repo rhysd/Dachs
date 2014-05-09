@@ -12,6 +12,23 @@ namespace detail {
 
 using std::size_t;
 
+class return_statement_searcher {
+public:
+    ast::node::return_stmt found = nullptr;
+
+    template<class W>
+    void visit(ast::node::return_stmt const& target, W const&) noexcept
+    {
+        found = target;
+    }
+
+    template<class T, class W>
+    void visit(T const&, W const& w) noexcept
+    {
+        w();
+    }
+};
+
 class semantics_checker {
 
 public:
@@ -19,13 +36,20 @@ public:
     std::size_t failed = 0;
 
     template<class Walker>
-    void visit(ast::node::function_definition const& func_def, Walker const& recursive_walker) noexcept
+    void visit(ast::node::function_definition &func_def, Walker const& recursive_walker) noexcept
     {
-        if (func_def->kind == ast::symbol::func_kind::proc && func_def->return_type) {
-            std::cerr << "Semantic error at line:" << func_def->line << ", col:" << func_def->col << "\nproc '" << func_def->name << "' can't have return type" << std::endl;
-            failed++;
+        if (func_def->kind == ast::symbol::func_kind::proc) {
+            if (func_def->return_type) {
+                std::cerr << "Semantic error at line:" << func_def->line << ", col:" << func_def->col << "\nproc '" << func_def->name << "' can't have return type" << std::endl;
+                failed++;
 
-            // TODO: Check that procedures don't have any return statement
+            }
+            return_statement_searcher searcher;
+            ast::walk_topdown(func_def, searcher);
+            if (searcher.found) {
+                std::cerr << "Semantic error at line:" << searcher.found->line << ", col:" << searcher.found->col << "\nproc '" << func_def->name << "' can't have return statement" << std::endl;
+                failed++;
+            }
         }
 
         recursive_walker();
