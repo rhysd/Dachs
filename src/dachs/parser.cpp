@@ -161,19 +161,19 @@ public:
 
         string_literal
             = (
-                qi::as_string[qi::lexeme['"' > *(
-                    (qi::char_ - '"' - '\\' - ascii::cntrl) |
+                qi::lexeme['"' > *(
+                    (qi::char_ - '"' - '\\' - ascii::cntrl)[_val += _1] |
                     ('\\' >> (
-                          qi::char_('b')[_1 = '\b']
-                        | qi::char_('f')[_1 = '\f']
-                        | qi::char_('n')[_1 = '\n']
-                        | qi::char_('r')[_1 = '\r']
-                        | qi::char_('\\')[_1 = '\\']
-                        | qi::char_('"')[_1 = '"']
-                        | (qi::char_ - ascii::cntrl)
+                          qi::char_('b')[_val += '\b']
+                        | qi::char_('f')[_val += '\f']
+                        | qi::char_('n')[_val += '\n']
+                        | qi::char_('r')[_val += '\r']
+                        | qi::char_('\\')[_val += '\\']
+                        | qi::char_('"')[_val += '"']
+                        | (qi::char_ - ascii::cntrl)[_val += _1]
                     ))
-                ) > '"']]
-            )[_val = _1];
+                ) > '"']
+            );
 
         integer_literal
             = (
@@ -207,13 +207,13 @@ public:
             ];
 
         symbol_literal
-            = qi::lexeme[
+            = (
+                qi::lexeme[
                 ':' >>
-                qi::as_string[
-                    +(qi::alnum | qi::char_("=*/%+><&^|&!~_-"))
-                ][
-                    _val = make_node_ptr<ast::node::symbol_literal>(_1)
+                    +(qi::alnum | qi::char_("=*/%+><&^|&!~_-"))[_a += _1]
                 ]
+            ) [
+                _val = make_node_ptr<ast::node::symbol_literal>(_a)
             ];
 
         dict_literal
@@ -252,19 +252,18 @@ public:
 
         function_name
             = (
-                qi::as_string[
-                    qi::lexeme[
-                        (qi::alpha | qi::char_('_')) >> *(qi::alnum | qi::char_('_')) >> -qi::char_("?!'")
-                    ]
+                qi::lexeme[
+                    (qi::alpha | qi::char_('_'))[_val += _1]
+                    >> *(qi::alnum | qi::char_('_'))[_val += _1]
+                    >> -qi::char_("?!'")[_val += _1]
                 ]
             );
 
         variable_name
             = (
-                qi::as_string[
-                    qi::lexeme[
-                        (qi::alpha | qi::char_('_')) >> *(qi::alnum | qi::char_('_'))
-                    ]
+                qi::lexeme[
+                    (qi::alpha | qi::char_('_'))[_val += _1]
+                    >> *(qi::alnum | qi::char_('_'))[_val += _1]
                 ]
             );
 
@@ -922,7 +921,7 @@ private:
     DACHS_DEFINE_RULE(primary_literal);
     DACHS_DEFINE_RULE(array_literal);
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::compound_expr>);
-    DACHS_DEFINE_RULE(symbol_literal);
+    DACHS_DEFINE_RULE_WITH_LOCALS(symbol_literal, std::string);
     DACHS_DEFINE_RULE(dict_literal);
     DACHS_DEFINE_RULE(var_ref);
     DACHS_DEFINE_RULE(parameter);
