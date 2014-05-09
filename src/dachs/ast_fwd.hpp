@@ -65,14 +65,10 @@ struct base {
 };
 
 // Forward class declarations
-struct integer_literal;
-struct character_literal;
-struct float_literal;
-struct boolean_literal;
-struct string_literal;
+struct primary_literal;
+struct symbol_literal;
 struct array_literal;
 struct tuple_literal;
-struct symbol_literal;
 struct dict_literal;
 struct var_ref;
 struct parameter;
@@ -124,14 +120,10 @@ struct program;
 namespace node {
 
 #define DACHS_DEFINE_NODE_PTR(n) using n = std::shared_ptr<node_type::n>
-DACHS_DEFINE_NODE_PTR(integer_literal);
-DACHS_DEFINE_NODE_PTR(character_literal);
-DACHS_DEFINE_NODE_PTR(float_literal);
-DACHS_DEFINE_NODE_PTR(boolean_literal);
-DACHS_DEFINE_NODE_PTR(string_literal);
+DACHS_DEFINE_NODE_PTR(primary_literal);
+DACHS_DEFINE_NODE_PTR(symbol_literal);
 DACHS_DEFINE_NODE_PTR(array_literal);
 DACHS_DEFINE_NODE_PTR(tuple_literal);
-DACHS_DEFINE_NODE_PTR(symbol_literal);
 DACHS_DEFINE_NODE_PTR(dict_literal);
 DACHS_DEFINE_NODE_PTR(var_ref);
 DACHS_DEFINE_NODE_PTR(parameter);
@@ -180,13 +172,9 @@ DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
 using literal =
-    boost::variant< character_literal
-                    , float_literal
-                    , boolean_literal
-                    , string_literal
-                    , integer_literal
-                    , array_literal
+    boost::variant< primary_literal
                     , symbol_literal
+                    , array_literal
                     , dict_literal
                     , tuple_literal
             >;

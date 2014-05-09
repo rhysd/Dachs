@@ -38,83 +38,34 @@ struct statement : public base {
     {}
 };
 
-struct character_literal final : public expression {
-    char value;
+struct primary_literal final : public expression {
+    boost::variant< char
+                  , double
+                  , bool
+                  , std::string
+                  , int
+                  , unsigned int
+                > value;
 
-    explicit character_literal(char const c) noexcept
-        : expression(), value(c)
+    template<class T>
+    explicit primary_literal(T && v) noexcept
+        : value{std::forward<T>(v)}
     {}
 
-    std::string to_string() const noexcept override
-    {
-        return "CHAR_LITERAL: "
-            + (
-                value == '\f' ? "'\\f'" :
-                value == '\b' ? "'\\b'" :
-                value == '\n' ? "'\\n'" :
-                value == '\r' ? "'\\r'" :
-                                std::string{'\'', value, '\''}
-            );
-    }
+    std::string to_string() const noexcept override;
 };
 
-struct float_literal final : public expression {
-    double value;
-
-    explicit float_literal(double const d) noexcept
-        : expression(), value(d)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "FLOAT_LITERAL: " + std::to_string(value);
-    }
-};
-
-struct boolean_literal final : public expression {
-    bool value;
-
-    explicit boolean_literal(bool const b) noexcept
-        : expression(), value(b)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return std::string{"BOOL_LITERAL: "} + (value ? "true" : "false");
-    }
-};
-
-struct string_literal final : public expression {
+struct symbol_literal final : public expression {
     std::string value;
 
-    explicit string_literal(std::string const& s) noexcept
+    explicit symbol_literal(std::string const& s) noexcept
         : expression(), value(s)
     {}
 
-    std::string to_string() const noexcept override;
-};
-
-struct integer_literal final : public expression {
-    boost::variant< int
-                  , unsigned int
-    > value;
-
-    bool has_int() const noexcept
+    std::string to_string() const noexcept override
     {
-        return value.which() == 0;
+        return "SYMBOL_LITERAL: " + value;
     }
-
-    bool has_uint() const noexcept
-    {
-        return value.which() == 1;
-    }
-
-    template<class T>
-    explicit integer_literal(T && v) noexcept
-        : expression(), value(std::forward<T>(v))
-    {}
-
-    std::string to_string() const noexcept override;
 };
 
 struct array_literal final : public expression {
@@ -140,19 +91,6 @@ struct tuple_literal final : public expression {
     std::string to_string() const noexcept override
     {
         return "TUPLE_LITERAL: size is " + std::to_string(element_exprs.size());
-    }
-};
-
-struct symbol_literal final : public expression {
-    std::string value;
-
-    explicit symbol_literal(std::string const& s) noexcept
-        : expression(), value(s)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "SYMBOL_LITERAL: " + value;
     }
 };
 

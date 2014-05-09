@@ -134,49 +134,30 @@ public:
                 _val = make_node_ptr<ast::node::program>(as_vector(_1))
             ];
 
-        literal
-            = (
-                  character_literal
-                | string_literal
-                | boolean_literal
-                | float_literal
-                | integer_literal
-                | array_literal
-                | symbol_literal
-                | dict_literal
-                | tuple_literal
-            );
-
         character_literal
             = (
                 '\''
-                > ((qi::char_ - ascii::cntrl - '\\' - '\'')
+                > ((qi::char_ - ascii::cntrl - '\\' - '\'')[_val = _1]
                 | ('\\' > (
-                          qi::char_('b')[_1 = '\b']
-                        | qi::char_('f')[_1 = '\f']
-                        | qi::char_('n')[_1 = '\n']
-                        | qi::char_('r')[_1 = '\r']
-                        | qi::char_('\\')[_1 = '\\']
-                        | qi::char_('\'')[_1 = '\'']
+                          qi::char_('b')[_val = '\b']
+                        | qi::char_('f')[_val = '\f']
+                        | qi::char_('n')[_val = '\n']
+                        | qi::char_('r')[_val = '\r']
+                        | qi::char_('\\')[_val = '\\']
+                        | qi::char_('\'')[_val = '\'']
                     ))
                 ) > '\''
-            ) [
-                _val = make_node_ptr<ast::node::character_literal>(_1)
-            ];
+            );
 
         float_literal
             = (
                 (qi::real_parser<double, strict_real_policies_disallowing_trailing_dot<double>>())
-            ) [
-                _val = make_node_ptr<ast::node::float_literal>(_1)
-            ];
+            );
 
         boolean_literal
             = (
                 qi::bool_
-            ) [
-                _val = make_node_ptr<ast::node::boolean_literal>(_1)
-            ];
+            );
 
         string_literal
             = (
@@ -192,16 +173,17 @@ public:
                         | (qi::char_ - ascii::cntrl)
                     ))
                 ) > '"']]
-            ) [
-                _val = make_node_ptr<ast::node::string_literal>(_1)
-            ];
+            )[_val = _1];
 
         integer_literal
             = (
-                  (qi::lexeme[qi::uint_ >> 'u']) | qi::int_
-            ) [
-                _val = make_node_ptr<ast::node::integer_literal>(_1)
-            ];
+                qi::int_
+            );
+
+        uinteger_literal
+            = (
+                qi::lexeme[qi::uint_ >> 'u']
+            );
 
         array_literal
             = (
@@ -246,6 +228,27 @@ public:
             ) [
                 _val = make_node_ptr<ast::node::dict_literal>(as_vector(_1))
             ];
+
+        primary_literal
+            = (
+                boolean_literal
+              | character_literal
+              | string_literal
+              | float_literal
+              | uinteger_literal
+              | integer_literal
+            ) [
+                _val = make_node_ptr<ast::node::primary_literal>(_1)
+            ];
+
+        literal
+            = (
+                  primary_literal
+                | array_literal
+                | symbol_literal
+                | dict_literal
+                | tuple_literal
+            );
 
         function_name
             = (
@@ -748,11 +751,7 @@ public:
                 , _val, _1, _3)
 
             , program
-            , integer_literal
-            , character_literal
-            , float_literal
-            , boolean_literal
-            , string_literal
+            , primary_literal
             , array_literal
             , tuple_literal
             , symbol_literal
@@ -833,7 +832,9 @@ public:
         // Rule names {{{
         program.name("program");
         literal.name("literal");
+        primary_literal.name("primary literal");
         integer_literal.name("integer literal");
+        uinteger_literal.name("unsigned integer literal");
         character_literal.name("character literal");
         float_literal.name("float literal");
         boolean_literal.name("boolean literal");
@@ -918,11 +919,7 @@ private:
 
     DACHS_DEFINE_RULE(program);
     DACHS_DEFINE_RULE(literal);
-    DACHS_DEFINE_RULE(integer_literal);
-    DACHS_DEFINE_RULE(character_literal);
-    DACHS_DEFINE_RULE(float_literal);
-    DACHS_DEFINE_RULE(boolean_literal);
-    DACHS_DEFINE_RULE(string_literal);
+    DACHS_DEFINE_RULE(primary_literal);
     DACHS_DEFINE_RULE(array_literal);
     DACHS_DEFINE_RULE_WITH_LOCALS(tuple_literal, std::vector<ast::node::compound_expr>);
     DACHS_DEFINE_RULE(symbol_literal);
@@ -974,6 +971,13 @@ private:
     DACHS_DEFINE_RULE(constant_decl);
     DACHS_DEFINE_RULE(constant_definition);
     DACHS_DEFINE_RULE(global_definition);
+
+    rule<char()> character_literal;
+    rule<double()> float_literal;
+    rule<int()> integer_literal;
+    rule<unsigned int()> uinteger_literal;
+    rule<bool()> boolean_literal;
+    rule<std::string()> string_literal;
 
     rule<std::vector<ast::node::compound_expr>()> constructor_call;
     rule<std::vector<ast::node::parameter>()> function_param_decls;

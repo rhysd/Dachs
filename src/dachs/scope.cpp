@@ -233,35 +233,49 @@ public:
 
     // Get built-in data types {{{
     template<class Walker>
-    void visit(ast::node::integer_literal const& int_lit, Walker const& /*unused because it doesn't has child*/)
+    void visit(ast::node::primary_literal const& primary_lit, Walker const& /*unused because it doesn't has child*/)
     {
-        int_lit->type = type::get_builtin_type(
-                    int_lit->has_int() ? "int" : "uint"
-                );
+        struct builtin_type_name_selector
+            : public boost::static_visitor<char const* const> {
+
+            result_type operator()(char const) const noexcept
+            {
+                return "char";
+            }
+
+            result_type operator()(double const) const noexcept
+            {
+                return "float";
+            }
+
+            result_type operator()(bool const) const noexcept
+            {
+                return "bool";
+            }
+
+            result_type operator()(std::string const&) const noexcept
+            {
+                return "string";
+            }
+
+            result_type operator()(int const) const noexcept
+            {
+                return "int";
+            }
+
+            result_type operator()(unsigned int const) const noexcept
+            {
+                return "uint";
+            }
+        } selector;
+
+        primary_lit->type = type::get_builtin_type(boost::apply_visitor(selector, primary_lit->value));
     }
 
     template<class Walker>
-    void visit(ast::node::character_literal const& char_lit, Walker const& /*unused because it doesn't has child*/)
+    void visit(ast::node::symbol_literal const& sym_lit, Walker const& /*unused because it doesn't has child*/)
     {
-        char_lit->type = type::get_builtin_type("char");
-    }
-
-    template<class Walker>
-    void visit(ast::node::float_literal const& float_lit, Walker const& /*unused because it doesn't has child*/)
-    {
-        float_lit->type = type::get_builtin_type("float");
-    }
-
-    template<class Walker>
-    void visit(ast::node::boolean_literal const& bool_lit, Walker const& /*unused because it doesn't has child*/)
-    {
-        bool_lit->type = type::get_builtin_type("bool");
-    }
-
-    template<class Walker>
-    void visit(ast::node::string_literal const& str_lit, Walker const& /*unused because it doesn't has child*/)
-    {
-        str_lit->type = type::get_builtin_type("string");
+        sym_lit->type = type::get_builtin_type("symbol");
     }
 
     template<class Walker>

@@ -4,6 +4,8 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/variant/static_visitor.hpp>
+#include <boost/variant/apply_visitor.hpp>
 
 #include "dachs/ast.hpp"
 
@@ -75,31 +77,62 @@ std::size_t generate_id() noexcept
     return ++current_id;
 }
 
-std::string string_literal::to_string() const noexcept
-{
-    std::string s = value;
-    boost::algorithm::replace_all(s, "\\", "\\\\");
-    boost::algorithm::replace_all(s, "\"", "\\\"");
-    boost::algorithm::replace_all(s, "\b", "\\b");
-    boost::algorithm::replace_all(s, "\f", "\\f");
-    boost::algorithm::replace_all(s, "\n", "\\n");
-    boost::algorithm::replace_all(s, "\r", "\\r");
-    return "STRING_LITERAL: \"" + s + '"';
-}
-
 std::string unary_expr::to_string() const noexcept
 {
     return "UNARY_EXPR: " + boost::algorithm::join(values , " ");
 }
 
-std::string integer_literal::to_string() const noexcept
+std::string primary_literal::to_string() const noexcept
 {
-    try {
-        return "INTEGER_LITERAL: " + boost::lexical_cast<std::string>(value);
-    }
-    catch(boost::bad_lexical_cast const& e) {
-        return std::string{"INTEGER_LITERAL: "} + e.what();
-    }
+    struct primary_literal_stringizer
+        : public boost::static_visitor<std::string> {
+
+        std::string operator()(char const c) const noexcept
+        {
+            return " char: "
+                + (
+                    c == '\f' ? "'\\f'" :
+                    c == '\b' ? "'\\b'" :
+                    c == '\n' ? "'\\n'" :
+                    c == '\r' ? "'\\r'" :
+                                    std::string{'\'', c, '\''}
+                );
+        }
+
+        std::string operator()(double const d) const noexcept
+        {
+            return " float: " + std::to_string(d);
+        }
+
+        std::string operator()(bool const b) const noexcept
+        {
+            return std::string{" bool: "} + (b ? "true" : "false");
+        }
+
+        std::string operator()(std::string s) const noexcept
+        {
+            boost::algorithm::replace_all(s, "\\", "\\\\");
+            boost::algorithm::replace_all(s, "\"", "\\\"");
+            boost::algorithm::replace_all(s, "\b", "\\b");
+            boost::algorithm::replace_all(s, "\f", "\\f");
+            boost::algorithm::replace_all(s, "\n", "\\n");
+            boost::algorithm::replace_all(s, "\r", "\\r");
+            return " string: \"" + s + '"';
+        }
+
+        std::string operator()(int const i) const noexcept
+        {
+            return " int: " + std::to_string(i);
+        }
+
+        std::string operator()(unsigned int const ui) const noexcept
+        {
+            return " uint: " + std::to_string(ui);
+        }
+
+    } v;
+
+    return "PRIMARY_LITERAL: " + boost::apply_visitor(v, value);
 }
 
 } // namespace node_type
