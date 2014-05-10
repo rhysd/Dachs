@@ -5,6 +5,7 @@
 #include "dachs/parser.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/helper/util.hpp"
+#include "dachs/ast_walker.hpp"
 #include "test_helper.hpp"
 
 #include <string>
@@ -500,6 +501,28 @@ BOOST_AUTO_TEST_CASE(variable_decl)
             var a, b := [] : [int], {} : {int => string}
         end
         )"));
+}
+
+struct test_visitor {
+    template<class T, class W>
+    void visit(T &, W const& w)
+    {
+        w();
+    }
+};
+
+BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)
+{
+    dachs::syntax::parser p;
+    for (auto const& d : {"assets/comprehensive", "assets/samples"}) {
+        check_all_cases_in_directory(d, [&p](fs::path const& path){
+                    std::cout << "testing " << path.c_str() << std::endl;
+                    auto root = p.parse(
+                                *dachs::helper::read_file<std::string>(path.c_str())
+                           ).root;
+                        dachs::ast::walk_topdown(root, test_visitor{});
+                });
+    }
 }
 
 BOOST_AUTO_TEST_CASE(comprehensive_cases)
