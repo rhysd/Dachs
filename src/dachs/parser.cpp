@@ -364,7 +364,7 @@ public:
                 primary_expr[_val = _1] >> *(
                       ('.' >> function_name)[_val = make_node_ptr<ast::node::member_access>(_val, _1)]
                     | ('[' >> typed_expr >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]
-                    | ('(' >> -(typed_expr % ',') >> ')')[_val = make_node_ptr<ast::node::function_call>(_val, as_vector(_1))]
+                    | ('(' >> -(typed_expr % ',') >> ')')[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1))]
                 )
             ;
 

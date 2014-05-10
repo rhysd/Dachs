@@ -194,7 +194,7 @@ public:
             + '\n' + visit(ma->child, indent+lead, "   ");
     }
 
-    String visit(ast::node::function_call const& fc, String const& indent, char const* const lead) const noexcept
+    String visit(ast::node::func_invocation const& fc, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(fc, indent)
             + '\n' + visit(fc->child, indent+lead, fc->args.empty() ? "   " : "|  ")

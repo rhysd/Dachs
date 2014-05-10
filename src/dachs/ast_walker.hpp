@@ -121,7 +121,7 @@ public:
         });
     }
 
-    void walk(node::function_call &fc)
+    void walk(node::func_invocation &fc)
     {
         visitor.visit(fc, [&]{
             walk(fc->child);

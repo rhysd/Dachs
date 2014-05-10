@@ -327,17 +327,17 @@ struct parameter final : public base {
     }
 };
 
-struct function_call final : public expression {
+struct func_invocation final : public expression {
     node::any_expr child;
     std::vector<node::any_expr> args;
 
-    function_call(node::any_expr const& c, std::vector<node::any_expr> const& args) noexcept
+    func_invocation(node::any_expr const& c, std::vector<node::any_expr> const& args) noexcept
         : expression(), child(c), args(args)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "FUNCTION_CALL";
+        return "func_invocation";
     }
 };
 

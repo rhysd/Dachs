@@ -72,7 +72,7 @@ struct tuple_literal;
 struct dict_literal;
 struct var_ref;
 struct parameter;
-struct function_call;
+struct func_invocation;
 struct object_construct;
 struct index_access;
 struct member_access;
@@ -116,7 +116,7 @@ DACHS_DEFINE_NODE_PTR(tuple_literal);
 DACHS_DEFINE_NODE_PTR(dict_literal);
 DACHS_DEFINE_NODE_PTR(var_ref);
 DACHS_DEFINE_NODE_PTR(parameter);
-DACHS_DEFINE_NODE_PTR(function_call);
+DACHS_DEFINE_NODE_PTR(func_invocation);
 DACHS_DEFINE_NODE_PTR(object_construct);
 DACHS_DEFINE_NODE_PTR(index_access);
 DACHS_DEFINE_NODE_PTR(member_access);
@@ -158,7 +158,7 @@ using any_expr =
                   , tuple_literal
                   , member_access
                   , index_access
-                  , function_call
+                  , func_invocation
                   , object_construct
                   , unary_expr
                   , binary_expr
