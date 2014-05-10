@@ -353,8 +353,8 @@ public:
 
         primary_expr
             = (
-                literal
-                | object_construct
+                  object_construct
+                | literal
                 | var_ref
                 | '(' >> typed_expr >> ')'
             );
