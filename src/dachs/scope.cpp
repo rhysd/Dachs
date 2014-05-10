@@ -21,6 +21,22 @@ using std::size_t;
 using dachs::helper::variant::get;
 using dachs::helper::variant::has;
 
+struct type_of_visitor
+    : public boost::static_visitor<type::type> {
+
+    template<class T>
+    type::type operator()(std::shared_ptr<T> const& node) const noexcept
+    {
+        return node->type;
+    }
+};
+
+template<class Variant>
+inline type::type type_of(Variant const& v) noexcept
+{
+    return boost::apply_visitor(type_of_visitor{}, v);
+}
+
 // Walk to analyze functions, classes and member variables symbols to make forward reference possible
 class forward_symbol_analyzer {
 
@@ -283,7 +299,7 @@ public:
     {
         recursive_walker();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
-        arr_lit->type = type::make<type::array_type>(arr_lit->element_exprs[0]->type);
+        arr_lit->type = type::make<type::array_type>(type_of(arr_lit->element_exprs[0]));
     }
 
     template<class Walker>
@@ -293,7 +309,7 @@ public:
         auto const type = type::make<type::tuple_type>();
         type->element_types.reserve(tuple_lit->element_exprs.size());
         for (auto const& e : tuple_lit->element_exprs) {
-            type->element_types.push_back(e->type);
+            type->element_types.push_back(type_of(e));
         }
         tuple_lit->type = type;
     }
@@ -304,17 +320,15 @@ public:
         recursive_walker();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
         auto const& p = dict_lit->value[0];
-        dict_lit->type = type::make<type::dict_type>(p.first->type, p.second->type);
+        dict_lit->type = type::make<type::dict_type>(type_of(p.first), type_of(p.second));
     }
 
     template<class Walker>
-    void visit(ast::node::range_expr const& range, Walker const& recursive_walker)
+    void visit(ast::node::binary_expr const& bin_expr, Walker const& recursive_walker)
     {
         recursive_walker();
-        if (range->maybe_rhs) {
-            range->type = type::make<type::range_type>(range->lhs->type, (*(range->maybe_rhs)).second->type);
-        } else {
-            range->type = range->lhs->type;
+        if (bin_expr->op == ".." || bin_expr->op == "...") {
+            bin_expr->type = type::make<type::range_type>(type_of(bin_expr->lhs), type_of(bin_expr->rhs));
         }
     }
     // }}}
