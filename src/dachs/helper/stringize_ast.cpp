@@ -135,20 +135,6 @@ class ast_stringizer {
                     is_last);
     }
 
-    template<class BinaryOperatorNodePtr>
-    String visit_binary_operator_ptr(BinaryOperatorNodePtr const& p, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(p, indent) + '\n'
-                + visit(p->lhs, indent+lead, (p->rhss.empty() ? "   " : "|  "))
-                + visit_nodes_with_predicate(
-                      p->rhss,
-                      [this, indent, lead](auto const& op_and_rhs, auto const l) {
-                          return c.yellow(indent+lead+"|\n"+indent+lead+"|--", false)
-                                + c.green("OPERATOR: " + op_and_rhs.first)
-                              + '\n' + visit(op_and_rhs.second, indent+lead, l);
-                      }, true);
-    }
-
     colorizer<String> c;
 
 public:
@@ -197,19 +183,22 @@ public:
 
     String visit(ast::node::index_access const& ia, String const& indent, char const* const lead) const noexcept
     {
-        return prefix_of(ia, indent) + '\n' + visit(ia->index_expr, indent+lead, "   ");
+        return prefix_of(ia, indent)
+            + '\n' + visit(ia->child, indent+lead, "|  ")
+            + '\n' + visit(ia->index_expr, indent+lead, "   ");
+    }
+
+    String visit(ast::node::member_access const& ma, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(ma, indent)
+            + '\n' + visit(ma->child, indent+lead, "   ");
     }
 
     String visit(ast::node::function_call const& fc, String const& indent, char const* const lead) const noexcept
     {
-        return prefix_of(fc, indent) + visit_nodes(fc->args, indent+lead, true);
-    }
-
-    String visit(ast::node::postfix_expr const& pe, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(pe, indent)
-            + visit_node_variants(pe->postfixes, indent+lead, false) + '\n'
-            + visit(pe->prefix, indent+lead, "   ");
+        return prefix_of(fc, indent)
+            + '\n' + visit(fc->child, indent+lead, fc->args.empty() ? "   " : "|  ")
+            + visit_nodes(fc->args, indent+lead, true);
     }
 
     String visit(ast::node::unary_expr const& ue, String const& indent, char const* const lead) const noexcept
@@ -264,75 +253,15 @@ public:
     String visit(ast::node::cast_expr const& ce, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(ce, indent)
-                + visit_nodes(ce->dest_types, indent+lead, false) + '\n'
-                + visit(ce->source_expr, indent+lead, "   ");
+                + '\n' + visit(ce->child, indent+lead, "|  ")
+                + '\n' + visit(ce->casted_type, indent+lead, "   ");
     }
 
-    String visit(ast::node::mult_expr const& me, String const& indent, char const* const lead) const noexcept
+    String visit(ast::node::binary_expr const& be, String const& indent, char const* const lead) const noexcept
     {
-        return visit_binary_operator_ptr(me, indent, lead);
-    }
-
-    String visit(ast::node::additive_expr const& ae, String const& indent, char const* const lead) const noexcept
-    {
-        return visit_binary_operator_ptr(ae, indent, lead);
-    }
-
-    String visit(ast::node::shift_expr const& se, String const& indent, char const* const lead) const noexcept
-    {
-        return visit_binary_operator_ptr(se, indent, lead);
-    }
-
-    String visit(ast::node::relational_expr const& re, String const& indent, char const* const lead) const noexcept
-    {
-        return visit_binary_operator_ptr(re, indent, lead);
-    }
-
-    String visit(ast::node::equality_expr const& ee, String const& indent, char const* const lead) const noexcept
-    {
-        return visit_binary_operator_ptr(ee, indent, lead);
-    }
-
-    String visit(ast::node::and_expr const& ae, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(ae, indent)
-            + '\n' + visit(ae->lhs, indent+lead, ae->rhss.empty() ? "   " : "|  ")
-            + visit_nodes(ae->rhss, indent+lead, true);
-    }
-
-    String visit(ast::node::xor_expr const& xe, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(xe, indent)
-            + '\n' + visit(xe->lhs, indent+lead, xe->rhss.empty() ? "   " : "|  ")
-            + visit_nodes(xe->rhss, indent+lead, true);
-    }
-
-    String visit(ast::node::or_expr const& oe, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(oe, indent)
-            + '\n' + visit(oe->lhs, indent+lead, oe->rhss.empty() ? "   " : "|  ")
-            + visit_nodes(oe->rhss, indent+lead, true);
-    }
-
-    String visit(ast::node::logical_and_expr const& lae, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(lae, indent)
-            + '\n' + visit(lae->lhs, indent+lead, lae->rhss.empty() ? "   " : "|  ")
-            + visit_nodes(lae->rhss, indent+lead, true);
-    }
-
-    String visit(ast::node::logical_or_expr const& loe, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(loe, indent)
-            + '\n' + visit(loe->lhs, indent+lead, loe->rhss.empty() ? "   " : "|  ")
-            + visit_nodes(loe->rhss, indent+lead, true);
-    }
-
-    String visit(ast::node::range_expr const& re, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(re, indent)
-            + '\n' + visit(re->lhs, indent+lead, re->has_range() ? "|  " : "   ")
-            + (re->has_range() ? '\n' + visit((*re->maybe_rhs).second, indent+lead, "   ") : "");
+        return prefix_of(be, indent)
+                + '\n' + visit(be->lhs, indent+lead, "|  ")
+                + '\n' + visit(be->rhs, indent+lead, "   ");
     }
 
     String visit(ast::node::if_expr const& ie, String const& indent, char const* const lead) const noexcept
@@ -343,11 +272,11 @@ public:
                 + '\n' + visit(ie->else_expr, indent+lead, "   ");
     }
 
-    String visit(ast::node::compound_expr const& e, String const& indent, char const* const lead) const noexcept
+    String visit(ast::node::typed_expr const& te, String const& indent, char const* const lead) const noexcept
     {
-        return prefix_of(e, indent) + '\n'
-               + visit_variant_node(e->child_expr, indent+lead, e->maybe_type ? "|  " : "   ")
-               + visit_optional_node(e->maybe_type, indent+lead, "   ");
+        return prefix_of(te, indent)
+                + '\n' + visit(te->child_expr, indent+lead, "|  ")
+                + '\n' + visit(te->specified_type, indent+lead, "   ");
     }
 
     String visit(ast::node::assignment_stmt const& as, String const& indent, char const* const lead) const noexcept

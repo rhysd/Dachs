@@ -124,6 +124,7 @@ public:
     void walk(node::function_call &fc)
     {
         visitor.visit(fc, [&]{
+            walk(fc->child);
             walk_vector(fc->args);
         });
     }
@@ -139,17 +140,15 @@ public:
     void walk(node::index_access &ia)
     {
         visitor.visit(ia, [&]{
+            walk(ia->child);
             walk(ia->index_expr);
         });
     }
 
-    void walk(node::postfix_expr &ue)
+    void walk(node::member_access &ma)
     {
-        visitor.visit(ue, [&]{
-            walk(ue->prefix);
-            for (auto &p : ue->postfixes) {
-                boost::apply_visitor(variant_visitor, p);
-            }
+        visitor.visit(ma, [&]{
+            walk(ma->child);
         });
     }
 
@@ -216,78 +215,16 @@ public:
     void walk(node::cast_expr &ce)
     {
         visitor.visit(ce, [&]{
-            walk_vector(ce->dest_types);
-            walk(ce->source_expr);
+            walk(ce->child);
+            walk(ce->casted_type);
         });
     }
 
-    void walk(node::mult_expr &e)
+    void walk(node::binary_expr &be)
     {
-        visitor.visit(e, [&]{
-            walk_mult_binary_expr(e);
-        });
-    }
-
-    void walk(node::additive_expr &e)
-    {
-        visitor.visit(e, [&]{
-            walk_mult_binary_expr(e);
-        });
-    }
-
-    void walk(node::shift_expr &e)
-    {
-        visitor.visit(e, [&]{
-            walk_mult_binary_expr(e);
-        });
-    }
-
-    void walk(node::relational_expr &e)
-    {
-        visitor.visit(e, [&]{
-            walk_mult_binary_expr(e);
-        });
-    }
-
-    void walk(node::equality_expr &e)
-    {
-        visitor.visit(e, [&]{
-            walk_mult_binary_expr(e);
-        });
-    }
-
-    void walk(node::and_expr &e)
-    {
-        visitor.visit(e, [&]{
-            walk_binary_expr(e);
-        });
-    }
-
-    void walk(node::xor_expr &e)
-    {
-        visitor.visit(e, [&]{
-            walk_binary_expr(e);
-        });
-    }
-
-    void walk(node::or_expr &e)
-    {
-        visitor.visit(e, [&]{
-            walk_binary_expr(e);
-        });
-    }
-
-    void walk(node::logical_and_expr &e)
-    {
-        visitor.visit(e, [&]{
-            walk_binary_expr(e);
-        });
-    }
-
-    void walk(node::logical_or_expr &e)
-    {
-        visitor.visit(e, [&]{
-            walk_binary_expr(e);
+        visitor.visit(be, [&]{
+            walk(be->rhs);
+            walk(be->lhs);
         });
     }
 
@@ -300,21 +237,11 @@ public:
         });
     }
 
-    void walk(node::range_expr &re)
+    void walk(node::typed_expr &te)
     {
-        visitor.visit(re, [&]{
-            walk(re->lhs);
-            if (re->maybe_rhs) {
-                walk(re->maybe_rhs->second);
-            }
-        });
-    }
-
-    void walk(node::compound_expr &ce)
-    {
-        visitor.visit(ce, [&]{
-            boost::apply_visitor(variant_visitor, ce->child_expr);
-            walk_optional(ce->maybe_type);
+        visitor.visit(te, [&]{
+            walk(te->child_expr);
+            walk(te->specified_type);
         });
     }
 

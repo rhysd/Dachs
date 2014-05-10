@@ -76,8 +76,8 @@ struct function_call;
 struct object_construct;
 struct index_access;
 struct member_access;
-struct postfix_expr;
 struct unary_expr;
+struct binary_expr;
 struct primary_type;
 struct tuple_type;
 struct func_type;
@@ -86,19 +86,8 @@ struct array_type;
 struct dict_type;
 struct qualified_type;
 struct cast_expr;
-struct mult_expr;
-struct additive_expr;
-struct shift_expr;
-struct relational_expr;
-struct equality_expr;
-struct and_expr;
-struct xor_expr;
-struct or_expr;
-struct logical_and_expr;
-struct logical_or_expr;
-struct range_expr;
+struct typed_expr;
 struct if_expr;
-struct compound_expr;
 struct assignment_stmt;
 struct variable_decl;
 struct initialize_stmt;
@@ -131,8 +120,8 @@ DACHS_DEFINE_NODE_PTR(function_call);
 DACHS_DEFINE_NODE_PTR(object_construct);
 DACHS_DEFINE_NODE_PTR(index_access);
 DACHS_DEFINE_NODE_PTR(member_access);
-DACHS_DEFINE_NODE_PTR(postfix_expr);
 DACHS_DEFINE_NODE_PTR(unary_expr);
+DACHS_DEFINE_NODE_PTR(binary_expr);
 DACHS_DEFINE_NODE_PTR(primary_type);
 DACHS_DEFINE_NODE_PTR(tuple_type);
 DACHS_DEFINE_NODE_PTR(func_type);
@@ -141,19 +130,8 @@ DACHS_DEFINE_NODE_PTR(array_type);
 DACHS_DEFINE_NODE_PTR(dict_type);
 DACHS_DEFINE_NODE_PTR(qualified_type);
 DACHS_DEFINE_NODE_PTR(cast_expr);
-DACHS_DEFINE_NODE_PTR(mult_expr);
-DACHS_DEFINE_NODE_PTR(additive_expr);
-DACHS_DEFINE_NODE_PTR(shift_expr);
-DACHS_DEFINE_NODE_PTR(relational_expr);
-DACHS_DEFINE_NODE_PTR(equality_expr);
-DACHS_DEFINE_NODE_PTR(and_expr);
-DACHS_DEFINE_NODE_PTR(xor_expr);
-DACHS_DEFINE_NODE_PTR(or_expr);
-DACHS_DEFINE_NODE_PTR(logical_and_expr);
-DACHS_DEFINE_NODE_PTR(logical_or_expr);
-DACHS_DEFINE_NODE_PTR(range_expr);
+DACHS_DEFINE_NODE_PTR(typed_expr);
 DACHS_DEFINE_NODE_PTR(if_expr);
-DACHS_DEFINE_NODE_PTR(compound_expr);
 DACHS_DEFINE_NODE_PTR(assignment_stmt);
 DACHS_DEFINE_NODE_PTR(variable_decl);
 DACHS_DEFINE_NODE_PTR(initialize_stmt);
@@ -171,24 +149,27 @@ DACHS_DEFINE_NODE_PTR(constant_definition);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
-using literal =
-    boost::variant< primary_literal
-                    , symbol_literal
-                    , array_literal
-                    , dict_literal
-                    , tuple_literal
+using any_expr =
+    boost::variant< typed_expr
+                  , primary_literal
+                  , symbol_literal
+                  , array_literal
+                  , dict_literal
+                  , tuple_literal
+                  , member_access
+                  , index_access
+                  , function_call
+                  , object_construct
+                  , unary_expr
+                  , binary_expr
+                  , cast_expr
+                  , if_expr
+                  , var_ref
             >;
-
-using primary_expr =
-    boost::variant< object_construct
-                    , var_ref
-                    , literal
-                    , compound_expr
-                    >;
 
 using nested_type =
     boost::variant< primary_type
-                    , qualified_type >;
+                  , qualified_type >;
 
 using compound_type =
     boost::variant<array_type
@@ -200,7 +181,7 @@ using compound_type =
 
 using compound_stmt =
     boost::variant<
-            if_stmt
+          if_stmt
         , return_stmt
         , case_stmt
         , switch_stmt
@@ -209,7 +190,7 @@ using compound_stmt =
         , assignment_stmt
         , initialize_stmt
         , postfix_if_stmt
-        , compound_expr
+        , any_expr
     >;
 
 using global_definition =

@@ -77,11 +77,6 @@ std::size_t generate_id() noexcept
     return ++current_id;
 }
 
-std::string unary_expr::to_string() const noexcept
-{
-    return "UNARY_EXPR: " + boost::algorithm::join(values , " ");
-}
-
 std::string primary_literal::to_string() const noexcept
 {
     struct primary_literal_stringizer

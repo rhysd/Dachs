@@ -252,9 +252,9 @@ struct symbol_literal final : public expression {
 };
 
 struct array_literal final : public expression {
-    std::vector<node::compound_expr> element_exprs;
+    std::vector<node::any_expr> element_exprs;
 
-    explicit array_literal(std::vector<node::compound_expr> const& elems) noexcept
+    explicit array_literal(std::vector<node::any_expr> const& elems) noexcept
         : expression(), element_exprs(elems)
     {}
 
@@ -265,7 +265,7 @@ struct array_literal final : public expression {
 };
 
 struct tuple_literal final : public expression {
-    std::vector<node::compound_expr> element_exprs;
+    std::vector<node::any_expr> element_exprs;
 
     explicit tuple_literal(decltype(element_exprs) const& elems) noexcept
         : expression(), element_exprs(elems)
@@ -279,7 +279,7 @@ struct tuple_literal final : public expression {
 
 struct dict_literal final : public expression {
     using dict_elem_type =
-        std::pair<node::compound_expr, node::compound_expr>;
+        std::pair<node::any_expr, node::any_expr>;
     using value_type =
         std::vector<dict_elem_type>;
 
@@ -328,10 +328,11 @@ struct parameter final : public base {
 };
 
 struct function_call final : public expression {
-    std::vector<node::compound_expr> args;
+    node::any_expr child;
+    std::vector<node::any_expr> args;
 
-    function_call(decltype(args) const& args) noexcept
-        : expression(), args(args)
+    function_call(node::any_expr const& c, std::vector<node::any_expr> const& args) noexcept
+        : expression(), child(c), args(args)
     {}
 
     std::string to_string() const noexcept override
@@ -342,7 +343,7 @@ struct function_call final : public expression {
 
 struct object_construct final : public expression {
     node::qualified_type obj_type;
-    std::vector<node::compound_expr> args;
+    std::vector<node::any_expr> args;
 
     object_construct(node::qualified_type const& t,
                      decltype(args) const& args) noexcept
@@ -356,24 +357,24 @@ struct object_construct final : public expression {
 };
 
 struct index_access final : public expression {
-    node::compound_expr index_expr;
+    node::any_expr child, index_expr;
 
-    index_access(node::compound_expr const& idx_expr) noexcept
-        : expression(), index_expr(idx_expr)
+    index_access(node::any_expr const& c, node::any_expr const& idx_expr) noexcept
+        : expression(), child(c), index_expr(idx_expr)
     {}
 
     std::string to_string() const noexcept override
     {
-        // return index_access ? "INDEX_ACCESS" : "INDEX_ACCESS : (no index)";
-        return "INDEX_ACCESS : (no index)";
+        return "INDEX_ACCESS";
     }
 };
 
 struct member_access final : public expression {
+    node::any_expr child;
     std::string member_name;
 
-    explicit member_access(std::string const& member_name) noexcept
-        : expression(), member_name(member_name)
+    explicit member_access(node::any_expr const& c, std::string const& member_name) noexcept
+        : expression(), child(c), member_name(member_name)
     {}
 
     std::string to_string() const noexcept override
@@ -382,34 +383,18 @@ struct member_access final : public expression {
     }
 };
 
-struct postfix_expr final : public expression {
-    // Note: add do-end block
-    node::primary_expr prefix;
-    using postfix_type =
-        boost::variant< node::member_access
-                      , node::index_access
-                      , node::function_call >;
-    std::vector<postfix_type> postfixes;
+struct unary_expr final : public expression {
+    std::string op;
+    node::any_expr expr;
 
-    postfix_expr(node::primary_expr const& pe, std::vector<postfix_type> const& ps) noexcept
-        : expression(), prefix(pe), postfixes(ps)
+    unary_expr(std::string const& op, node::any_expr const& expr) noexcept
+        : expression(), op(op), expr(expr)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "POSTFIX_EXPR";
+        return "UNARY_EXPR: " + op;
     }
-};
-
-struct unary_expr final : public expression {
-    std::vector<std::string> values;
-    node::postfix_expr expr;
-
-    unary_expr(std::vector<std::string> const& ops, node::postfix_expr const& expr) noexcept
-        : expression(), values(ops), expr(expr)
-    {}
-
-    std::string to_string() const noexcept override;
 };
 
 struct primary_type final : public base {
@@ -517,12 +502,12 @@ struct qualified_type final : public base {
 };
 
 struct cast_expr final : public expression {
-    std::vector<node::qualified_type> dest_types;
-    node::unary_expr source_expr;
+    node::any_expr child;
+    node::qualified_type casted_type;
 
-    cast_expr(decltype(dest_types) const& types,
-              node::unary_expr const& expr) noexcept
-        : expression(), dest_types(types), source_expr(expr)
+    cast_expr(node::any_expr const& c,
+              node::qualified_type const& t) noexcept
+        : expression(), child(c), casted_type(t)
     {}
 
     std::string to_string() const noexcept override
@@ -531,135 +516,30 @@ struct cast_expr final : public expression {
     }
 };
 
-template<class FactorType>
-struct multi_binary_expr : public expression {
-    using rhs_type
-        = std::pair<std::string, FactorType>;
-    using rhss_type
-        = std::vector<rhs_type>;
+struct binary_expr final : public expression {
+    node::any_expr lhs, rhs;
+    std::string op;
 
-    FactorType lhs;
-    rhss_type rhss;
-
-    multi_binary_expr(FactorType const& lhs, rhss_type const& rhss) noexcept
-        : expression(), lhs(lhs), rhss(rhss)
+    binary_expr(node::any_expr const& lhs
+                    , std::string const& op
+                    , node::any_expr const& rhs) noexcept
+        : expression(), lhs(lhs), rhs(rhs), op(op)
     {}
 
-    virtual ~multi_binary_expr()
-    {}
-};
-
-struct mult_expr final : public multi_binary_expr<node::cast_expr> {
-    using multi_binary_expr::multi_binary_expr;
-
     std::string to_string() const noexcept override
     {
-        return "MULT_EXPR";
-    }
-};
-
-struct additive_expr final : public multi_binary_expr<node::mult_expr> {
-    using multi_binary_expr::multi_binary_expr;
-
-    std::string to_string() const noexcept override
-    {
-        return "ADDITIVE_EXPR";
-    }
-};
-
-struct shift_expr final : public multi_binary_expr<node::additive_expr> {
-    using multi_binary_expr::multi_binary_expr;
-
-    std::string to_string() const noexcept override
-    {
-        return "SHIFT_EXPR";
-    }
-};
-
-struct relational_expr final : public multi_binary_expr<node::shift_expr> {
-    using multi_binary_expr::multi_binary_expr;
-
-    std::string to_string() const noexcept override
-    {
-        return "RELATIONAL_EXPR";
-    }
-};
-
-struct equality_expr final : public multi_binary_expr<node::relational_expr> {
-    using multi_binary_expr::multi_binary_expr;
-
-    std::string to_string() const noexcept override
-    {
-        return "EQUALITY_EXPR";
-    }
-};
-
-template<class FactorType>
-struct binary_expr : public expression {
-    FactorType lhs;
-    std::vector<FactorType> rhss;
-
-    binary_expr(FactorType const& lhs, decltype(rhss) const& rhss) noexcept
-        : expression(), lhs(lhs), rhss(rhss)
-    {}
-
-    virtual ~binary_expr()
-    {}
-};
-
-struct and_expr final : public binary_expr<node::equality_expr> {
-    using binary_expr::binary_expr;
-
-    std::string to_string() const noexcept override
-    {
-        return "AND_EXPR";
-    }
-};
-
-struct xor_expr final : public binary_expr<node::and_expr> {
-    using binary_expr::binary_expr;
-
-    std::string to_string() const noexcept override
-    {
-        return "XOR_EXPR";
-    }
-};
-
-struct or_expr final : public binary_expr<node::xor_expr> {
-    using binary_expr::binary_expr;
-
-    std::string to_string() const noexcept override
-    {
-        return "OR_EXPR";
-    }
-};
-
-struct logical_and_expr final : public binary_expr<node::or_expr> {
-    using binary_expr::binary_expr;
-
-    std::string to_string() const noexcept override
-    {
-        return "LOGICAL_AND_EXPR";
-    }
-};
-
-struct logical_or_expr final : public binary_expr<node::logical_and_expr> {
-    using binary_expr::binary_expr;
-
-    std::string to_string() const noexcept override
-    {
-        return "LOGICAL_OR_EXPR";
+        return "BINARY_EXPR: " + op;
     }
 };
 
 struct if_expr final : public expression {
     symbol::if_kind kind;
-    node::compound_expr condition_expr, then_expr, else_expr;
+    node::any_expr condition_expr, then_expr, else_expr;
 
     if_expr(symbol::if_kind const kind,
-            node::compound_expr const& condition,
-            node::compound_expr const& then,
-            node::compound_expr const& else_) noexcept
+            node::any_expr const& condition,
+            node::any_expr const& then,
+            node::any_expr const& else_) noexcept
         : expression(), kind(kind), condition_expr(condition), then_expr(then), else_expr(else_)
     {}
 
@@ -669,46 +549,17 @@ struct if_expr final : public expression {
     }
 };
 
-struct range_expr final : public expression {
-    using rhs_type
-        = std::pair<
-            std::string,
-            node::logical_or_expr
-        >;
-    node::logical_or_expr lhs;
-    boost::optional<rhs_type> maybe_rhs;
+struct typed_expr final : public expression {
+    node::any_expr child_expr;
+    node::qualified_type specified_type;
 
-    range_expr(node::logical_or_expr const& lhs,
-               decltype(maybe_rhs) const& maybe_rhs) noexcept
-        : lhs(lhs), maybe_rhs(maybe_rhs)
-    {}
-
-    bool has_range() const noexcept
-    {
-        return maybe_rhs;
-    }
-
-    std::string to_string() const noexcept override
-    {
-        return "RANGE_EXPR: " + (maybe_rhs ? (*maybe_rhs).first : "no range");
-    }
-};
-
-struct compound_expr final : public expression {
-    using expr_type
-        = boost::variant<node::range_expr,
-                         node::if_expr>;
-    expr_type child_expr;
-    boost::optional<node::qualified_type> maybe_type;
-
-    template<class T>
-    compound_expr(T const& e, decltype(maybe_type) const& t) noexcept
-        : expression(), child_expr(e), maybe_type(t)
+    typed_expr(node::any_expr const& e, node::qualified_type const& t) noexcept
+        : expression(), child_expr(e), specified_type(t)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "COMPOUND_EXPR";
+        return "TYPED_EXPR";
     }
 };
 
@@ -732,7 +583,7 @@ struct variable_decl final : public base {
 
 struct initialize_stmt final : public statement {
     std::vector<node::variable_decl> var_decls;
-    boost::optional<std::vector<node::compound_expr>> maybe_rhs_exprs;
+    boost::optional<std::vector<node::any_expr>> maybe_rhs_exprs;
 
     initialize_stmt(decltype(var_decls) const& vars,
                     decltype(maybe_rhs_exprs) const& rhss) noexcept
@@ -746,9 +597,9 @@ struct initialize_stmt final : public statement {
 };
 
 struct assignment_stmt final : public statement {
-    std::vector<node::postfix_expr> assignees;
+    std::vector<node::any_expr> assignees;
     symbol::assign_operator assign_op;
-    std::vector<node::compound_expr> rhs_exprs;
+    std::vector<node::any_expr> rhs_exprs;
 
     assignment_stmt(decltype(assignees) const& assignees,
                     symbol::assign_operator assign_op,
@@ -764,16 +615,16 @@ struct assignment_stmt final : public statement {
 
 struct if_stmt final : public statement {
     using elseif_type
-        = std::pair<node::compound_expr, node::statement_block>;
+        = std::pair<node::any_expr, node::statement_block>;
 
     symbol::if_kind kind;
-    node::compound_expr condition;
+    node::any_expr condition;
     node::statement_block then_stmts;
     std::vector<elseif_type> elseif_stmts_list;
     boost::optional<node::statement_block> maybe_else_stmts;
 
     if_stmt(symbol::if_kind const kind,
-            node::compound_expr const& cond,
+            node::any_expr const& cond,
             node::statement_block const& then,
             decltype(elseif_stmts_list) const& elseifs,
             decltype(maybe_else_stmts) const& maybe_else) noexcept
@@ -787,9 +638,9 @@ struct if_stmt final : public statement {
 };
 
 struct return_stmt final : public statement {
-    std::vector<node::compound_expr> ret_exprs;
+    std::vector<node::any_expr> ret_exprs;
 
-    explicit return_stmt(std::vector<node::compound_expr> const& rets) noexcept
+    explicit return_stmt(std::vector<node::any_expr> const& rets) noexcept
         : statement(), ret_exprs(rets)
     {}
 
@@ -801,7 +652,7 @@ struct return_stmt final : public statement {
 
 struct case_stmt final : public statement {
     using when_type
-        = std::pair<node::compound_expr, node::statement_block>;
+        = std::pair<node::any_expr, node::statement_block>;
 
     std::vector<when_type> when_stmts_list;
     boost::optional<node::statement_block> maybe_else_stmts;
@@ -820,15 +671,15 @@ struct case_stmt final : public statement {
 struct switch_stmt final : public statement {
     using when_type
         = std::pair<
-            std::vector<node::compound_expr>,
+            std::vector<node::any_expr>,
             node::statement_block
         >;
 
-    node::compound_expr target_expr;
+    node::any_expr target_expr;
     std::vector<when_type> when_stmts_list;
     boost::optional<node::statement_block> maybe_else_stmts;
 
-    switch_stmt(node::compound_expr const& target,
+    switch_stmt(node::any_expr const& target,
                 decltype(when_stmts_list) const& whens,
                 decltype(maybe_else_stmts) const& elses) noexcept
         : statement(), target_expr(target), when_stmts_list(whens), maybe_else_stmts(elses)
@@ -842,11 +693,11 @@ struct switch_stmt final : public statement {
 
 struct for_stmt final : public statement {
     std::vector<node::parameter> iter_vars;
-    node::compound_expr range_expr;
+    node::any_expr range_expr;
     node::statement_block body_stmts;
 
     for_stmt(decltype(iter_vars) const& iters,
-             node::compound_expr const& range,
+             node::any_expr const& range,
              node::statement_block body) noexcept
         : statement(), iter_vars(iters), range_expr(range), body_stmts(body)
     {}
@@ -858,10 +709,10 @@ struct for_stmt final : public statement {
 };
 
 struct while_stmt final : public statement {
-    node::compound_expr condition;
+    node::any_expr condition;
     node::statement_block body_stmts;
 
-    while_stmt(node::compound_expr const& cond,
+    while_stmt(node::any_expr const& cond,
                node::statement_block const& body) noexcept
         : statement(), condition(cond), body_stmts(body)
     {}
@@ -877,16 +728,16 @@ struct postfix_if_stmt final : public statement {
         = boost::variant<
             node::assignment_stmt
           , node::return_stmt
-          , node::compound_expr
+          , node::any_expr
         >;
     body_type body;
     symbol::if_kind kind;
-    node::compound_expr condition;
+    node::any_expr condition;
 
     template<class T>
     postfix_if_stmt(T const& body,
                     symbol::if_kind const kind,
-                    node::compound_expr const& cond) noexcept
+                    node::any_expr const& cond) noexcept
         : statement(), body(body), kind(kind), condition(cond)
     {}
 
@@ -959,7 +810,7 @@ struct constant_decl final : public base {
 
 struct constant_definition final : public statement {
     std::vector<node::constant_decl> const_decls;
-    std::vector<node::compound_expr> initializers;
+    std::vector<node::any_expr> initializers;
 
     constant_definition(decltype(const_decls) const& const_decls
                       , decltype(initializers) const& initializers) noexcept
