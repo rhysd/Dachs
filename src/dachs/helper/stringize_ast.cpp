@@ -210,7 +210,7 @@ public:
     String visit(ast::node::primary_type const& tt, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(tt, indent)
-            + (tt->instantiated_templates ? visit_nodes(*(tt->instantiated_templates), indent+lead, true) : "");
+            + visit_nodes(tt->instantiated_templates, indent+lead, true);
     }
 
     String visit(ast::node::array_type const& at, String const& indent, char const* const lead) const noexcept

@@ -162,9 +162,7 @@ public:
     void walk(node::primary_type &tt)
     {
         visitor.visit(tt, [&]{
-            if (tt->instantiated_templates) {
-                walk_vector(*(tt->instantiated_templates));
-            }
+            walk_vector(tt->instantiated_templates);
         });
     }
 
