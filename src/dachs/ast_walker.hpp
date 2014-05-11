@@ -162,9 +162,7 @@ public:
     void walk(node::primary_type &tt)
     {
         visitor.visit(tt, [&]{
-            if (tt->instantiated_templates) {
-                walk_vector(*(tt->instantiated_templates));
-            }
+            walk_vector(tt->instantiated_templates);
         });
     }
 
@@ -194,14 +192,7 @@ public:
     {
         visitor.visit(ft, [&]{
             walk_vector(ft->arg_types);
-            walk(ft->ret_type);
-        });
-    }
-
-    void walk(node::proc_type &pt)
-    {
-        visitor.visit(pt, [&]{
-            walk_vector(pt->arg_types);
+            walk_optional(ft->ret_type);
         });
     }
 

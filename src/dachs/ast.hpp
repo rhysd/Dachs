@@ -313,7 +313,7 @@ struct var_ref final : public expression {
 struct parameter final : public base {
     bool is_var;
     std::string name;
-    boost::optional<node::qualified_type> param_type;
+    boost::optional<node::any_type> param_type;
     dachs::symbol::weak_var_symbol param_symbol;
     boost::optional<dachs::symbol::template_type_symbol> template_type_ref;
 
@@ -342,10 +342,10 @@ struct func_invocation final : public expression {
 };
 
 struct object_construct final : public expression {
-    node::qualified_type obj_type;
+    node::any_type obj_type;
     std::vector<node::any_expr> args;
 
-    object_construct(node::qualified_type const& t,
+    object_construct(node::any_type const& t,
                      decltype(args) const& args) noexcept
         : expression(), obj_type(t), args(args)
     {}
@@ -397,116 +397,12 @@ struct unary_expr final : public expression {
     }
 };
 
-struct primary_type final : public base {
-    std::string template_name;
-    boost::optional<std::vector<node::qualified_type>> instantiated_templates;
-
-    primary_type(std::string const& tmpl
-                , decltype(instantiated_templates) const& instantiated) noexcept
-        : base(), template_name(tmpl), instantiated_templates(instantiated)
-    {}
-
-    bool is_template() const noexcept
-    {
-        return instantiated_templates;
-    }
-
-    std::string to_string() const noexcept override
-    {
-        return "PRIMARY_TYPE: " + template_name + " (" + (instantiated_templates ? "template)" : "not template)");
-    }
-};
-
-struct array_type final : public base {
-    node::qualified_type elem_type;
-
-    explicit array_type(node::qualified_type const& elem) noexcept
-        : elem_type(elem)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "ARRAY_TYPE";
-    }
-};
-
-struct dict_type final : public base {
-    node::qualified_type key_type;
-    node::qualified_type value_type;
-
-    dict_type(node::qualified_type const& key_type,
-             node::qualified_type const& value_type) noexcept
-        : key_type(key_type), value_type(value_type)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "DICT_TYPE";
-    }
-};
-
-struct tuple_type final : public base {
-    std::vector<node::qualified_type> arg_types; // Note: length of this variable should not be 1
-
-    explicit tuple_type(std::vector<node::qualified_type> const& args) noexcept
-        : arg_types(args)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "TUPLE_TYPE";
-    }
-};
-
-struct func_type final : public base {
-    std::vector<node::qualified_type> arg_types;
-    node::qualified_type ret_type;
-
-    func_type(decltype(arg_types) const& arg_t
-            , node::qualified_type const& ret_t) noexcept
-        : base(), arg_types(arg_t), ret_type(ret_t)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "FUNC_TYPE";
-    }
-};
-
-struct proc_type final : public base {
-    std::vector<node::qualified_type> arg_types;
-
-    explicit proc_type(decltype(arg_types) const& arg_t) noexcept
-        : base(), arg_types(arg_t)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "PROC_TYPE";
-    }
-};
-
-struct qualified_type final : public base {
-    boost::optional<symbol::qualifier> value;
-    node::compound_type type;
-
-    qualified_type(decltype(value) const& q,
-                   node::compound_type const& t) noexcept
-        : value(q), type(t)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return std::string{"QUALIFIED_TYPE: "} + (value ? symbol::to_string(*value) : "not qualified");
-    }
-};
-
 struct cast_expr final : public expression {
     node::any_expr child;
-    node::qualified_type casted_type;
+    node::any_type casted_type;
 
     cast_expr(node::any_expr const& c,
-              node::qualified_type const& t) noexcept
+              node::any_type const& t) noexcept
         : expression(), child(c), casted_type(t)
     {}
 
@@ -551,9 +447,9 @@ struct if_expr final : public expression {
 
 struct typed_expr final : public expression {
     node::any_expr child_expr;
-    node::qualified_type specified_type;
+    node::any_type specified_type;
 
-    typed_expr(node::any_expr const& e, node::qualified_type const& t) noexcept
+    typed_expr(node::any_expr const& e, node::any_type const& t) noexcept
         : expression(), child_expr(e), specified_type(t)
     {}
 
@@ -563,10 +459,106 @@ struct typed_expr final : public expression {
     }
 };
 
+struct primary_type final : public base {
+    std::string template_name;
+    std::vector<node::any_type> instantiated_templates;
+
+    primary_type(std::string const& tmpl
+                , decltype(instantiated_templates) const& instantiated) noexcept
+        : base(), template_name(tmpl), instantiated_templates(instantiated)
+    {}
+
+    bool is_template() const noexcept
+    {
+        return !instantiated_templates.empty();
+    }
+
+    std::string to_string() const noexcept override
+    {
+        return "PRIMARY_TYPE: " + template_name + " (" + (is_template() ? "template)" : "not template)");
+    }
+};
+
+struct array_type final : public base {
+    node::any_type elem_type;
+
+    explicit array_type(node::any_type const& elem) noexcept
+        : elem_type(elem)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "ARRAY_TYPE";
+    }
+};
+
+struct dict_type final : public base {
+    node::any_type key_type;
+    node::any_type value_type;
+
+    dict_type(node::any_type const& key_type,
+             node::any_type const& value_type) noexcept
+        : key_type(key_type), value_type(value_type)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "DICT_TYPE";
+    }
+};
+
+struct tuple_type final : public base {
+    // Note: length of this variable should not be 1
+    std::vector<node::any_type> arg_types;
+
+    explicit tuple_type(std::vector<node::any_type> const& args) noexcept
+        : arg_types(args)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "TUPLE_TYPE";
+    }
+};
+
+struct func_type final : public base {
+    std::vector<node::any_type> arg_types;
+    boost::optional<node::any_type> ret_type = boost::none;
+
+    func_type(decltype(arg_types) const& arg_t
+            , node::any_type const& ret_t) noexcept
+        : base(), arg_types(arg_t), ret_type(ret_t)
+    {}
+
+    explicit func_type(decltype(arg_types) const& arg_t) noexcept
+        : base(), arg_types(arg_t)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return std::string{"FUNC_TYPE: "} + (ret_type ? "func" : "proc");
+    }
+};
+
+struct qualified_type final : public base {
+    symbol::qualifier qualifier;
+    node::any_type type;
+
+    qualified_type(symbol::qualifier const& q,
+                   node::any_type const& t) noexcept
+        : qualifier(q), type(t)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return std::string{"any_type: "} + symbol::to_string(qualifier);
+    }
+};
+
 struct variable_decl final : public base {
     bool is_var;
     std::string name;
-    boost::optional<node::qualified_type> maybe_type;
+    boost::optional<node::any_type> maybe_type;
     dachs::symbol::weak_var_symbol symbol;
 
     variable_decl(bool const var,
@@ -772,7 +764,7 @@ struct function_definition final : public statement {
     symbol::func_kind kind;
     std::string name;
     std::vector<node::parameter> params;
-    boost::optional<node::qualified_type> return_type;
+    boost::optional<node::any_type> return_type;
     node::statement_block body;
     boost::optional<node::statement_block> ensure_body;
     scope::weak_func_scope scope;
@@ -794,7 +786,7 @@ struct function_definition final : public statement {
 
 struct constant_decl final : public base {
     std::string name;
-    boost::optional<node::qualified_type> maybe_type;
+    boost::optional<node::any_type> maybe_type;
     dachs::symbol::weak_var_symbol symbol;
 
     constant_decl(std::string const& name,

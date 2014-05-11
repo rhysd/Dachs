@@ -379,70 +379,6 @@ public:
                 ) | postfix_expr[_val = _1]
             ;
 
-        primary_type
-            = (
-                type_name >> -(
-                    '(' >> (qualified_type % ',') >> ')'
-                )
-            ) [
-                _val = make_node_ptr<ast::node::primary_type>(_1, _2)
-            ];
-
-        nested_type
-            = (
-                ('(' >> qualified_type >> ')') | primary_type
-            );
-
-        array_type
-            = (
-                '[' >> qualified_type >> ']'
-            ) [
-                _val = make_node_ptr<ast::node::array_type>(_1)
-            ];
-
-        dict_type
-            = (
-                '{' >> qualified_type >> "=>" >> qualified_type >> '}'
-            ) [
-                _val = make_node_ptr<ast::node::dict_type>(_1, _2)
-            ];
-
-        tuple_type
-            = (
-                '('
-                >> -(
-                    qualified_type[phx::push_back(_a, _1)] >> +(',' >> qualified_type[phx::push_back(_a, _1)])
-                ) >> ')'
-            ) [
-                _val = make_node_ptr<ast::node::tuple_type>(_a)
-            ];
-
-        func_type
-            = (
-                lit("func") >> '(' >> -(qualified_type % ',') >> ')' >> ':' >> qualified_type
-            ) [
-                _val = make_node_ptr<ast::node::func_type>(as_vector(_1), _2)
-            ];
-
-        proc_type
-            = (
-                lit("proc") >> '(' >> -(qualified_type % ',') >> ')'
-            ) [
-                _val = make_node_ptr<ast::node::proc_type>(as_vector(_1))
-            ];
-
-        compound_type
-            = (
-                func_type | proc_type | array_type | dict_type | tuple_type | nested_type
-            );
-
-        qualified_type
-            = (
-                compound_type >> -qualifier
-            ) [
-                _val = make_node_ptr<ast::node::qualified_type>(_2, _1)
-            ];
-
         cast_expr
             =
                 unary_expr[_val = _1] >>
@@ -579,6 +515,66 @@ public:
                 )[
                     _val = make_node_ptr<ast::node::typed_expr>(_val, _1)
                 ]
+            ;
+
+        primary_type
+            = (
+                type_name >> -(
+                    '(' >> (qualified_type % ',') >> ')'
+                )
+            ) [
+                _val = make_node_ptr<ast::node::primary_type>(_1, as_vector(_2))
+            ];
+
+        nested_type
+            = (
+                ('(' >> qualified_type >> ')') | primary_type
+            );
+
+        array_type
+            = (
+                '[' >> qualified_type >> ']'
+            ) [
+                _val = make_node_ptr<ast::node::array_type>(_1)
+            ];
+
+        dict_type
+            = (
+                '{' >> qualified_type >> "=>" >> qualified_type >> '}'
+            ) [
+                _val = make_node_ptr<ast::node::dict_type>(_1, _2)
+            ];
+
+        tuple_type
+            = (
+                '('
+                >> -(
+                    qualified_type[phx::push_back(_a, _1)] >> +(',' >> qualified_type[phx::push_back(_a, _1)])
+                ) >> ')'
+            ) [
+                _val = make_node_ptr<ast::node::tuple_type>(_a)
+            ];
+
+        func_type
+            = (
+                lit("func") >> '(' >> -(qualified_type % ',') >> ')' >> ':' >> qualified_type
+            ) [
+                _val = make_node_ptr<ast::node::func_type>(as_vector(_1), _2)
+            ] | (
+                lit("proc") >> '(' >> -(qualified_type % ',') >> ')'
+            ) [
+                _val = make_node_ptr<ast::node::func_type>(as_vector(_1))
+            ];
+
+        compound_type
+            = (
+                func_type | array_type | dict_type | tuple_type | nested_type
+            );
+
+        qualified_type
+            =
+                compound_type[_val = _1] >>
+                -qualifier[_val = make_node_ptr<ast::node::qualified_type>(_1, _val)]
             ;
 
         assignment_stmt
@@ -805,7 +801,6 @@ public:
             , dict_type
             , tuple_type
             , func_type
-            , proc_type
             , qualified_type
             , cast_expr
             , mult_expr
@@ -891,7 +886,6 @@ public:
         dict_type.name("dictionary type");
         tuple_type.name("tuple type");
         func_type.name("function type");
-        proc_type.name("procedure type");
         compound_type.name("compound type");
         qualified_type.name("qualified type");
         cast_expr.name("cast expression");
@@ -953,15 +947,6 @@ private:
     DACHS_DEFINE_RULE(program);
     DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE(object_construct);
-    DACHS_DEFINE_RULE(primary_type);
-    DACHS_DEFINE_RULE(nested_type);
-    DACHS_DEFINE_RULE(array_type);
-    DACHS_DEFINE_RULE(dict_type);
-    DACHS_DEFINE_RULE_WITH_LOCALS(tuple_type, std::vector<ast::node::qualified_type>);
-    DACHS_DEFINE_RULE(func_type);
-    DACHS_DEFINE_RULE(proc_type);
-    DACHS_DEFINE_RULE(compound_type);
-    DACHS_DEFINE_RULE(qualified_type);
     DACHS_DEFINE_RULE(if_stmt);
     DACHS_DEFINE_RULE(return_stmt);
     DACHS_DEFINE_RULE(case_stmt);
@@ -1012,6 +997,18 @@ private:
 
     rule<ast::node::any_expr(), qi::locals<std::vector<ast::node::any_expr>>> tuple_literal;
     rule<ast::node::any_expr(), qi::locals<std::string>> symbol_literal;
+
+    rule<ast::node::any_type()>
+          primary_type
+        , nested_type
+        , array_type
+        , dict_type
+        , func_type
+        , compound_type
+        , qualified_type
+    ;
+
+    rule<ast::node::any_type(), qi::locals<std::vector<ast::node::any_type>>> tuple_type;
 
     rule<std::vector<ast::node::any_expr>()> constructor_call;
     rule<std::vector<ast::node::parameter>()> function_param_decls;
