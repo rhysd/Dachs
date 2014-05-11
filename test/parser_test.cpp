@@ -119,6 +119,68 @@ BOOST_AUTO_TEST_CASE(function)
             return false
         end
 
+        # Operators
+
+        func +(v)
+        end
+
+        func +(l, r)
+        end
+
+        func *(l, r)
+        end
+
+        func /(l, r)
+        end
+
+        func %(l, r)
+        end
+
+        func <(l, r)
+        end
+
+        func >(l, r)
+        end
+
+        func &(l, r)
+        end
+
+        func ^(l, r)
+        end
+
+        func |(l, r)
+        end
+
+        func <=(l, r)
+        end
+
+        func >=(l, r)
+        end
+
+        func ==(l, r)
+        end
+
+        func !=(l, r)
+        end
+
+        func >>(l, r)
+        end
+
+        func <<(l, r)
+        end
+
+        func &&(l, r)
+        end
+
+        func ||(l, r)
+        end
+
+        func ..(l, r)
+        end
+
+        func ...(l, r)
+        end
+
         func main
         end
         )"));

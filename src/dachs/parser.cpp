@@ -49,6 +49,7 @@ using qi::_6;
 using qi::_a;
 using qi::_val;
 using qi::lit;
+using qi::string;
 // }}}
 
 // Helpers {{{
@@ -286,24 +287,27 @@ public:
             ];
 
         literal
-            = (
+            =
                   primary_literal
                 | array_literal
                 | symbol_literal
                 | dict_literal
                 | tuple_literal
-            );
+            ;
 
-        function_name
-            = (
-                unary_operator
-                | binary_operator
-                | qi::lexeme[
+        called_function_name
+            =
+                qi::lexeme[
                     (qi::alpha | qi::char_('_'))[_val += _1]
                     >> *(qi::alnum | qi::char_('_'))[_val += _1]
                     >> -qi::char_("?!'")[_val += _1]
                 ]
-            );
+            ;
+
+        func_def_name
+            =
+                binary_operator | unary_operator | called_function_name
+            ;
 
         variable_name
             = (
@@ -323,7 +327,7 @@ public:
                 // should subject to a rule of function name.  If var_ref doesn't
                 // represent a function, it should not subject to a rule of function
                 // name.  In the case, semantic check should reject the name.
-                function_name
+                called_function_name
             ) [
                 _val = make_node_ptr<ast::node::var_ref>(_1)
             ];
@@ -364,7 +368,7 @@ public:
         postfix_expr
             =
                 primary_expr[_val = _1] >> *(
-                      ('.' >> function_name)[_val = make_node_ptr<ast::node::member_access>(_val, _1)]
+                      ('.' >> called_function_name)[_val = make_node_ptr<ast::node::member_access>(_val, _1)]
                     | ('[' >> typed_expr >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]
                     | ('(' >> -(typed_expr % ',') >> ')')[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1))]
                 )
@@ -372,33 +376,34 @@ public:
 
         unary_operator
             =
-                qi::as_string[
-                    qi::as_string[lit('+') | '-' | '~' | '!']
-                ]
+                string("+")
+              | string("-")
+              | string("~")
+              | string("!")
             ;
 
         binary_operator
             =
-                qi::as_string[
-                    qi::lit('*')
-                    | '/'
-                    | '%'
-                    | '+'
-                    | '-'
-                    | ">>"
-                    | "<<"
-                    | "<="
-                    | ">="
-                    | "=="
-                    | "!="
-                    | '&'
-                    | '^'
-                    | '|'
-                    | "&&"
-                    | "||"
-                    | "..."
-                    | ".."
-                ]
+                string("...")
+              | string("..")
+              | string(">>")
+              | string("<<")
+              | string("<=")
+              | string(">=")
+              | string("==")
+              | string("!=")
+              | string("&&")
+              | string("||")
+              | string("*")
+              | string("/")
+              | string("%")
+              | string("+")
+              | string("-")
+              | string("<")
+              | string(">")
+              | string("&")
+              | string("^")
+              | string("|")
             ;
 
         unary_expr
@@ -426,7 +431,11 @@ public:
             = (
                 cast_expr[_val = _1] >>
                 *(
-                    qi::as_string[lit('*') | '/' | '%'] >> cast_expr
+                    (
+                        string("*")
+                      | string("/")
+                      | string("%")
+                    ) >> cast_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
                 ]
@@ -436,7 +445,10 @@ public:
             = (
                 mult_expr[_val = _1] >>
                 *(
-                    qi::as_string[lit('+') | '-'] >> mult_expr
+                    (
+                        string("+")
+                      | string("-")
+                    ) >> mult_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
                 ]
@@ -446,7 +458,10 @@ public:
             =
                 additive_expr[_val = _1] >>
                 *(
-                    qi::as_string[lit("<<") | ">>"] >> additive_expr
+                    (
+                        string("<<")
+                      | string(">>")
+                    ) >> additive_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
                 ]
@@ -456,7 +471,12 @@ public:
             =
                 shift_expr[_val = _1] >>
                 *(
-                    qi::as_string[lit("<=") | ">=" | '<' | '>'] >> shift_expr
+                    (
+                        string("<=")
+                      | string(">=")
+                      | string("<")
+                      | string(">")
+                    ) >> shift_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
                 ]
@@ -466,7 +486,10 @@ public:
             =
                 relational_expr[_val = _1] >>
                 *(
-                    qi::as_string[lit("==") | "!="] >> relational_expr
+                    (
+                        string("==")
+                      | string("!=")
+                    ) >> relational_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
                 ]
@@ -476,9 +499,9 @@ public:
             =
                 equality_expr[_val = _1] >>
                 *(
-                    qi::string("&") >> equality_expr
+                    "&" >> equality_expr
                 )[
-                    _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
+                    _val = make_node_ptr<ast::node::binary_expr>(_val, "&", _1)
                 ]
             ;
 
@@ -486,9 +509,9 @@ public:
             =
                 and_expr[_val = _1] >>
                 *(
-                    qi::string("^") >> and_expr
+                    "^" >> and_expr
                 )[
-                    _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
+                    _val = make_node_ptr<ast::node::binary_expr>(_val, "^", _1)
                 ]
             ;
 
@@ -496,9 +519,9 @@ public:
             =
                 xor_expr[_val = _1] >>
                 *(
-                    qi::string("|") >> xor_expr
+                    "|" >> xor_expr
                 )[
-                    _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
+                    _val = make_node_ptr<ast::node::binary_expr>(_val, "|", _1)
                 ]
             ;
 
@@ -506,9 +529,9 @@ public:
             =
                 or_expr[_val = _1] >>
                 *(
-                    qi::string("&&") >> or_expr
+                    "&&" >> or_expr
                 )[
-                    _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
+                    _val = make_node_ptr<ast::node::binary_expr>(_val, "&&", _1)
                 ]
             ;
 
@@ -516,9 +539,9 @@ public:
             =
                 logical_and_expr[_val = _1] >>
                 *(
-                    qi::string("||") >> logical_and_expr
+                    "||" >> logical_and_expr
                 )[
-                    _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
+                    _val = make_node_ptr<ast::node::binary_expr>(_val, "||", _1)
                 ]
             ;
 
@@ -526,7 +549,10 @@ public:
             =
                 logical_or_expr[_val = _1] >>
                 -(
-                    qi::as_string[lit("...") | ".."] >> logical_or_expr
+                    (
+                        string("...")
+                      | string("..")
+                    ) >> logical_or_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
                 ]
@@ -778,7 +804,7 @@ public:
 
         function_definition
             = (
-                func_kind > function_name > function_param_decls > -(':' > qualified_type) > sep
+                func_kind > func_def_name > function_param_decls > -(':' > qualified_type) > sep
                 > func_precondition
                 > func_body_stmt_block > -sep
                 > -(
@@ -910,17 +936,11 @@ public:
         var_ref.name("variable reference");
         parameter.name("parameter");
         object_construct.name("object contruction");
+        unary_operator.name("unary operator");
+        binary_operator.name("binary operator");
         primary_expr.name("primary expression");
         postfix_expr.name("postfix expression");
         unary_expr.name("unary expression");
-        primary_type.name("template type");
-        nested_type.name("nested type");
-        array_type.name("array type");
-        dict_type.name("dictionary type");
-        tuple_type.name("tuple type");
-        func_type.name("function type");
-        compound_type.name("compound type");
-        qualified_type.name("qualified type");
         cast_expr.name("cast expression");
         mult_expr.name("multiply expression");
         additive_expr.name("additive expression");
@@ -935,6 +955,14 @@ public:
         range_expr.name("range expression");
         if_expr.name("if expression");
         typed_expr.name("compound expression");
+        primary_type.name("template type");
+        nested_type.name("nested type");
+        array_type.name("array type");
+        dict_type.name("dictionary type");
+        tuple_type.name("tuple type");
+        func_type.name("function type");
+        compound_type.name("compound type");
+        qualified_type.name("qualified type");
         if_stmt.name("if statement");
         return_stmt.name("return statement");
         case_stmt.name("case statement");
@@ -958,7 +986,8 @@ public:
         if_else_stmt_block.name("'else' clause in if statement");
         case_when_stmt_block.name("'when' clause in case statement");
         func_body_stmt_block.name("statements in body of function");
-        function_name.name("function name");
+        called_function_name.name("name of called function");
+        func_def_name.name("name of function definition");
         variable_name.name("variable name");
         type_name.name("type name");
         func_precondition.name("precondition in function");
@@ -1051,7 +1080,7 @@ private:
                                      , case_when_stmt_block
                                      , func_body_stmt_block
                                      ;
-    rule<std::string()> function_name, variable_name, type_name, unary_operator, binary_operator;
+    rule<std::string()> called_function_name, func_def_name, variable_name, type_name, unary_operator, binary_operator;
     rule<qi::unused_type()/*TMP*/> func_precondition;
     decltype(return_stmt) postfix_if_return_stmt;
 
