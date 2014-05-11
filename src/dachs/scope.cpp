@@ -329,8 +329,34 @@ public:
         recursive_walker();
         if (bin_expr->op == ".." || bin_expr->op == "...") {
             bin_expr->type = type::make<type::range_type>(type_of(bin_expr->lhs), type_of(bin_expr->rhs));
+        } else {
+            // TODO:
+            // Find operator function and get the result type of it
         }
     }
+
+    template<class Walker>
+    void visit(ast::node::typed_expr const& typed, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        // TODO:
+        // Implement a function to get type from type nodes in AST
+        // TODO:
+        // Check the type of child is the same as the one of lhs
+    }
+
+    template<class Walker>
+    void visit(ast::node::cast_expr const& casted, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        // TODO:
+        // Find cast function and get the result type of it
+    }
+
+    
+
     // }}}
 
     template<class Walker>
@@ -369,9 +395,18 @@ scope_tree make_scope_tree(ast::ast &a)
         auto print_func = make<func_scope>(a.root, tree_root, "print");
         print_func->body = make<local_scope>(print_func);
         // Note: These definitions are never duplicate
-        print_func->define_param(symbol::make<symbol::var_symbol>(a.root, "str"));
+        print_func->define_param(symbol::make<symbol::var_symbol>(a.root, "value"));
         tree_root->define_function(print_func);
         tree_root->define_global_constant(symbol::make<symbol::var_symbol>(a.root, "print"));
+
+        // Operators
+        // cast functions
+    }
+
+    {
+        // Builtin classes
+
+        // range
     }
 
     {

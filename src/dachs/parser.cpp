@@ -296,7 +296,9 @@ public:
 
         function_name
             = (
-                qi::lexeme[
+                unary_operator
+                | binary_operator
+                | qi::lexeme[
                     (qi::alpha | qi::char_('_'))[_val += _1]
                     >> *(qi::alnum | qi::char_('_'))[_val += _1]
                     >> -qi::char_("?!'")[_val += _1]
@@ -368,11 +370,42 @@ public:
                 )
             ;
 
+        unary_operator
+            =
+                qi::as_string[
+                    qi::as_string[lit('+') | '-' | '~' | '!']
+                ]
+            ;
+
+        binary_operator
+            =
+                qi::as_string[
+                    qi::lit('*')
+                    | '/'
+                    | '%'
+                    | '+'
+                    | '-'
+                    | ">>"
+                    | "<<"
+                    | "<="
+                    | ">="
+                    | "=="
+                    | "!="
+                    | '&'
+                    | '^'
+                    | '|'
+                    | "&&"
+                    | "||"
+                    | "..."
+                    | ".."
+                ]
+            ;
+
         unary_expr
             =
                 (
                     (
-                        qi::as_string[lit('+') | '-' | '~' | '!'] >> unary_expr
+                        unary_operator >> unary_expr
                     )[
                         _val = make_node_ptr<ast::node::unary_expr>(_1, _2)
                     ]
@@ -1018,7 +1051,7 @@ private:
                                      , case_when_stmt_block
                                      , func_body_stmt_block
                                      ;
-    rule<std::string()> function_name, variable_name, type_name;
+    rule<std::string()> function_name, variable_name, type_name, unary_operator, binary_operator;
     rule<qi::unused_type()/*TMP*/> func_precondition;
     decltype(return_stmt) postfix_if_return_stmt;
 
