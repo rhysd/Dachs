@@ -460,29 +460,20 @@ struct tuple_type final : public base {
 
 struct func_type final : public base {
     std::vector<node::qualified_type> arg_types;
-    node::qualified_type ret_type;
+    boost::optional<node::qualified_type> ret_type = boost::none;
 
     func_type(decltype(arg_types) const& arg_t
             , node::qualified_type const& ret_t) noexcept
         : base(), arg_types(arg_t), ret_type(ret_t)
     {}
 
-    std::string to_string() const noexcept override
-    {
-        return "FUNC_TYPE";
-    }
-};
-
-struct proc_type final : public base {
-    std::vector<node::qualified_type> arg_types;
-
-    explicit proc_type(decltype(arg_types) const& arg_t) noexcept
+    explicit func_type(decltype(arg_types) const& arg_t) noexcept
         : base(), arg_types(arg_t)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "PROC_TYPE";
+        return std::string{"FUNC_TYPE: "} + (ret_type ? "func" : "proc");
     }
 };
 

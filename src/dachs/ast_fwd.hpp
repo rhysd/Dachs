@@ -81,7 +81,6 @@ struct binary_expr;
 struct primary_type;
 struct tuple_type;
 struct func_type;
-struct proc_type;
 struct array_type;
 struct dict_type;
 struct qualified_type;
@@ -125,7 +124,6 @@ DACHS_DEFINE_NODE_PTR(binary_expr);
 DACHS_DEFINE_NODE_PTR(primary_type);
 DACHS_DEFINE_NODE_PTR(tuple_type);
 DACHS_DEFINE_NODE_PTR(func_type);
-DACHS_DEFINE_NODE_PTR(proc_type);
 DACHS_DEFINE_NODE_PTR(array_type);
 DACHS_DEFINE_NODE_PTR(dict_type);
 DACHS_DEFINE_NODE_PTR(qualified_type);
@@ -167,6 +165,8 @@ using any_expr =
                   , var_ref
             >;
 
+// using any_type =
+//     boost::variant< 
 using nested_type =
     boost::variant< primary_type
                   , qualified_type >;
@@ -176,7 +176,6 @@ using compound_type =
                     , tuple_type
                     , dict_type
                     , func_type
-                    , proc_type
                     , nested_type>;
 
 using compound_stmt =

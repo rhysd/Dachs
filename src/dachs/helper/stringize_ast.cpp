@@ -235,13 +235,7 @@ public:
     {
         return prefix_of(ft, indent)
             + visit_nodes(ft->arg_types, indent+lead, false)
-            + '\n' + visit(ft->ret_type, indent+lead, "   ");
-    }
-
-    String visit(ast::node::proc_type const& pt, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(pt, indent)
-            + visit_nodes(pt->arg_types, indent+lead, true);
+            + visit_optional_node(ft->ret_type, indent+lead, "   ");
     }
 
     String visit(ast::node::qualified_type const& qt, String const& indent, char const* const lead) const noexcept
