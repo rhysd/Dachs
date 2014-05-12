@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <type_traits>
 #include <cassert>
 
 #include <boost/variant/variant.hpp>
@@ -104,6 +105,16 @@ struct named_type : public basic_type {
 
     virtual ~named_type() noexcept
     {}
+
+    bool operator==(named_type const& rhs) const noexcept
+    {
+        return name == rhs.name;
+    }
+
+    bool operator!=(named_type const& rhs) const noexcept
+    {
+        return !(*this == rhs);
+    }
 };
 
 struct builtin_type final : public named_type {
@@ -137,6 +148,16 @@ struct class_type final : public named_type {
                 + ')';
         }
     }
+
+    bool operator==(class_type const& rhs) const noexcept
+    {
+        return name == rhs.name && holder_types == rhs.holder_types;
+    }
+
+    bool operator!=(class_type const& rhs) const noexcept
+    {
+        return !(*this == rhs);
+    }
 };
 
 struct tuple_type final : public basic_type {
@@ -156,6 +177,16 @@ struct tuple_type final : public basic_type {
                         return boost::apply_visitor(detail::to_string{}, t);
                     }), ",")
             + ')';
+    }
+
+    bool operator==(tuple_type const& rhs) const noexcept
+    {
+        return element_types == rhs.element_types;
+    }
+
+    bool operator!=(tuple_type const& rhs) const noexcept
+    {
+        return !(*this == rhs);
     }
 };
 
@@ -179,6 +210,16 @@ struct func_type final : public basic_type {
             + ") : "
             + boost::apply_visitor(detail::to_string{}, return_type);
     }
+
+    bool operator==(func_type const& rhs) const noexcept
+    {
+        return param_types == rhs.param_types && return_type == rhs.return_type;
+    }
+
+    bool operator!=(func_type const& rhs) const noexcept
+    {
+        return !(*this == rhs);
+    }
 };
 
 struct proc_type final : public basic_type {
@@ -198,6 +239,16 @@ struct proc_type final : public basic_type {
                         return boost::apply_visitor(detail::to_string{}, t);
                     }), ",")
             + ')';
+    }
+
+    bool operator==(proc_type const& rhs) const noexcept
+    {
+        return param_types == rhs.param_types;
+    }
+
+    bool operator!=(proc_type const& rhs) const noexcept
+    {
+        return !(*this == rhs);
     }
 };
 
@@ -219,6 +270,16 @@ struct dict_type final : public basic_type {
             + boost::apply_visitor(v, value_type)
             + '}';
     }
+
+    bool operator==(dict_type const& rhs) const noexcept
+    {
+        return key_type == rhs.key_type && value_type == rhs.value_type;
+    }
+
+    bool operator!=(dict_type const& rhs) const noexcept
+    {
+        return !(*this == rhs);
+    }
 };
 
 struct range_type final : public basic_type {
@@ -238,6 +299,16 @@ struct range_type final : public basic_type {
              + ".."
              + boost::apply_visitor(v, to_type);
     }
+
+    bool operator==(range_type const& rhs) const noexcept
+    {
+        return from_type == rhs.from_type && to_type == rhs.to_type;
+    }
+
+    bool operator!=(range_type const& rhs) const noexcept
+    {
+        return !(*this == rhs);
+    }
 };
 
 struct array_type final : public basic_type {
@@ -255,6 +326,16 @@ struct array_type final : public basic_type {
         return '{'
             + boost::apply_visitor(detail::to_string{}, element_type)
             + '}';
+    }
+
+    bool operator==(array_type const& rhs) const noexcept
+    {
+        return element_type == rhs.element_type;
+    }
+
+    bool operator!=(array_type const& rhs) const noexcept
+    {
+        return !(*this == rhs);
     }
 };
 
@@ -276,6 +357,16 @@ struct qualified_type final : public basic_type {
         default:
             assert(false);
         }
+    }
+
+    bool operator==(qualified_type const& rhs) const noexcept
+    {
+        return contained_type == rhs.contained_type;
+    }
+
+    bool operator!=(qualified_type const& rhs) const noexcept
+    {
+        return !(*this == rhs);
     }
 };
 
