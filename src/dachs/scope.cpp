@@ -37,6 +37,72 @@ inline type::type type_of(Variant const& v) noexcept
     return boost::apply_visitor(type_of_visitor{}, v);
 }
 
+struct type_calculator_from_type_nodes
+    : public boost::static_visitor<type::type> {
+
+    any_scope const& current_scope;
+
+    explicit type_calculator_from_type_nodes(any_scope const& c)
+        : current_scope(c)
+    {}
+
+    type::type operator()(ast::node::primary_type const& t) const noexcept
+    {
+        auto const builtin = type::get_builtin_type(t->template_name.c_str());
+        if (builtin) {
+            return *builtin;
+        } else {
+            auto const c = boost::apply_visitor(class_resolver{t->template_name}, current_scope);
+            // TODO: deal with exception
+            assert(c && "This assertion is temporary");
+            auto const ret = type::make<type::class_type>(t->template_name, *c);
+            for (auto const& instantiated : t->instantiated_templates) {
+                ret->holder_types.push_back(boost::apply_visitor(*this, instantiated));
+            }
+            return ret;
+        }
+    }
+
+    type::type operator()(ast::node::array_type const& t) const noexcept
+    {
+        return type::make<type::array_type>(
+                    boost::apply_visitor(*this, t->elem_type)
+                );
+    }
+
+    type::type operator()(ast::node::tuple_type const& t) const noexcept
+    {
+        auto const ret = type::make<type::tuple_type>();
+        ret->element_types.reserve(t->arg_types.size());
+        for (auto const& arg : t->arg_types) {
+            ret->element_types.push_back(boost::apply_visitor(*this, arg));
+        }
+        return ret;
+    }
+
+    type::type operator()(ast::node::dict_type const& t) const noexcept
+    {
+        return type::make<type::dict_type>(
+                    boost::apply_visitor(*this, t->key_type),
+                    boost::apply_visitor(*this, t->value_type)
+                );
+    }
+
+    // TODO:
+    // type::type operator()(ast::node::qualified_type const& t) const noexcept
+
+    // TODO:
+    // Note: return func_type or proc_type according to its return type
+    // type::type operator()(ast::node::func_type const& t) const noexcept
+
+    // XXX: avoid compilation error
+    template<class T>
+    type::type operator()(std::shared_ptr<T> const&) const noexcept
+    {
+        return type::type{};
+    }
+};
+
 // Walk to analyze functions, classes and member variables symbols to make forward reference possible
 class forward_symbol_analyzer {
 
@@ -105,6 +171,7 @@ public:
         // Simply visit children recursively
         walker();
     }
+
 };
 
 struct weak_ptr_locker : public boost::static_visitor<any_scope> {
@@ -113,21 +180,6 @@ struct weak_ptr_locker : public boost::static_visitor<any_scope> {
     {
         assert(!w.expired());
         return w.lock();
-    }
-};
-
-struct var_symbol_resolver_for_shared_scope
-    : boost::static_visitor<boost::optional<symbol::var_symbol>> {
-    std::string const& name;
-
-    explicit var_symbol_resolver_for_shared_scope(std::string const& n) noexcept
-        : name{n}
-    {}
-
-    template<class T>
-    boost::optional<symbol::var_symbol> operator()(std::shared_ptr<T> const& scope) const noexcept
-    {
-        return scope->resolve_var(name);
     }
 };
 
@@ -236,7 +288,7 @@ public:
     template<class Walker>
     void visit(ast::node::var_ref const& var, Walker const& recursive_walker)
     {
-        auto maybe_resolved_symbol = boost::apply_visitor(var_symbol_resolver_for_shared_scope{var->name}, current_scope);
+        auto maybe_resolved_symbol = boost::apply_visitor(scope::var_symbol_resolver{var->name}, current_scope);
         if (maybe_resolved_symbol) {
             var->symbol = *maybe_resolved_symbol;
         } else {
@@ -285,13 +337,17 @@ public:
             }
         } selector;
 
-        primary_lit->type = type::get_builtin_type(boost::apply_visitor(selector, primary_lit->value));
+        auto const builtin = type::get_builtin_type(boost::apply_visitor(selector, primary_lit->value));
+        assert(builtin);
+        primary_lit->type = *builtin;
     }
 
     template<class Walker>
     void visit(ast::node::symbol_literal const& sym_lit, Walker const& /*unused because it doesn't has child*/)
     {
-        sym_lit->type = type::get_builtin_type("symbol");
+        auto const builtin = type::get_builtin_type("symbol");
+        assert(builtin);
+        sym_lit->type = *builtin;
     }
 
     template<class Walker>
@@ -322,6 +378,9 @@ public:
         auto const& p = dict_lit->value[0];
         dict_lit->type = type::make<type::dict_type>(type_of(p.first), type_of(p.second));
     }
+
+    // TODO:
+    // Calcurate type from type nodes here because it requires forward information
 
     template<class Walker>
     void visit(ast::node::binary_expr const& bin_expr, Walker const& recursive_walker)

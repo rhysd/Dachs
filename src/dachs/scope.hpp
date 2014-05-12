@@ -320,6 +320,36 @@ struct scope_tree final {
 
 scope_tree make_scope_tree(ast::ast &ast);
 
+struct var_symbol_resolver
+    : boost::static_visitor<boost::optional<symbol::var_symbol>> {
+    std::string const& name;
+
+    explicit var_symbol_resolver(std::string const& n) noexcept
+        : name{n}
+    {}
+
+    template<class T>
+    result_type operator()(std::shared_ptr<T> const& scope) const noexcept
+    {
+        return scope->resolve_var(name);
+    }
+};
+
+struct class_resolver
+    : boost::static_visitor<boost::optional<class_scope>> {
+    std::string const& name;
+
+    explicit class_resolver(std::string const& n) noexcept
+        : name{n}
+    {}
+
+    template<class T>
+    result_type operator()(std::shared_ptr<T> const& scope) const noexcept
+    {
+        return scope->resolve_class(name);
+    }
+};
+
 } // namespace scope
 } // namespace dachs
 

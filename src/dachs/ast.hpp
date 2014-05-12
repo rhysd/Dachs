@@ -316,6 +316,7 @@ struct parameter final : public base {
     boost::optional<node::any_type> param_type;
     dachs::symbol::weak_var_symbol param_symbol;
     boost::optional<dachs::symbol::template_type_symbol> template_type_ref;
+    boost::optional<type::type> type;
 
     parameter(bool const v, std::string const& n, decltype(param_type) const& t) noexcept
         : base(), is_var(v), name(n), param_type(t)
@@ -511,6 +512,8 @@ struct tuple_type final : public base {
     // Note: length of this variable should not be 1
     std::vector<node::any_type> arg_types;
 
+    tuple_type() = default;
+
     explicit tuple_type(std::vector<node::any_type> const& args) noexcept
         : arg_types(args)
     {}
@@ -560,6 +563,7 @@ struct variable_decl final : public base {
     std::string name;
     boost::optional<node::any_type> maybe_type;
     dachs::symbol::weak_var_symbol symbol;
+    boost::optional<type::type> type;
 
     variable_decl(bool const var,
                   std::string const& name,
@@ -768,6 +772,7 @@ struct function_definition final : public statement {
     node::statement_block body;
     boost::optional<node::statement_block> ensure_body;
     scope::weak_func_scope scope;
+    boost::optional<type::type> ret_type;
 
     function_definition(symbol::func_kind const k
                       , std::string const& n
@@ -788,6 +793,7 @@ struct constant_decl final : public base {
     std::string name;
     boost::optional<node::any_type> maybe_type;
     dachs::symbol::weak_var_symbol symbol;
+    boost::optional<type::type> type;
 
     constant_decl(std::string const& name,
                   decltype(maybe_type) const& type) noexcept

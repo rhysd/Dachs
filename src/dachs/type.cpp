@@ -1,10 +1,11 @@
 #include <cassert>
+#include <boost/optional.hpp>
 #include "dachs/type.hpp"
 
 namespace dachs {
 namespace type {
 
-builtin_type get_builtin_type(char const* const name) noexcept
+boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept
 {
     static const std::vector<builtin_type> builtin_types
         = {
@@ -23,7 +24,7 @@ builtin_type get_builtin_type(char const* const name) noexcept
         }
     }
 
-    assert(false);
+    return boost::none;
 }
 
 } // namespace type

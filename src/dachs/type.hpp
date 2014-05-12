@@ -67,7 +67,7 @@ enum class qualifier {
 
 using dachs::helper::make;
 
-builtin_type get_builtin_type(char const* const name) noexcept;
+boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept;
 
 } // namespace type
 
