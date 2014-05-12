@@ -5,7 +5,7 @@ Dachs Programming Language
 Doggy Programming Language. :dog2:
 
 Goals:
-- Light weight to write and execute
+- Light to write
 - Strongly and statically typed
 - Native code efficiency
 - Full OOP
@@ -41,6 +41,7 @@ end
   - [x] Expressions
   - [x] Statements
   - [x] Functions
+  - [x] Operator functions
   - [ ] Class
   - [ ] Lambda
   - [ ] Block
@@ -50,7 +51,8 @@ end
 
 -  Sematic analysis
   - [x] Scope tree
-  - [ ] Symbol tables
+  - [x] Symbol tables
+  - [ ] Overload resolution
   - [ ] Type inference
   - [ ] Semantic checks
   - [ ] Test
