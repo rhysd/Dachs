@@ -88,12 +88,37 @@ struct type_calculator_from_type_nodes
                 );
     }
 
-    // TODO:
-    // type::type operator()(ast::node::qualified_type const& t) const noexcept
+    type::type operator()(ast::node::qualified_type const& t) const noexcept
+    {
+        type::qualifier new_qualifier;
+        switch (t->qualifier) {
+        case ast::symbol::qualifier::maybe:
+            new_qualifier = type::qualifier::maybe;
+            break;
+        default:
+            assert(false);
+            break;
+        }
 
-    // TODO:
-    // Note: return func_type or proc_type according to its return type
+        return type::make<type::qualified_type>(
+                    new_qualifier, boost::apply_visitor(*this, t->type)
+                );
+    }
+
     // type::type operator()(ast::node::func_type const& t) const noexcept
+    // {
+    //     std::vector<type::type> param_types;
+    //     param_types.reserve(t->arg_types.size());
+    //     for (auto const& a : t->arg_types) {
+    //         param_types.push_back(boost::apply_visitor(*this, a));
+    //     }
+    //
+    //     if (t->ret_type) {
+    //         return type::make<type::func_type>(std::move(param_types), boost::apply_visitor(*this, *(t->ret_type)));
+    //     } else {
+    //         return type::make<type::proc_type>(std::move(param_types));
+    //     }
+    // }
 
     // XXX: avoid compilation error
     template<class T>
