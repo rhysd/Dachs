@@ -37,10 +37,18 @@ inline type::type type_of(Variant const& v) noexcept
     return boost::apply_visitor(type_of_visitor{}, v);
 }
 
-struct type_calculator_from_type_nodes
+class type_calculator_from_type_nodes
     : public boost::static_visitor<type::type> {
 
     any_scope const& current_scope;
+
+    template<class T>
+    type::type apply_recursively(T const& t) const noexcept
+    {
+        return boost::apply_visitor(*this, t);
+    }
+
+public:
 
     explicit type_calculator_from_type_nodes(any_scope const& c)
         : current_scope(c)
@@ -57,7 +65,7 @@ struct type_calculator_from_type_nodes
             assert(c && "This assertion is temporary");
             auto const ret = type::make<type::class_type>(t->template_name, *c);
             for (auto const& instantiated : t->instantiated_templates) {
-                ret->holder_types.push_back(boost::apply_visitor(*this, instantiated));
+                ret->holder_types.push_back(apply_recursively(instantiated));
             }
             return ret;
         }
@@ -66,7 +74,7 @@ struct type_calculator_from_type_nodes
     type::type operator()(ast::node::array_type const& t) const noexcept
     {
         return type::make<type::array_type>(
-                    boost::apply_visitor(*this, t->elem_type)
+                    apply_recursively(t->elem_type)
                 );
     }
 
@@ -75,7 +83,7 @@ struct type_calculator_from_type_nodes
         auto const ret = type::make<type::tuple_type>();
         ret->element_types.reserve(t->arg_types.size());
         for (auto const& arg : t->arg_types) {
-            ret->element_types.push_back(boost::apply_visitor(*this, arg));
+            ret->element_types.push_back(apply_recursively(arg));
         }
         return ret;
     }
@@ -83,8 +91,8 @@ struct type_calculator_from_type_nodes
     type::type operator()(ast::node::dict_type const& t) const noexcept
     {
         return type::make<type::dict_type>(
-                    boost::apply_visitor(*this, t->key_type),
-                    boost::apply_visitor(*this, t->value_type)
+                    apply_recursively(t->key_type),
+                    apply_recursively(t->value_type)
                 );
     }
 
@@ -101,30 +109,26 @@ struct type_calculator_from_type_nodes
         }
 
         return type::make<type::qualified_type>(
-                    new_qualifier, boost::apply_visitor(*this, t->type)
-                );
+                    new_qualifier, apply_recursively(t->type)
+               );
     }
 
-    // type::type operator()(ast::node::func_type const& t) const noexcept
-    // {
-    //     std::vector<type::type> param_types;
-    //     param_types.reserve(t->arg_types.size());
-    //     for (auto const& a : t->arg_types) {
-    //         param_types.push_back(boost::apply_visitor(*this, a));
-    //     }
-    //
-    //     if (t->ret_type) {
-    //         return type::make<type::func_type>(std::move(param_types), boost::apply_visitor(*this, *(t->ret_type)));
-    //     } else {
-    //         return type::make<type::proc_type>(std::move(param_types));
-    //     }
-    // }
-
-    // XXX: avoid compilation error
-    template<class T>
-    type::type operator()(std::shared_ptr<T> const&) const noexcept
+    type::type operator()(ast::node::func_type const& t) const noexcept
     {
-        return type::type{};
+        std::vector<type::any_type> param_types;
+        param_types.reserve(t->arg_types.size());
+        for (auto const& a : t->arg_types) {
+            param_types.push_back(apply_recursively(a));
+        }
+
+        if (t->ret_type) {
+            return {type::make<type::func_type>(
+                    std::move(param_types),
+                    apply_recursively(*(t->ret_type))
+                )};
+        } else {
+            return {type::make<type::proc_type>(std::move(param_types))};
+        }
     }
 };
 
@@ -173,16 +177,18 @@ public:
     template<class Walker>
     void visit(ast::node::function_definition const& func_def, Walker const& recursive_walker)
     {
+        // Define scope
         auto maybe_global_scope = get<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
         auto new_func = make<func_scope>(func_def, global_scope, func_def->name);
         func_def->scope = new_func;
+
+        auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);
         if (!global_scope->define_function(new_func)) {
             failed++;
         } else {
             // If the symbol passes duplication check, it also defines as variable
-            auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);
             global_scope->define_global_constant(new_func_var);
         }
         with_new_scope(std::move(new_func), recursive_walker);
@@ -292,6 +298,13 @@ public:
         } else {
             assert(false);
         }
+
+        // Add parameter type if specified
+        if (param->param_type) {
+            param->type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, *(param->param_type));
+            new_param->type = *(param->type);
+        }
+
         recursive_walker();
     }
 
@@ -306,6 +319,17 @@ public:
         if (!local->define_local_var(new_var)) {
             failed++;
         }
+
+        // Set type if the type of variable is specified
+        if (decl->maybe_type) {
+            decl->type
+                = boost::apply_visitor(
+                    type_calculator_from_type_nodes{current_scope},
+                    *(decl->maybe_type)
+                );
+            new_var->type = *(decl->type);
+        }
+
         recursive_walker();
     }
     // }}}
@@ -322,7 +346,6 @@ public:
         }
         recursive_walker();
     }
-
 
     // Get built-in data types {{{
     template<class Walker>
@@ -422,6 +445,11 @@ public:
     template<class Walker>
     void visit(ast::node::typed_expr const& typed, Walker const& recursive_walker)
     {
+        typed->type = boost::apply_visitor(
+                            type_calculator_from_type_nodes{current_scope},
+                            typed->specified_type
+                        );
+
         recursive_walker();
 
         // TODO:
@@ -433,10 +461,13 @@ public:
     template<class Walker>
     void visit(ast::node::cast_expr const& casted, Walker const& recursive_walker)
     {
-        recursive_walker();
+
+        casted->type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, casted->casted_type);
 
         // TODO:
-        // Find cast function and get the result type of it
+        // Find cast function
+
+        recursive_walker();
     }
 
     
@@ -450,8 +481,9 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::object_construct const& /*member_access*/, Walker const& /*unused*/)
+    void visit(ast::node::object_construct const& obj, Walker const& /*unused*/)
     {
+        obj->type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, obj->obj_type);
         throw not_implemented_error{__FILE__, __func__, __LINE__, "object construction"};
     }
 
@@ -511,7 +543,11 @@ scope_tree make_scope_tree(ast::ast &a)
         }
     }
 
-    // TODO: get type of global function variables' type on visit node::function_definition and node::procedure_definition
+    // TODO: Get type of global function variables' type on visit node::function_definition
+    // Note:
+    // Type of function can be set after parameters' types are set.
+    // Should function type be set at forward analysis phase?
+    // If so, type calculation pass should be separated from symbol analysis pass.
 
     return scope_tree{tree_root};
 }

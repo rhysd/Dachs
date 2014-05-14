@@ -165,9 +165,8 @@ struct tuple_type final : public basic_type {
 
     tuple_type() = default;
 
-    template<class Vec>
-    explicit tuple_type(Vec && v) noexcept
-        : element_types{std::forward<decltype(element_types)>(v)}
+    explicit tuple_type(decltype(element_types) const& v) noexcept
+        : element_types(v)
     {}
 
     std::string to_string() const noexcept override
@@ -196,9 +195,8 @@ struct func_type final : public basic_type {
 
     func_type() = default;
 
-    template<class Vec, class Ret>
-    func_type(Vec && p, Ret const& r) noexcept
-        : param_types{std::forward<decltype(param_types)>(p)}, return_type(r)
+    func_type(decltype(param_types) && p, type::any_type && r) noexcept
+        : param_types(std::forward<decltype(p)>(p)), return_type(std::forward<type::any_type>(r))
     {}
 
     std::string to_string() const noexcept override
@@ -227,9 +225,8 @@ struct proc_type final : public basic_type {
 
     proc_type() = default;
 
-    template<class Vec>
-    explicit proc_type(Vec && p) noexcept
-        : param_types{std::forward<decltype(param_types)>(p)}
+    explicit proc_type(decltype(param_types) && p) noexcept
+        : param_types(std::forward<decltype(p)>(p))
     {}
 
     std::string to_string() const noexcept override
