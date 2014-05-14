@@ -1,6 +1,7 @@
 #include <cassert>
 #include <boost/optional.hpp>
 #include "dachs/type.hpp"
+#include "dachs/scope.hpp"
 
 namespace dachs {
 namespace type {
@@ -28,4 +29,26 @@ boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept
 }
 
 } // namespace type
+
+namespace type_node {
+
+bool func_ref_type::operator==(func_ref_type const& rhs) const noexcept
+{
+    if (!ref && !rhs.ref) {
+        return true;
+    }
+
+    if (ref && rhs.ref) {
+        return ref->lock()->name == rhs.ref->lock()->name;
+    }
+
+    return false;
+}
+
+std::string func_ref_type::to_string() const noexcept
+{
+    return "<funcref" + (ref ? ':' + ref->lock()->name + '>' : ">");
+}
+
+} // namespace type_node
 } // namespace dachs

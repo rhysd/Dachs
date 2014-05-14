@@ -263,10 +263,14 @@ struct func_ref_type : public basic_type {
 
     func_ref_type() = default;
 
-    std::string to_string() const noexcept override
+    bool operator==(func_ref_type const&) const noexcept;
+
+    bool operator!=(func_ref_type const& rhs) const noexcept
     {
-        return "<funcref>";
+        return !(*this == rhs);
     }
+
+    std::string to_string() const noexcept override;
 };
 
 struct dict_type final : public basic_type {
