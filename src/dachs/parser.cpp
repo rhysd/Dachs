@@ -180,7 +180,7 @@ public:
             ];
 
         character_literal
-            = (
+            = qi::lexeme[
                 '\''
                 > ((qi::char_ - ascii::cntrl - '\\' - '\'')[_val = _1]
                 | ('\\' > (
@@ -192,7 +192,7 @@ public:
                         | qi::char_('\'')[_val = '\'']
                     ))
                 ) > '\''
-            );
+            ];
 
         float_literal
             = (

@@ -263,6 +263,7 @@ BOOST_AUTO_TEST_CASE(literals)
             '\b'
             '\f'
             '\\'
+            ' '
 
             # string
             "aaaaa"
@@ -271,6 +272,7 @@ BOOST_AUTO_TEST_CASE(literals)
             "\nhoge\nbbb\n"
             "\\aaa\\"
             ""
+            "include white spaces"
 
             # boolean
             true
