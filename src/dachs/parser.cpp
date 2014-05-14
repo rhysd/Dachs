@@ -188,6 +188,7 @@ public:
                         | qi::char_('f')[_val = '\f']
                         | qi::char_('n')[_val = '\n']
                         | qi::char_('r')[_val = '\r']
+                        | qi::char_('t')[_val = '\t']
                         | qi::char_('\\')[_val = '\\']
                         | qi::char_('\'')[_val = '\'']
                     ))
@@ -213,6 +214,7 @@ public:
                         | qi::char_('f')[_val += '\f']
                         | qi::char_('n')[_val += '\n']
                         | qi::char_('r')[_val += '\r']
+                        | qi::char_('t')[_val += '\t']
                         | qi::char_('\\')[_val += '\\']
                         | qi::char_('"')[_val += '"']
                         | (qi::char_ - ascii::cntrl)[_val += _1]
