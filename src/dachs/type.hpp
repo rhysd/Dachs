@@ -12,6 +12,7 @@
 #include <boost/algorithm/string/join.hpp>
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
+#include <boost/optional.hpp>
 
 #include "scope_fwd.hpp"
 #include "dachs/helper/variant.hpp"
@@ -25,6 +26,7 @@ struct class_type;
 struct tuple_type;
 struct func_type;
 struct proc_type;
+struct func_ref_type;
 struct dict_type;
 struct array_type;
 struct range_type;
@@ -40,6 +42,7 @@ DACHS_DEFINE_TYPE(class_type);
 DACHS_DEFINE_TYPE(tuple_type);
 DACHS_DEFINE_TYPE(func_type);
 DACHS_DEFINE_TYPE(proc_type);
+DACHS_DEFINE_TYPE(func_ref_type);
 DACHS_DEFINE_TYPE(dict_type);
 DACHS_DEFINE_TYPE(array_type);
 DACHS_DEFINE_TYPE(range_type);
@@ -52,6 +55,7 @@ using any_type
                     , tuple_type
                     , func_type
                     , proc_type
+                    , func_ref_type
                     , dict_type
                     , array_type
                     , range_type
@@ -246,6 +250,22 @@ struct proc_type final : public basic_type {
     bool operator!=(proc_type const& rhs) const noexcept
     {
         return !(*this == rhs);
+    }
+};
+
+struct func_ref_type : public basic_type {
+    boost::optional<scope::weak_func_scope> ref = boost::none;
+
+    template<class FuncScope>
+    explicit func_ref_type(FuncScope const& r)
+        : ref(r)
+    {}
+
+    func_ref_type() = default;
+
+    std::string to_string() const noexcept override
+    {
+        return "<funcref>";
     }
 };
 

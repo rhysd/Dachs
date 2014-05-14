@@ -182,6 +182,7 @@ public:
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
         auto new_func = make<func_scope>(func_def, global_scope, func_def->name);
+        new_func->type = type::make<type::func_ref_type>(scope::weak_func_scope{new_func});
         func_def->scope = new_func;
 
         auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);
