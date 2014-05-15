@@ -18,8 +18,8 @@ namespace scope {
 namespace detail {
 
 using std::size_t;
-using dachs::helper::variant::get;
-using dachs::helper::variant::has;
+using helper::variant::get_as;
+using helper::variant::has;
 
 struct type_of_visitor
     : public boost::static_visitor<type::type> {
@@ -162,10 +162,10 @@ public:
     {
         auto new_local_scope = make<local_scope>(current_scope);
         block->scope = new_local_scope;
-        if (auto maybe_local_scope = get<local_scope>(current_scope)) {
+        if (auto maybe_local_scope = get_as<local_scope>(current_scope)) {
             auto &enclosing_scope = *maybe_local_scope;
             enclosing_scope->define_child(new_local_scope);
-        } else if (auto maybe_func_scope = get<func_scope>(current_scope)) {
+        } else if (auto maybe_func_scope = get_as<func_scope>(current_scope)) {
             auto &enclosing_scope = *maybe_func_scope;
             enclosing_scope->body = new_local_scope;
         } else {
@@ -178,7 +178,7 @@ public:
     void visit(ast::node::function_definition const& func_def, Walker const& recursive_walker)
     {
         // Define scope
-        auto maybe_global_scope = get<scope::global_scope>(current_scope);
+        auto maybe_global_scope = get_as<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
         auto new_func = make<func_scope>(func_def, global_scope, func_def->name);
@@ -261,7 +261,7 @@ public:
     template<class Walker>
     void visit(ast::node::constant_decl const& const_decl, Walker const& recursive_walker)
     {
-        auto maybe_global_scope = get<scope::global_scope>(current_scope);
+        auto maybe_global_scope = get_as<scope::global_scope>(current_scope);
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
         auto new_var = symbol::make<symbol::var_symbol>(const_decl, const_decl->name);
@@ -277,7 +277,7 @@ public:
     {
         auto new_param = symbol::make<symbol::var_symbol>(param, param->name);
         param->param_symbol = new_param;
-        if (auto maybe_func = get<func_scope>(current_scope)) {
+        if (auto maybe_func = get_as<func_scope>(current_scope)) {
             auto& func = *maybe_func;
             if (!func->define_param(new_param)) {
                 failed++;
@@ -290,7 +290,7 @@ public:
                 param->template_type_ref = tmpl;
             }
 
-        } else if (auto maybe_local = get<local_scope>(current_scope)) {
+        } else if (auto maybe_local = get_as<local_scope>(current_scope)) {
             // When for statement
             auto& local = *maybe_local;
             if (!local->define_local_var(new_param)) {
@@ -312,7 +312,7 @@ public:
     template<class Walker>
     void visit(ast::node::variable_decl const& decl, Walker const& recursive_walker)
     {
-        auto maybe_local = get<local_scope>(current_scope);
+        auto maybe_local = get_as<local_scope>(current_scope);
         assert(maybe_local);
         auto& local = *maybe_local;
         auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name);

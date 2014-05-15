@@ -1,5 +1,4 @@
 #if !defined DACHS_HELPER_VARIANT_HPP_INCLUDED
-
 #define      DACHS_HELPER_VARIANT_HPP_INCLUDED
 
 #include <utility>
@@ -8,56 +7,28 @@
 #include <boost/variant/variant.hpp>
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
+#include <boost/variant/get.hpp>
 #include <boost/optional.hpp>
 
 namespace dachs {
 namespace helper {
 namespace variant {
 
-namespace detail {
-
-    template<class T>
-    struct static_getter : public boost::static_visitor<boost::optional<T>> {
-        typedef boost::optional<T> return_type;
-
-        return_type operator()(T const& val) const noexcept
-        {
-            return val;
-        }
-
-        template<class U>
-        return_type operator()(U const&) const noexcept
-        {
-            return boost::none;
-        }
-    };
-
-    template<class T>
-    struct type_checker : public boost::static_visitor<bool> {
-        bool operator()(T const&) const noexcept
-        {
-            return true;
-        }
-
-        template<class U>
-        bool operator()(U const&) const noexcept
-        {
-            return false;
-        }
-    };
-
-} // namespace detail
-
 template<class T, class... Args>
-inline boost::optional<T> get(boost::variant<Args...> const& v)
+inline boost::optional<T> get_as(boost::variant<Args...> const& v)
 {
-    return boost::apply_visitor(detail::static_getter<T>{}, v);
+    T const* const ptr = boost::get<T>(&v);
+    if (ptr) {
+        return {*ptr};
+    } else {
+        return boost::none;
+    }
 }
 
 template<class T, class... Args>
 inline bool has(boost::variant<Args...> const& v)
 {
-    return boost::apply_visitor(detail::type_checker<T>{}, v);
+    return boost::get<T>(&v);
 }
 
 namespace detail {
