@@ -28,6 +28,7 @@
 #include "dachs/comment_skipper.hpp"
 #include "dachs/ast.hpp"
 #include "dachs/exception.hpp"
+#include "dachs/helper/variant.hpp"
 // }}}
 
 namespace dachs {
@@ -54,6 +55,9 @@ using qi::string;
 
 // Helpers {{{
 namespace detail {
+
+    using helper::variant::apply_lambda;
+
     template<class Iterator>
     inline auto line_pos_iterator(Iterator i)
     {
@@ -80,26 +84,6 @@ namespace detail {
         detail::set_position_getter_on_success(getter, tail...);
     }
 
-    template<class Iter, class CodeIter>
-    struct position_set_visitor
-        : public boost::static_visitor<void> {
-        Iter const before, after;
-        CodeIter const code_begin;
-
-        position_set_visitor(Iter const b, Iter const a, CodeIter const begin) noexcept
-            : before{b}, after{a}, code_begin{begin}
-        {}
-
-        template<class Node>
-        void operator()(Node const& node_ptr) const noexcept
-        {
-            auto const d = std::distance(before.base(), after.base());
-            node_ptr->line = spirit::get_line(before);
-            node_ptr->col = spirit::get_column(code_begin, before);
-            node_ptr->length = d < 0 ? 0 : d;
-        }
-    };
-
     template<class CodeIter>
     struct position_getter {
         CodeIter const code_begin;
@@ -120,7 +104,14 @@ namespace detail {
         template<class Iter, class... Args>
         void operator()(boost::variant<Args...> const& node_variant, Iter const before, Iter const after) const noexcept
         {
-            boost::apply_visitor(position_set_visitor<Iter, CodeIter>{before, after, code_begin}, node_variant);
+            apply_lambda(
+                [before, after, this](auto const& node)
+                {
+                    auto const d = std::distance(before.base(), after.base());
+                    node->line = spirit::get_line(before);
+                    node->col = spirit::get_column(code_begin, before);
+                    node->length = d < 0 ? 0 : d;
+                }, node_variant);
         }
     };
 } // namespace detail

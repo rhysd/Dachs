@@ -62,43 +62,22 @@ inline bool has(boost::variant<Args...> const& v)
 
 namespace detail {
 
-template<class F, class Result>
-struct lambda_wrapped_visitor : public boost::static_visitor<Result> {
+template<class Lambda, class Result>
+struct lambda_wrapped_visitor
+    : public boost::static_visitor<Result>
+    , public Lambda {
 
-    F const& f;
-
-    explicit lambda_wrapped_visitor(F const& f)
-        : f(f)
+    lambda_wrapped_visitor(Lambda const& l) noexcept
+        : Lambda(l)
     {}
 
-    template<class T>
-    Result operator()(T const& t) const
-    {
-        return f(t);
-    }
 };
-
-template<class F>
-struct lambda_wrapped_visitor<F, void> : public boost::static_visitor<void> {
-    F const& f;
-
-    explicit lambda_wrapped_visitor(F const& f)
-        : f(f)
-    {}
-
-    template<class T>
-    void operator()(T const& t) const
-    {
-        f(t);
-    }
-};
-
 } // namespace detail
 
 template<class Lambda, class Head, class... Tail>
-inline auto apply_lambda(Lambda const& v, boost::variant<Head, Tail...> const& variant)
+inline auto apply_lambda(Lambda const& l, boost::variant<Head, Tail...> const& variant)
 {
-    return boost::apply_visitor(detail::lambda_wrapped_visitor<Lambda, typename std::result_of<Lambda(Head)>::type>{v}, variant);
+    return boost::apply_visitor(detail::lambda_wrapped_visitor<Lambda, decltype(std::declval<Lambda>()(std::declval<Head>()))>{l}, variant);
 }
 
 } // namespace variant
