@@ -20,21 +20,12 @@ namespace detail {
 using std::size_t;
 using helper::variant::get_as;
 using helper::variant::has;
-
-struct type_of_visitor
-    : public boost::static_visitor<type::type> {
-
-    template<class T>
-    type::type operator()(std::shared_ptr<T> const& node) const noexcept
-    {
-        return node->type;
-    }
-};
+using helper::variant::apply_lambda;
 
 template<class Variant>
 inline type::type type_of(Variant const& v) noexcept
 {
-    return boost::apply_visitor(type_of_visitor{}, v);
+    return apply_lambda([](auto const& n){ return n->type; }, v);
 }
 
 class type_calculator_from_type_nodes

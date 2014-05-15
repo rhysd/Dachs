@@ -57,6 +57,18 @@ inline auto apply_lambda(Lambda const& l, boost::variant<Head, Tail...> &variant
     return boost::apply_visitor(detail::lambda_wrapped_visitor<Lambda, decltype(std::declval<Lambda>()(std::declval<Head &>()))>{l}, variant);
 }
 
+template<class Lambda, class Head, class... Tail, class Head2, class... Tail2>
+inline auto apply_lambda(Lambda const& l, boost::variant<Head, Tail...> const& variant, boost::variant<Head2, Tail2...> const& variant2)
+{
+    return boost::apply_visitor(detail::lambda_wrapped_visitor<Lambda, decltype(std::declval<Lambda>()(std::declval<Head const&>(), std::declval<Head2 const&>()))>{l}, variant, variant2);
+}
+
+template<class Lambda, class Head, class... Tail, class Head2, class... Tail2>
+inline auto apply_lambda(Lambda const& l, boost::variant<Head, Tail...> const& variant, boost::variant<Head2, Tail2...> &variant2)
+{
+    return boost::apply_visitor(detail::lambda_wrapped_visitor<Lambda, decltype(std::declval<Lambda>()(std::declval<Head &>(), std::declval<Head2>()))>{l}, variant, variant2);
+}
+
 } // namespace variant
 } // namespace helper
 } // namespace dachs

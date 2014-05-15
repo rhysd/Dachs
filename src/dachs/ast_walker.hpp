@@ -5,8 +5,7 @@
 #include <utility>
 
 #include <boost/optional.hpp>
-#include <boost/variant/static_visitor.hpp>
-#include <boost/variant/apply_visitor.hpp>
+#include <boost/variant/variant.hpp>
 
 #include "dachs/ast.hpp"
 #include "dachs/helper/util.hpp"

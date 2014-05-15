@@ -10,8 +10,6 @@
 #include <boost/variant/variant.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/algorithm/string/join.hpp>
-#include <boost/variant/static_visitor.hpp>
-#include <boost/variant/apply_visitor.hpp>
 #include <boost/optional.hpp>
 
 #include "scope_fwd.hpp"
@@ -81,13 +79,12 @@ using boost::algorithm::join;
 using boost::adaptors::transformed;
 
 namespace detail {
-struct to_string : public boost::static_visitor<std::string> {
-    template<class Type>
-    std::string operator()(Type const& t) const noexcept
-    {
-        return t->to_string();
-    }
-};
+
+inline std::string to_string(type::any_type const& t) noexcept
+{
+    return helper::variant::apply_lambda([](auto const& t) -> std::string { return t->to_string(); }, t);
+}
+
 } // namespace detail
 
 struct basic_type {
@@ -147,7 +144,7 @@ struct class_type final : public named_type {
         } else {
             return name + '(' +
                 join(holder_types | transformed([](auto const& t){
-                            return boost::apply_visitor(detail::to_string{}, t);
+                            return detail::to_string(t);
                         }), ",")
                 + ')';
         }
@@ -177,7 +174,7 @@ struct tuple_type final : public basic_type {
     {
         return '(' +
             join(element_types | transformed([](auto const& t){
-                        return boost::apply_visitor(detail::to_string{}, t);
+                        return detail::to_string(t);
                     }), ",")
             + ')';
     }
@@ -207,10 +204,10 @@ struct func_type final : public basic_type {
     {
         return "func (" +
             join(param_types | transformed([](auto const& t){
-                        return boost::apply_visitor(detail::to_string{}, t);
+                        return detail::to_string(t);
                     }), ",")
             + ") : "
-            + boost::apply_visitor(detail::to_string{}, return_type);
+            + detail::to_string(return_type);
     }
 
     bool operator==(func_type const& rhs) const noexcept
@@ -237,7 +234,7 @@ struct proc_type final : public basic_type {
     {
         return "proc (" +
             join(param_types | transformed([](auto const& t){
-                        return boost::apply_visitor(detail::to_string{}, t);
+                        return detail::to_string(t);
                     }), ",")
             + ')';
     }
@@ -285,10 +282,9 @@ struct dict_type final : public basic_type {
 
     std::string to_string() const noexcept override
     {
-        detail::to_string v;
         return '{'
-            + boost::apply_visitor(v, key_type) + " => "
-            + boost::apply_visitor(v, value_type)
+            + detail::to_string(key_type) + " => "
+            + detail::to_string(value_type)
             + '}';
     }
 
@@ -315,10 +311,9 @@ struct range_type final : public basic_type {
 
     std::string to_string() const noexcept override
     {
-        detail::to_string v;
-        return boost::apply_visitor(v, from_type)
+        return detail::to_string(from_type)
              + ".."
-             + boost::apply_visitor(v, to_type);
+             + detail::to_string(to_type);
     }
 
     bool operator==(range_type const& rhs) const noexcept
@@ -345,7 +340,7 @@ struct array_type final : public basic_type {
     std::string to_string() const noexcept override
     {
         return '{'
-            + boost::apply_visitor(detail::to_string{}, element_type)
+            + detail::to_string(element_type)
             + '}';
     }
 
@@ -371,7 +366,7 @@ struct qualified_type final : public basic_type {
 
     std::string to_string() const noexcept override
     {
-        auto const contained_type_name =  boost::apply_visitor(detail::to_string{}, contained_type);
+        auto const contained_type_name =  detail::to_string(contained_type);
         switch (qualifier) {
         case type::qualifier::maybe:
             return contained_type_name + '?';
