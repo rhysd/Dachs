@@ -9,6 +9,7 @@
 
 #include <boost/variant/variant.hpp>
 #include <boost/range/adaptor/transformed.hpp>
+#include <boost/range/algorithm/equal.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <boost/optional.hpp>
 
@@ -70,6 +71,8 @@ enum class qualifier {
 using dachs::helper::make;
 
 boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept;
+
+bool compare_types(any_type const& lhs, any_type const& rhs) noexcept;
 
 } // namespace type
 
@@ -152,7 +155,7 @@ struct class_type final : public named_type {
 
     bool operator==(class_type const& rhs) const noexcept
     {
-        return name == rhs.name && holder_types == rhs.holder_types;
+        return name == rhs.name && boost::equal(holder_types, rhs.holder_types, type::compare_types);
     }
 
     bool operator!=(class_type const& rhs) const noexcept
@@ -181,7 +184,7 @@ struct tuple_type final : public basic_type {
 
     bool operator==(tuple_type const& rhs) const noexcept
     {
-        return element_types == rhs.element_types;
+        return boost::equal(element_types, rhs.element_types, type::compare_types);
     }
 
     bool operator!=(tuple_type const& rhs) const noexcept
@@ -212,7 +215,8 @@ struct func_type final : public basic_type {
 
     bool operator==(func_type const& rhs) const noexcept
     {
-        return param_types == rhs.param_types && return_type == rhs.return_type;
+        return boost::equal(param_types, rhs.param_types, type::compare_types)
+            && type::compare_types(return_type, rhs.return_type);
     }
 
     bool operator!=(func_type const& rhs) const noexcept
@@ -241,7 +245,7 @@ struct proc_type final : public basic_type {
 
     bool operator==(proc_type const& rhs) const noexcept
     {
-        return param_types == rhs.param_types;
+        return boost::equal(param_types, rhs.param_types, type::compare_types);
     }
 
     bool operator!=(proc_type const& rhs) const noexcept
@@ -290,7 +294,8 @@ struct dict_type final : public basic_type {
 
     bool operator==(dict_type const& rhs) const noexcept
     {
-        return key_type == rhs.key_type && value_type == rhs.value_type;
+        return type::compare_types(key_type, rhs.key_type)
+            && type::compare_types(value_type, rhs.value_type);
     }
 
     bool operator!=(dict_type const& rhs) const noexcept
@@ -318,7 +323,8 @@ struct range_type final : public basic_type {
 
     bool operator==(range_type const& rhs) const noexcept
     {
-        return from_type == rhs.from_type && to_type == rhs.to_type;
+        return type::compare_types(from_type, rhs.from_type)
+            && type::compare_types(to_type, rhs.to_type);
     }
 
     bool operator!=(range_type const& rhs) const noexcept
@@ -346,7 +352,7 @@ struct array_type final : public basic_type {
 
     bool operator==(array_type const& rhs) const noexcept
     {
-        return element_type == rhs.element_type;
+        return type::compare_types(element_type, rhs.element_type);
     }
 
     bool operator!=(array_type const& rhs) const noexcept
@@ -377,7 +383,7 @@ struct qualified_type final : public basic_type {
 
     bool operator==(qualified_type const& rhs) const noexcept
     {
-        return contained_type == rhs.contained_type;
+        return type::compare_types(contained_type, rhs.contained_type);
     }
 
     bool operator!=(qualified_type const& rhs) const noexcept
@@ -387,6 +393,33 @@ struct qualified_type final : public basic_type {
 };
 
 } // namespace type_node
+
+namespace type {
+
+namespace detail {
+
+struct type_equal : public boost::static_visitor<bool> {
+    template<class T>
+    bool operator()(std::shared_ptr<T> const& l, std::shared_ptr<T> const& r) const noexcept
+    {
+        return *l == *r;
+    }
+
+    template<class T, class U>
+    bool operator()(std::shared_ptr<T> const&, std::shared_ptr<U> const&) const noexcept
+    {
+        return false;
+    }
+};
+
+} // namespace detail
+
+inline bool compare_types(any_type const& lhs, any_type const& rhs) noexcept
+{
+    return boost::apply_visitor(detail::type_equal{}, lhs, rhs);
+}
+
+} // namespace type
 
 } // namespace dachs
 

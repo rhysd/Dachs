@@ -341,7 +341,7 @@ public:
 
     // Get built-in data types {{{
     template<class Walker>
-    void visit(ast::node::primary_literal const& primary_lit, Walker const& /*unused because it doesn't has child*/)
+    void visit(ast::node::primary_literal const& primary_lit, Walker const& /*unused because it doesn't have child*/)
     {
         struct : public boost::static_visitor<char const* const> {
 
@@ -382,7 +382,7 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::symbol_literal const& sym_lit, Walker const& /*unused because it doesn't has child*/)
+    void visit(ast::node::symbol_literal const& sym_lit, Walker const& /*unused because it doesn't have child*/)
     {
         auto const builtin = type::get_builtin_type("symbol");
         assert(builtin);

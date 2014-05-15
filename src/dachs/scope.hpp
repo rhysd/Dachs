@@ -135,6 +135,7 @@ struct global_scope final : public basic_scope {
 
     boost::optional<scope::func_scope> resolve_func(std::string const& name) const override
     {
+        // TODO: Consider overloaded functions
         return helper::find_if(functions, [&name](auto const& f){ return f->name == name; });
     }
 
