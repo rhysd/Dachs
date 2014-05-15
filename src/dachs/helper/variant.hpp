@@ -77,7 +77,13 @@ struct lambda_wrapped_visitor
 template<class Lambda, class Head, class... Tail>
 inline auto apply_lambda(Lambda const& l, boost::variant<Head, Tail...> const& variant)
 {
-    return boost::apply_visitor(detail::lambda_wrapped_visitor<Lambda, decltype(std::declval<Lambda>()(std::declval<Head>()))>{l}, variant);
+    return boost::apply_visitor(detail::lambda_wrapped_visitor<Lambda, decltype(std::declval<Lambda>()(std::declval<Head const&>()))>{l}, variant);
+}
+
+template<class Lambda, class Head, class... Tail>
+inline auto apply_lambda(Lambda const& l, boost::variant<Head, Tail...> &variant)
+{
+    return boost::apply_visitor(detail::lambda_wrapped_visitor<Lambda, decltype(std::declval<Lambda>()(std::declval<Head &>()))>{l}, variant);
 }
 
 } // namespace variant
