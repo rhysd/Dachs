@@ -343,8 +343,7 @@ public:
     template<class Walker>
     void visit(ast::node::primary_literal const& primary_lit, Walker const& /*unused because it doesn't has child*/)
     {
-        struct builtin_type_name_selector
-            : public boost::static_visitor<char const* const> {
+        struct : public boost::static_visitor<char const* const> {
 
             result_type operator()(char const) const noexcept
             {
