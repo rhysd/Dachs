@@ -4,6 +4,7 @@
 #include <iterator>
 #include <fstream>
 #include <memory>
+#include <type_traits>
 #include <boost/optional.hpp>
 #include <boost/range/algorithm/find.hpp>
 #include <boost/range/algorithm/find_if.hpp>
@@ -62,6 +63,7 @@ template<class Range, class Predicate>
 inline boost::optional<typename Range::value_type>
 find_if(Range const& r, Predicate const& p)
 {
+    static_assert(std::is_same<decltype(p(std::declval<typename Range::value_type>())), bool>::value, "predicate doesn't return bool value");
     auto const result = boost::find_if(r, p);
     if (result == boost::end(r)) {
         return boost::none;

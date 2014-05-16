@@ -1,9 +1,12 @@
 #include <cstddef>
 #include <iostream>
 
+#include <boost/format.hpp>
+
 #include "dachs/ast_walker.hpp"
 #include "dachs/semantics_check.hpp"
 #include "dachs/exception.hpp"
+#include "dachs/scope.hpp"
 
 namespace dachs {
 namespace semantics {
@@ -40,14 +43,14 @@ public:
     {
         if (func_def->kind == ast::symbol::func_kind::proc) {
             if (func_def->return_type) {
-                std::cerr << "Semantic error at line:" << func_def->line << ", col:" << func_def->col << "\nproc '" << func_def->name << "' can't have return type" << std::endl;
+                output_semantic_error(func_def, boost::format("proc '%1%' can't have return type") % func_def->name);
                 failed++;
 
             }
             return_statement_searcher searcher;
             ast::walk_topdown(func_def, searcher);
             if (searcher.found) {
-                std::cerr << "Semantic error at line:" << searcher.found->line << ", col:" << searcher.found->col << "\nproc '" << func_def->name << "' can't have return statement" << std::endl;
+                output_semantic_error(searcher.found, boost::format("proc '%1%' can't have return statement") % func_def->name);
                 failed++;
             }
         }

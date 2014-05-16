@@ -4,11 +4,13 @@
 #include <vector>
 #include <type_traits>
 #include <iostream>
+#include <cstddef>
 #include <cassert>
 #include <boost/variant/variant.hpp>
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/range/algorithm/find_if.hpp>
+#include <boost/format.hpp>
 
 #include "dachs/scope_fwd.hpp"
 #include "dachs/symbol.hpp"
@@ -17,6 +19,19 @@
 #include "dachs/helper/variant.hpp"
 
 namespace dachs {
+
+// TODO: Move to proper place
+template<class Message>
+inline void output_semantic_error(std::size_t const line, std::size_t const col, Message const& msg, std::ostream &ost = std::cerr)
+{
+    ost << "Semantic error at line:" << line << ", col:" << col << '\n' << msg << std::endl;
+}
+
+template<class Node, class Message>
+inline void output_semantic_error(std::shared_ptr<Node> const& node, Message const& msg, std::ostream &ost = std::cerr)
+{
+    ost << "Semantic error at line:" << node->line << ", col:" << node->col << '\n' << msg << std::endl;
+}
 
 // Dynamic resources to use actually
 namespace scope {
@@ -50,14 +65,14 @@ struct basic_scope {
     template<class Node1, class Node2>
     void print_duplication_error(Node1 const& node1, Node2 const& node2, std::string const& name)
     {
-        std::cerr << "Semantic error at line:" << node1->line << ", col:" << node1->col << "\nSymbol '" << name << "' is redefined.\nPrevious definition is at line:" << node2->line << ", col:" << node2->col << std::endl;
+        output_semantic_error(node1, boost::format("Symbol '%1%' is redefined.\nPrevious definition is at line:%2%, col:%3%") % name % node2->line % node2->col);
     }
 
     template<class Symbol>
     bool define_symbol(std::vector<Symbol> &container, Symbol const& symbol)
     {
         static_assert(std::is_base_of<symbol_node::basic_symbol, typename Symbol::element_type>::value, "define_symbol(): Not a symbol");
-        if (auto maybe_duplication = helper::find(container, symbol)) {
+        if (auto maybe_duplication = helper::find_if(container, [&symbol](auto const& s){ return *symbol == *s; })) {
             print_duplication_error(symbol->ast_node.get_shared(), (*maybe_duplication)->ast_node.get_shared(), symbol->name);
             return false;
         }
@@ -310,6 +325,7 @@ struct class_resolver
 };
 
 } // namespace scope
+
 } // namespace dachs
 
 #endif    // DACHS_SCOPE_HPP_INCLUDED

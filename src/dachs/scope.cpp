@@ -333,7 +333,7 @@ public:
         if (maybe_resolved_symbol) {
             var->symbol = *maybe_resolved_symbol;
         } else {
-            std::cerr << "Semantic error at line:" << var->line << ", col:" << var->col << "\nSymbol '" << var->name << "' is not found." << std::endl;
+            output_semantic_error(var, boost::format("Symbol '%1%' is not found") % var->name);
             failed++;
         }
         recursive_walker();

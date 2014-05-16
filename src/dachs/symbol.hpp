@@ -80,17 +80,29 @@ struct is_symbol_node : std::is_base_of<dachs::symbol_node::basic_symbol, T>{};
 
 } // namespace symbol
 
-// operator==(AnySymbol, AnySymbol)
-template<class T
-       , class U
-       , class = typename std::enable_if<
-                    symbol::is_symbol_node<T>::value
-                 && symbol::is_symbol_node<U>::value
-                >::type
-            >
-inline bool operator==(T const& l, U const& r) noexcept
+// operator== for any symbols
+template<class T>
+inline
+typename std::enable_if<
+    symbol::is_symbol_node<T>::value
+    , bool
+>::type
+operator==(T const& l, T const& r) noexcept
 {
-    return l->name == r->name;
+    return l.name == r.name;
+}
+
+template<class T, class U>
+inline
+typename std::enable_if<
+    symbol::is_symbol_node<T>::value
+    && symbol::is_symbol_node<U>::value
+    && !std::is_same<T, U>::value
+    , bool
+>::type
+operator==(T const&, U const&) noexcept
+{
+    return false;
 }
 
 } // namespace dachs
