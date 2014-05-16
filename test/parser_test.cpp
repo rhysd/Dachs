@@ -90,7 +90,34 @@ BOOST_AUTO_TEST_CASE(function)
         func hoge(a) : t
         end
 
+        func hoge(a) :
+                very_very_long_type_name
+        end
+
+        func hoge(a)
+                : very_very_long_type_name
+        end
+
         func hoge(a, b) : t
+        end
+
+        func hoge(
+                    a,
+                    b
+                ) : t
+        end
+
+        func hoge(
+                    a,
+                    b,
+                ) : t
+        end
+
+        func hoge(
+                    a
+                  , b
+                  , c
+                ) : t
         end
 
         func hoge(a : int)
@@ -237,10 +264,36 @@ BOOST_AUTO_TEST_CASE(procedure)
         proc hoge(a, b)
         end
 
+        proc hoge(a
+                , b)
+        end
+
+        proc hoge(a,
+                  b)
+        end
+
         proc hoge(a : int)
         end
 
         proc hoge(a : int, b : int)
+        end
+
+        proc hoge(a :
+                    int
+                , b :
+                    int)
+        end
+
+        proc hoge(a
+                    : int
+                , b
+                    : int)
+        end
+
+        proc hoge(a
+                    : int,
+                  b
+                    : int)
         end
 
         proc hoge()
@@ -317,11 +370,37 @@ BOOST_AUTO_TEST_CASE(literals)
 
             # array
             [1, 10, 100, 1000, 10000]
+            [
+                1,
+                10,
+                100,
+                1000,
+                10000
+            ]
+            [
+                1,
+                10,
+                100,
+                1000,
+                10000,
+            ]
+            [
+                  1
+                , 10
+                , 100
+                , 1000
+                , 10000
+            ]
             [1,
              10,
              100,
              1000,
              10000]
+            [1,
+             10,
+             100,
+             1000,
+             10000,]
             [1]
             [2.14, 5.15]
             []
@@ -331,6 +410,16 @@ BOOST_AUTO_TEST_CASE(literals)
             (1,
              'a',
              "aaaa")
+            (
+                1,
+                'a',
+                "aaaa"
+            )
+            (
+                1
+                , 'a'
+                , "aaaa"
+            )
             (1, 10)
             ()
 
@@ -343,6 +432,10 @@ BOOST_AUTO_TEST_CASE(literals)
 
             # dict
             {10 => 'a', 100 => 'b'}
+            {
+                10 => 'a',
+                100 => 'b'
+            }
             {10 => 'a',
              100 => 'b'}
             {"aaaa" => :aaa, "bbb" => :bbb}
@@ -383,8 +476,22 @@ BOOST_AUTO_TEST_CASE(postfix_expr)
     BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             foo.awesome_member_func
+            foo.
+                awesome_member_func
+            foo
+                .awesome_member_func
             foo[index]
-            foo(function, call)
+            foo[
+                    23 * 4 >> 5
+               ]
+            foo(
+                    function,
+                    call
+                )
+            foo(
+                    function,
+                    call,
+                )
             foo(function,
                 call,
                 newline)
@@ -410,11 +517,43 @@ BOOST_AUTO_TEST_CASE(type)
             expr : int
             expr : string
             expr : float
+            expr : (float)
+            expr : (
+                    float
+                   )
             expr : [int]
+            expr : [
+                       int
+                   ]
             expr : {int => string}
+            expr
+                : {int => string}
+            expr :
+                {int => string}
+            expr : {
+                       int => string
+                   }
+            expr : {
+                       int
+                           =>
+                       string
+                   }
             expr : (int, char)
             expr : (int,
                     char)
+            expr : (
+                       int,
+                       char
+                   )
+
+            expr : (
+                       int
+                     , char
+                   )
+            expr : (
+                       int,
+                       char,
+                   )
             expr : ()
             expr : [(int)] # it means [int]
             expr : (int, [string], {() => [int]}, (float, [int]))
@@ -423,7 +562,37 @@ BOOST_AUTO_TEST_CASE(type)
             expr : func() : int
             expr : proc()
             expr : func(int, aaa) : int
+            expr : func(
+                    int,
+                    aaa
+                    )
+                     :
+                       int
+            expr : func(
+                      int
+                    , aaa
+                    )
+                     :
+                       int
+            expr : func(
+                    int,
+                    aaa,
+                    )
+                     :
+                       int
             expr : proc(int, aaa)
+            expr : proc(
+                           int,
+                           aaa
+                       )
+            expr : proc(
+                           int
+                         , aaa
+                       )
+            expr : proc(
+                           int,
+                           aaa,
+                       )
             expr : [func() : int]
             expr : (func(int) : string, proc(int), [func() : int])
             expr : {func(char) : int => proc(string)}
@@ -452,6 +621,9 @@ BOOST_AUTO_TEST_CASE(type)
 
             # template types
             expr : T(int)
+            expr : T(
+                        int
+                    )
             expr : T(int, string)
             expr : [T(int)]
             expr : (T(int), U(int))
@@ -477,6 +649,9 @@ BOOST_AUTO_TEST_CASE(primary_expr)
     BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             (1 + 2 * 3)
+            (
+                1 + 2 * 3
+            )
             hogehoge # variable reference
             int{42}
             (int, int){42, 42}
@@ -510,10 +685,15 @@ BOOST_AUTO_TEST_CASE(cast_expression)
     BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             expr as int
+            expr as int
             expr as int?
             expr as [int]
             expr as (int, int)?
             expr as T((int, int)?)
+            expr
+                as T((int, int)?)
+            expr as
+                T((int, int)?)
         end
         )")));
 }
@@ -524,24 +704,113 @@ BOOST_AUTO_TEST_CASE(binary_expression)
         func main
             1 + 1
             1 - 1
+
+            1
+            +
+            1
+
+            1
+            -
+            1
+
             1 * 1
             1 / 1
             1 % 1
+
+            1
+            *
+            1
+
+            1
+            /
+            1
+
+            1
+            %
+            1
+
             1 < 1
             1 > 1
+
+            1
+            <
+            1
+
+            1
+            >
+            1
+
             1 & 1
             1 ^ 1
             1 | 1
+
+            1
+            &
+            1
+
+            1
+            ^
+            1
+
+            1
+            |
+            1
+
             1 <= 1
             1 >= 1
+
+            1
+            <=
+            1
+
+            1
+            >=
+            1
+
             1 == 1
             1 != 1
+
+            1
+            ==
+            1
+
+            1
+            !=
+            1
+
             1 >> 1
             1 << 1
+
+            1
+            >>
+            1
+
+            1
+            <<
+            1
+
             true && true
             true || true
+
+            true
+            &&
+            true
+
+            true
+            ||
+            true
+
             1..2
             1...3
+
+            1
+            ..
+            2
+
+            1
+            ...
+            3
+
             1 = 1
             1 += 1
             1 -= 1
@@ -603,6 +872,26 @@ BOOST_AUTO_TEST_CASE(if_expr)
     CHECK_PARSE_THROW("func main if true then 42 else 24 end");
 }
 
+BOOST_AUTO_TEST_CASE(object_construct)
+{
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
+        func main
+            int{42}
+            int{
+                42
+               }
+            [int]{
+                    [
+                        1,
+                        2,
+                        3,
+                    ]
+                 }
+            {int => string}{{42 => "answer"}}
+        end
+        )")));
+}
+
 BOOST_AUTO_TEST_CASE(variable_decl)
 {
     BOOST_CHECK_NO_THROW(validate(p.parse(R"(
@@ -615,6 +904,18 @@ BOOST_AUTO_TEST_CASE(variable_decl)
             b := 42,
                  24
             var a, b := 'a', 'b'
+            var a, var b := 'a', 'b'
+            var a,
+                b := 'a',
+                     'b'
+            var a,
+                b,
+                   :=
+                       'a',
+                       'b'
+            var a
+              , b := 'a'
+                    ,'b'
             a, b := foo()
             var a, b := bar()
             var a, b := int{32}, char{'b'}
@@ -622,8 +923,67 @@ BOOST_AUTO_TEST_CASE(variable_decl)
             var a,
                 b := [] : [int],
                      {} : {int => string}
+
+            var a : int := 42
+            var a :
+                int := 42
         end
         )")));
+
+    CHECK_PARSE_THROW("func main var a := b, end");
+}
+
+BOOST_AUTO_TEST_CASE(return_statement)
+{
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
+        func main
+            return
+            return 42
+            return 42, 'a', "bbb"
+            return 42,
+                   'a',
+                   "bbb"
+            return 42
+                 , 'a'
+                 , "bbb"
+        end
+        )")));
+}
+
+BOOST_AUTO_TEST_CASE(constant_decl)
+{
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
+        a := 42
+        a := int{42}
+        a, b := 42, 24
+        a,
+        b := 42,
+                24
+        a,
+        b := 'a',
+             'b'
+        a,
+        b,
+            :=
+                'a',
+                'b'
+        a
+        , b := 'a'
+              ,'b'
+        a, b := foo()
+        a, b := bar()
+        a, b := int{32}, char{'b'}
+        a, b := [] : [int], {} : {int => string}
+        a,
+        b := [] : [int],
+                {} : {int => string}
+
+        a : int := 42
+        a :
+        int := 42
+        )")));
+
+    CHECK_PARSE_THROW("a := b,");
 }
 
 BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)

@@ -154,9 +154,11 @@ public:
         : grammar::base_type(program)
     {
 
-        sep = +(lit(';') ^ qi::eol);
+        sep = +(';' ^ qi::eol);
 
-        comma = lit(',') >> -qi::eol;
+        comma = (',' >> -qi::eol) | (-qi::eol >> ',');
+
+        trailing_comma = -(',' || qi::eol);
 
         stmt_block_before_end
             = (
@@ -228,7 +230,7 @@ public:
         array_literal
             = (
                 '[' >> -(
-                    typed_expr % comma
+                    -qi::eol >> typed_expr % comma >> trailing_comma
                 ) >> ']'
             ) [
                 _val = make_node_ptr<ast::node::array_literal>(as_vector(_1))
@@ -237,10 +239,10 @@ public:
         tuple_literal
             = (
                 '(' >> -(
-                    typed_expr[phx::push_back(_a, _1)]
+                    -qi::eol >> typed_expr[phx::push_back(_a, _1)]
                     >> +(
                         comma >> typed_expr[phx::push_back(_a, _1)]
-                    )
+                    ) >> trailing_comma
                 ) >> ')'
             ) [
                 _val = make_node_ptr<ast::node::tuple_literal>(_a)
@@ -260,10 +262,14 @@ public:
             = (
                 '{' >>
                     -(
-                        qi::as<ast::node_type::dict_literal::dict_elem_type>()[
-                            typed_expr > "=>" > typed_expr
-                        ] % comma
-                    ) >> -comma // allow trailing comma
+                        (
+                            -qi::eol >> (
+                                qi::as<ast::node_type::dict_literal::dict_elem_type>()[
+                                    typed_expr > "=>" > typed_expr
+                                ] % comma
+                            ) >> trailing_comma
+                        )[_1] // Note: Avoid bug
+                    )
                 >> '}'
             ) [
                 _val = make_node_ptr<ast::node::dict_literal>(as_vector(_1))
@@ -332,7 +338,7 @@ public:
                 -qi::string("var")
                 >> variable_name
                 >> -(
-                    ':' >> qualified_type
+                    -qi::eol >> ':' >> -qi::eol >> qualified_type
                 )
             ) [
                 _val = make_node_ptr<ast::node::parameter>(_1, _2, _3)
@@ -341,7 +347,7 @@ public:
         constructor_call
             = (
                 '{' >> -(
-                    typed_expr[phx::push_back(_val, _1)] % comma
+                    -qi::eol >> typed_expr[phx::push_back(_val, _1)] % comma >> -qi::eol
                 ) >> '}'
             );
 
@@ -357,15 +363,15 @@ public:
                   object_construct
                 | literal
                 | var_ref
-                | '(' >> typed_expr >> ')'
+                | '(' >> -qi::eol >> typed_expr >> -qi::eol >> ')'
             );
 
         postfix_expr
             =
                 primary_expr[_val = _1] >> *(
-                      ('.' >> called_function_name)[_val = make_node_ptr<ast::node::member_access>(_val, _1)]
-                    | ('[' >> typed_expr >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]
-                    | ('(' >> -(typed_expr % comma) >> ')')[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1))]
+                      (-qi::eol >> '.' >> -qi::eol >> called_function_name)[_val = make_node_ptr<ast::node::member_access>(_val, _1)]
+                    | ('[' >> -qi::eol >> typed_expr >> -qi::eol >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]
+                    | ('(' >> -qi::eol >> -(typed_expr % comma) >> trailing_comma >> ')')[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1))]
                 )
             ;
 
@@ -416,7 +422,7 @@ public:
             =
                 unary_expr[_val = _1] >>
                 *(
-                    "as" > qualified_type
+                    (-qi::eol >> "as") > -qi::eol > qualified_type
                 )[
                     _val = make_node_ptr<ast::node::cast_expr>(_val, _1)
                 ]
@@ -426,11 +432,11 @@ public:
             = (
                 cast_expr[_val = _1] >>
                 *(
-                    (
+                    -qi::eol >> (
                         string("*")
                       | string("/")
                       | string("%")
-                    ) >> cast_expr
+                    ) >> -qi::eol >> cast_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
                 ]
@@ -440,10 +446,10 @@ public:
             = (
                 mult_expr[_val = _1] >>
                 *(
-                    (
+                    -qi::eol >> (
                         string("+")
                       | string("-")
-                    ) >> mult_expr
+                    ) >> -qi::eol >> mult_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
                 ]
@@ -453,10 +459,10 @@ public:
             =
                 additive_expr[_val = _1] >>
                 *(
-                    (
+                    -qi::eol >> (
                         string("<<")
                       | string(">>")
-                    ) >> additive_expr
+                    ) >> -qi::eol >> additive_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
                 ]
@@ -466,12 +472,12 @@ public:
             =
                 shift_expr[_val = _1] >>
                 *(
-                    (
+                    -qi::eol >> (
                         string("<=")
                       | string(">=")
                       | string("<")
                       | string(">")
-                    ) >> shift_expr
+                    ) >> -qi::eol >> shift_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
                 ]
@@ -481,10 +487,10 @@ public:
             =
                 relational_expr[_val = _1] >>
                 *(
-                    (
+                    -qi::eol >> (
                         string("==")
                       | string("!=")
-                    ) >> relational_expr
+                    ) >> -qi::eol >> relational_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
                 ]
@@ -494,7 +500,7 @@ public:
             =
                 equality_expr[_val = _1] >>
                 *(
-                    "&" >> equality_expr
+                    -qi::eol >> "&" >> -qi::eol >> equality_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, "&", _1)
                 ]
@@ -504,7 +510,7 @@ public:
             =
                 and_expr[_val = _1] >>
                 *(
-                    "^" >> and_expr
+                    -qi::eol >> "^" >> -qi::eol >> and_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, "^", _1)
                 ]
@@ -514,7 +520,7 @@ public:
             =
                 xor_expr[_val = _1] >>
                 *(
-                    "|" >> xor_expr
+                    -qi::eol >> "|" >> -qi::eol >> xor_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, "|", _1)
                 ]
@@ -524,7 +530,7 @@ public:
             =
                 or_expr[_val = _1] >>
                 *(
-                    "&&" >> or_expr
+                    -qi::eol >> "&&" >> -qi::eol >> or_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, "&&", _1)
                 ]
@@ -534,7 +540,7 @@ public:
             =
                 logical_and_expr[_val = _1] >>
                 *(
-                    "||" >> logical_and_expr
+                    -qi::eol >> "||" >> -qi::eol >> logical_and_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, "||", _1)
                 ]
@@ -544,10 +550,10 @@ public:
             =
                 logical_or_expr[_val = _1] >>
                 -(
-                    (
+                    -qi::eol >> (
                         string("...")
                       | string("..")
-                    ) >> logical_or_expr
+                    ) >> -qi::eol >> logical_or_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
                 ]
@@ -565,7 +571,7 @@ public:
             =
                 (if_expr | range_expr)[_val = _1]
                 >> -(
-                    ':' >> qualified_type
+                    -qi::eol >> ':' >> -qi::eol >> qualified_type
                 )[
                     _val = make_node_ptr<ast::node::typed_expr>(_val, _1)
                 ]
@@ -574,7 +580,7 @@ public:
         primary_type
             = (
                 type_name >> -(
-                    '(' >> (qualified_type % comma) >> ')'
+                    '(' >> -qi::eol >> (qualified_type % comma) >> -qi::eol >> ')'
                 )
             ) [
                 _val = make_node_ptr<ast::node::primary_type>(_1, as_vector(_2))
@@ -582,19 +588,19 @@ public:
 
         nested_type
             = (
-                ('(' >> qualified_type >> ')') | primary_type
+                ('(' >> -qi::eol >> qualified_type >> -qi::eol >> ')') | primary_type
             );
 
         array_type
             = (
-                '[' >> qualified_type >> ']'
+                '[' >> -qi::eol >> qualified_type >> -qi::eol >> ']'
             ) [
                 _val = make_node_ptr<ast::node::array_type>(_1)
             ];
 
         dict_type
             = (
-                '{' >> qualified_type >> "=>" >> qualified_type >> '}'
+                '{' >> -qi::eol >> qualified_type >> -qi::eol >> "=>" >> -qi::eol >> qualified_type >> -qi::eol >> '}'
             ) [
                 _val = make_node_ptr<ast::node::dict_type>(_1, _2)
             ];
@@ -603,7 +609,8 @@ public:
             = (
                 '('
                 >> -(
-                    qualified_type[phx::push_back(_a, _1)] >> +(comma >> qualified_type[phx::push_back(_a, _1)])
+                    -qi::eol >> qualified_type[phx::push_back(_a, _1)] >>
+                    +(comma >> qualified_type[phx::push_back(_a, _1)]) >> trailing_comma
                 ) >> ')'
             ) [
                 _val = make_node_ptr<ast::node::tuple_type>(_a)
@@ -611,11 +618,12 @@ public:
 
         func_type
             = (
-                lit("func") >> '(' >> -(qualified_type % comma) >> ')' >> ':' >> qualified_type
+                lit("func") >> '(' >> -qi::eol >> -(qualified_type % comma) >> trailing_comma >> ')' >>
+                -qi::eol >> ':' >> -qi::eol >> qualified_type
             ) [
                 _val = make_node_ptr<ast::node::func_type>(as_vector(_1), _2)
             ] | (
-                lit("proc") >> '(' >> -(qualified_type % comma) >> ')'
+                lit("proc") >> '(' >> -qi::eol >> -(qualified_type % comma) >> trailing_comma >> ')'
             ) [
                 _val = make_node_ptr<ast::node::func_type>(as_vector(_1))
             ];
@@ -640,14 +648,19 @@ public:
 
         variable_decl
             = (
-                -(qi::string("var")) >> variable_name >> -(':' >> qualified_type)
+                -(qi::string("var")) >> variable_name >> -(
+                    // Note: In this paren, > can't be used because of :=
+                    -qi::eol >> ':' >> -qi::eol >> qualified_type
+                )
             ) [
                 _val = make_node_ptr<ast::node::variable_decl>(_1, _2, _3)
             ];
 
         initialize_stmt
             = (
-                variable_decl % comma >> ":=" >> typed_expr % comma
+                variable_decl % comma >> trailing_comma
+                >> ":=" >>
+                -qi::eol >> typed_expr % comma /* Note: Disallow trailing comma in here because unexpected line continuation suffers */
             ) [
                 _val = make_node_ptr<ast::node::initialize_stmt>(_1, _2)
             ];
@@ -781,7 +794,7 @@ public:
         function_param_decls
             = -(
                 '(' >> -(
-                    (parameter % comma)[_val = _1]
+                    -qi::eol >> (parameter % comma)[_val = _1] >> trailing_comma
                 ) > ')'
             );
 
@@ -799,7 +812,7 @@ public:
 
         function_definition
             = (
-                func_kind > func_def_name > function_param_decls > -(':' > qualified_type) > sep
+                func_kind > func_def_name > function_param_decls > -((-qi::eol >> ':' >> -qi::eol) > qualified_type) > sep
                 > func_precondition
                 > func_body_stmt_block > -sep
                 > -(
@@ -811,14 +824,14 @@ public:
 
         constant_decl
             = (
-                variable_name >> -(':' >> qualified_type)
+                variable_name >> -(':' >> -qi::eol >> qualified_type)
             ) [
                 _val = make_node_ptr<ast::node::constant_decl>(_1, _2)
             ];
 
         constant_definition
             = (
-                constant_decl % comma >> ":=" >> typed_expr % comma
+                constant_decl % comma >> trailing_comma >> ":=" >> -qi::eol >> typed_expr % comma
             ) [
                 _val = make_node_ptr<ast::node::constant_definition>(_1, _2)
             ];
@@ -996,7 +1009,7 @@ public:
 private:
 
     // Rules {{{
-    rule<qi::unused_type()> sep, comma;
+    rule<qi::unused_type()> sep, comma, trailing_comma;
 
 #define DACHS_DEFINE_RULE(n) rule<ast::node::n()> n
 #define DACHS_DEFINE_RULE_WITH_LOCALS(n, ...) rule<ast::node::n(), qi::locals< __VA_ARGS__ >> n
