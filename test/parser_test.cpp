@@ -17,13 +17,27 @@ using namespace dachs::test::parser;
 // NOTE: use global variable to avoid executing heavy construction of parser
 static dachs::syntax::parser p;
 
+struct test_visitor {
+    template<class T, class W>
+    void visit(T &, W const& w)
+    {
+        w();
+    }
+};
+
+inline void validate(dachs::ast::ast const& a)
+{
+    auto root = a.root;
+    dachs::ast::walk_topdown(root, test_visitor{});
+}
+
 #define CHECK_PARSE_THROW(...) BOOST_CHECK_THROW(p.parse((__VA_ARGS__)), dachs::parse_error)
 
 BOOST_AUTO_TEST_SUITE(parser)
 
 BOOST_AUTO_TEST_CASE(comment)
 {
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
             # line comment
             # block comment #
             # escapable \# hoge huga
@@ -35,7 +49,7 @@ BOOST_AUTO_TEST_CASE(comment)
                 expr # poyo
                 #hoge# this_is_expr
             end
-        )"));
+        )")));
 
     CHECK_PARSE_THROW(R"(
             # Line comment is not continued
@@ -48,10 +62,10 @@ BOOST_AUTO_TEST_CASE(comment)
 BOOST_AUTO_TEST_CASE(function)
 {
     // minimal
-    BOOST_CHECK_NO_THROW(p.parse("func main; end"));
+    BOOST_CHECK_NO_THROW(validate(p.parse("func main; end")));
 
     // general cases
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func hoge()
         end
 
@@ -187,7 +201,7 @@ BOOST_AUTO_TEST_CASE(function)
 
         func main
         end
-        )"));
+        )")));
 
     CHECK_PARSE_THROW(R"(
         func main
@@ -203,9 +217,9 @@ BOOST_AUTO_TEST_CASE(function)
 BOOST_AUTO_TEST_CASE(procedure)
 {
     // minimal
-    BOOST_CHECK_NO_THROW(p.parse("proc p; end"));
+    BOOST_CHECK_NO_THROW(validate(p.parse("proc p; end")));
 
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         proc hoge
         end
 
@@ -246,7 +260,7 @@ BOOST_AUTO_TEST_CASE(procedure)
 
         proc main
         end
-        )"));
+        )")));
 
     CHECK_PARSE_THROW("proc hoge(); en");
 
@@ -255,7 +269,7 @@ BOOST_AUTO_TEST_CASE(procedure)
 
 BOOST_AUTO_TEST_CASE(literals)
 {
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             # character
             'a'
@@ -337,9 +351,9 @@ BOOST_AUTO_TEST_CASE(literals)
             {}
             {3.14 => :pi}
         end
-        )"));
+        )")));
 
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
             func main
                 [(42, 'a'), (53, 'd')]
                 ([42, 13, 22], {:aaa => :BBB}, (42, [42, 42], 42), "aaaa", ["aaa", "bbb", "ccc"])
@@ -356,7 +370,7 @@ BOOST_AUTO_TEST_CASE(literals)
                   "bbb",
                   "ccc"])
             end
-        )"));
+        )")));
 
     CHECK_PARSE_THROW("func main; 'aaaa' end");
     CHECK_PARSE_THROW("func main; '' end");
@@ -366,7 +380,7 @@ BOOST_AUTO_TEST_CASE(literals)
 
 BOOST_AUTO_TEST_CASE(postfix_expr)
 {
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             foo.awesome_member_func
             foo[index]
@@ -381,7 +395,7 @@ BOOST_AUTO_TEST_CASE(postfix_expr)
             foo[3].bar.baz(args)
             foo(hoge).bar[42]
         end
-        )"));
+        )")));
 
     CHECK_PARSE_THROW("func main; foo[42 end");
     CHECK_PARSE_THROW("func main; foo(42 end");
@@ -391,7 +405,7 @@ BOOST_AUTO_TEST_CASE(postfix_expr)
 
 BOOST_AUTO_TEST_CASE(type)
 {
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             expr : int
             expr : string
@@ -448,7 +462,7 @@ BOOST_AUTO_TEST_CASE(type)
             expr : (T(int)?, U(int)?)
             expr : {T(int)? => U(int)?}?
         end
-        )"));
+        )")));
 
     CHECK_PARSE_THROW("func main; expr : proc() : int end # one element tuple is not allowed");
     CHECK_PARSE_THROW("func main; expr : proc() : int end # must not have return type");
@@ -460,7 +474,7 @@ BOOST_AUTO_TEST_CASE(type)
 
 BOOST_AUTO_TEST_CASE(primary_expr)
 {
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             (1 + 2 * 3)
             hogehoge # variable reference
@@ -471,7 +485,7 @@ BOOST_AUTO_TEST_CASE(primary_expr)
                   42}
             {int => string}{{1 => "aaa", 2 => "bbb"}}
         end
-        )"));
+        )")));
 
     CHECK_PARSE_THROW("func main; (1 + 2; end");
     CHECK_PARSE_THROW("func main; int{42; end");
@@ -479,7 +493,7 @@ BOOST_AUTO_TEST_CASE(primary_expr)
 
 BOOST_AUTO_TEST_CASE(unary_expr)
 {
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             -42
             +42
@@ -488,12 +502,12 @@ BOOST_AUTO_TEST_CASE(unary_expr)
             -+~42
             !!true
         end
-        )"));
+        )")));
 }
 
 BOOST_AUTO_TEST_CASE(cast_expression)
 {
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             expr as int
             expr as int?
@@ -501,12 +515,12 @@ BOOST_AUTO_TEST_CASE(cast_expression)
             expr as (int, int)?
             expr as T((int, int)?)
         end
-        )"));
+        )")));
 }
 
 BOOST_AUTO_TEST_CASE(binary_expression)
 {
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             1 + 1
             1 - 1
@@ -548,7 +562,7 @@ BOOST_AUTO_TEST_CASE(binary_expression)
             1 < 3 || 4 > 5 && 6 == 7 || 8 != 9
             1 < 3 || (4 > 5) && (6 == 7) || 8 != 9
         end
-        )"));
+        )")));
 
     CHECK_PARSE_THROW("func main 1 == end");
     CHECK_PARSE_THROW("func main 1 + end");
@@ -557,7 +571,7 @@ BOOST_AUTO_TEST_CASE(binary_expression)
 
 BOOST_AUTO_TEST_CASE(assignment_expr)
 {
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             aaa = 42
             aaa, bbb = 42, 31
@@ -566,12 +580,12 @@ BOOST_AUTO_TEST_CASE(assignment_expr)
                   31
             aaa, bbb = do_something()
         end
-        )"));
+        )")));
 }
 
 BOOST_AUTO_TEST_CASE(if_expr)
 {
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             (if true then 42 else 24)
             hoge(if true then 3.14 else 4.12)
@@ -583,7 +597,7 @@ BOOST_AUTO_TEST_CASE(if_expr)
              else 24)
             (if if then if else if) # 'if' is a contextual keyword
         end
-        )"));
+        )")));
 
     // it is parsed as if statement and it will fail
     CHECK_PARSE_THROW("func main if true then 42 else 24 end");
@@ -591,7 +605,7 @@ BOOST_AUTO_TEST_CASE(if_expr)
 
 BOOST_AUTO_TEST_CASE(variable_decl)
 {
-    BOOST_CHECK_NO_THROW(p.parse(R"(
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             a := 42
             var a := 42
@@ -609,16 +623,8 @@ BOOST_AUTO_TEST_CASE(variable_decl)
                 b := [] : [int],
                      {} : {int => string}
         end
-        )"));
+        )")));
 }
-
-struct test_visitor {
-    template<class T, class W>
-    void visit(T &, W const& w)
-    {
-        w();
-    }
-};
 
 BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)
 {
@@ -626,10 +632,10 @@ BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)
     for (auto const& d : {"assets/comprehensive", "assets/samples"}) {
         check_all_cases_in_directory(d, [&p](fs::path const& path){
                     std::cout << "testing " << path.c_str() << std::endl;
-                    auto root = p.parse(
+                    auto ast = p.parse(
                                 *dachs::helper::read_file<std::string>(path.c_str())
-                           ).root;
-                        dachs::ast::walk_topdown(root, test_visitor{});
+                           );
+                    validate(ast);
                 });
     }
 }
