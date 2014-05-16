@@ -156,6 +156,8 @@ public:
 
         sep = +(lit(';') ^ qi::eol);
 
+        comma = lit(',') >> -qi::eol;
+
         stmt_block_before_end
             = (
                 -((compound_stmt - "end") % sep)
@@ -226,7 +228,7 @@ public:
         array_literal
             = (
                 '[' >> -(
-                    typed_expr % ','
+                    typed_expr % comma
                 ) >> ']'
             ) [
                 _val = make_node_ptr<ast::node::array_literal>(as_vector(_1))
@@ -237,7 +239,7 @@ public:
                 '(' >> -(
                     typed_expr[phx::push_back(_a, _1)]
                     >> +(
-                        ',' >> typed_expr[phx::push_back(_a, _1)]
+                        comma >> typed_expr[phx::push_back(_a, _1)]
                     )
                 ) >> ')'
             ) [
@@ -260,8 +262,8 @@ public:
                     -(
                         qi::as<ast::node_type::dict_literal::dict_elem_type>()[
                             typed_expr > "=>" > typed_expr
-                        ] % ','
-                    ) >> -(lit(',')) // allow trailing comma
+                        ] % comma
+                    ) >> -comma // allow trailing comma
                 >> '}'
             ) [
                 _val = make_node_ptr<ast::node::dict_literal>(as_vector(_1))
@@ -339,7 +341,7 @@ public:
         constructor_call
             = (
                 '{' >> -(
-                    typed_expr[phx::push_back(_val, _1)] % ','
+                    typed_expr[phx::push_back(_val, _1)] % comma
                 ) >> '}'
             );
 
@@ -363,7 +365,7 @@ public:
                 primary_expr[_val = _1] >> *(
                       ('.' >> called_function_name)[_val = make_node_ptr<ast::node::member_access>(_val, _1)]
                     | ('[' >> typed_expr >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]
-                    | ('(' >> -(typed_expr % ',') >> ')')[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1))]
+                    | ('(' >> -(typed_expr % comma) >> ')')[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1))]
                 )
             ;
 
@@ -572,7 +574,7 @@ public:
         primary_type
             = (
                 type_name >> -(
-                    '(' >> (qualified_type % ',') >> ')'
+                    '(' >> (qualified_type % comma) >> ')'
                 )
             ) [
                 _val = make_node_ptr<ast::node::primary_type>(_1, as_vector(_2))
@@ -601,7 +603,7 @@ public:
             = (
                 '('
                 >> -(
-                    qualified_type[phx::push_back(_a, _1)] >> +(',' >> qualified_type[phx::push_back(_a, _1)])
+                    qualified_type[phx::push_back(_a, _1)] >> +(comma >> qualified_type[phx::push_back(_a, _1)])
                 ) >> ')'
             ) [
                 _val = make_node_ptr<ast::node::tuple_type>(_a)
@@ -609,11 +611,11 @@ public:
 
         func_type
             = (
-                lit("func") >> '(' >> -(qualified_type % ',') >> ')' >> ':' >> qualified_type
+                lit("func") >> '(' >> -(qualified_type % comma) >> ')' >> ':' >> qualified_type
             ) [
                 _val = make_node_ptr<ast::node::func_type>(as_vector(_1), _2)
             ] | (
-                lit("proc") >> '(' >> -(qualified_type % ',') >> ')'
+                lit("proc") >> '(' >> -(qualified_type % comma) >> ')'
             ) [
                 _val = make_node_ptr<ast::node::func_type>(as_vector(_1))
             ];
@@ -631,7 +633,7 @@ public:
 
         assignment_stmt
             = (
-                postfix_expr % ',' >> assign_operator >> typed_expr % ','
+                postfix_expr % comma >> assign_operator >> typed_expr % comma
             ) [
                 _val = make_node_ptr<ast::node::assignment_stmt>(_1, _2, _3)
             ];
@@ -645,7 +647,7 @@ public:
 
         initialize_stmt
             = (
-                variable_decl % ',' >> ":=" >> typed_expr % ','
+                variable_decl % comma >> ":=" >> typed_expr % comma
             ) [
                 _val = make_node_ptr<ast::node::initialize_stmt>(_1, _2)
             ];
@@ -681,7 +683,7 @@ public:
 
         return_stmt
             = (
-                "return" >> -(typed_expr % ',')
+                "return" >> -(typed_expr % comma)
             ) [
                 _val = make_node_ptr<ast::node::return_stmt>(as_vector(_1))
             ];
@@ -713,7 +715,7 @@ public:
                 "case" >> (typed_expr - "when") >> sep
                 >> +(
                     qi::as<ast::node_type::switch_stmt::when_type>()[
-                        "when" >> (typed_expr - "then") % ',' >> ("then" || sep)
+                        "when" >> (typed_expr - "then") % comma >> ("then" || sep)
                         >> case_when_stmt_block
                     ]
                 ) >> -(
@@ -726,7 +728,7 @@ public:
         for_stmt
             = (
                 // Note: "do" might colide with do-end block in typed_expr
-                "for" >> (parameter - "in") % ',' >> "in" >> typed_expr >> ("do" || sep)
+                "for" >> (parameter - "in") % comma >> "in" >> typed_expr >> ("do" || sep)
                 >> stmt_block_before_end >> -sep
                 >> "end"
             ) [
@@ -745,7 +747,7 @@ public:
 
         postfix_if_return_stmt
             = (
-                "return" >> -((typed_expr - if_kind) % ',')
+                "return" >> -((typed_expr - if_kind) % comma)
             ) [
                 _val = make_node_ptr<ast::node::return_stmt>(as_vector(_1))
             ];
@@ -779,7 +781,7 @@ public:
         function_param_decls
             = -(
                 '(' >> -(
-                    (parameter % ',')[_val = _1]
+                    (parameter % comma)[_val = _1]
                 ) > ')'
             );
 
@@ -816,7 +818,7 @@ public:
 
         constant_definition
             = (
-                constant_decl % ',' >> ":=" >> typed_expr % ','
+                constant_decl % comma >> ":=" >> typed_expr % comma
             ) [
                 _val = make_node_ptr<ast::node::constant_definition>(_1, _2)
             ];
@@ -994,7 +996,7 @@ public:
 private:
 
     // Rules {{{
-    rule<qi::unused_type()> sep;
+    rule<qi::unused_type()> sep, comma;
 
 #define DACHS_DEFINE_RULE(n) rule<ast::node::n()> n
 #define DACHS_DEFINE_RULE_WITH_LOCALS(n, ...) rule<ast::node::n(), qi::locals< __VA_ARGS__ >> n

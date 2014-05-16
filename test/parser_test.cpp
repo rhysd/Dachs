@@ -69,6 +69,10 @@ BOOST_AUTO_TEST_CASE(function)
         func hoge(a, b)
         end
 
+        func hoge(a,
+                  b)
+        end
+
         func hoge(a) : t
         end
 
@@ -299,12 +303,20 @@ BOOST_AUTO_TEST_CASE(literals)
 
             # array
             [1, 10, 100, 1000, 10000]
+            [1,
+             10,
+             100,
+             1000,
+             10000]
             [1]
             [2.14, 5.15]
             []
 
             # tuple
             (1, 'a', "aaaa")
+            (1,
+             'a',
+             "aaaa")
             (1, 10)
             ()
 
@@ -317,6 +329,8 @@ BOOST_AUTO_TEST_CASE(literals)
 
             # dict
             {10 => 'a', 100 => 'b'}
+            {10 => 'a',
+             100 => 'b'}
             {"aaaa" => :aaa, "bbb" => :bbb}
             {10 => 'a', 100 => 'b',}
             {"aaaa" => :aaa, "bbb" => :bbb,}
@@ -329,6 +343,18 @@ BOOST_AUTO_TEST_CASE(literals)
             func main
                 [(42, 'a'), (53, 'd')]
                 ([42, 13, 22], {:aaa => :BBB}, (42, [42, 42], 42), "aaaa", ["aaa", "bbb", "ccc"])
+                ([42,
+                  13,
+                  22],
+                 {:aaa => :BBB},
+                 (42,
+                  [42,
+                  42],
+                  42),
+                 "aaaa",
+                 ["aaa",
+                  "bbb",
+                  "ccc"])
             end
         )"));
 
@@ -345,6 +371,9 @@ BOOST_AUTO_TEST_CASE(postfix_expr)
             foo.awesome_member_func
             foo[index]
             foo(function, call)
+            foo(function,
+                call,
+                newline)
             foo()
             foo(a)
 
@@ -370,6 +399,8 @@ BOOST_AUTO_TEST_CASE(type)
             expr : [int]
             expr : {int => string}
             expr : (int, char)
+            expr : (int,
+                    char)
             expr : ()
             expr : [(int)] # it means [int]
             expr : (int, [string], {() => [int]}, (float, [int]))
@@ -435,6 +466,9 @@ BOOST_AUTO_TEST_CASE(primary_expr)
             hogehoge # variable reference
             int{42}
             (int, int){42, 42}
+            (int,
+             int){42,
+                  42}
             {int => string}{{1 => "aaa", 2 => "bbb"}}
         end
         )"));
@@ -527,6 +561,9 @@ BOOST_AUTO_TEST_CASE(assignment_expr)
         func main
             aaa = 42
             aaa, bbb = 42, 31
+            aaa,
+            bbb = 42,
+                  31
             aaa, bbb = do_something()
         end
         )"));
@@ -560,11 +597,17 @@ BOOST_AUTO_TEST_CASE(variable_decl)
             var a := 42
             a := int{42}
             a, b := 42, 24
+            a,
+            b := 42,
+                 24
             var a, b := 'a', 'b'
             a, b := foo()
             var a, b := bar()
             var a, b := int{32}, char{'b'}
             var a, b := [] : [int], {} : {int => string}
+            var a,
+                b := [] : [int],
+                     {} : {int => string}
         end
         )"));
 }
