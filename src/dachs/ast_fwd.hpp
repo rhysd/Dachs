@@ -2,6 +2,7 @@
 #define      DACHS_AST_FWD_HPP_INCLUDED
 
 #include <memory>
+#include <type_traits>
 #include <cassert>
 
 namespace dachs {
@@ -64,6 +65,9 @@ struct base {
     std::size_t id;
 };
 
+struct expression;
+struct statement;
+
 // Forward class declarations
 struct primary_literal;
 struct symbol_literal;
@@ -104,6 +108,19 @@ struct constant_definition;
 struct program;
 
 }
+
+namespace traits {
+
+template<class T>
+struct is_node : std::is_base_of<node_type::base, typename std::remove_cv<T>::type> {};
+
+template<class T>
+struct is_expression : std::is_base_of<node_type::expression, typename std::remove_cv<T>::type> {};
+
+template<class T>
+struct is_statement : std::is_base_of<node_type::statement, typename std::remove_cv<T>::type> {};
+
+} // namespace traits
 
 namespace node {
 
@@ -194,10 +211,6 @@ using global_definition =
         constant_definition
     >;
 
-} // namespace node
-
-
-namespace node {
 class any_node {
     std::weak_ptr<node_type::base> node;
 
@@ -242,6 +255,7 @@ public:
     template<class T>
     boost::optional<std::shared_ptr<T>> get_shared_as() const noexcept
     {
+        static_assert(traits::is_node<T>::value, "any_node::get_shared_as(): T is not AST node.");
         assert(!node.expired());
         auto const shared = std::dynamic_pointer_cast<T>(node.lock());
         return shared ? shared : boost::none;

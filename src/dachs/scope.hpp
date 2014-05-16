@@ -30,6 +30,7 @@ inline void output_semantic_error(std::size_t const line, std::size_t const col,
 template<class Node, class Message>
 inline void output_semantic_error(std::shared_ptr<Node> const& node, Message const& msg, std::ostream &ost = std::cerr)
 {
+    static_assert(ast::traits::is_node<Node>::value, "output_semantic_error(): Node is not AST node.");
     ost << "Semantic error at line:" << node->line << ", col:" << node->col << '\n' << msg << std::endl;
 }
 

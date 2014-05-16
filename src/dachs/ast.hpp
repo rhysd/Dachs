@@ -4,7 +4,6 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include <type_traits>
 #include <cstddef>
 #include <boost/variant/variant.hpp>
 #include <boost/optional.hpp>
@@ -835,19 +834,6 @@ struct program final : public base {
 };
 
 } // namespace node_type
-
-namespace traits {
-
-template<class T>
-struct is_node : std::is_base_of<node_type::base, typename std::remove_cv<T>::type> {};
-
-template<class T>
-struct is_expression : std::is_base_of<node_type::expression, typename std::remove_cv<T>::type> {};
-
-template<class T>
-struct is_statement : std::is_base_of<node_type::statement, typename std::remove_cv<T>::type> {};
-
-} // namespace traits
 
 struct ast {
     node::program root;
