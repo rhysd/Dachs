@@ -223,6 +223,14 @@ class symbol_analyzer {
         current_scope = tmp_scope;
     }
 
+
+    template<class Node, class Message>
+    void semantic_error(Node const& n, Message const& msg) noexcept
+    {
+        output_semantic_error(n, msg);
+        failed++;
+    }
+
 public:
 
     size_t failed;
@@ -257,7 +265,7 @@ public:
         auto& global_scope = *maybe_global_scope;
         auto new_var = symbol::make<symbol::var_symbol>(const_decl, const_decl->name);
         const_decl->symbol = new_var;
-        if (global_scope->define_global_constant(new_var)) {
+        if (!global_scope->define_global_constant(new_var)) {
             failed++;
         }
         recursive_walker();
@@ -333,8 +341,7 @@ public:
         if (maybe_resolved_symbol) {
             var->symbol = *maybe_resolved_symbol;
         } else {
-            output_semantic_error(var, boost::format("Symbol '%1%' is not found") % var->name);
-            failed++;
+            semantic_error(var, boost::format("Symbol '%1%' is not found") % var->name);
         }
         recursive_walker();
     }
@@ -394,12 +401,21 @@ public:
     {
         recursive_walker();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
-        arr_lit->type = type::make<type::array_type>(type_of(arr_lit->element_exprs[0]));
+        if (arr_lit->element_exprs.empty()) {
+            if (!arr_lit->is_typed()) {
+                semantic_error(arr_lit, "Empty array must be typed by ':'");
+            }
+        } else {
+            arr_lit->type = type::make<type::array_type>(type_of(arr_lit->element_exprs[0]));
+        }
     }
 
     template<class Walker>
     void visit(ast::node::tuple_literal const& tuple_lit, Walker const& recursive_walker)
     {
+        if (tuple_lit->element_exprs.size() == 1) {
+            semantic_error(tuple_lit, "Size of tuple should not be 1");
+        }
         recursive_walker();
         auto const type = type::make<type::tuple_type>();
         type->element_types.reserve(tuple_lit->element_exprs.size());
@@ -414,8 +430,14 @@ public:
     {
         recursive_walker();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
-        auto const& p = dict_lit->value[0];
-        dict_lit->type = type::make<type::dict_type>(type_of(p.first), type_of(p.second));
+        if (dict_lit->value.empty()) {
+            if (!dict_lit->is_typed()) {
+                semantic_error(dict_lit, "Empty dictionary must be typed by ':'");
+            }
+        } else {
+            auto const& p = dict_lit->value[0];
+            dict_lit->type = type::make<type::dict_type>(type_of(p.first), type_of(p.second));
+        }
     }
 
     // TODO:
@@ -447,6 +469,8 @@ public:
         // Implement a function to get type from type nodes in AST
         // TODO:
         // Check the type of child is the same as the one of lhs
+        // TODO:
+        // Use another visitor to set type and check types. Do not use recursive_walker().
     }
 
     template<class Walker>

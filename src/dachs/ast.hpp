@@ -12,6 +12,7 @@
 #include "dachs/scope_fwd.hpp"
 #include "dachs/symbol.hpp"
 #include "dachs/type.hpp"
+#include "dachs/helper/variant.hpp"
 
 
 // Note:
@@ -210,6 +211,11 @@ struct expression : public base {
     explicit expression(Type && t)
         : type{std::forward<Type>(t)}
     {}
+
+    bool is_typed() const noexcept
+    {
+        return helper::variant::apply_lambda([](auto const& t){ return bool{t}; }, type);
+    }
 
     virtual ~expression() noexcept
     {}

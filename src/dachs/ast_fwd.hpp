@@ -125,6 +125,7 @@ struct is_statement : std::is_base_of<node_type::statement, typename std::remove
 namespace node {
 
 #define DACHS_DEFINE_NODE_PTR(n) using n = std::shared_ptr<node_type::n>
+DACHS_DEFINE_NODE_PTR(base);
 DACHS_DEFINE_NODE_PTR(primary_literal);
 DACHS_DEFINE_NODE_PTR(symbol_literal);
 DACHS_DEFINE_NODE_PTR(array_literal);
@@ -246,10 +247,16 @@ public:
         return node;
     }
 
-    std::shared_ptr<node_type::base> get_shared() const noexcept
+    node::base get_shared() const noexcept
     {
         assert(!node.expired());
         return node.lock();
+    }
+
+    bool is_root() const noexcept
+    {
+        assert(!node.expired());
+        return bool{std::dynamic_pointer_cast<node::program>(node.lock())};
     }
 
     template<class T>
