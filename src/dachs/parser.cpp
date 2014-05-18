@@ -51,6 +51,8 @@ using qi::_a;
 using qi::_val;
 using qi::lit;
 using qi::string;
+using qi::alnum;
+using qi::lexeme;
 // }}}
 
 // Helpers {{{
@@ -154,6 +156,11 @@ public:
         : grammar::base_type(program)
     {
 
+        // XXX:
+        // Use macro instead of user-defined literal because rvalue of Boost.Spirit
+        // parser must be copied by boost::proto::deep_copy. Or it causes SEGV.
+        #define DACHS_KWD(...) (qi::lexeme[(__VA_ARGS__) >> !(qi::alnum | '_')])
+
         sep = +(';' ^ qi::eol);
 
         comma = (',' >> -qi::eol) | (-qi::eol >> ',');
@@ -162,7 +169,8 @@ public:
 
         stmt_block_before_end
             = (
-                -((compound_stmt - "end") % sep)
+                -((compound_stmt - DACHS_KWD("end")) % sep)
+                // -((compound_stmt - lexeme["end" >> !(alnum | '_')]) % sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
@@ -224,7 +232,7 @@ public:
 
         uinteger_literal
             = (
-                qi::lexeme[qi::uint_ >> 'u']
+                qi::lexeme[(qi::uint_ >> 'u') > !(qi::alnum | '_')]
             );
 
         array_literal
@@ -252,7 +260,7 @@ public:
             = (
                 qi::lexeme[
                 ':' >>
-                    +(qi::alnum | qi::char_("=*/%+><&^|&!~_-"))[_a += _1]
+                    +(alnum | qi::char_("=*/%+><&^|&!~_-"))[_a += _1]
                 ]
             ) [
                 _val = make_node_ptr<ast::node::symbol_literal>(_a)
@@ -300,7 +308,7 @@ public:
             =
                 qi::lexeme[
                     (qi::alpha | qi::char_('_'))[_val += _1]
-                    >> *(qi::alnum | qi::char_('_'))[_val += _1]
+                    >> *(alnum | qi::char_('_'))[_val += _1]
                     >> -qi::char_("?!'")[_val += _1]
                 ]
             ;
@@ -314,7 +322,7 @@ public:
             = (
                 qi::lexeme[
                     (qi::alpha | qi::char_('_'))[_val += _1]
-                    >> *(qi::alnum | qi::char_('_'))[_val += _1]
+                    >> *(alnum | qi::char_('_'))[_val += _1]
                 ]
             );
 
@@ -335,7 +343,7 @@ public:
 
         parameter
             = (
-                -qi::string("var")
+                qi::as<bool>()[-DACHS_KWD(qi::string("var"))]
                 >> variable_name
                 >> -(
                     -qi::eol >> ':' >> -qi::eol >> qualified_type
@@ -422,7 +430,7 @@ public:
             =
                 unary_expr[_val = _1] >>
                 *(
-                    (-qi::eol >> "as") > -qi::eol > qualified_type
+                    (-qi::eol >> DACHS_KWD("as")) > -qi::eol > qualified_type
                 )[
                     _val = make_node_ptr<ast::node::cast_expr>(_val, _1)
                 ]
@@ -561,8 +569,8 @@ public:
 
         if_expr
             = (
-                if_kind >> (typed_expr - "then") >> ("then" || sep)
-                >> (typed_expr - "else") >> -sep >> "else" >> -sep >> typed_expr
+                DACHS_KWD(if_kind) >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
+                >> (typed_expr - DACHS_KWD("else")) >> -sep >> DACHS_KWD("else") >> -sep >> typed_expr
             ) [
                 _val = make_node_ptr<ast::node::if_expr>(_1, _2, _3, _4)
             ];
@@ -618,12 +626,13 @@ public:
 
         func_type
             = (
-                lit("func") >> '(' >> -qi::eol >> -(qualified_type % comma) >> trailing_comma >> ')' >>
+                // Note: No need to use DACHS_KWD() because '(' or ':' follows it
+                "func" >> -('(' >> -(-qi::eol >> qualified_type % comma >> trailing_comma) >> ')') >>
                 -qi::eol >> ':' >> -qi::eol >> qualified_type
             ) [
                 _val = make_node_ptr<ast::node::func_type>(as_vector(_1), _2)
             ] | (
-                lit("proc") >> '(' >> -qi::eol >> -(qualified_type % comma) >> trailing_comma >> ')'
+                DACHS_KWD("proc") >> -('(' >> -(-qi::eol >> qualified_type % comma >> trailing_comma) >> ')')
             ) [
                 _val = make_node_ptr<ast::node::func_type>(as_vector(_1))
             ];
@@ -648,7 +657,8 @@ public:
 
         variable_decl
             = (
-                -(qi::string("var")) >> variable_name >> -(
+                qi::as<bool>()[-DACHS_KWD(qi::string("var"))]
+                >> variable_name >> -(
                     // Note: In this paren, > can't be used because of :=
                     -qi::eol >> ':' >> -qi::eol >> qualified_type
                 )
@@ -667,43 +677,43 @@ public:
 
         if_then_stmt_block
             = (
-                -((compound_stmt - "end" - "elseif" - "else" - "then") % sep)
+                -((compound_stmt - DACHS_KWD(lit("end") | "elseif" | "else" | "then")) % sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
 
         if_else_stmt_block
             = (
-                -((compound_stmt - "end") % sep)
+                -((compound_stmt - DACHS_KWD("end")) % sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
 
         if_stmt
             = (
-                if_kind >> (typed_expr - "then") >> ("then" || sep)
+                DACHS_KWD(if_kind) >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                 >> if_then_stmt_block >> -sep
                 >> *(
                     qi::as<ast::node_type::if_stmt::elseif_type>()[
-                        "elseif" >> (typed_expr - "then") >> ("then" || sep)
+                        DACHS_KWD("elseif") >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                         >> if_then_stmt_block >> -sep
                     ]
-                ) >> -("else" >> -sep >> if_else_stmt_block >> -sep)
-                >> "end"
+                ) >> -(DACHS_KWD("else") >> -sep >> if_else_stmt_block >> -sep)
+                >> DACHS_KWD("end")
             ) [
                 _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4, _5)
             ];
 
         return_stmt
             = (
-                "return" >> -(typed_expr % comma)
+                DACHS_KWD("return") >> -(typed_expr % comma)
             ) [
                 _val = make_node_ptr<ast::node::return_stmt>(as_vector(_1))
             ];
 
         case_when_stmt_block
             = (
-                *((compound_stmt - "end" - "else") >> sep)
+                *((compound_stmt - DACHS_KWD(lit("end") | "else")) >> sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
@@ -713,27 +723,27 @@ public:
                 "case" >> sep
                 >> +(
                     qi::as<ast::node_type::case_stmt::when_type>()[
-                        "when" >> (typed_expr - "then") >> ("then" || sep)
+                        DACHS_KWD("when") >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                         >> case_when_stmt_block
                     ]
                 ) >> -(
-                    "else" >> -sep >> stmt_block_before_end >> -sep
-                ) >> "end"
+                    DACHS_KWD("else") >> -sep >> stmt_block_before_end >> -sep
+                ) >> DACHS_KWD("end")
             ) [
                 _val = make_node_ptr<ast::node::case_stmt>(_1, _2)
             ];
 
         switch_stmt
             = (
-                "case" >> (typed_expr - "when") >> sep
+                DACHS_KWD("case") >> typed_expr >> sep
                 >> +(
                     qi::as<ast::node_type::switch_stmt::when_type>()[
-                        "when" >> (typed_expr - "then") % comma >> ("then" || sep)
+                        DACHS_KWD("when") >> (typed_expr - DACHS_KWD("then")) % comma >> (DACHS_KWD("then") || sep)
                         >> case_when_stmt_block
                     ]
                 ) >> -(
-                    "else" >> -sep >> stmt_block_before_end >> -sep
-                ) >> "end"
+                    DACHS_KWD("else") >> -sep >> stmt_block_before_end >> -sep
+                ) >> DACHS_KWD("end")
             ) [
                 _val = make_node_ptr<ast::node::switch_stmt>(_1, _2, _3)
             ];
@@ -741,9 +751,9 @@ public:
         for_stmt
             = (
                 // Note: "do" might colide with do-end block in typed_expr
-                "for" >> (parameter - "in") % comma >> "in" >> typed_expr >> ("do" || sep)
+                DACHS_KWD("for") >> (parameter - DACHS_KWD("in")) % comma >> DACHS_KWD("in") >> typed_expr >> (DACHS_KWD("do") || sep)
                 >> stmt_block_before_end >> -sep
-                >> "end"
+                >> DACHS_KWD("end")
             ) [
                 _val = make_node_ptr<ast::node::for_stmt>(_1, _2, _3)
             ];
@@ -751,16 +761,16 @@ public:
         while_stmt
             = (
                 // Note: "do" might colide with do-end block in typed_expr
-                "for" >> typed_expr >> ("do" || sep)
+                DACHS_KWD("for") >> typed_expr >> (DACHS_KWD("do") || sep)
                 >> stmt_block_before_end >> -sep
-                >> "end"
+                >> DACHS_KWD("end")
             ) [
                 _val = make_node_ptr<ast::node::while_stmt>(_1, _2)
             ];
 
         postfix_if_return_stmt
             = (
-                "return" >> -((typed_expr - if_kind) % comma)
+                DACHS_KWD("return") >> -((typed_expr - DACHS_KWD(if_kind)) % comma)
             ) [
                 _val = make_node_ptr<ast::node::return_stmt>(as_vector(_1))
             ];
@@ -770,9 +780,9 @@ public:
                 (
                     postfix_if_return_stmt
                   | assignment_stmt
-                  | (typed_expr - if_kind)
+                  | (typed_expr - DACHS_KWD(if_kind))
                 )
-                >> if_kind >> typed_expr
+                >> DACHS_KWD(if_kind) >> typed_expr
             ) [
                 _val = make_node_ptr<ast::node::postfix_if_stmt>(_1, _2, _3)
             ];
@@ -805,19 +815,19 @@ public:
 
         func_body_stmt_block
             = (
-                -((compound_stmt - "ensure" - "end") % sep)
+                -((compound_stmt - DACHS_KWD(lit("ensure") | "end")) % sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
 
         function_definition
             = (
-                func_kind > func_def_name > function_param_decls > -((-qi::eol >> ':' >> -qi::eol) > qualified_type) > sep
+                DACHS_KWD(func_kind) > func_def_name > function_param_decls > -((-qi::eol >> ':' >> -qi::eol) > qualified_type) > sep
                 > func_precondition
                 > func_body_stmt_block > -sep
                 > -(
                     "ensure" > sep > stmt_block_before_end > -sep
-                ) > "end"
+                ) > DACHS_KWD("end")
             )[
                 _val = make_node_ptr<ast::node::function_definition>(_1, _2, _3, _4, _5, _6)
             ];
@@ -840,6 +850,8 @@ public:
             = (
                 function_definition | constant_definition
             );
+
+    #undef DACHS_KWD
 
         // Set callback to get the position of node and show obvious compile error {{{
         detail::set_position_getter_on_success(
@@ -921,7 +933,7 @@ public:
                                         spirit::get_line_start(begin, err_itr),
                                         std::find_if(err_itr, end, [](auto c){ return c == '\r' || c == '\n'; })
                                      } + '\n'
-                                     + std::string(spirit::get_column(begin, err_itr)-1, ' ') + "↑ ここやで";
+                                     + std::string(spirit::get_column(begin, err_itr)-1, ' ') + "^ here";
                           }, _1, _2, _3)
                       << '\n' << std::endl
         );

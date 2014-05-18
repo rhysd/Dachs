@@ -26,6 +26,48 @@ struct test_visitor {
     }
 };
 
+struct test_var_searcher {
+    bool found = false;
+
+    template<class W>
+    void visit(dachs::ast::node::parameter const& p, W const&)
+    {
+        if (p->is_var) {
+            found = true;
+        }
+    }
+
+    template<class W>
+    void visit(dachs::ast::node::variable_decl const& v, W const&)
+    {
+        if (v->is_var) {
+            found = true;
+        }
+    }
+
+    template<class T, class W>
+    void visit(T const&, W const& w)
+    {
+        w();
+    }
+};
+
+struct test_as_searcher {
+    bool found = false;
+
+    template<class W>
+    void visit(dachs::ast::node::cast_expr const&, W const&)
+    {
+        found = true;
+    }
+
+    template<class T, class W>
+    void visit(T const&, W const& w)
+    {
+        w();
+    }
+};
+
 inline void validate(dachs::ast::ast const& a)
 {
     auto root = a.root;
@@ -227,9 +269,26 @@ BOOST_AUTO_TEST_CASE(function)
         func ...(l, r)
         end
 
+        # Keyword corner cases
+        funchoge := 42
+
+        func endhoge
+            endhuga
+        end
+
         func main
         end
         )")));
+
+    {
+        auto a = p.parse(R"(
+                func main(varhoge)
+                end
+            )");
+        test_var_searcher s;
+        dachs::ast::walk_topdown(a.root, s);
+        BOOST_CHECK(!s.found);
+    }
 
     CHECK_PARSE_THROW(R"(
         func main
@@ -239,6 +298,11 @@ BOOST_AUTO_TEST_CASE(function)
     CHECK_PARSE_THROW(R"(
         func (a, b)
         en
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        funcmain
+        end
         )");
 }
 
@@ -312,6 +376,13 @@ BOOST_AUTO_TEST_CASE(procedure)
         proc hoge(var a : int, b : int)
         end
 
+        # Keyword corner cases
+        prochoge := 42
+
+        proc endhoge
+            endhuga
+        end
+
         proc main
         end
         )")));
@@ -319,6 +390,8 @@ BOOST_AUTO_TEST_CASE(procedure)
     CHECK_PARSE_THROW("proc hoge(); en");
 
     CHECK_PARSE_THROW("proc (a, b); end");
+
+    CHECK_PARSE_THROW("procmain; end");
 }
 
 BOOST_AUTO_TEST_CASE(literals)
@@ -562,6 +635,8 @@ BOOST_AUTO_TEST_CASE(type)
 
             expr : func() : int
             expr : proc()
+            expr : func : int
+            expr : proc
             expr : func(int, aaa) : int
             expr : func(
                     int,
@@ -634,15 +709,19 @@ BOOST_AUTO_TEST_CASE(type)
             expr : [T(int)?]
             expr : (T(int)?, U(int)?)
             expr : {T(int)? => U(int)?}?
+
+            # Keyword corner cases
+            expr : prochuga
         end
         )")));
 
     CHECK_PARSE_THROW("func main; expr : proc() : int end # one element tuple is not allowed");
     CHECK_PARSE_THROW("func main; expr : proc() : int end # must not have return type");
     CHECK_PARSE_THROW("func main; expr : func() end # must have return type");
-    CHECK_PARSE_THROW("func main; expr : T() end # must have return type");
-    CHECK_PARSE_THROW("func main; expr : [T](int) end # must have return type");
-    CHECK_PARSE_THROW("func main; expr : (T)(int) end # must have return type");
+    CHECK_PARSE_THROW("func main; expr : T() end");
+    CHECK_PARSE_THROW("func main; expr : [T](int) end");
+    CHECK_PARSE_THROW("func main; expr : (T)(int) end");
+    CHECK_PARSE_THROW("func main; expr : funchoge : int end");
 }
 
 BOOST_AUTO_TEST_CASE(primary_expr)
@@ -697,6 +776,18 @@ BOOST_AUTO_TEST_CASE(cast_expression)
                 T((int, int)?)
         end
         )")));
+
+    {
+        auto a = p.parse(R"(
+                func main
+                    expr
+                        ashoge
+                end
+            )");
+        test_as_searcher s;
+        dachs::ast::walk_topdown(a.root, s);
+        BOOST_CHECK(!s.found);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(binary_expression)
@@ -866,6 +957,24 @@ BOOST_AUTO_TEST_CASE(if_expr)
             (if true then 42
              else 24)
             (if if then if else if) # 'if' is a contextual keyword
+
+            # Corner cases
+            (if thenhoge then elsehoge else 42)
+            (ifhoge)
+
+            (unless true then 42 else 24)
+            hoge(unless true then 3.14 else 4.12)
+            (unless true then
+                42
+            else
+                24)
+            (unless true then 42
+             else 24)
+            (unless unless then unless else unless) # 'unless' is a contextual keyword
+
+            # Corner cases
+            (unlesshoge)
+            (unless thenhoge then elsehoge else 42)
         end
         )")));
 
@@ -928,8 +1037,21 @@ BOOST_AUTO_TEST_CASE(variable_decl)
             var a : int := 42
             var a :
                 int := 42
+
+            var_aaa # Corner case
         end
         )")));
+
+    {
+        auto a = p.parse(R"(
+                func main
+                    varhoge := 42
+                end
+            )");
+        test_var_searcher s;
+        dachs::ast::walk_topdown(a.root, s);
+        BOOST_CHECK(!s.found);
+    }
 
     CHECK_PARSE_THROW("func main var a := b, end");
 }
@@ -947,6 +1069,9 @@ BOOST_AUTO_TEST_CASE(return_statement)
             return 42
                  , 'a'
                  , "bbb"
+
+            # Keyword corner case
+            returnhoge := 42
         end
         )")));
 }
@@ -1046,6 +1171,82 @@ BOOST_AUTO_TEST_CASE(if_statement)
             if aaaa then bbb end
 
             if aaaa then bbb else ddd end
+
+            # Keyword coner cases
+            ifhoge := 42
+            if thenhoge then
+                elseifhoge
+            elseif thenhoge then
+                elsehoge
+            else
+                endhoge
+            end
+
+            unless aaaa
+                expr
+            end
+
+            unless aaaa then
+                expr
+            end
+
+            unless aaaa
+                expr1
+            else
+                expr2
+            end
+
+            unless aaaa then
+                expr1
+            else
+                expr2
+            end
+
+            unless aaaa then 42 else 52 end
+
+            unless aaa
+                expr
+            elseif bbb
+                expr
+            elseif ccc
+                expr
+            end
+
+            unless aaa
+                expr
+            elseif bbb
+                expr
+            elseif ccc
+                expr
+            else
+                expr
+            end
+
+            unless aaa then
+                expr
+            elseif bbb then
+                expr
+            elseif ccc then
+                expr
+            else
+                expr
+            end
+
+            unless aaa then bbb elseif bbb then expr elseif ccc then expr else ddd end
+
+            unless aaaa then bbb end
+
+            unless aaaa then bbb else ddd end
+
+            # Keyword coner cases
+            unlesshoge := 42
+            unless thenhoge then
+                elseifhoge
+            elseif thenhoge then
+                elsehoge
+            else
+                endhoge
+            end
         end
         )")));
 
@@ -1078,6 +1279,16 @@ BOOST_AUTO_TEST_CASE(switch_statement)
             case aaa
             when true, false
                 hoge
+            end
+
+            # Keyword corner cases
+            casehoge := 42
+
+            case whenhoge
+            when thenhoge then
+                elsehoge
+            else
+                endhoge
             end
         end
         )")));
@@ -1131,6 +1342,16 @@ BOOST_AUTO_TEST_CASE(case_statement)
             when a == 1 then expr
             else             expr
             end
+
+            # Keyword corner cases
+            casehoge := 42
+
+            case
+            when thenhoge then
+                elsehoge
+            else
+                endhoge
+            end
         end
         )")));
 
@@ -1164,6 +1385,9 @@ BOOST_AUTO_TEST_CASE(for_statement)
     BOOST_CHECK_NO_THROW(validate(p.parse(R"(
         func main
             for a in arr
+            end
+
+            for a in arr
                 moudameda
             end
 
@@ -1182,8 +1406,24 @@ BOOST_AUTO_TEST_CASE(for_statement)
             for var a : int, var b : char in arr
                 madadameda
             end
+
+            # Keyword corner cases
+            forhoge := 42
+            for inhoge in dohoge do
+                endhoge
+            end
         end
         )")));
+
+    auto a = p.parse(R"(
+            func main
+                for varhoge in arr
+                end
+            end
+        )");
+    test_var_searcher s;
+    dachs::ast::walk_topdown(a.root, s);
+    BOOST_CHECK(!s.found);
 }
 
 BOOST_AUTO_TEST_CASE(while_statement)
@@ -1194,6 +1434,9 @@ BOOST_AUTO_TEST_CASE(while_statement)
                 moudameda
             end
 
+            for true
+            end
+
             for true do
                 moudameda
             end
@@ -1201,9 +1444,17 @@ BOOST_AUTO_TEST_CASE(while_statement)
             for true : bool
                 madadameda
             end
+
+            # Keyword corner cases
+            forhoge := 42
+            for dohoge do
+                endhoge
+            end
         end
         )")));
 }
+
+// TODO: Tests for postfix if statement
 
 BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)
 {
