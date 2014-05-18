@@ -17,6 +17,7 @@ using namespace dachs::test::parser;
 // NOTE: use global variable to avoid executing heavy construction of parser
 static dachs::syntax::parser p;
 
+// TODO: More checks
 struct test_visitor {
     template<class T, class W>
     void visit(T &, W const& w)
@@ -984,6 +985,224 @@ BOOST_AUTO_TEST_CASE(constant_decl)
         )")));
 
     CHECK_PARSE_THROW("a := b,");
+}
+
+BOOST_AUTO_TEST_CASE(if_statement)
+{
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
+        func main
+            if aaaa
+                expr
+            end
+
+            if aaaa then
+                expr
+            end
+
+            if aaaa
+                expr1
+            else
+                expr2
+            end
+
+            if aaaa then
+                expr1
+            else
+                expr2
+            end
+
+            if aaaa then 42 else 52 end
+
+            if aaa
+                expr
+            elseif bbb
+                expr
+            elseif ccc
+                expr
+            end
+
+            if aaa
+                expr
+            elseif bbb
+                expr
+            elseif ccc
+                expr
+            else
+                expr
+            end
+
+            if aaa then
+                expr
+            elseif bbb then
+                expr
+            elseif ccc then
+                expr
+            else
+                expr
+            end
+
+            if aaa then bbb elseif bbb then expr elseif ccc then expr else ddd end
+
+            if aaaa then bbb end
+
+            if aaaa then bbb else ddd end
+        end
+        )")));
+
+    CHECK_PARSE_THROW("func main if aaa then bbb else ccc end");
+}
+
+
+BOOST_AUTO_TEST_CASE(switch_statement)
+{
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
+        func main
+            case aaa
+            when true
+                hoge
+            end
+
+            case aaa
+            when true then  poyo
+            when false then hoge
+            else            huga
+            end
+
+            case shinchoku
+            when arimasu
+                doudesuka
+            else
+                jigokukakokoha
+            end
+
+            case aaa
+            when true, false
+                hoge
+            end
+        end
+        )")));
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            case aaa
+            else
+                bbb
+            end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            case aaa
+            end
+        end
+        )");
+}
+
+BOOST_AUTO_TEST_CASE(case_statement)
+{
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
+        func main
+            case
+            when true
+                hoge
+            end
+
+            case
+            when a == 1
+                expr
+            else
+                expr
+            end
+
+            case
+            when true then
+                hoge
+            end
+
+            case
+            when a == 1 then
+                expr
+            else
+                expr
+            end
+
+            case
+            when a == 1 then expr
+            else             expr
+            end
+        end
+        )")));
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            case
+            end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            case
+            else
+                bbb
+            end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            case
+            when aaa == 1, b == 2
+            end
+        end
+        )");
+}
+
+BOOST_AUTO_TEST_CASE(for_statement)
+{
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
+        func main
+            for a in arr
+                moudameda
+            end
+
+            for a in arr do
+                moudameda
+            end
+
+            for a, b in arr
+                madaikeru
+            end
+
+            for var a, var b in arr
+                madaikeru
+            end
+
+            for var a : int, var b : char in arr
+                madadameda
+            end
+        end
+        )")));
+}
+
+BOOST_AUTO_TEST_CASE(while_statement)
+{
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
+        func main
+            for true
+                moudameda
+            end
+
+            for true do
+                moudameda
+            end
+
+            for true : bool
+                madadameda
+            end
+        end
+        )")));
 }
 
 BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)
