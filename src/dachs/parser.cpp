@@ -170,7 +170,6 @@ public:
         stmt_block_before_end
             = (
                 -((compound_stmt - DACHS_KWD("end")) % sep)
-                // -((compound_stmt - lexeme["end" >> !(alnum | '_')]) % sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
@@ -295,15 +294,6 @@ public:
                 _val = make_node_ptr<ast::node::primary_literal>(_1)
             ];
 
-        literal
-            =
-                  primary_literal
-                | array_literal
-                | symbol_literal
-                | dict_literal
-                | tuple_literal
-            ;
-
         called_function_name
             =
                 qi::lexeme[
@@ -369,7 +359,11 @@ public:
         primary_expr
             = (
                   object_construct
-                | literal
+                | primary_literal
+                | array_literal
+                | symbol_literal
+                | dict_literal
+                | tuple_literal
                 | var_ref
                 | '(' >> -qi::eol >> typed_expr >> -qi::eol >> ')'
             );
@@ -699,7 +693,7 @@ public:
                         >> if_then_stmt_block >> -sep
                     ]
                 ) >> -(DACHS_KWD("else") >> -sep >> if_else_stmt_block >> -sep)
-                >> DACHS_KWD("end")
+                >> "end"
             ) [
                 _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4, _5)
             ];
@@ -728,7 +722,7 @@ public:
                     ]
                 ) >> -(
                     DACHS_KWD("else") >> -sep >> stmt_block_before_end >> -sep
-                ) >> DACHS_KWD("end")
+                ) >> "end"
             ) [
                 _val = make_node_ptr<ast::node::case_stmt>(_1, _2)
             ];
@@ -743,7 +737,7 @@ public:
                     ]
                 ) >> -(
                     DACHS_KWD("else") >> -sep >> stmt_block_before_end >> -sep
-                ) >> DACHS_KWD("end")
+                ) >> "end"
             ) [
                 _val = make_node_ptr<ast::node::switch_stmt>(_1, _2, _3)
             ];
@@ -753,7 +747,7 @@ public:
                 // Note: "do" might colide with do-end block in typed_expr
                 DACHS_KWD("for") >> (parameter - DACHS_KWD("in")) % comma >> DACHS_KWD("in") >> typed_expr >> (DACHS_KWD("do") || sep)
                 >> stmt_block_before_end >> -sep
-                >> DACHS_KWD("end")
+                >> "end"
             ) [
                 _val = make_node_ptr<ast::node::for_stmt>(_1, _2, _3)
             ];
@@ -763,7 +757,7 @@ public:
                 // Note: "do" might colide with do-end block in typed_expr
                 DACHS_KWD("for") >> typed_expr >> (DACHS_KWD("do") || sep)
                 >> stmt_block_before_end >> -sep
-                >> DACHS_KWD("end")
+                >> "end"
             ) [
                 _val = make_node_ptr<ast::node::while_stmt>(_1, _2)
             ];
@@ -827,7 +821,7 @@ public:
                 > func_body_stmt_block > -sep
                 > -(
                     "ensure" > sep > stmt_block_before_end > -sep
-                ) > DACHS_KWD("end")
+                ) > "end"
             )[
                 _val = make_node_ptr<ast::node::function_definition>(_1, _2, _3, _4, _5, _6)
             ];
@@ -941,7 +935,6 @@ public:
 
         // Rule names {{{
         program.name("program");
-        literal.name("literal");
         primary_literal.name("primary literal");
         integer_literal.name("integer literal");
         uinteger_literal.name("unsigned integer literal");
@@ -1053,8 +1046,7 @@ private:
     rule<std::string()> string_literal;
 
     rule<ast::node::any_expr()>
-          literal
-        , primary_literal
+          primary_literal
         , array_literal
         , dict_literal
         , var_ref
