@@ -1,9 +1,12 @@
 #include <cassert>
 #include <cstddef>
+#include <iterator>
 
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
 #include <boost/range/algorithm/find_if.hpp>
+#include <boost/range/algorithm/transform.hpp>
+#include <boost/range/numeric.hpp>
 
 #include "dachs/scope.hpp"
 #include "dachs/ast.hpp"
@@ -13,6 +16,110 @@
 #include "dachs/helper/variant.hpp"
 
 namespace dachs {
+
+namespace scope_node {
+
+namespace detail {
+
+template<class FuncScope, class Args, class RetType>
+inline
+std::size_t get_overloaded_function_score(FuncScope const& func, Args const& args, RetType const& ret)
+{
+    if (args.size() != func->params.size()) {
+        return 0u;
+    }
+
+    std::size_t score = 1u;
+    auto const maybe_func_def = ast::node::get_shared_as<ast::node::function_definition>(func->ast_node);
+    assert(maybe_func_def);
+    auto const& func_def = *maybe_func_def;
+
+    // Score of return type. (Room to consider remains)
+    if (ret && func_def->ret_type) {
+        if (*ret == *(func_def->ret_type)) {
+            score *= 2u;
+        } else {
+            score *= 0u;
+        }
+    }
+
+    // Return type doesn't match.  No need to calculate the score of arguments' coincidence.
+    if (score == 0u) {
+        return 0u;
+    }
+
+    if (args.size() == 0) {
+        return score;
+    }
+
+    // Calculate the score of arguments' coincidence
+        std::vector<std::size_t> v;
+        v.reserve(args.size());
+
+        boost::transform(args, func_def->params, std::back_inserter(v),
+                [](auto const& arg, auto const& param)
+                {
+                    assert(arg.type);
+
+                    if (param->template_type_ref) {
+                        // Function parameter is template.  It matches any types.
+                        return 1u;
+                    }
+
+                    assert(param->type);
+
+                    if (apply_lambda(
+                            [](auto const& t1, auto const& t2)
+                            {
+                                return *t1 == *t2;
+                            },
+                            *param->type, arg)
+                       ) {
+                        return 2u;
+                    } else {
+                        return 0u;
+                    }
+                });
+
+    // Note:
+    // If the function have no argument and return type is not specified, score is 1.
+    return boost::accumulate(v, score, [](auto l, auto r){ return l*r; });
+}
+
+} // namespace detail
+
+boost::optional<scope::func_scope>
+global_scope::resolve_func( std::string const& name
+            , std::vector<type::type> const& args
+            , boost::optional<type::type> const& ret_type) const
+{
+    boost::optional<scope::func_scope> result = boost::none;
+
+    std::size_t score = 0u;
+    for (auto const& f : functions) {
+        if (f->name != name) {
+            continue;
+        }
+
+        auto const score_tmp = detail::get_overloaded_function_score(f, args, ret_type);
+        if (score_tmp > score) {
+            score = score_tmp;
+            result = f;
+        }
+    }
+
+    return result;
+}
+
+ast::node::function_definition func_scope::get_ast_node() const noexcept
+{
+    auto maybe_func_def = ast::node::get_shared_as<ast::node::function_definition>(ast_node);
+    assert(maybe_func_def);
+    return *maybe_func_def;
+}
+
+} // namespace scope_node
+
 namespace scope {
 
 namespace detail {
@@ -139,6 +246,13 @@ class forward_symbol_analyzer {
         current_scope = tmp_scope;
     }
 
+    template<class Node, class Message>
+    void semantic_error(Node const& n, Message const& msg) noexcept
+    {
+        output_semantic_error(n, msg);
+        failed++;
+    }
+
 public:
 
     size_t failed;
@@ -176,14 +290,25 @@ public:
         new_func->type = type::make<type::func_ref_type>(scope::weak_func_scope{new_func});
         func_def->scope = new_func;
 
-        auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);
-        if (!global_scope->define_function(new_func)) {
-            failed++;
-        } else {
-            // If the symbol passes duplication check, it also defines as variable
-            global_scope->define_global_constant(new_func_var);
+        if (func_def->kind == ast::symbol::func_kind::proc && func_def->return_type) {
+            semantic_error(func_def, "TODO");
+            return;
         }
-        with_new_scope(std::move(new_func), recursive_walker);
+
+        if (func_def->return_type) {
+            func_def->ret_type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, *(func_def->return_type));
+        }
+
+
+        auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);
+        new_func_var->type = new_func->type;
+        if (global_scope->define_function(new_func)) {
+            // If the symbol passes duplication check, it is also defined as variable
+            global_scope->define_global_constant(new_func_var);
+            with_new_scope(std::move(new_func), recursive_walker);
+        } else {
+            failed++;
+        }
     }
 
     // TODO: class scopes and member function scopes
@@ -222,7 +347,6 @@ class symbol_analyzer {
         walker();
         current_scope = tmp_scope;
     }
-
 
     template<class Node, class Message>
     void semantic_error(Node const& n, Message const& msg) noexcept
@@ -337,9 +461,10 @@ public:
     template<class Walker>
     void visit(ast::node::var_ref const& var, Walker const& recursive_walker)
     {
-        auto maybe_resolved_symbol = boost::apply_visitor(scope::var_symbol_resolver{var->name}, current_scope);
-        if (maybe_resolved_symbol) {
-            var->symbol = *maybe_resolved_symbol;
+        auto maybe_var_symbol = boost::apply_visitor(scope::var_symbol_resolver{var->name}, current_scope);
+        if (maybe_var_symbol) {
+            var->symbol = *maybe_var_symbol;
+            var->type = (*maybe_var_symbol)->type;
         } else {
             semantic_error(var, boost::format("Symbol '%1%' is not found") % var->name);
         }
@@ -441,7 +566,7 @@ public:
     }
 
     // TODO:
-    // Calcurate type from type nodes here because it requires forward information
+    // Calcurate type from type nodes here because it requires forward analyzed information
 
     template<class Walker>
     void visit(ast::node::binary_expr const& bin_expr, Walker const& recursive_walker)
@@ -452,6 +577,41 @@ public:
         } else {
             // TODO:
             // Find operator function and get the result type of it
+        }
+    }
+
+    template<class Walker>
+    void visit(ast::node::func_invocation const& invocation, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        auto maybe_var_ref = get_as<ast::node::var_ref>(invocation->child);
+        if (!maybe_var_ref) {
+            throw not_implemented_error{__FILE__, __func__, __LINE__, "function variable invocation"};
+        }
+
+        std::string const& name = (*maybe_var_ref)->name;
+
+        if (!has<type::func_ref_type>((*maybe_var_ref)->type)) {
+            semantic_error(invocation, boost::format("'%1%' is not function\nNote: Type of %1% is %2%") % name % apply_lambda([](auto const& t){ return t->to_string(); }, (*maybe_var_ref)->type));
+            return;
+        }
+
+        std::vector<type::type> arg_types;
+        arg_types.reserve(invocation->args.size());
+        // Get type list of arguments
+        boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return detail::type_of(e);});
+        // TODO: Is there any information about return type?
+        if (auto maybe_func = apply_lambda([&](auto const& s){ return s->resolve_func(name, arg_types, boost::none/*TODO: Temporary*/); }, current_scope)) {
+            auto &func = *maybe_func;
+            if (auto maybe_ret_type = func->get_ast_node()->ret_type) {
+                // TODO: Get return type from instantiated function
+                invocation->type = *maybe_ret_type;
+            } else {
+                semantic_error(invocation, boost::format("cannot deduce the return type of function '%1%'") % func->name);
+            }
+        } else {
+            semantic_error(invocation, boost::format("function '%1%' is not found") % name);
         }
     }
 
@@ -484,8 +644,6 @@ public:
 
         recursive_walker();
     }
-
-    
 
     // }}}
 

@@ -115,6 +115,7 @@ struct named_type : public basic_type {
         return name == rhs.name;
     }
 
+    // TODO: Restrict T in type nodes
     template<class T>
     bool operator==(T const&) const noexcept
     {
@@ -465,24 +466,6 @@ struct qualified_type final : public basic_type {
 } // namespace type_node
 
 namespace type {
-
-namespace detail {
-
-struct type_equal : public boost::static_visitor<bool> {
-    template<class T>
-    bool operator()(std::shared_ptr<T> const& l, std::shared_ptr<T> const& r) const noexcept
-    {
-        return *l == *r;
-    }
-
-    template<class T, class U>
-    bool operator()(std::shared_ptr<T> const&, std::shared_ptr<U> const&) const noexcept
-    {
-        return false;
-    }
-};
-
-} // namespace detail
 
 } // namespace type
 

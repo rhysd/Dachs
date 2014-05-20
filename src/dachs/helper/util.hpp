@@ -5,6 +5,7 @@
 #include <fstream>
 #include <memory>
 #include <type_traits>
+#include <cstddef>
 #include <boost/optional.hpp>
 #include <boost/range/algorithm/find.hpp>
 #include <boost/range/algorithm/find_if.hpp>
