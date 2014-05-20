@@ -115,7 +115,14 @@ struct named_type : public basic_type {
         return name == rhs.name;
     }
 
-    bool operator!=(named_type const& rhs) const noexcept
+    template<class T>
+    bool operator==(T const&) const noexcept
+    {
+        return false;
+    }
+
+    template<class T>
+    bool operator!=(T const& rhs) const noexcept
     {
         return !(*this == rhs);
     }
@@ -155,10 +162,17 @@ struct class_type final : public named_type {
 
     bool operator==(class_type const& rhs) const noexcept
     {
-        return name == rhs.name && boost::equal(holder_types, rhs.holder_types, type::compare_types);
+        return name == rhs.name && boost::equal(holder_types, rhs.holder_types);
     }
 
-    bool operator!=(class_type const& rhs) const noexcept
+    template<class T>
+    bool operator==(T const&) const noexcept
+    {
+        return false;
+    }
+
+    template<class T>
+    bool operator!=(T const& rhs) const noexcept
     {
         return !(*this == rhs);
     }
@@ -184,10 +198,17 @@ struct tuple_type final : public basic_type {
 
     bool operator==(tuple_type const& rhs) const noexcept
     {
-        return boost::equal(element_types, rhs.element_types, type::compare_types);
+        return boost::equal(element_types, rhs.element_types);
     }
 
-    bool operator!=(tuple_type const& rhs) const noexcept
+    template<class T>
+    bool operator==(T const&) const noexcept
+    {
+        return false;
+    }
+
+    template<class T>
+    bool operator!=(T const& rhs) const noexcept
     {
         return !(*this == rhs);
     }
@@ -215,11 +236,18 @@ struct func_type final : public basic_type {
 
     bool operator==(func_type const& rhs) const noexcept
     {
-        return boost::equal(param_types, rhs.param_types, type::compare_types)
-            && type::compare_types(return_type, rhs.return_type);
+        return boost::equal(param_types, rhs.param_types)
+            && return_type == rhs.return_type;
     }
 
-    bool operator!=(func_type const& rhs) const noexcept
+    template<class T>
+    bool operator==(T const&) const noexcept
+    {
+        return false;
+    }
+
+    template<class T>
+    bool operator!=(T const& rhs) const noexcept
     {
         return !(*this == rhs);
     }
@@ -245,10 +273,17 @@ struct proc_type final : public basic_type {
 
     bool operator==(proc_type const& rhs) const noexcept
     {
-        return boost::equal(param_types, rhs.param_types, type::compare_types);
+        return boost::equal(param_types, rhs.param_types);
     }
 
-    bool operator!=(proc_type const& rhs) const noexcept
+    template<class T>
+    bool operator==(T const&) const noexcept
+    {
+        return false;
+    }
+
+    template<class T>
+    bool operator!=(T const& rhs) const noexcept
     {
         return !(*this == rhs);
     }
@@ -266,7 +301,14 @@ struct func_ref_type : public basic_type {
 
     bool operator==(func_ref_type const&) const noexcept;
 
-    bool operator!=(func_ref_type const& rhs) const noexcept
+    template<class T>
+    bool operator==(T const&) const noexcept
+    {
+        return false;
+    }
+
+    template<class T>
+    bool operator!=(T const& rhs) const noexcept
     {
         return !(*this == rhs);
     }
@@ -294,11 +336,18 @@ struct dict_type final : public basic_type {
 
     bool operator==(dict_type const& rhs) const noexcept
     {
-        return type::compare_types(key_type, rhs.key_type)
-            && type::compare_types(value_type, rhs.value_type);
+        return key_type == rhs.key_type
+            && value_type == rhs.value_type;
     }
 
-    bool operator!=(dict_type const& rhs) const noexcept
+    template<class T>
+    bool operator==(T const&) const noexcept
+    {
+        return false;
+    }
+
+    template<class T>
+    bool operator!=(T const& rhs) const noexcept
     {
         return !(*this == rhs);
     }
@@ -323,11 +372,18 @@ struct range_type final : public basic_type {
 
     bool operator==(range_type const& rhs) const noexcept
     {
-        return type::compare_types(from_type, rhs.from_type)
-            && type::compare_types(to_type, rhs.to_type);
+        return from_type == rhs.from_type
+            && to_type == rhs.to_type;
     }
 
-    bool operator!=(range_type const& rhs) const noexcept
+    template<class T>
+    bool operator==(T const&) const noexcept
+    {
+        return false;
+    }
+
+    template<class T>
+    bool operator!=(T const& rhs) const noexcept
     {
         return !(*this == rhs);
     }
@@ -352,10 +408,17 @@ struct array_type final : public basic_type {
 
     bool operator==(array_type const& rhs) const noexcept
     {
-        return type::compare_types(element_type, rhs.element_type);
+        return element_type == rhs.element_type;
     }
 
-    bool operator!=(array_type const& rhs) const noexcept
+    template<class T>
+    bool operator==(T const&) const noexcept
+    {
+        return false;
+    }
+
+    template<class T>
+    bool operator!=(T const& rhs) const noexcept
     {
         return !(*this == rhs);
     }
@@ -383,10 +446,17 @@ struct qualified_type final : public basic_type {
 
     bool operator==(qualified_type const& rhs) const noexcept
     {
-        return type::compare_types(contained_type, rhs.contained_type);
+        return contained_type == rhs.contained_type;
     }
 
-    bool operator!=(qualified_type const& rhs) const noexcept
+    template<class T>
+    bool operator==(T const&) const noexcept
+    {
+        return false;
+    }
+
+    template<class T>
+    bool operator!=(T const& rhs) const noexcept
     {
         return !(*this == rhs);
     }
@@ -413,11 +483,6 @@ struct type_equal : public boost::static_visitor<bool> {
 };
 
 } // namespace detail
-
-inline bool compare_types(any_type const& lhs, any_type const& rhs) noexcept
-{
-    return boost::apply_visitor(detail::type_equal{}, lhs, rhs);
-}
 
 } // namespace type
 
