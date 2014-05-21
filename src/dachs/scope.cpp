@@ -592,7 +592,15 @@ public:
         std::string const& name = (*maybe_var_ref)->name;
 
         if (!has<type::func_ref_type>((*maybe_var_ref)->type)) {
-            semantic_error(invocation, boost::format("'%1%' is not function\nNote: Type of %1% is %2%") % name % apply_lambda([](auto const& t){ return t->to_string(); }, (*maybe_var_ref)->type));
+            semantic_error(invocation
+                         , boost::format("'%1%' is not a function or function reference\nNote: Type of %1% is %2%")
+                            % name
+                            % apply_lambda(
+                                [](auto const& t)
+                                {
+                                    return t ? t->to_string() : "unknown";
+                                }
+                         , (*maybe_var_ref)->type));
             return;
         }
 
