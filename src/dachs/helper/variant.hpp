@@ -15,11 +15,26 @@ namespace dachs {
 namespace helper {
 namespace variant {
 
-// TODO:
-// Check if Args includes T.  If it doesn't, generate compilation error.
+namespace detail {
+
+template<class T, class Head, class... Tail>
+struct is_included : is_included<T, Tail...>::type
+{};
+
+template<class T, class... Tail>
+struct is_included<T, T, Tail...> : std::true_type
+{};
+
+template<class T, class U>
+struct is_included<T, U> : std::is_same<T, U>
+{};
+
+} // namespace detail
+
 template<class T, class... Args>
 inline boost::optional<T const&> get_as(boost::variant<Args...> const& v) noexcept
 {
+    static_assert(detail::is_included<T, Args...>::value, "get_as(const&): T is not included in Args.");
     T const* const ptr = boost::get<T>(&v);
     if (ptr) {
         return {*ptr};
@@ -31,6 +46,7 @@ inline boost::optional<T const&> get_as(boost::variant<Args...> const& v) noexce
 template<class T, class... Args>
 inline boost::optional<T &> get_as(boost::variant<Args...> &v) noexcept
 {
+    static_assert(detail::is_included<T, Args...>::value, "get_as(&): T is not included in Args.");
     T *const ptr = boost::get<T>(&v);
     if (ptr) {
         return {*ptr};
@@ -42,6 +58,7 @@ inline boost::optional<T &> get_as(boost::variant<Args...> &v) noexcept
 template<class T, class... Args>
 inline T const& get_assert(boost::variant<Args...> const& v) noexcept
 {
+    static_assert(detail::is_included<T, Args...>::value, "get_assert(const&): T is not included in Args.");
     T const* const ptr = boost::get<T>(&v);
     assert(ptr);
     return {*ptr};
@@ -50,6 +67,7 @@ inline T const& get_assert(boost::variant<Args...> const& v) noexcept
 template<class T, class... Args>
 inline T &get_assert(boost::variant<Args...> &v) noexcept
 {
+    static_assert(detail::is_included<T, Args...>::value, "get_assert(&): T is not included in Args.");
     T *const ptr = boost::get<T>(&v);
     assert(ptr);
     return {*ptr};
@@ -59,6 +77,7 @@ inline T &get_assert(boost::variant<Args...> &v) noexcept
 template<class T, class... Args>
 inline boost::optional<T> copy_as(boost::variant<Args...> const& v) noexcept
 {
+    static_assert(detail::is_included<T, Args...>::value, "copy_as(const&): T is not included in Args.");
     T const* const ptr = boost::get<T>(&v);
     if (ptr) {
         return {*ptr};
