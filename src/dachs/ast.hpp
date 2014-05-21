@@ -788,6 +788,23 @@ struct function_definition final : public statement {
         : statement(), kind(k), name(n), params(p), return_type(ret), body(block), ensure_body(ensure)
     {}
 
+    bool is_template() const noexcept
+    {
+        if (kind == symbol::func_kind::func ) {
+            if (!ret_type) {
+                return true;
+            }
+        }
+
+        for (auto const& p : params) {
+            if (!p->param_type) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     std::string to_string() const noexcept override
     {
         return "FUNC_DEFINITION: " + symbol::to_string(kind) + ' ' + name;
