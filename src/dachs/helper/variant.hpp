@@ -3,6 +3,7 @@
 
 #include <utility>
 #include <type_traits>
+#include <cassert>
 
 #include <boost/variant/variant.hpp>
 #include <boost/variant/static_visitor.hpp>
@@ -14,8 +15,49 @@ namespace dachs {
 namespace helper {
 namespace variant {
 
+// TODO:
+// Check if Args includes T.  If it doesn't, generate compilation error.
 template<class T, class... Args>
-inline boost::optional<T> get_as(boost::variant<Args...> const& v)
+inline boost::optional<T const&> get_as(boost::variant<Args...> const& v) noexcept
+{
+    T const* const ptr = boost::get<T>(&v);
+    if (ptr) {
+        return {*ptr};
+    } else {
+        return boost::none;
+    }
+}
+
+template<class T, class... Args>
+inline boost::optional<T &> get_as(boost::variant<Args...> &v) noexcept
+{
+    T *const ptr = boost::get<T>(&v);
+    if (ptr) {
+        return {*ptr};
+    } else {
+        return boost::none;
+    }
+}
+
+template<class T, class... Args>
+inline T const& get_assert(boost::variant<Args...> const& v) noexcept
+{
+    T const* const ptr = boost::get<T>(&v);
+    assert(ptr);
+    return {*ptr};
+}
+
+template<class T, class... Args>
+inline T &get_assert(boost::variant<Args...> &v) noexcept
+{
+    T *const ptr = boost::get<T>(&v);
+    assert(ptr);
+    return {*ptr};
+}
+
+// Copy to avoid dangling reference to the content of variant
+template<class T, class... Args>
+inline boost::optional<T> copy_as(boost::variant<Args...> const& v) noexcept
 {
     T const* const ptr = boost::get<T>(&v);
     if (ptr) {
