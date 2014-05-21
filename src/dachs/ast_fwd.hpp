@@ -259,15 +259,23 @@ public:
         return bool{std::dynamic_pointer_cast<node::program>(node.lock())};
     }
 
-    template<class T>
-    boost::optional<std::shared_ptr<T>> get_shared_as() const noexcept
-    {
-        static_assert(traits::is_node<T>::value, "any_node::get_shared_as(): T is not AST node.");
-        assert(!node.expired());
-        auto const shared = std::dynamic_pointer_cast<T>(node.lock());
-        return shared ? shared : boost::none;
-    }
 };
+
+// Note: Use free function for the same reason as std::get<>()
+template<class NodePtr>
+inline boost::optional<NodePtr> get_shared_as(any_node const& node) noexcept
+{
+    using Node = typename NodePtr::element_type;
+    static_assert(traits::is_node<Node>::value, "any_node::get_shared_as(): T is not AST node.");
+    assert(!node.expired());
+    auto const shared = std::dynamic_pointer_cast<Node>(node.get_shared());
+    if (shared) {
+        return {shared};
+    } else {
+        return boost::none;
+    }
+}
+
 } // namespace node
 
 } // namespace ast

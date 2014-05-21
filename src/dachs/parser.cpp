@@ -671,7 +671,7 @@ public:
 
         if_then_stmt_block
             = (
-                -((compound_stmt - DACHS_KWD(lit("end") | "elseif" | "else" | "then")) % sep)
+                -((compound_stmt - DACHS_KWD("end") - DACHS_KWD("elseif") - DACHS_KWD("else") - DACHS_KWD("then")) % sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
@@ -707,7 +707,7 @@ public:
 
         case_when_stmt_block
             = (
-                *((compound_stmt - DACHS_KWD(lit("end") | "else")) >> sep)
+                *((compound_stmt - DACHS_KWD("end") - DACHS_KWD("else")) >> sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
@@ -809,7 +809,7 @@ public:
 
         func_body_stmt_block
             = (
-                -((compound_stmt - DACHS_KWD(lit("ensure") | "end")) % sep)
+                -((compound_stmt - DACHS_KWD("ensure") - DACHS_KWD("end")) % sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];

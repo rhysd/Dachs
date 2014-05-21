@@ -13,7 +13,9 @@
 #include <boost/format.hpp>
 
 #include "dachs/scope_fwd.hpp"
+#include "dachs/type.hpp"
 #include "dachs/symbol.hpp"
+#include "dachs/ast_fwd.hpp"
 #include "dachs/helper/make.hpp"
 #include "dachs/helper/util.hpp"
 #include "dachs/helper/variant.hpp"
@@ -84,13 +86,19 @@ struct basic_scope {
 
     // TODO resolve member variables and member functions
 
-    virtual boost::optional<scope::func_scope> resolve_func(std::string const& name) const
+    virtual boost::optional<scope::func_scope>
+    resolve_func( std::string const& name
+                , std::vector<type::type> const& args
+                , boost::optional<type::type> const& ret_type) const
     {
+        // TODO:
+        // resolve_func() now searches function scopes directly.
+        // But it should search variables, check the result is funcref type, then resolve function overloads.
         return apply_lambda(
-                [&name](auto const& s)
+                [&](auto const& s)
                     -> boost::optional<scope::func_scope>
                 {
-                    return s.lock()->resolve_func(name);
+                    return s.lock()->resolve_func(name, args, ret_type);
                 }, enclosing_scope);
     }
 
@@ -149,11 +157,11 @@ struct global_scope final : public basic_scope {
         return define_symbol(classes, new_class);
     }
 
-    boost::optional<scope::func_scope> resolve_func(std::string const& name) const override
-    {
-        // TODO: Consider overloaded functions
-        return helper::find_if(functions, [&name](auto const& f){ return f->name == name; });
-    }
+    boost::optional<scope::func_scope>
+    resolve_func( std::string const& name
+                , std::vector<type::type> const& args
+                  // Note: ret_type is boost::none if it is procedure or its return type is not obvious
+                , boost::optional<type::type> const& ret_type) const override;
 
     boost::optional<scope::class_scope> resolve_class(std::string const& name) const override
     {
@@ -221,6 +229,8 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         // Note: No need to check duplication bacause param is already sure to be unique
         templates.push_back(new_template);
     }
+
+    ast::node::function_definition get_ast_node() const noexcept;
 
     boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
     {
