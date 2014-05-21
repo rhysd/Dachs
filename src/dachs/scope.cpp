@@ -59,8 +59,7 @@ std::size_t get_overloaded_function_score(FuncScope const& func, Args const& arg
         boost::transform(args, func_def->params, std::back_inserter(v),
                 [](auto const& arg, auto const& param)
                 {
-                    assert(arg.type);
-
+                    assert(apply_lambda([](auto const& t){ return bool(t); }, arg));
                     if (param->template_type_ref) {
                         // Function parameter is template.  It matches any types.
                         return 1u;
