@@ -267,7 +267,6 @@ inline boost::optional<NodePtr> get_shared_as(any_node const& node) noexcept
 {
     using Node = typename NodePtr::element_type;
     static_assert(traits::is_node<Node>::value, "any_node::get_shared_as(): T is not AST node.");
-    assert(!node.expired());
     auto const shared = std::dynamic_pointer_cast<Node>(node.get_shared());
     if (shared) {
         return {shared};
