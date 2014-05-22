@@ -17,7 +17,7 @@ namespace symbol_node {
 
 struct basic_symbol {
     std::string name;
-    type::type type = type::unknown;
+    type::type type;
     ast::node::any_node ast_node;
 
     explicit basic_symbol(std::string const& s) noexcept

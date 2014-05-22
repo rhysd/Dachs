@@ -22,7 +22,6 @@ namespace dachs {
 
 namespace type_node {
 struct basic_type;
-struct unknown_type;
 struct builtin_type;
 struct class_type;
 struct tuple_type;
@@ -39,7 +38,6 @@ namespace type {
 #define DACHS_DEFINE_TYPE(n) \
    using n = std::shared_ptr<type_node::n>; \
    using weak_##n = std::weak_ptr<type_node::n>
-DACHS_DEFINE_TYPE(unknown_type);
 DACHS_DEFINE_TYPE(builtin_type);
 DACHS_DEFINE_TYPE(class_type);
 DACHS_DEFINE_TYPE(tuple_type);
@@ -53,8 +51,7 @@ DACHS_DEFINE_TYPE(qualified_type);
 #undef DACHS_DEFINE_TYPE
 
 using any_type
-    = boost::variant< unknown_type
-                    , builtin_type
+    = boost::variant< builtin_type
                     , class_type
                     , tuple_type
                     , func_type
@@ -67,10 +64,6 @@ using any_type
                 >;
 
 using type = any_type ; // For external use
-
-// Make one unknown type instance to reduce memory allocation
-extern unknown_type unknown;
-extern weak_unknown_type weak_unknown;
 
 // Considering about the ability to add more qualifiers
 enum class qualifier {
@@ -129,29 +122,6 @@ struct named_type : public basic_type {
 
     virtual ~named_type() noexcept
     {}
-};
-
-struct unknown_type final : public basic_type {
-
-    std::string to_string() const noexcept override
-    {
-        return "UNKNOWN";
-    }
-
-    // This type is never equal to any type (including itself)
-    template<class T>
-    bool operator==(T const&) const noexcept
-    {
-        static_assert(is_type<T>::value, "builtin_type::operator==(): rhs is not a type.");
-        return false;
-    }
-
-    template<class T>
-    bool operator!=(T const& rhs) const noexcept
-    {
-        static_assert(is_type<T>::value, "builtin_type::operator!=(): rhs is not a type.");
-        return !(*this == rhs);
-    }
 };
 
 struct builtin_type final : public named_type {
@@ -266,7 +236,7 @@ struct tuple_type final : public basic_type {
 
 struct func_type final : public basic_type {
     std::vector<type::any_type> param_types;
-    type::any_type return_type = type::unknown;
+    type::any_type return_type;
 
     func_type() = default;
 
@@ -373,7 +343,7 @@ struct func_ref_type : public basic_type {
 };
 
 struct dict_type final : public basic_type {
-    type::any_type key_type = type::unknown, value_type = type::unknown;
+    type::any_type key_type, value_type;
 
     dict_type() = default;
 
@@ -412,7 +382,7 @@ struct dict_type final : public basic_type {
 };
 
 struct range_type final : public basic_type {
-    type::any_type from_type = type::unknown, to_type = type::unknown;
+    type::any_type from_type, to_type;
 
     range_type() = default;
 
@@ -450,7 +420,7 @@ struct range_type final : public basic_type {
 };
 
 struct array_type final : public basic_type {
-    type::any_type element_type = type::unknown;
+    type::any_type element_type;
 
     array_type() = default;
 
@@ -488,7 +458,7 @@ struct array_type final : public basic_type {
 
 struct qualified_type final : public basic_type {
     type::qualifier qualifier;
-    type::any_type contained_type = type::unknown;
+    type::any_type contained_type;
 
     template<class Contained>
     qualified_type(type::qualifier const q, Contained const& c) noexcept
@@ -527,6 +497,10 @@ struct qualified_type final : public basic_type {
 };
 
 } // namespace type_node
+
+namespace type {
+
+} // namespace type
 
 } // namespace dachs
 

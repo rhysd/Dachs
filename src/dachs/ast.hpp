@@ -203,7 +203,7 @@ namespace ast {
 namespace node_type {
 
 struct expression : public base {
-    type::type type = type::unknown;
+    type::type type;
 
     expression() = default;
 
