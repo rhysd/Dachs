@@ -6,6 +6,9 @@
 namespace dachs {
 namespace type {
 
+unknown_type unknown = make<unknown_type>();
+weak_unknown_type weak_unknown = unknown;
+
 boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept
 {
     static const std::vector<builtin_type> builtin_types
