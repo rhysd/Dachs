@@ -45,6 +45,11 @@ struct is_shared_ptr
       >
 {};
 
+template<bool B, class T = void>
+using enable_if = typename std::enable_if<B, T>::type;
+
+template<bool B, class T = void>
+using disable_if = typename std::enable_if<!B, T>::type;
 
 // When you don't want to copy result object, use boost::range_reference<T>::type
 template<class Range, class Value>
