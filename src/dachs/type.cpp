@@ -8,7 +8,7 @@ namespace type {
 
 boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept
 {
-    static const std::vector<builtin_type> builtin_types
+    static std::vector<builtin_type> const builtin_types
         = {
             make<builtin_type>("int"),
             make<builtin_type>("uint"),
