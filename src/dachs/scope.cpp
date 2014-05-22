@@ -471,7 +471,6 @@ public:
         recursive_walker();
     }
 
-    // Get built-in data types {{{
     template<class Walker>
     void visit(ast::node::primary_literal const& primary_lit, Walker const& /*unused because it doesn't have child*/)
     {
@@ -566,12 +565,33 @@ public:
     }
 
     // TODO:
-    // Calcurate type from type nodes here because it requires forward analyzed information
+    // Calculate type from type nodes here because it requires forward analyzed information
 
     template<class Walker>
     void visit(ast::node::binary_expr const& bin_expr, Walker const& recursive_walker)
     {
         recursive_walker();
+
+        auto const lhs_type = type_of(bin_expr->lhs);
+        auto const rhs_type = type_of(bin_expr->rhs);
+
+        if (type::is_invalid(lhs_type) || type::is_invalid(rhs_type)) {
+            return;
+        }
+
+        // TODO: Temporary
+        // Now binary operator requires both side hands have the same type
+        if (!type::equal(lhs_type, rhs_type)) {
+            semantic_error(
+                    bin_expr,
+                    boost::format("Type mismatch in binary operator '%1%'\nNote: Type of lhs is %2%\nNote: Type of rhs is %3%")
+                        % bin_expr->op
+                        % type::to_string(lhs_type)
+                        % type::to_string(rhs_type)
+                    );
+            return;
+        }
+
         if (bin_expr->op == ".." || bin_expr->op == "...") {
             bin_expr->type = type::make<type::range_type>(type_of(bin_expr->lhs), type_of(bin_expr->rhs));
         } else {
@@ -590,6 +610,10 @@ public:
             throw not_implemented_error{__FILE__, __func__, __LINE__, "function variable invocation"};
         }
 
+        if (type::is_invalid((*maybe_var_ref)->type)) {
+            return;
+        }
+
         std::string const& name = (*maybe_var_ref)->name;
 
         if (!has<type::func_ref_type>((*maybe_var_ref)->type)) {
@@ -601,7 +625,6 @@ public:
         arg_types.reserve(invocation->args.size());
         // Get type list of arguments
         boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return detail::type_of(e);});
-        // TODO: Is there any information about return type?
         if (auto maybe_func = apply_lambda([&](auto const& s){ return s->resolve_func(name, arg_types, boost::none/*TODO: Temporary*/); }, current_scope)) {
             auto &func = *maybe_func;
             if (auto maybe_ret_type = func->get_ast_node()->ret_type) {
@@ -644,8 +667,6 @@ public:
 
         recursive_walker();
     }
-
-    // }}}
 
     template<class Walker>
     void visit(ast::node::member_access const& /*member_access*/, Walker const& /*unused*/)

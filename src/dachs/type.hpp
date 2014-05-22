@@ -71,10 +71,14 @@ enum class qualifier {
 };
 
 using dachs::helper::make;
+using dachs::helper::variant::apply_lambda;
 
 boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept;
 
-bool compare_types(any_type const& lhs, any_type const& rhs) noexcept;
+inline bool is_invalid(any_type const& type) noexcept
+{
+    return apply_lambda([](auto const& t){ return !bool(t); }, type);
+}
 
 namespace traits {
 
@@ -91,7 +95,7 @@ struct is_type
 
 inline std::string to_string(any_type const& t) noexcept
 {
-    return helper::variant::apply_lambda([](auto const& t) -> std::string { return t->to_string(); }, t);
+    return apply_lambda([](auto const& t) -> std::string { return t ? t->to_string() : "UNKNOWN"; }, t);
 }
 
 } // namespace type
@@ -134,7 +138,7 @@ struct builtin_type final : public named_type {
     }
 
     // TODO: Restrict T in type nodes
-    bool operator==(named_type const& rhs) const noexcept
+    bool operator==(builtin_type const& rhs) const noexcept
     {
         return name == rhs.name;
     }
@@ -499,6 +503,17 @@ struct qualified_type final : public basic_type {
 } // namespace type_node
 
 namespace type {
+
+inline bool equal(any_type const& lhs, any_type const& rhs)
+{
+    return apply_lambda(
+            [](auto const& l, auto const& r)
+            {
+                assert(l);
+                assert(r);
+                return *l == *r;
+            }, lhs, rhs);
+}
 
 } // namespace type
 
