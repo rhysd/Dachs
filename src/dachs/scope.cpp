@@ -613,6 +613,12 @@ public:
             return;
         }
 
+        for (auto const& a : invocation->args) {
+            if (type::is_invalid(type_of(a))) {
+                return;
+            }
+        }
+
         std::string const& name = (*maybe_var_ref)->name;
 
         if (!has<type::func_ref_type>((*maybe_var_ref)->type)) {
@@ -627,7 +633,7 @@ public:
         std::vector<type::type> arg_types;
         arg_types.reserve(invocation->args.size());
         // Get type list of arguments
-        boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return detail::type_of(e);});
+        boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return type_of(e);});
         if (auto maybe_func = apply_lambda([&](auto const& s){ return s->resolve_func(name, arg_types, boost::none/*TODO: Temporary*/); }, current_scope)) {
             auto &func = *maybe_func;
             if (auto maybe_ret_type = func->get_ast_node()->ret_type) {
