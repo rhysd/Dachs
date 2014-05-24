@@ -12,6 +12,7 @@
 #include <boost/range/algorithm/equal.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <boost/optional.hpp>
+#include <boost/mpl/vector.hpp>
 
 #include "scope_fwd.hpp"
 #include "dachs/helper/variant.hpp"
@@ -50,21 +51,6 @@ DACHS_DEFINE_TYPE(range_type);
 DACHS_DEFINE_TYPE(qualified_type);
 #undef DACHS_DEFINE_TYPE
 
-using any_type
-    = boost::variant< builtin_type
-                    , class_type
-                    , tuple_type
-                    , func_type
-                    , proc_type
-                    , func_ref_type
-                    , dict_type
-                    , array_type
-                    , range_type
-                    , qualified_type
-                >;
-
-using type = any_type ; // For external use
-
 // Considering about the ability to add more qualifiers
 enum class qualifier {
     maybe,
@@ -74,11 +60,6 @@ using dachs::helper::make;
 using dachs::helper::variant::apply_lambda;
 
 boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept;
-
-inline bool is_invalid(any_type const& type) noexcept
-{
-    return apply_lambda([](auto const& t){ return !bool(t); }, type);
-}
 
 namespace traits {
 
@@ -93,10 +74,121 @@ struct is_type
 
 } // namespace traits
 
-inline std::string to_string(any_type const& t) noexcept
+using dachs::helper::enable_if;
+
+class any_type {
+    using value_type
+        = boost::variant< builtin_type
+                    , class_type
+                    , tuple_type
+                    , func_type
+                    , proc_type
+                    , func_ref_type
+                    , dict_type
+                    , array_type
+                    , range_type
+                    , qualified_type
+                >;
+
+
+    template<class T, class Head, class... Tail>
+    struct is_held_impl2 : is_held_impl2<T, Tail...>::type
+    {};
+
+    template<class T, class... Tail>
+    struct is_held_impl2<T, T, Tail...> : std::true_type
+    {};
+
+    template<class T, class U>
+    struct is_held_impl2<T, U> : std::is_same<T, U>
+    {};
+
+    template<class T, class Variant>
+    struct is_held_impl;
+
+    template<class T, class... Args>
+    struct is_held_impl<T, boost::variant<Args...>> : is_held_impl2<T, Args...>
+    {};
+
+    template<class T>
+    struct is_held : is_held_impl<T, value_type>
+    {};
+
+    value_type value;
+
+public:
+
+    any_type() = default;
+    any_type(any_type const& t) = default;
+    any_type(any_type && t) = default;
+    any_type &operator=(any_type const& t) = default;
+
+    template<class T, class = enable_if<is_held<T>::value>>
+    any_type(T const& v)
+        : value(v)
+    {}
+
+    template<class T, class = enable_if<is_held<T>::value>>
+    any_type(T && v)
+        : value(std::forward<T>(v))
+    {}
+
+    template<class T, class = enable_if<is_held<T>::value>>
+    any_type &operator=(T const& rhs)
+    {
+        value = rhs;
+        return *this;
+    }
+
+    template<class T, class = enable_if<is_held<T>::value>>
+    any_type &operator=(any_type && rhs)
+    {
+        std::swap(value, rhs.value);
+        return *this;
+    }
+
+    bool operator==(any_type const& rhs) const noexcept;
+
+    bool operator!=(any_type const& rhs) const noexcept
+    {
+        return !(*this == rhs);
+    }
+
+    bool empty() const noexcept
+    {
+        return helper::variant::apply_lambda([](auto const& t){ return !bool(t); }, value);
+    }
+
+    operator bool() const noexcept
+    {
+        return !empty();
+    }
+
+    std::string to_string() const noexcept
+    {
+        return helper::variant::apply_lambda([](auto const& t) -> std::string { return t ? t->to_string() : "UNKNOWN"; }, value);
+    }
+
+    value_type &raw_type() noexcept
+    {
+        return value;
+    }
+
+    value_type const& raw_type() const noexcept
+    {
+        return value;
+    }
+
+    template<class T>
+    friend bool has(any_type const&);
+};
+
+template<class T>
+inline bool has(any_type const& t)
 {
-    return apply_lambda([](auto const& t) -> std::string { return t ? t->to_string() : "UNKNOWN"; }, t);
+    return helper::variant::has<T>(t.value);
 }
+
 
 } // namespace type
 
@@ -174,7 +266,7 @@ struct class_type final : public named_type {
         } else {
             return name + '(' +
                 join(holder_types | transformed([](auto const& t){
-                            return type::to_string(t);
+                            return t.to_string();
                         }), ",")
                 + ')';
         }
@@ -213,7 +305,7 @@ struct tuple_type final : public basic_type {
     {
         return '(' +
             join(element_types | transformed([](auto const& t){
-                        return type::to_string(t);
+                        return t.to_string();
                     }), ",")
             + ')';
     }
@@ -252,10 +344,10 @@ struct func_type final : public basic_type {
     {
         return "func (" +
             join(param_types | transformed([](auto const& t){
-                        return type::to_string(t);
+                        return t.to_string();
                     }), ",")
             + ") : "
-            + type::to_string(return_type);
+            + return_type.to_string();
     }
 
     bool operator==(func_type const& rhs) const noexcept
@@ -292,7 +384,7 @@ struct proc_type final : public basic_type {
     {
         return "proc (" +
             join(param_types | transformed([](auto const& t){
-                        return type::to_string(t);
+                        return t.to_string();
                     }), ",")
             + ')';
     }
@@ -359,8 +451,8 @@ struct dict_type final : public basic_type {
     std::string to_string() const noexcept override
     {
         return '{'
-            + type::to_string(key_type) + " => "
-            + type::to_string(value_type)
+            + key_type.to_string() + " => "
+            + value_type.to_string()
             + '}';
     }
 
@@ -387,6 +479,7 @@ struct dict_type final : public basic_type {
 
 struct range_type final : public basic_type {
     type::any_type from_type, to_type;
+    // TODO: bool is_inclusive
 
     range_type() = default;
 
@@ -397,9 +490,9 @@ struct range_type final : public basic_type {
 
     std::string to_string() const noexcept override
     {
-        return type::to_string(from_type)
+        return from_type.to_string()
              + ".."
-             + type::to_string(to_type);
+             + to_type.to_string();
     }
 
     bool operator==(range_type const& rhs) const noexcept
@@ -436,7 +529,7 @@ struct array_type final : public basic_type {
     std::string to_string() const noexcept override
     {
         return '{'
-            + type::to_string(element_type)
+            + element_type.to_string()
             + '}';
     }
 
@@ -471,7 +564,7 @@ struct qualified_type final : public basic_type {
 
     std::string to_string() const noexcept override
     {
-        auto const contained_type_name =  type::to_string(contained_type);
+        auto const contained_type_name =  contained_type.to_string();
         switch (qualifier) {
         case type::qualifier::maybe:
             return contained_type_name + '?';
@@ -504,16 +597,19 @@ struct qualified_type final : public basic_type {
 
 namespace type {
 
-inline bool equal(any_type const& lhs, any_type const& rhs)
+template<class Lambda, class... Args>
+inline auto apply_lambda_(Lambda const& l, Args const&... args)
 {
-    return apply_lambda(
-            [](auto const& l, auto const& r)
-            {
-                assert(l);
-                assert(r);
-                return *l == *r;
-            }, lhs, rhs);
+    return apply_lambda(l, args.raw_type()...);
 }
+
+template<class Lambda, class... Args>
+inline auto apply_lambda_(Lambda &l, Args &... args)
+{
+    return apply_lambda(l, args.raw_type()...);
+}
+
+using type = any_type ; // For external use
 
 } // namespace type
 

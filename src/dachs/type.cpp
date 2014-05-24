@@ -28,6 +28,18 @@ boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept
     return boost::none;
 }
 
+bool any_type::operator==(any_type const& rhs) const noexcept
+{
+    return apply_lambda(
+            [](auto const& l, auto const& r)
+            {
+                assert(l);
+                assert(r);
+                return *l == *r;
+            }, value, rhs.value);
+}
+
+
 } // namespace type
 
 namespace type_node {

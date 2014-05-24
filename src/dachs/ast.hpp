@@ -212,11 +212,6 @@ struct expression : public base {
         : type{std::forward<Type>(t)}
     {}
 
-    bool is_typed() const noexcept
-    {
-        return helper::variant::apply_lambda([](auto const& t){ return bool{t}; }, type);
-    }
-
     virtual ~expression() noexcept
     {}
 };

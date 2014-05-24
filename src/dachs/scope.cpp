@@ -53,32 +53,26 @@ std::size_t get_overloaded_function_score(FuncScope const& func, Args const& arg
     }
 
     // Calculate the score of arguments' coincidence
-        std::vector<std::size_t> v;
-        v.reserve(args.size());
+    std::vector<std::size_t> v;
+    v.reserve(args.size());
 
-        boost::transform(args, func_def->params, std::back_inserter(v),
-                [](auto const& arg, auto const& param)
-                {
-                    assert(apply_lambda([](auto const& t){ return bool(t); }, arg));
-                    if (param->template_type_ref) {
-                        // Function parameter is template.  It matches any types.
-                        return 1u;
-                    }
+    boost::transform(args, func_def->params, std::back_inserter(v),
+            [](auto const& arg, auto const& param)
+            {
+                assert(arg);
+                if (param->template_type_ref) {
+                    // Function parameter is template.  It matches any types.
+                    return 1u;
+                }
 
-                    assert(param->type);
+                assert(param->type);
 
-                    if (apply_lambda(
-                            [](auto const& t1, auto const& t2)
-                            {
-                                return *t1 == *t2;
-                            },
-                            *param->type, arg)
-                       ) {
-                        return 2u;
-                    } else {
-                        return 0u;
-                    }
-                });
+                if (*param->type == arg) {
+                    return 2u;
+                } else {
+                    return 0u;
+                }
+            });
 
     // Note:
     // If the function have no argument and return type is not specified, score is 1.
@@ -125,7 +119,6 @@ namespace detail {
 
 using std::size_t;
 using helper::variant::get_as;
-using helper::variant::has;
 using helper::variant::apply_lambda;
 
 template<class Variant>
@@ -525,7 +518,7 @@ public:
         recursive_walker();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
         if (arr_lit->element_exprs.empty()) {
-            if (!arr_lit->is_typed()) {
+            if (!arr_lit->type) {
                 semantic_error(arr_lit, "Empty array must be typed by ':'");
             }
         } else {
@@ -554,7 +547,7 @@ public:
         recursive_walker();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
         if (dict_lit->value.empty()) {
-            if (!dict_lit->is_typed()) {
+            if (!dict_lit->type) {
                 semantic_error(dict_lit, "Empty dictionary must be typed by ':'");
             }
         } else {
@@ -574,19 +567,19 @@ public:
         auto const lhs_type = type_of(bin_expr->lhs);
         auto const rhs_type = type_of(bin_expr->rhs);
 
-        if (type::is_invalid(lhs_type) || type::is_invalid(rhs_type)) {
+        if (!lhs_type || !rhs_type) {
             return;
         }
 
         // TODO: Temporary
         // Now binary operator requires both side hands have the same type
-        if (!type::equal(lhs_type, rhs_type)) {
+        if (lhs_type != rhs_type) {
             semantic_error(
                     bin_expr,
                     boost::format("Type mismatch in binary operator '%1%'\nNote: Type of lhs is %2%\nNote: Type of rhs is %3%")
                         % bin_expr->op
-                        % type::to_string(lhs_type)
-                        % type::to_string(rhs_type)
+                        % lhs_type.to_string()
+                        % rhs_type.to_string()
                     );
             return;
         }
@@ -609,17 +602,17 @@ public:
             throw not_implemented_error{__FILE__, __func__, __LINE__, "function variable invocation"};
         }
 
-        if (type::is_invalid((*maybe_var_ref)->type)) {
+        if (!(*maybe_var_ref)->type) {
             return;
         }
 
         std::string const& name = (*maybe_var_ref)->name;
 
-        if (!has<type::func_ref_type>((*maybe_var_ref)->type)) {
+        if (!type::has<type::func_ref_type>((*maybe_var_ref)->type)) {
             semantic_error(invocation
                          , boost::format("'%1%' is not a function or function reference\nNote: Type of %1% is %2%")
                             % name
-                            % type::to_string((*maybe_var_ref)->type)
+                            % (*maybe_var_ref)->type.to_string()
                         );
             return;
         }
@@ -628,6 +621,13 @@ public:
         arg_types.reserve(invocation->args.size());
         // Get type list of arguments
         boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return detail::type_of(e);});
+
+        for (auto const& arg_type : arg_types) {
+            if (!arg_type) {
+                return;
+            }
+        }
+
         if (auto maybe_func = apply_lambda([&](auto const& s){ return s->resolve_func(name, arg_types, boost::none/*TODO: Temporary*/); }, current_scope)) {
             auto &func = *maybe_func;
             if (auto maybe_ret_type = func->get_ast_node()->ret_type) {
