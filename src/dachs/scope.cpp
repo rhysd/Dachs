@@ -6,6 +6,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/range/algorithm/find_if.hpp>
 #include <boost/range/algorithm/transform.hpp>
+#include <boost/algorithm/cxx11/all_of.hpp> // For boost::all_of
 #include <boost/range/numeric.hpp>
 
 #include "dachs/scope.hpp"
@@ -222,6 +223,43 @@ public:
     }
 };
 
+struct return_types_gatherer {
+    std::vector<type::type> result_types;
+    std::vector<ast::node::return_stmt> failed_return_stmts;
+
+    template<class Walker>
+    void visit(ast::node::return_stmt const& ret, Walker const&)
+    {
+        if (ret->ret_exprs.size() == 1) {
+            // When return statement has one expression, its return type is the same as it
+            auto t = type_of(ret->ret_exprs[0]);
+            if (!t) {
+                failed_return_stmts.push_back(ret);
+                return;
+            }
+            result_types.push_back(t);
+        } else {
+            // Otherwise its return type is tuple
+            auto ret_type = type::make<type::tuple_type>();
+            for (auto const& e : ret->ret_exprs) {
+                auto t = type_of(e);
+                if (!t) {
+                    failed_return_stmts.push_back(ret);
+                    return;
+                }
+                ret_type->element_types.push_back(t);
+            }
+            result_types.push_back(ret_type);
+        }
+    }
+
+    template<class T, class W>
+    void visit(T const&, W const& w)
+    {
+        w();
+    }
+};
+
 // Walk to analyze functions, classes and member variables symbols to make forward reference possible
 class forward_symbol_analyzer {
 
@@ -369,6 +407,24 @@ public:
     {
         assert(!func->scope.expired());
         with_new_scope(func->scope.lock(), recursive_walker);
+
+        return_types_gatherer gatherer;
+        auto func_ = func; // to remove const
+        ast::make_walker(gatherer).walk(func_);
+
+        if (!gatherer.failed_return_stmts.empty()) {
+            semantic_error(func, boost::format("Can't deduce return type of function '%1%'from return statement\nNote: return statement is here: line%2%, col%3%") % func->name % gatherer.failed_return_stmts[0]->line % gatherer.failed_return_stmts[0]->col);
+            return;
+        }
+
+        if (!gatherer.result_types.empty()) {
+            if (boost::algorithm::all_of(gatherer.result_types, [&](auto const& t){ return gatherer.result_types[0] == t; })) {
+                func->ret_type = gatherer.result_types[0];
+            } else {
+                semantic_error(func, boost::format("Mismatch among the result types of return statements in function '%1%'") % func->name);
+                return;
+            }
+        }
     }
     // }}}
 
