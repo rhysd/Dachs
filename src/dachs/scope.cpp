@@ -6,6 +6,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/range/algorithm/find_if.hpp>
 #include <boost/range/algorithm/transform.hpp>
+#include <boost/algorithm/cxx11/all_of.hpp> // For boost::all_of
 #include <boost/range/numeric.hpp>
 
 #include "dachs/scope.hpp"
@@ -30,9 +31,7 @@ std::size_t get_overloaded_function_score(FuncScope const& func, Args const& arg
     }
 
     std::size_t score = 1u;
-    auto const maybe_func_def = ast::node::get_shared_as<ast::node::function_definition>(func->ast_node);
-    assert(maybe_func_def);
-    auto const& func_def = *maybe_func_def;
+    auto const func_def = func->get_ast_node();
 
     // Score of return type. (Room to consider remains)
     if (ret && func_def->ret_type) {
@@ -53,32 +52,26 @@ std::size_t get_overloaded_function_score(FuncScope const& func, Args const& arg
     }
 
     // Calculate the score of arguments' coincidence
-        std::vector<std::size_t> v;
-        v.reserve(args.size());
+    std::vector<std::size_t> v;
+    v.reserve(args.size());
 
-        boost::transform(args, func_def->params, std::back_inserter(v),
-                [](auto const& arg, auto const& param)
-                {
-                    assert(apply_lambda([](auto const& t){ return bool(t); }, arg));
-                    if (param->template_type_ref) {
-                        // Function parameter is template.  It matches any types.
-                        return 1u;
-                    }
+    boost::transform(args, func_def->params, std::back_inserter(v),
+            [](auto const& arg, auto const& param)
+            {
+                assert(arg);
+                if (param->template_type_ref) {
+                    // Function parameter is template.  It matches any types.
+                    return 1u;
+                }
 
-                    assert(param->type);
+                assert(param->type);
 
-                    if (apply_lambda(
-                            [](auto const& t1, auto const& t2)
-                            {
-                                return *t1 == *t2;
-                            },
-                            *param->type, arg)
-                       ) {
-                        return 2u;
-                    } else {
-                        return 0u;
-                    }
-                });
+                if (*param->type == arg) {
+                    return 2u;
+                } else {
+                    return 0u;
+                }
+            });
 
     // Note:
     // If the function have no argument and return type is not specified, score is 1.
@@ -117,6 +110,54 @@ ast::node::function_definition func_scope::get_ast_node() const noexcept
     return *maybe_func_def;
 }
 
+bool global_scope::define_function(scope::func_scope const& new_func, ast::node::function_definition const& new_func_def) noexcept
+{
+    return define_symbol(functions, new_func);
+
+    // Check duplication considering overloaded functions
+    for (auto const& f : functions) {
+
+        if (new_func->params.size() == f->params.size()) {
+            auto const func_def = f->get_ast_node();
+
+            if (new_func_def->name == func_def->name) {
+                auto iter1 = std::cbegin(func_def->params);
+                auto iter2 = std::cbegin(new_func_def->params);
+                auto const end1 = std::cend(func_def->params);
+                auto const end2 = std::cend(new_func_def->params);
+
+                // Check arguments' types
+                for (; iter1 != end1 && iter2 != end2; ++iter1, ++iter2) {
+                    auto const& type1 = *iter1;
+                    auto const& type2 = *iter2;
+
+                    if (type1 == type2) {
+                        // Both types are template type
+                        if (!type1)
+                    } else {
+                        // One side is template type and the other side is not
+                        functions.push_back(new_func);
+                        return true;
+                    }
+                }
+
+                // Note:
+                // Reach here when argument matches completely
+
+                if (func_def->ret_type && !new_func_def->ret_type
+                 || !func_def->ret_type && new_func_def->ret_type) {
+                    
+                }
+
+                return false;
+            }
+        }
+    }
+
+    functions.push_back(new_func);
+    return true;
+}
+
 } // namespace scope_node
 
 namespace scope {
@@ -125,7 +166,6 @@ namespace detail {
 
 using std::size_t;
 using helper::variant::get_as;
-using helper::variant::has;
 using helper::variant::apply_lambda;
 
 template<class Variant>
@@ -229,6 +269,43 @@ public:
     }
 };
 
+struct return_types_gatherer {
+    std::vector<type::type> result_types;
+    std::vector<ast::node::return_stmt> failed_return_stmts;
+
+    template<class Walker>
+    void visit(ast::node::return_stmt const& ret, Walker const&)
+    {
+        if (ret->ret_exprs.size() == 1) {
+            // When return statement has one expression, its return type is the same as it
+            auto t = type_of(ret->ret_exprs[0]);
+            if (!t) {
+                failed_return_stmts.push_back(ret);
+                return;
+            }
+            result_types.push_back(t);
+        } else {
+            // Otherwise its return type is tuple
+            auto ret_type = type::make<type::tuple_type>();
+            for (auto const& e : ret->ret_exprs) {
+                auto t = type_of(e);
+                if (!t) {
+                    failed_return_stmts.push_back(ret);
+                    return;
+                }
+                ret_type->element_types.push_back(t);
+            }
+            result_types.push_back(ret_type);
+        }
+    }
+
+    template<class T, class W>
+    void visit(T const&, W const& w)
+    {
+        w();
+    }
+};
+
 // Walk to analyze functions, classes and member variables symbols to make forward reference possible
 class forward_symbol_analyzer {
 
@@ -297,7 +374,6 @@ public:
         if (func_def->return_type) {
             func_def->ret_type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, *(func_def->return_type));
         }
-
 
         auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);
         new_func_var->type = new_func->type;
@@ -376,6 +452,32 @@ public:
     {
         assert(!func->scope.expired());
         with_new_scope(func->scope.lock(), recursive_walker);
+
+        return_types_gatherer gatherer;
+        auto func_ = func; // to remove const
+        ast::make_walker(gatherer).walk(func_);
+
+        if (!gatherer.failed_return_stmts.empty()) {
+            semantic_error(func, boost::format("Can't deduce return type of function '%1%'from return statement\nNote: return statement is here: line%2%, col%3%") % func->name % gatherer.failed_return_stmts[0]->line % gatherer.failed_return_stmts[0]->col);
+            return;
+        }
+
+        if (!gatherer.result_types.empty()) {
+            // TODO:
+            // Check procedure
+            // TODO:
+            // Consider return statement without any value
+            if (boost::algorithm::all_of(gatherer.result_types, [&](auto const& t){ return gatherer.result_types[0] == t; })) {
+                func->ret_type = gatherer.result_types[0];
+            } else {
+                semantic_error(func, boost::format("Mismatch among the result types of return statements in function '%1%'") % func->name);
+                return;
+            }
+        } else {
+            // TODO:
+            // If there is no return statement, the result type should be ()
+        }
+        
     }
     // }}}
 
@@ -403,6 +505,7 @@ public:
             auto& func = *maybe_func;
             if (!func->define_param(new_param)) {
                 failed++;
+                return;
             }
 
             if (!param->param_type) {
@@ -525,7 +628,7 @@ public:
         recursive_walker();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
         if (arr_lit->element_exprs.empty()) {
-            if (!arr_lit->is_typed()) {
+            if (!arr_lit->type) {
                 semantic_error(arr_lit, "Empty array must be typed by ':'");
             }
         } else {
@@ -554,7 +657,7 @@ public:
         recursive_walker();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
         if (dict_lit->value.empty()) {
-            if (!dict_lit->is_typed()) {
+            if (!dict_lit->type) {
                 semantic_error(dict_lit, "Empty dictionary must be typed by ':'");
             }
         } else {
@@ -574,19 +677,19 @@ public:
         auto const lhs_type = type_of(bin_expr->lhs);
         auto const rhs_type = type_of(bin_expr->rhs);
 
-        if (type::is_invalid(lhs_type) || type::is_invalid(rhs_type)) {
+        if (!lhs_type || !rhs_type) {
             return;
         }
 
         // TODO: Temporary
         // Now binary operator requires both side hands have the same type
-        if (!type::equal(lhs_type, rhs_type)) {
+        if (lhs_type != rhs_type) {
             semantic_error(
                     bin_expr,
                     boost::format("Type mismatch in binary operator '%1%'\nNote: Type of lhs is %2%\nNote: Type of rhs is %3%")
                         % bin_expr->op
-                        % type::to_string(lhs_type)
-                        % type::to_string(rhs_type)
+                        % lhs_type.to_string()
+                        % rhs_type.to_string()
                     );
             return;
         }
@@ -599,6 +702,10 @@ public:
         }
     }
 
+    // TODO:
+    // If return type of function is not determined, interrupt current parsing and parse the
+    // function at first.  Add the function list which are already visited and check it at
+    // function_definition node
     template<class Walker>
     void visit(ast::node::func_invocation const& invocation, Walker const& recursive_walker)
     {
@@ -609,17 +716,17 @@ public:
             throw not_implemented_error{__FILE__, __func__, __LINE__, "function variable invocation"};
         }
 
-        if (type::is_invalid((*maybe_var_ref)->type)) {
+        if (!(*maybe_var_ref)->type) {
             return;
         }
 
         std::string const& name = (*maybe_var_ref)->name;
 
-        if (!has<type::func_ref_type>((*maybe_var_ref)->type)) {
+        if (!type::has<type::func_ref_type>((*maybe_var_ref)->type)) {
             semantic_error(invocation
                          , boost::format("'%1%' is not a function or function reference\nNote: Type of %1% is %2%")
                             % name
-                            % type::to_string((*maybe_var_ref)->type)
+                            % (*maybe_var_ref)->type.to_string()
                         );
             return;
         }
@@ -628,6 +735,13 @@ public:
         arg_types.reserve(invocation->args.size());
         // Get type list of arguments
         boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return detail::type_of(e);});
+
+        for (auto const& arg_type : arg_types) {
+            if (!arg_type) {
+                return;
+            }
+        }
+
         if (auto maybe_func = apply_lambda([&](auto const& s){ return s->resolve_func(name, arg_types, boost::none/*TODO: Temporary*/); }, current_scope)) {
             auto &func = *maybe_func;
             if (auto maybe_ret_type = func->get_ast_node()->ret_type) {
