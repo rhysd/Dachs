@@ -142,10 +142,7 @@ struct global_scope final : public basic_scope {
         : basic_scope()
     {}
 
-    bool define_function(scope::func_scope const& new_func) noexcept
-    {
-        return define_symbol(functions, new_func);
-    }
+    bool define_function(scope::func_scope const& new_func, ast::node::function_definition const& new_func_def) noexcept;
 
     bool define_global_constant(symbol::var_symbol const& new_var) noexcept
     {

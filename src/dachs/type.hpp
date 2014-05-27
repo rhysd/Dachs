@@ -90,7 +90,6 @@ class any_type {
                     , qualified_type
                 >;
 
-
     template<class T, class Head, class... Tail>
     struct is_held_impl2 : is_held_impl2<T, Tail...>::type
     {};
@@ -169,6 +168,7 @@ public:
         return helper::variant::apply_lambda([](auto const& t) -> std::string { return t ? t->to_string() : "UNKNOWN"; }, value);
     }
 
+    // Note: This may ruin the private data member. Be careful.
     value_type &raw_type() noexcept
     {
         return value;

@@ -31,9 +31,7 @@ std::size_t get_overloaded_function_score(FuncScope const& func, Args const& arg
     }
 
     std::size_t score = 1u;
-    auto const maybe_func_def = ast::node::get_shared_as<ast::node::function_definition>(func->ast_node);
-    assert(maybe_func_def);
-    auto const& func_def = *maybe_func_def;
+    auto const func_def = func->get_ast_node();
 
     // Score of return type. (Room to consider remains)
     if (ret && func_def->ret_type) {
@@ -110,6 +108,54 @@ ast::node::function_definition func_scope::get_ast_node() const noexcept
     auto maybe_func_def = ast::node::get_shared_as<ast::node::function_definition>(ast_node);
     assert(maybe_func_def);
     return *maybe_func_def;
+}
+
+bool global_scope::define_function(scope::func_scope const& new_func, ast::node::function_definition const& new_func_def) noexcept
+{
+    return define_symbol(functions, new_func);
+
+    // Check duplication considering overloaded functions
+    for (auto const& f : functions) {
+
+        if (new_func->params.size() == f->params.size()) {
+            auto const func_def = f->get_ast_node();
+
+            if (new_func_def->name == func_def->name) {
+                auto iter1 = std::cbegin(func_def->params);
+                auto iter2 = std::cbegin(new_func_def->params);
+                auto const end1 = std::cend(func_def->params);
+                auto const end2 = std::cend(new_func_def->params);
+
+                // Check arguments' types
+                for (; iter1 != end1 && iter2 != end2; ++iter1, ++iter2) {
+                    auto const& type1 = *iter1;
+                    auto const& type2 = *iter2;
+
+                    if (type1 == type2) {
+                        // Both types are template type
+                        if (!type1)
+                    } else {
+                        // One side is template type and the other side is not
+                        functions.push_back(new_func);
+                        return true;
+                    }
+                }
+
+                // Note:
+                // Reach here when argument matches completely
+
+                if (func_def->ret_type && !new_func_def->ret_type
+                 || !func_def->ret_type && new_func_def->ret_type) {
+                    
+                }
+
+                return false;
+            }
+        }
+    }
+
+    functions.push_back(new_func);
+    return true;
 }
 
 } // namespace scope_node
@@ -329,7 +375,6 @@ public:
             func_def->ret_type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, *(func_def->return_type));
         }
 
-
         auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);
         new_func_var->type = new_func->type;
         if (global_scope->define_function(new_func)) {
@@ -418,12 +463,19 @@ public:
         }
 
         if (!gatherer.result_types.empty()) {
+            // TODO:
+            // Check procedure
+            // TODO:
+            // Consider return statement without any value
             if (boost::algorithm::all_of(gatherer.result_types, [&](auto const& t){ return gatherer.result_types[0] == t; })) {
                 func->ret_type = gatherer.result_types[0];
             } else {
                 semantic_error(func, boost::format("Mismatch among the result types of return statements in function '%1%'") % func->name);
                 return;
             }
+        } else {
+            // TODO:
+            // If there is no return statement, the result type should be ()
         }
     }
     // }}}
@@ -452,6 +504,7 @@ public:
             auto& func = *maybe_func;
             if (!func->define_param(new_param)) {
                 failed++;
+                return;
             }
 
             if (!param->param_type) {
@@ -648,6 +701,10 @@ public:
         }
     }
 
+    // TODO:
+    // If return type of function is not determined, interrupt current parsing and parse the
+    // function at first.  Add the function list which are already visited and check it at
+    // function_definition node
     template<class Walker>
     void visit(ast::node::func_invocation const& invocation, Walker const& recursive_walker)
     {
