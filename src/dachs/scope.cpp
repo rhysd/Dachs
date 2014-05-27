@@ -110,10 +110,10 @@ ast::node::function_definition func_scope::get_ast_node() const noexcept
     return *maybe_func_def;
 }
 
+// Note:
+// define_function() can't share the implementation with resolve_func()'s overload resolution because define_function() considers new function's template arguments
 bool global_scope::define_function(scope::func_scope const& new_func, ast::node::function_definition const& new_func_def) noexcept
 {
-    return define_symbol(functions, new_func);
-
     // Check duplication considering overloaded functions
     for (auto const& f : functions) {
 
@@ -121,35 +121,57 @@ bool global_scope::define_function(scope::func_scope const& new_func, ast::node:
             auto const func_def = f->get_ast_node();
 
             if (new_func_def->name == func_def->name) {
-                auto iter1 = std::cbegin(func_def->params);
-                auto iter2 = std::cbegin(new_func_def->params);
-                auto const end1 = std::cend(func_def->params);
-                auto const end2 = std::cend(new_func_def->params);
-
                 // Check arguments' types
-                for (; iter1 != end1 && iter2 != end2; ++iter1, ++iter2) {
-                    auto const& type1 = *iter1;
-                    auto const& type2 = *iter2;
+                {
+                    auto iter1 = std::cbegin(func_def->params);
+                    auto iter2 = std::cbegin(new_func_def->params);
+                    auto const end1 = std::cend(func_def->params);
+                    auto const end2 = std::cend(new_func_def->params);
+                    bool argument_mismatch = false;
+                    for (; iter1 != end1 && iter2 != end2; ++iter1, ++iter2) {
+                        auto const& maybe_type1 = (*iter1)->type;
+                        auto const& maybe_type2 = (*iter2)->type;
 
-                    if (type1 == type2) {
-                        // Both types are template type
-                        if (!type1)
-                    } else {
-                        // One side is template type and the other side is not
-                        functions.push_back(new_func);
-                        return true;
+                        if (maybe_type1 && maybe_type2) {
+                            // Both sides are not template
+                            assert(*maybe_type1);
+                            assert(*maybe_type2);
+                            if (*maybe_type1 != *maybe_type2) {
+                                argument_mismatch = true;
+                                break;
+                            }
+                        } else if (!maybe_type1 || !maybe_type2) {
+                            // One side is template and other side is not a template
+                            argument_mismatch = true;
+                            break;
+                        } else {
+                            // Both side are template
+                        }
+                    }
+                    if (argument_mismatch) {
+                        // Go to next fuction candidate
+                        continue; // Continues "for (auto const& f : functions) {" loop
                     }
                 }
 
                 // Note:
                 // Reach here when argument matches completely
 
-                if (func_def->ret_type && !new_func_def->ret_type
-                 || !func_def->ret_type && new_func_def->ret_type) {
-                    
+                if (!func_def->ret_type && !new_func_def->ret_type) {
+                    print_duplication_error(func_def, new_func_def, func_def->name);
+                    return false;
+                } else if (func_def->ret_type && new_func_def->ret_type) {
+                    std::cout << "hoge\n";
+                    assert(*func_def->ret_type);
+                    assert(*new_func_def->ret_type);
+                    if (*func_def->ret_type == *new_func_def->ret_type) {
+                        print_duplication_error(func_def, new_func_def, func_def->name);
+                        return false;
+                    }
+                } else {
+                    // Return type doesn't match.  Go to next function candidate.
                 }
 
-                return false;
             }
         }
     }
@@ -167,12 +189,6 @@ namespace detail {
 using std::size_t;
 using helper::variant::get_as;
 using helper::variant::apply_lambda;
-
-template<class Variant>
-inline type::type type_of(Variant const& v) noexcept
-{
-    return apply_lambda([](auto const& n){ return n->type; }, v);
-}
 
 class type_calculator_from_type_nodes
     : public boost::static_visitor<type::type> {
@@ -367,19 +383,32 @@ public:
         func_def->scope = new_func;
 
         if (func_def->kind == ast::symbol::func_kind::proc && func_def->return_type) {
-            semantic_error(func_def, "TODO");
+            semantic_error(func_def, "Procedure can't have return type");
             return;
         }
 
         if (func_def->return_type) {
-            func_def->ret_type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, *(func_def->return_type));
+            auto const& ret_type_node = *func_def->return_type;
+            func_def->ret_type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, ret_type_node);
+        }
+
+        // Note:
+        // Get type of parameter for checking duplication of overloaded function
+        for (auto const& p : func_def->params) {
+            if (p->param_type) {
+                p->type =
+                    boost::apply_visitor(
+                        type_calculator_from_type_nodes{current_scope},
+                        *(p->param_type)
+                    );
+            }
         }
 
         auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);
         new_func_var->type = new_func->type;
-        if (global_scope->define_function(new_func)) {
+        if (global_scope->define_function(new_func, func_def)) {
             // If the symbol passes duplication check, it is also defined as variable
-            global_scope->define_global_constant(new_func_var);
+            global_scope->define_global_function_constant(new_func_var);
             with_new_scope(std::move(new_func), recursive_walker);
         } else {
             failed++;
@@ -514,20 +543,23 @@ public:
                 param->template_type_ref = tmpl;
             }
 
+            // Type is already set in forward_symbol_analyzer
+            assert(!param->param_type || param->type);
+
         } else if (auto maybe_local = get_as<local_scope>(current_scope)) {
             // When for statement
             auto& local = *maybe_local;
             if (!local->define_local_var(new_param)) {
                 failed++;
             }
+
+            // Add parameter type if specified
+            if (param->param_type) {
+                param->type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, *(param->param_type));
+                new_param->type = *(param->type);
+            }
         } else {
             assert(false);
-        }
-
-        // Add parameter type if specified
-        if (param->param_type) {
-            param->type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, *(param->param_type));
-            new_param->type = *(param->type);
         }
 
         recursive_walker();
@@ -733,7 +765,7 @@ public:
         std::vector<type::type> arg_types;
         arg_types.reserve(invocation->args.size());
         // Get type list of arguments
-        boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return detail::type_of(e);});
+        boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return type_of(e);});
 
         for (auto const& arg_type : arg_types) {
             if (!arg_type) {
@@ -822,7 +854,7 @@ scope_tree make_scope_tree(ast::ast &a)
         print_func->body = make<local_scope>(print_func);
         // Note: These definitions are never duplicate
         print_func->define_param(symbol::make<symbol::var_symbol>(a.root, "value"));
-        tree_root->define_function(print_func);
+        tree_root->define_builtin_function(print_func);
         tree_root->define_global_constant(symbol::make<symbol::var_symbol>(a.root, "print"));
 
         // Operators

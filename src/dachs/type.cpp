@@ -33,21 +33,18 @@ bool any_type::operator==(any_type const& rhs) const noexcept
     return apply_lambda(
             [](auto const& l, auto const& r)
             {
-                assert(l);
-                assert(r);
-                return *l == *r;
+                if (!l || !r) {
+                    // If both sides are empty, return true.  Otherwise return false.
+                    return !l && !r;
+                } else {
+                    return *l == *r;
+                }
             }, value, rhs.value);
 }
-
 
 } // namespace type
 
 namespace type_node {
-
-bool any_type::operator==(any_type const& rhs) const noexcept
-{
-    return helper::variant::apply_lambda([](auto const& l, auto const& r){ return *l == *r; }, value, rhs.value);
-}
 
 bool func_ref_type::operator==(func_ref_type const& rhs) const noexcept
 {

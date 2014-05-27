@@ -36,6 +36,12 @@ inline void output_semantic_error(std::shared_ptr<Node> const& node, Message con
     ost << "Semantic error at line:" << node->line << ", col:" << node->col << '\n' << msg << std::endl;
 }
 
+template<class Variant>
+inline type::type type_of(Variant const& v) noexcept
+{
+    return helper::variant::apply_lambda([](auto const& n){ return n->type; }, v);
+}
+
 // Dynamic resources to use actually
 namespace scope {
 
@@ -144,9 +150,23 @@ struct global_scope final : public basic_scope {
 
     bool define_function(scope::func_scope const& new_func, ast::node::function_definition const& new_func_def) noexcept;
 
+    void define_builtin_function(scope::func_scope const& new_func) noexcept
+    {
+        // Do check nothing
+        functions.push_back(new_func);
+    }
+
     bool define_global_constant(symbol::var_symbol const& new_var) noexcept
     {
         return define_symbol(const_symbols, new_var);
+    }
+
+    // Note:
+    // Do not check duplication because of overloaded functions.  Check for overloaded functions
+    // is already done by define_function()
+    void define_global_function_constant(symbol::var_symbol const& new_var) noexcept
+    {
+        const_symbols.push_back(new_var);
     }
 
     bool define_class(scope::class_scope const& new_class) noexcept
