@@ -4,9 +4,9 @@
 #include <type_traits>
 #include <memory>
 
-#include "dachs/type.hpp"
-#include "dachs/ast_fwd.hpp"
-#include "dachs/scope_fwd.hpp"
+#include "dachs/ast/ast_fwd.hpp"
+#include "dachs/semantics/type.hpp"
+#include "dachs/semantics/scope_fwd.hpp"
 #include "dachs/helper/make.hpp"
 
 namespace dachs {

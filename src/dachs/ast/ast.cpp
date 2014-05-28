@@ -7,7 +7,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
 
-#include "dachs/ast.hpp"
+#include "dachs/ast/ast.hpp"
 
 namespace dachs {
 namespace ast {

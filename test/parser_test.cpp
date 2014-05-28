@@ -2,10 +2,10 @@
 #define BOOST_DYN_LINK
 #define BOOST_TEST_MAIN
 
-#include "dachs/parser.hpp"
+#include "dachs/parser/parser.hpp"
 #include "dachs/exception.hpp"
+#include "dachs/ast/ast_walker.hpp"
 #include "dachs/helper/util.hpp"
-#include "dachs/ast_walker.hpp"
 #include "test_helper.hpp"
 
 #include <string>

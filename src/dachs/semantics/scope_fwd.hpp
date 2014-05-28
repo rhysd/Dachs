@@ -42,6 +42,8 @@ using enclosing_scope_type
                         , weak_class_scope
                     >;
 
+struct scope_tree;
+
 } // namespace scope
 
 } // namespace dachs

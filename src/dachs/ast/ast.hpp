@@ -8,10 +8,10 @@
 #include <boost/variant/variant.hpp>
 #include <boost/optional.hpp>
 
-#include "dachs/ast_fwd.hpp"
-#include "dachs/scope_fwd.hpp"
-#include "dachs/symbol.hpp"
-#include "dachs/type.hpp"
+#include "dachs/ast/ast_fwd.hpp"
+#include "dachs/semantics/scope_fwd.hpp"
+#include "dachs/semantics/symbol.hpp"
+#include "dachs/semantics/type.hpp"
 #include "dachs/helper/variant.hpp"
 
 

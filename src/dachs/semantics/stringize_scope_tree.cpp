@@ -5,10 +5,10 @@
 #include <boost/range/numeric.hpp>
 #include <boost/range/empty.hpp>
 
-#include "dachs/helper/stringize_scope_tree.hpp"
+#include "dachs/semantics/stringize_scope_tree.hpp"
 
 namespace dachs {
-namespace helper {
+namespace scope {
 
 namespace detail {
 
@@ -50,21 +50,21 @@ class scope_tree_stringizer {
 
 public:
 
-    std::string visit(scope::local_scope const& l, size_t const i) const
+    std::string visit(local_scope const& l, size_t const i) const
     {
         return indent(i) + "LOCAL_SCOPE"
             + visit_symbols(l->local_vars, i+1, "DEF: ")
             + visit_scopes(l->children, i+1);
     }
 
-    std::string visit(scope::func_scope const& f, size_t const i) const
+    std::string visit(func_scope const& f, size_t const i) const
     {
         return indent(i) + "FUNCTION_SCOPE: " + f->name
             + visit_symbols(f->params, i+1, "DEF: ")
             + '\n' + visit(f->body, i+1);
     }
 
-    std::string visit(scope::global_scope const& g, size_t const i) const
+    std::string visit(global_scope const& g, size_t const i) const
     {
         return indent(i) + "GLOBAL_SCOPE"
             + visit_symbols(g->const_symbols, i+1, "DEF: ")
@@ -72,7 +72,7 @@ public:
             + visit_scopes(g->classes, i+1);
     }
 
-    std::string visit(scope::class_scope const& c, size_t const i) const
+    std::string visit(class_scope const& c, size_t const i) const
     {
         return indent(i) + "CLASS_SCOPE: " + c->name
             + visit_symbols(c->member_var_symbols, i+1, "DEF: ")
@@ -83,11 +83,11 @@ public:
 
 } // namespace detail
 
-std::string stringize_scope_tree(scope::scope_tree const& tree)
+std::string stringize_scope_tree(scope_tree const& tree)
 {
     return detail::scope_tree_stringizer{}.visit(tree.root, 0);
 }
 
-} // namespace helper
+} // namespace scope
 } // namespace dachs
 

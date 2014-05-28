@@ -7,7 +7,7 @@
 
 #include <boost/format.hpp>
 
-#include "dachs/ast.hpp"
+#include "dachs/ast/ast_fwd.hpp"
 
 namespace dachs {
 namespace syntax {

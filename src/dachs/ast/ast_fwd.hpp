@@ -5,6 +5,9 @@
 #include <type_traits>
 #include <cassert>
 
+#include <boost/variant/variant.hpp>
+#include <boost/optional.hpp>
+
 namespace dachs {
 namespace ast {
 
@@ -276,6 +279,8 @@ inline boost::optional<NodePtr> get_shared_as(any_node const& node) noexcept
 }
 
 } // namespace node
+
+struct ast;
 
 } // namespace ast
 } // namespace dachs

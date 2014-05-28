@@ -1,7 +1,7 @@
 #include <cassert>
 #include <boost/optional.hpp>
-#include "dachs/type.hpp"
-#include "dachs/scope.hpp"
+#include "dachs/semantics/type.hpp"
+#include "dachs/semantics/scope.hpp"
 
 namespace dachs {
 namespace type {

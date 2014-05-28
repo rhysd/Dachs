@@ -3,14 +3,14 @@
 
 #include <string>
 
-#include "dachs/scope.hpp"
+#include "dachs/semantics/scope.hpp"
 
 namespace dachs {
-namespace helper {
+namespace scope {
 
-std::string stringize_scope_tree(scope::scope_tree const& tree);
+std::string stringize_scope_tree(scope_tree const& tree);
 
-} // namespace helper
+} // namespace scope
 } // namespace dachs
 
 #endif    // DACHS_HELPER_STRINGIZE_SCOPE_TREE_HPP_INCLUDED

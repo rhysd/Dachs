@@ -14,7 +14,7 @@
 #include <boost/optional.hpp>
 #include <boost/mpl/vector.hpp>
 
-#include "scope_fwd.hpp"
+#include "dachs/semantics/scope_fwd.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/make.hpp"
 #include "dachs/helper/util.hpp"

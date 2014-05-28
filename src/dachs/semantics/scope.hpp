@@ -2,45 +2,24 @@
 #define      DACHS_SCOPE_HPP_INCLUDED
 
 #include <vector>
+#include <string>
 #include <type_traits>
-#include <iostream>
 #include <cstddef>
-#include <cassert>
 #include <boost/variant/variant.hpp>
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
-#include <boost/range/algorithm/find_if.hpp>
 #include <boost/format.hpp>
 
-#include "dachs/scope_fwd.hpp"
-#include "dachs/type.hpp"
-#include "dachs/symbol.hpp"
-#include "dachs/ast_fwd.hpp"
+#include "dachs/semantics/scope_fwd.hpp"
+#include "dachs/semantics/type.hpp"
+#include "dachs/semantics/symbol.hpp"
+#include "dachs/semantics/common.hpp"
+#include "dachs/ast/ast_fwd.hpp"
 #include "dachs/helper/make.hpp"
 #include "dachs/helper/util.hpp"
 #include "dachs/helper/variant.hpp"
 
 namespace dachs {
-
-// TODO: Move to proper place
-template<class Message>
-inline void output_semantic_error(std::size_t const line, std::size_t const col, Message const& msg, std::ostream &ost = std::cerr)
-{
-    ost << "Semantic error at line:" << line << ", col:" << col << '\n' << msg << std::endl;
-}
-
-template<class Node, class Message>
-inline void output_semantic_error(std::shared_ptr<Node> const& node, Message const& msg, std::ostream &ost = std::cerr)
-{
-    static_assert(ast::traits::is_node<Node>::value, "output_semantic_error(): Node is not AST node.");
-    ost << "Semantic error at line:" << node->line << ", col:" << node->col << '\n' << msg << std::endl;
-}
-
-template<class Variant>
-inline type::type type_of(Variant const& v) noexcept
-{
-    return helper::variant::apply_lambda([](auto const& n){ return n->type; }, v);
-}
 
 // Dynamic resources to use actually
 namespace scope {
@@ -74,7 +53,7 @@ struct basic_scope {
     template<class Node1, class Node2>
     void print_duplication_error(Node1 const& node1, Node2 const& node2, std::string const& name)
     {
-        output_semantic_error(node1, boost::format("Symbol '%1%' is redefined.\nPrevious definition is at line:%2%, col:%3%") % name % node2->line % node2->col);
+        semantics::output_semantic_error(node1, boost::format("Symbol '%1%' is redefined.\nPrevious definition is at line:%2%, col:%3%") % name % node2->line % node2->col);
     }
 
     template<class Symbol>
@@ -319,8 +298,6 @@ struct scope_tree final {
         : root{}
     {}
 };
-
-scope_tree make_scope_tree(ast::ast &ast);
 
 struct var_symbol_resolver
     : boost::static_visitor<boost::optional<symbol::var_symbol>> {

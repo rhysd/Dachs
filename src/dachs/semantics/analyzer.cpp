@@ -1,289 +1,29 @@
+#include <vector>
+#include <string>
 #include <cassert>
-#include <cstddef>
-#include <iterator>
 
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
-#include <boost/range/algorithm/find_if.hpp>
-#include <boost/range/algorithm/transform.hpp>
 #include <boost/algorithm/cxx11/all_of.hpp> // For boost::all_of
-#include <boost/range/numeric.hpp>
+#include <boost/range/algorithm/transform.hpp>
 
-#include "dachs/scope.hpp"
-#include "dachs/ast.hpp"
-#include "dachs/symbol.hpp"
-#include "dachs/ast_walker.hpp"
 #include "dachs/exception.hpp"
+#include "dachs/ast/ast.hpp"
+#include "dachs/ast/ast_walker.hpp"
+#include "dachs/semantics/analyzer_common.hpp"
+#include "dachs/semantics/analyzer.hpp"
+#include "dachs/semantics/scope.hpp"
+#include "dachs/semantics/symbol.hpp"
+#include "dachs/semantics/type.hpp"
 #include "dachs/helper/variant.hpp"
 
 namespace dachs {
-
-namespace scope_node {
-
-namespace detail {
-
-template<class FuncScope, class Args, class RetType>
-inline
-std::size_t get_overloaded_function_score(FuncScope const& func, Args const& args, RetType const& ret)
-{
-    if (args.size() != func->params.size()) {
-        return 0u;
-    }
-
-    std::size_t score = 1u;
-    auto const func_def = func->get_ast_node();
-
-    // Score of return type. (Room to consider remains)
-    if (ret && func_def->ret_type) {
-        if (*ret == *(func_def->ret_type)) {
-            score *= 2u;
-        } else {
-            score *= 0u;
-        }
-    }
-
-    // Return type doesn't match.  No need to calculate the score of arguments' coincidence.
-    if (score == 0u) {
-        return 0u;
-    }
-
-    if (args.size() == 0) {
-        return score;
-    }
-
-    // Calculate the score of arguments' coincidence
-    std::vector<std::size_t> v;
-    v.reserve(args.size());
-
-    boost::transform(args, func_def->params, std::back_inserter(v),
-            [](auto const& arg, auto const& param)
-            {
-                assert(arg);
-                if (param->template_type_ref) {
-                    // Function parameter is template.  It matches any types.
-                    return 1u;
-                }
-
-                assert(param->type);
-
-                if (*param->type == arg) {
-                    return 2u;
-                } else {
-                    return 0u;
-                }
-            });
-
-    // Note:
-    // If the function have no argument and return type is not specified, score is 1.
-    return boost::accumulate(v, score, [](auto l, auto r){ return l*r; });
-}
-
-} // namespace detail
-
-boost::optional<scope::func_scope>
-global_scope::resolve_func( std::string const& name
-            , std::vector<type::type> const& args
-            , boost::optional<type::type> const& ret_type) const
-{
-    boost::optional<scope::func_scope> result = boost::none;
-
-    std::size_t score = 0u;
-    for (auto const& f : functions) {
-        if (f->name != name) {
-            continue;
-        }
-
-        auto const score_tmp = detail::get_overloaded_function_score(f, args, ret_type);
-        if (score_tmp > score) {
-            score = score_tmp;
-            result = f;
-        }
-    }
-
-    return result;
-}
-
-ast::node::function_definition func_scope::get_ast_node() const noexcept
-{
-    auto maybe_func_def = ast::node::get_shared_as<ast::node::function_definition>(ast_node);
-    assert(maybe_func_def);
-    return *maybe_func_def;
-}
-
-// Note:
-// define_function() can't share the implementation with resolve_func()'s overload resolution because define_function() considers new function's template arguments
-bool global_scope::define_function(scope::func_scope const& new_func, ast::node::function_definition const& new_func_def) noexcept
-{
-    // Check duplication considering overloaded functions
-    for (auto const& f : functions) {
-
-        if (new_func->params.size() == f->params.size()) {
-            auto const func_def = f->get_ast_node();
-
-            if (new_func_def->name == func_def->name) {
-                // Check arguments' types
-                {
-                    auto iter1 = std::cbegin(func_def->params);
-                    auto iter2 = std::cbegin(new_func_def->params);
-                    auto const end1 = std::cend(func_def->params);
-                    auto const end2 = std::cend(new_func_def->params);
-                    bool argument_mismatch = false;
-                    for (; iter1 != end1 && iter2 != end2; ++iter1, ++iter2) {
-                        auto const& maybe_type1 = (*iter1)->type;
-                        auto const& maybe_type2 = (*iter2)->type;
-
-                        if (maybe_type1 && maybe_type2) {
-                            // Both sides are not template
-                            assert(*maybe_type1);
-                            assert(*maybe_type2);
-                            if (*maybe_type1 != *maybe_type2) {
-                                argument_mismatch = true;
-                                break;
-                            }
-                        } else if (!maybe_type1 || !maybe_type2) {
-                            // One side is template and other side is not a template
-                            argument_mismatch = true;
-                            break;
-                        } else {
-                            // Both side are template
-                        }
-                    }
-                    if (argument_mismatch) {
-                        // Go to next fuction candidate
-                        continue; // Continues "for (auto const& f : functions) {" loop
-                    }
-                }
-
-                // Note:
-                // Reach here when argument matches completely
-
-                if (!func_def->ret_type && !new_func_def->ret_type) {
-                    print_duplication_error(func_def, new_func_def, func_def->name);
-                    return false;
-                } else if (func_def->ret_type && new_func_def->ret_type) {
-                    std::cout << "hoge\n";
-                    assert(*func_def->ret_type);
-                    assert(*new_func_def->ret_type);
-                    if (*func_def->ret_type == *new_func_def->ret_type) {
-                        print_duplication_error(func_def, new_func_def, func_def->name);
-                        return false;
-                    }
-                } else {
-                    // Return type doesn't match.  Go to next function candidate.
-                }
-
-            }
-        }
-    }
-
-    functions.push_back(new_func);
-    return true;
-}
-
-} // namespace scope_node
-
-namespace scope {
-
+namespace semantics {
 namespace detail {
 
 using std::size_t;
 using helper::variant::get_as;
 using helper::variant::apply_lambda;
-
-class type_calculator_from_type_nodes
-    : public boost::static_visitor<type::type> {
-
-    any_scope const& current_scope;
-
-    template<class T>
-    type::type apply_recursively(T const& t) const noexcept
-    {
-        return boost::apply_visitor(*this, t);
-    }
-
-public:
-
-    explicit type_calculator_from_type_nodes(any_scope const& c)
-        : current_scope(c)
-    {}
-
-    type::type operator()(ast::node::primary_type const& t) const noexcept
-    {
-        auto const builtin = type::get_builtin_type(t->template_name.c_str());
-        if (builtin) {
-            return *builtin;
-        } else {
-            auto const c = boost::apply_visitor(class_resolver{t->template_name}, current_scope);
-            // TODO: deal with exception
-            assert(c && "This assertion is temporary");
-            auto const ret = type::make<type::class_type>(t->template_name, *c);
-            for (auto const& instantiated : t->instantiated_templates) {
-                ret->holder_types.push_back(apply_recursively(instantiated));
-            }
-            return ret;
-        }
-    }
-
-    type::type operator()(ast::node::array_type const& t) const noexcept
-    {
-        return type::make<type::array_type>(
-                    apply_recursively(t->elem_type)
-                );
-    }
-
-    type::type operator()(ast::node::tuple_type const& t) const noexcept
-    {
-        auto const ret = type::make<type::tuple_type>();
-        ret->element_types.reserve(t->arg_types.size());
-        for (auto const& arg : t->arg_types) {
-            ret->element_types.push_back(apply_recursively(arg));
-        }
-        return ret;
-    }
-
-    type::type operator()(ast::node::dict_type const& t) const noexcept
-    {
-        return type::make<type::dict_type>(
-                    apply_recursively(t->key_type),
-                    apply_recursively(t->value_type)
-                );
-    }
-
-    type::type operator()(ast::node::qualified_type const& t) const noexcept
-    {
-        type::qualifier new_qualifier;
-        switch (t->qualifier) {
-        case ast::symbol::qualifier::maybe:
-            new_qualifier = type::qualifier::maybe;
-            break;
-        default:
-            assert(false);
-            break;
-        }
-
-        return type::make<type::qualified_type>(
-                    new_qualifier, apply_recursively(t->type)
-               );
-    }
-
-    type::type operator()(ast::node::func_type const& t) const noexcept
-    {
-        std::vector<type::any_type> param_types;
-        param_types.reserve(t->arg_types.size());
-        for (auto const& a : t->arg_types) {
-            param_types.push_back(apply_recursively(a));
-        }
-
-        if (t->ret_type) {
-            return {type::make<type::func_type>(
-                    std::move(param_types),
-                    apply_recursively(*(t->ret_type))
-                )};
-        } else {
-            return {type::make<type::proc_type>(std::move(param_types))};
-        }
-    }
-};
 
 struct return_types_gatherer {
     std::vector<type::type> result_types;
@@ -322,113 +62,9 @@ struct return_types_gatherer {
     }
 };
 
-// Walk to analyze functions, classes and member variables symbols to make forward reference possible
-class forward_symbol_analyzer {
-
-    any_scope current_scope;
-
-    // Introduce a new scope and ensure to restore the old scope
-    // after the visit process
-    template<class Scope, class Walker>
-    void with_new_scope(Scope && new_scope, Walker const& walker)
-    {
-        auto const tmp_scope = current_scope;
-        current_scope = new_scope;
-        walker();
-        current_scope = tmp_scope;
-    }
-
-    template<class Node, class Message>
-    void semantic_error(Node const& n, Message const& msg) noexcept
-    {
-        output_semantic_error(n, msg);
-        failed++;
-    }
-
-public:
-
-    size_t failed;
-
-    template<class Scope>
-    explicit forward_symbol_analyzer(Scope const& s) noexcept
-        : current_scope(s), failed(0)
-    {}
-
-    template<class Walker>
-    void visit(ast::node::statement_block const& block, Walker const& recursive_walker)
-    {
-        auto new_local_scope = make<local_scope>(current_scope);
-        block->scope = new_local_scope;
-        if (auto maybe_local_scope = get_as<local_scope>(current_scope)) {
-            auto &enclosing_scope = *maybe_local_scope;
-            enclosing_scope->define_child(new_local_scope);
-        } else if (auto maybe_func_scope = get_as<func_scope>(current_scope)) {
-            auto &enclosing_scope = *maybe_func_scope;
-            enclosing_scope->body = new_local_scope;
-        } else {
-            assert(false); // Should not reach here
-        }
-        with_new_scope(std::move(new_local_scope), recursive_walker);
-    }
-
-    template<class Walker>
-    void visit(ast::node::function_definition const& func_def, Walker const& recursive_walker)
-    {
-        // Define scope
-        auto maybe_global_scope = get_as<scope::global_scope>(current_scope);
-        assert(maybe_global_scope);
-        auto& global_scope = *maybe_global_scope;
-        auto new_func = make<func_scope>(func_def, global_scope, func_def->name);
-        new_func->type = type::make<type::func_ref_type>(scope::weak_func_scope{new_func});
-        func_def->scope = new_func;
-
-        if (func_def->kind == ast::symbol::func_kind::proc && func_def->return_type) {
-            semantic_error(func_def, "Procedure can't have return type");
-            return;
-        }
-
-        if (func_def->return_type) {
-            auto const& ret_type_node = *func_def->return_type;
-            func_def->ret_type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, ret_type_node);
-        }
-
-        // Note:
-        // Get type of parameter for checking duplication of overloaded function
-        for (auto const& p : func_def->params) {
-            if (p->param_type) {
-                p->type =
-                    boost::apply_visitor(
-                        type_calculator_from_type_nodes{current_scope},
-                        *(p->param_type)
-                    );
-            }
-        }
-
-        auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);
-        new_func_var->type = new_func->type;
-        if (global_scope->define_function(new_func, func_def)) {
-            // If the symbol passes duplication check, it is also defined as variable
-            global_scope->define_global_function_constant(new_func_var);
-            with_new_scope(std::move(new_func), recursive_walker);
-        } else {
-            failed++;
-        }
-    }
-
-    // TODO: class scopes and member function scopes
-
-    template<class T, class Walker>
-    void visit(T const&, Walker const& walker)
-    {
-        // Simply visit children recursively
-        walker();
-    }
-
-};
-
-struct weak_ptr_locker : public boost::static_visitor<any_scope> {
+struct weak_ptr_locker : public boost::static_visitor<scope::any_scope> {
     template<class WeakScope>
-    any_scope operator()(WeakScope const& w) const
+    scope::any_scope operator()(WeakScope const& w) const
     {
         assert(!w.expired());
         return w.lock();
@@ -438,8 +74,8 @@ struct weak_ptr_locker : public boost::static_visitor<any_scope> {
 // Walk to resolve symbol references
 class symbol_analyzer {
 
-    any_scope current_scope;
-    global_scope const global;
+    scope::any_scope current_scope;
+    scope::global_scope const global;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -464,7 +100,7 @@ public:
     size_t failed;
 
     template<class Scope>
-    explicit symbol_analyzer(Scope const& root, global_scope const& global) noexcept
+    explicit symbol_analyzer(Scope const& root, scope::global_scope const& global) noexcept
         : current_scope{root}, global{global}, failed{0}
     {}
 
@@ -487,13 +123,15 @@ public:
         ast::make_walker(gatherer).walk(func_);
 
         if (!gatherer.failed_return_stmts.empty()) {
-            semantic_error(func, boost::format("Can't deduce return type of function '%1%'from return statement\nNote: return statement is here: line%2%, col%3%") % func->name % gatherer.failed_return_stmts[0]->line % gatherer.failed_return_stmts[0]->col);
+            semantic_error(func, boost::format("Can't deduce return type of function '%1%' from return statement\nNote: return statement is here: line%2%, col%3%") % func->name % gatherer.failed_return_stmts[0]->line % gatherer.failed_return_stmts[0]->col);
             return;
         }
 
         if (!gatherer.result_types.empty()) {
-            // TODO:
-            // Check procedure
+            if (func->kind == ast::symbol::func_kind::proc) {
+                semantic_error(func, boost::format("proc '%1%' can't have return statement") % func->name);
+                return;
+            }
             // TODO:
             // Consider return statement without any value
             if (boost::algorithm::all_of(gatherer.result_types, [&](auto const& t){ return gatherer.result_types[0] == t; })) {
@@ -529,7 +167,7 @@ public:
     {
         auto new_param = symbol::make<symbol::var_symbol>(param, param->name);
         param->param_symbol = new_param;
-        if (auto maybe_func = get_as<func_scope>(current_scope)) {
+        if (auto maybe_func = get_as<scope::func_scope>(current_scope)) {
             auto& func = *maybe_func;
             if (!func->define_param(new_param)) {
                 failed++;
@@ -546,7 +184,7 @@ public:
             // Type is already set in forward_symbol_analyzer
             assert(!param->param_type || param->type);
 
-        } else if (auto maybe_local = get_as<local_scope>(current_scope)) {
+        } else if (auto maybe_local = get_as<scope::local_scope>(current_scope)) {
             // When for statement
             auto& local = *maybe_local;
             if (!local->define_local_var(new_param)) {
@@ -568,7 +206,7 @@ public:
     template<class Walker>
     void visit(ast::node::variable_decl const& decl, Walker const& recursive_walker)
     {
-        auto maybe_local = get_as<local_scope>(current_scope);
+        auto maybe_local = get_as<scope::local_scope>(current_scope);
         assert(maybe_local);
         auto& local = *maybe_local;
         auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name);
@@ -842,57 +480,15 @@ public:
 
 } // namespace detail
 
-scope_tree make_scope_tree(ast::ast &a)
+void check_semantics(ast::ast &a, scope::scope_tree &t)
 {
-    auto const tree_root = make<global_scope>();
+    detail::symbol_analyzer resolver{t.root, t.root};
+    ast::walk_topdown(a.root, resolver);
 
-    {
-        // Builtin functions
-
-        // func print(str)
-        auto print_func = make<func_scope>(a.root, tree_root, "print");
-        print_func->body = make<local_scope>(print_func);
-        // Note: These definitions are never duplicate
-        print_func->define_param(symbol::make<symbol::var_symbol>(a.root, "value"));
-        tree_root->define_builtin_function(print_func);
-        tree_root->define_global_constant(symbol::make<symbol::var_symbol>(a.root, "print"));
-
-        // Operators
-        // cast functions
+    if (resolver.failed > 0) {
+        throw dachs::semantic_check_error{resolver.failed, "symbol resolution"};
     }
-
-    {
-        // Builtin classes
-
-        // range
-    }
-
-    {
-        detail::forward_symbol_analyzer forward_resolver{tree_root};
-        ast::walk_topdown(a.root, forward_resolver);
-
-        if (forward_resolver.failed > 0) {
-            throw dachs::semantic_check_error{forward_resolver.failed, "forward symbol resolution"};
-        }
-    }
-
-    {
-        detail::symbol_analyzer resolver{tree_root, tree_root};
-        ast::walk_topdown(a.root, resolver);
-
-        if (resolver.failed > 0) {
-            throw dachs::semantic_check_error{resolver.failed, "symbol resolution"};
-        }
-    }
-
-    // TODO: Get type of global function variables' type on visit node::function_definition
-    // Note:
-    // Type of function can be set after parameters' types are set.
-    // Should function type be set at forward analysis phase?
-    // If so, type calculation pass should be separated from symbol analysis pass.
-
-    return scope_tree{tree_root};
 }
 
-} // namespace scope
+} // namespace semantics
 } // namespace dachs

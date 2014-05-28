@@ -7,7 +7,7 @@
 #include <boost/optional.hpp>
 #include <boost/variant/variant.hpp>
 
-#include "dachs/ast.hpp"
+#include "dachs/ast/ast.hpp"
 #include "dachs/helper/util.hpp"
 #include "dachs/helper/variant.hpp"
 

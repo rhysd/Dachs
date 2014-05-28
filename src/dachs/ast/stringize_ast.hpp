@@ -3,14 +3,14 @@
 
 #include <string>
 
-#include "dachs/ast.hpp"
+#include "dachs/ast/ast_fwd.hpp"
 
 namespace dachs {
-namespace helper {
+namespace ast {
 
 std::string stringize_ast(ast::ast const& ast, bool const colorful);
 
-} // namespace helper
+} // namespace ast
 } // namespace dachs
 
 
