@@ -1,5 +1,5 @@
-#if !defined DACHS_AST_WALKER_BASE_HPP_INCLUDED
-#define      DACHS_AST_WALKER_BASE_HPP_INCLUDED
+#if !defined DACHS_AST_AST_WALKER_BASE_HPP_INCLUDED
+#define      DACHS_AST_AST_WALKER_BASE_HPP_INCLUDED
 
 #include <vector>
 #include <utility>
@@ -369,4 +369,4 @@ inline void walk_topdown(ASTNode &n, Visitor && v)
 
 } // namespace dachs
 
-#endif    // DACHS_AST_WALKER_BASE_HPP_INCLUDED
+#endif    // DACHS_AST_AST_WALKER_BASE_HPP_INCLUDED

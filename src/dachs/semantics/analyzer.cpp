@@ -1,6 +1,7 @@
 #include <vector>
 #include <string>
 #include <cassert>
+#include <iterator>
 
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
@@ -15,6 +16,7 @@
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/type.hpp"
+#include "dachs/semantics/error.hpp"
 #include "dachs/helper/variant.hpp"
 
 namespace dachs {

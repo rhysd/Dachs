@@ -1,5 +1,5 @@
-#if !defined DACHS_SCOPE_HPP_INCLUDED
-#define      DACHS_SCOPE_HPP_INCLUDED
+#if !defined DACHS_SEMANTICS_SCOPE_HPP_INCLUDED
+#define      DACHS_SEMANTICS_SCOPE_HPP_INCLUDED
 
 #include <vector>
 #include <string>
@@ -13,7 +13,7 @@
 #include "dachs/semantics/scope_fwd.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/symbol.hpp"
-#include "dachs/semantics/common.hpp"
+#include "dachs/semantics/error.hpp"
 #include "dachs/ast/ast_fwd.hpp"
 #include "dachs/helper/make.hpp"
 #include "dachs/helper/util.hpp"
@@ -333,4 +333,4 @@ struct class_resolver
 
 } // namespace dachs
 
-#endif    // DACHS_SCOPE_HPP_INCLUDED
+#endif    // DACHS_SEMANTICS_SCOPE_HPP_INCLUDED

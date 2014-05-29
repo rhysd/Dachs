@@ -5,6 +5,7 @@
 #include "dachs/semantics/forward_analyzer.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/type.hpp"
+#include "dachs/semantics/error.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/ast_walker.hpp"
 #include "dachs/exception.hpp"

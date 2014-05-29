@@ -1,5 +1,5 @@
-#if !defined DACHS_HELPER_STRINGIZE_AST_HPP_INCLUDED
-#define      DACHS_HELPER_STRINGIZE_AST_HPP_INCLUDED
+#if !defined DACHS_AST_STRINGIZE_AST_HPP_INCLUDED
+#define      DACHS_AST_STRINGIZE_AST_HPP_INCLUDED
 
 #include <string>
 
@@ -15,4 +15,4 @@ std::string stringize_ast(ast::ast const& ast, bool const colorful);
 
 
 
-#endif    // DACHS_HELPER_STRINGIZE_AST_HPP_INCLUDED
+#endif    // DACHS_AST_STRINGIZE_AST_HPP_INCLUDED

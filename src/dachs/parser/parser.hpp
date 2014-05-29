@@ -1,5 +1,5 @@
-#if !defined DACHS_PARSER_HPP_INCLUDED
-#define      DACHS_PARSER_HPP_INCLUDED
+#if !defined DACHS_PARSER_PARSER_HPP_INCLUDED
+#define      DACHS_PARSER_PARSER_HPP_INCLUDED
 
 #include <cstddef>
 #include <string>
@@ -20,4 +20,4 @@ public:
 } // namespace syntax
 } // namespace dachs
 
-#endif  // DACHS_PARSER_HPP_INCLUDED
+#endif  // DACHS_PARSER_PARSER_HPP_INCLUDED
