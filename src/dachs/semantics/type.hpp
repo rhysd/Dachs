@@ -528,9 +528,9 @@ struct array_type final : public basic_type {
 
     std::string to_string() const noexcept override
     {
-        return '{'
+        return '['
             + element_type.to_string()
-            + '}';
+            + ']';
     }
 
     bool operator==(array_type const& rhs) const noexcept

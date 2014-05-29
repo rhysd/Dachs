@@ -2,8 +2,10 @@
 #include <cstddef>
 #include <iterator>
 
+#include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/algorithm/transform.hpp>
 #include <boost/range/numeric.hpp>
+#include <boost/algorithm/string/join.hpp>
 
 #include "dachs/semantics/scope.hpp"
 #include "dachs/ast/ast.hpp"
@@ -106,16 +108,12 @@ ast::node::function_definition func_scope::get_ast_node() const noexcept
 // define_function() can't share the implementation with resolve_func()'s overload resolution because define_function() considers new function's template arguments
 bool func_scope::operator==(func_scope const& rhs) const noexcept
 {
-    if (params.size() != rhs.params.size()) {
+    if (name != rhs.name || params.size() != rhs.params.size()) {
         return false;
     }
 
     auto const lhs_func_def = get_ast_node();
     auto const rhs_func_def = rhs.get_ast_node();
-
-    if (lhs_func_def->name != rhs_func_def->name) {
-        return false;
-    }
 
     // Check arguments' types
     {
@@ -160,6 +158,20 @@ bool func_scope::operator==(func_scope const& rhs) const noexcept
     }
 }
 
+std::string func_scope::to_string() const noexcept
+{
+    auto const def = get_ast_node();
+    std::string ret = ast::symbol::to_string(def->kind) + ' ' + name + '(';
+
+    ret += boost::algorithm::join(def->params | boost::adaptors::transformed([](auto const& p){ return p->type ? p->type->to_string() : "T"; }), ", ");
+    ret += ')';
+
+    if (def->ret_type) {
+        ret += ": " + def->ret_type->to_string();
+    }
+
+    return ret;
+}
 
 } // namespace scope_node
 

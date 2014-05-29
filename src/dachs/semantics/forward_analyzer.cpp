@@ -2,6 +2,8 @@
 #include <cstddef>
 #include <cassert>
 
+#include <boost/format.hpp>
+
 #include "dachs/semantics/analyzer_common.hpp"
 #include "dachs/semantics/forward_analyzer.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -85,6 +87,8 @@ public:
             return;
         }
 
+        // Note:
+        // Get return type for checking duplication of overloaded function
         if (func_def->return_type) {
             auto const& ret_type_node = *func_def->return_type;
             func_def->ret_type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, ret_type_node);
@@ -170,7 +174,7 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
                 if (**right == **left) {
                     auto const rhs_def = (*right)->get_ast_node();
                     auto const lhs_def = (*left)->get_ast_node();
-                    print_duplication_error(rhs_def, lhs_def, rhs_def->name);
+                    output_semantic_error(rhs_def, boost::format("'%1%' is redefined.\nNote: Previous definition is at line:%2%, col:%3%") % (*right)->to_string() % lhs_def->line % lhs_def->col);
                     failed++;
                 }
             }

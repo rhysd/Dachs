@@ -205,6 +205,8 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         , basic_symbol(n, s)
     {}
 
+    std::string to_string() const noexcept;
+
     bool define_param(symbol::var_symbol const& new_var) noexcept
     {
         return define_symbol(params, new_var);
