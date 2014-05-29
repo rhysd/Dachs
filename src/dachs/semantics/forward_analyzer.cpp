@@ -1,3 +1,4 @@
+#include <iterator>
 #include <cstddef>
 #include <cassert>
 
@@ -106,13 +107,9 @@ public:
 
         auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);
         new_func_var->type = new_func->type;
-        if (global_scope->define_function(new_func, func_def)) {
-            // If the symbol passes duplication check, it is also defined as variable
-            global_scope->define_global_function_constant(new_func_var);
-            with_new_scope(std::move(new_func), recursive_walker);
-        } else {
-            failed++;
-        }
+        global_scope->define_function(new_func);
+        global_scope->define_global_function_constant(new_func_var);
+        with_new_scope(std::move(new_func), recursive_walker);
     }
 
     // TODO: class scopes and member function scopes
@@ -140,7 +137,7 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
         print_func->body = scope::make<scope::local_scope>(print_func);
         // Note: These definitions are never duplicate
         print_func->define_param(symbol::make<symbol::var_symbol>(a.root, "value"));
-        tree_root->define_builtin_function(print_func);
+        tree_root->define_function(print_func);
         tree_root->define_global_constant(symbol::make<symbol::var_symbol>(a.root, "print"));
 
         // Operators
@@ -153,11 +150,39 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
         // range
     }
 
-    detail::forward_symbol_analyzer forward_resolver{tree_root};
-    ast::walk_topdown(a.root, forward_resolver);
+    {
+        // Generate scope tree
+        detail::forward_symbol_analyzer forward_resolver{tree_root};
+        ast::walk_topdown(a.root, forward_resolver);
 
-    if (forward_resolver.failed > 0) {
-        throw dachs::semantic_check_error{forward_resolver.failed, "forward symbol resolution"};
+        if (forward_resolver.failed > 0) {
+            throw dachs::semantic_check_error{forward_resolver.failed, "forward symbol resolution"};
+        }
+    }
+
+    {
+        // Check function duplication
+
+        std::size_t failed = 0u;
+        auto end = tree_root->functions.cend();
+        for (auto left = tree_root->functions.cbegin(); left != end; ++left) {
+            for (auto right = std::next(left); right != end; ++right) {
+                if (**right == **left) {
+                    auto const rhs_def = (*right)->get_ast_node();
+                    auto const lhs_def = (*left)->get_ast_node();
+                    print_duplication_error(rhs_def, lhs_def, rhs_def->name);
+                    failed++;
+                }
+            }
+        }
+
+        if (failed > 0) {
+            throw dachs::semantic_check_error{failed, "function duplication check"};
+        }
+
+        // Note:
+        // Check function duplication after generating scope tree because overload resolution requires
+        // of arguments and types of arguments require class information which should be forward-analyzed.
     }
 
     return scope::scope_tree{tree_root};

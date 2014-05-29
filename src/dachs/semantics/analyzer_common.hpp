@@ -21,6 +21,21 @@ inline type::type type_of(Variant const& v) noexcept
     return helper::variant::apply_lambda([](auto const& n){ return n->type; }, v);
 }
 
+struct class_resolver
+    : boost::static_visitor<boost::optional<scope::class_scope>> {
+    std::string const& name;
+
+    explicit class_resolver(std::string const& n) noexcept
+        : name{n}
+    {}
+
+    template<class T>
+    result_type operator()(std::shared_ptr<T> const& scope) const noexcept
+    {
+        return scope->resolve_class(name);
+    }
+};
+
 class type_calculator_from_type_nodes
     : public boost::static_visitor<type::type> {
 
@@ -44,7 +59,7 @@ public:
         if (builtin) {
             return *builtin;
         } else {
-            auto const c = boost::apply_visitor(scope::class_resolver{t->template_name}, current_scope);
+            auto const c = boost::apply_visitor(class_resolver{t->template_name}, current_scope);
             // TODO: Deal with exception
             assert(c && "This assertion is temporary");
             auto const ret = type::make<type::class_type>(t->template_name, *c);

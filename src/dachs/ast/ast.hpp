@@ -14,7 +14,6 @@
 #include "dachs/semantics/type.hpp"
 #include "dachs/helper/variant.hpp"
 
-
 // Note:
 // This AST is heterogeneous (patially homogeneous).
 // Homogeneous AST with boost::variant is too hard because of high compile-time cost.

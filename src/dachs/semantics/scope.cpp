@@ -104,74 +104,62 @@ ast::node::function_definition func_scope::get_ast_node() const noexcept
 
 // Note:
 // define_function() can't share the implementation with resolve_func()'s overload resolution because define_function() considers new function's template arguments
-bool global_scope::define_function(scope::func_scope const& new_func, ast::node::function_definition const& new_func_def) noexcept
+bool func_scope::operator==(func_scope const& rhs) const noexcept
 {
-    // Check duplication considering overloaded functions
-    for (auto const& f : functions) {
+    if (params.size() != rhs.params.size()) {
+        return false;
+    }
 
-        if (new_func->params.size() == f->params.size()) {
-            auto const func_def = f->get_ast_node();
+    auto const lhs_func_def = get_ast_node();
+    auto const rhs_func_def = rhs.get_ast_node();
 
-            if (new_func_def->name == func_def->name) {
-                // Check arguments' types
-                {
-                    // Note:
-                    // Do not use std::cbegin()/std::cend() because of libstdc++
-                    auto iter1 = func_def->params.cbegin();
-                    auto iter2 = new_func_def->params.cbegin();
-                    auto const end1 = func_def->params.cend();
-                    auto const end2 = new_func_def->params.cend();
-                    bool argument_mismatch = false;
-                    for (; iter1 != end1 && iter2 != end2; ++iter1, ++iter2) {
-                        auto const& maybe_type1 = (*iter1)->type;
-                        auto const& maybe_type2 = (*iter2)->type;
+    if (lhs_func_def->name != rhs_func_def->name) {
+        return false;
+    }
 
-                        if (maybe_type1 && maybe_type2) {
-                            // Both sides are not template
-                            assert(*maybe_type1);
-                            assert(*maybe_type2);
-                            if (*maybe_type1 != *maybe_type2) {
-                                argument_mismatch = true;
-                                break;
-                            }
-                        } else if (!maybe_type1 || !maybe_type2) {
-                            // One side is template and other side is not a template
-                            argument_mismatch = true;
-                            break;
-                        } else {
-                            // Both side are template
-                        }
-                    }
-                    if (argument_mismatch) {
-                        // Go to next fuction candidate
-                        continue; // Continues "for (auto const& f : functions) {" loop
-                    }
-                }
+    // Check arguments' types
+    {
+        // Note:
+        // Do not use std::cbegin()/std::cend() because of libstdc++
+        auto ritr = lhs_func_def->params.cbegin();
+        auto litr = rhs_func_def->params.cbegin();
+        auto const rend = lhs_func_def->params.cend();
+        auto const lend = rhs_func_def->params.cend();
+        for (; ritr != rend && litr != lend; ++ritr, ++litr) {
+            auto const& maybe_left_type = (*litr)->type;
+            auto const& maybe_right_type = (*ritr)->type;
 
-                // Note:
-                // Reach here when arguments match completely
-
-                if (!func_def->ret_type && !new_func_def->ret_type) {
-                    print_duplication_error(func_def, new_func_def, func_def->name);
+            if (maybe_left_type && maybe_right_type) {
+                // Both sides are not template
+                assert(*maybe_left_type);
+                assert(*maybe_right_type);
+                if (*maybe_left_type != *maybe_right_type) {
                     return false;
-                } else if (func_def->ret_type && new_func_def->ret_type) {
-                    assert(*func_def->ret_type);
-                    assert(*new_func_def->ret_type);
-                    if (*func_def->ret_type == *new_func_def->ret_type) {
-                        print_duplication_error(func_def, new_func_def, func_def->name);
-                        return false;
-                    }
-                } else {
-                    // Return type doesn't match.  Go to next function candidate.
                 }
-
+            } else if (!maybe_left_type || !maybe_right_type) {
+                // One side is template and other side is not a template
+                return false;
+            } else {
+                // Both side are template
             }
         }
     }
 
-    functions.push_back(new_func);
-    return true;
+    // Note:
+    // Reach here when arguments match completely
+
+    if (!lhs_func_def->ret_type && !rhs_func_def->ret_type) {
+        return true;
+    } else if (lhs_func_def->ret_type && rhs_func_def->ret_type) {
+        assert(*lhs_func_def->ret_type);
+        assert(*rhs_func_def->ret_type);
+        return *lhs_func_def->ret_type == *rhs_func_def->ret_type;
+    } else {
+        // Return type doesn't match.
+        return false;
+    }
 }
+
 
 } // namespace scope_node
 
