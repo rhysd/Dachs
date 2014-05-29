@@ -134,11 +134,12 @@ bool func_scope::operator==(func_scope const& rhs) const noexcept
                 if (*maybe_left_type != *maybe_right_type) {
                     return false;
                 }
-            } else if (!maybe_left_type || !maybe_right_type) {
+            } else if (!maybe_left_type && !maybe_right_type) {
+                // Both side are template
+                continue;
+            } else {
                 // One side is template and other side is not a template
                 return false;
-            } else {
-                // Both side are template
             }
         }
     }
