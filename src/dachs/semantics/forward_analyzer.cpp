@@ -131,7 +131,7 @@ public:
 
 scope::scope_tree analyze_symbols_forward(ast::ast &a)
 {
-    auto const tree_root = scope::make<scope::global_scope>();
+    auto const tree_root = scope::make<scope::global_scope>(a.root);
 
     {
         // Builtin functions

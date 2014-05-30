@@ -113,9 +113,11 @@ struct global_scope final : public basic_scope {
     std::vector<scope::func_scope> functions;
     std::vector<symbol::var_symbol> const_symbols;
     std::vector<scope::class_scope> classes;
+    std::weak_ptr<ast::node_type::program> ast_root;
 
-    global_scope() noexcept
-        : basic_scope()
+    template<class RootType>
+    global_scope(RootType const& ast_root) noexcept
+        : basic_scope(), ast_root(ast_root)
     {}
 
     // Check function duplication after forward analysis because of overload resolution
@@ -205,8 +207,6 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         , basic_symbol(n, s)
     {}
 
-    std::string to_string() const noexcept;
-
     bool define_param(symbol::var_symbol const& new_var) noexcept
     {
         return define_symbol(params, new_var);
@@ -218,7 +218,14 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         templates.push_back(new_template);
     }
 
+    bool is_template() const noexcept
+    {
+        return !templates.empty();
+    }
+
     ast::node::function_definition get_ast_node() const noexcept;
+
+    std::string to_string() const noexcept;
 
     boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
     {

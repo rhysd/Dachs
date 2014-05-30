@@ -330,6 +330,7 @@ struct parameter final : public base {
 struct func_invocation final : public expression {
     node::any_expr child;
     std::vector<node::any_expr> args;
+    scope::weak_func_scope func_symbol;
 
     func_invocation(node::any_expr const& c, std::vector<node::any_expr> const& args) noexcept
         : expression(), child(c), args(args)
@@ -337,7 +338,7 @@ struct func_invocation final : public expression {
 
     std::string to_string() const noexcept override
     {
-        return "func_invocation";
+        return "FUNC_INVOCATION";
     }
 };
 

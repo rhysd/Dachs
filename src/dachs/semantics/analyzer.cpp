@@ -2,6 +2,7 @@
 #include <string>
 #include <cassert>
 #include <iterator>
+#include <unordered_set>
 
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
@@ -73,6 +74,19 @@ struct weak_ptr_locker : public boost::static_visitor<scope::any_scope> {
     }
 };
 
+// template<class EnclosingScope, class FunctionDefiner>
+// inline
+// std::pair<ast::node::function_definition, scope::func_scope>
+// instantiate_function_from_template(
+//         scope::func_scope const& func_template,
+//         std::vector<type::type> const& arg_types,
+//         EnclosingScope const& enclosing_scope,
+//         FunctionDefiner const& definer // Predicate to define function
+//     ) noexcept
+// {
+//    
+// }
+
 // Walk to resolve symbol references
 class symbol_analyzer {
 
@@ -99,11 +113,17 @@ class symbol_analyzer {
 
 public:
 
-    size_t failed;
+    size_t failed = 0u;
+    std::unordered_set<ast::node::function_definition> already_visited_functions;
 
     template<class Scope>
     explicit symbol_analyzer(Scope const& root, scope::global_scope const& global) noexcept
-        : current_scope{root}, global{global}, failed{0}
+        : current_scope{root}, global{global}
+    {}
+
+    template<class Scope>
+    explicit symbol_analyzer(Scope const& root, scope::global_scope const& global, decltype(already_visited_functions) const& fs) noexcept
+        : current_scope{root}, global{global}, already_visited_functions(fs)
     {}
 
     // Push and pop current scope {{{
@@ -117,6 +137,11 @@ public:
     template<class Walker>
     void visit(ast::node::function_definition const& func, Walker const& recursive_walker)
     {
+        if (already_visited_functions.find(func) != std::end(already_visited_functions)) {
+            return;
+        }
+        already_visited_functions.insert(func);
+
         assert(!func->scope.expired());
         with_new_scope(func->scope.lock(), recursive_walker);
 
@@ -413,16 +438,35 @@ public:
             }
         }
 
-        if (auto maybe_func = apply_lambda([&](auto const& s){ return s->resolve_func(name, arg_types, boost::none/*TODO: Temporary*/); }, current_scope)) {
-            auto &func = *maybe_func;
-            if (auto maybe_ret_type = func->get_ast_node()->ret_type) {
-                // TODO: Get return type from instantiated function
-                invocation->type = *maybe_ret_type;
-            } else {
-                semantic_error(invocation, boost::format("cannot deduce the return type of function '%1%'") % func->name);
-            }
-        } else {
+        auto maybe_func =
+            apply_lambda(
+                    [&](auto const& s)
+                    {
+                        return s->resolve_func(name, arg_types, boost::none/*TODO: Temporary*/);
+                    }, current_scope
+                );
+
+        if (!maybe_func) {
             semantic_error(invocation, boost::format("function '%1%' is not found") % name);
+            return;
+        }
+
+        auto &func = *maybe_func;
+
+        if (func->is_template()) {
+            // TODO:
+            // If target function is template, instantiate function and reference it
+
+            // func = ...
+        }
+
+        auto func_def = func->get_ast_node();
+
+        if (auto maybe_ret_type = func_def->ret_type) {
+            // TODO: Get return type from instantiated function and check specified return type matches
+            invocation->type = *maybe_ret_type;
+        } else {
+            semantic_error(invocation, boost::format("cannot deduce the return type of function '%1%'") % func->name);
         }
     }
 
