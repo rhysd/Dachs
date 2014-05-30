@@ -16,9 +16,9 @@ namespace dachs {
 namespace scope_node {
 namespace detail {
 
-template<class FuncScope, class Args, class RetType>
+template<class FuncScope, class Args>
 inline
-std::size_t get_overloaded_function_score(FuncScope const& func, Args const& args, RetType const& ret)
+std::size_t get_overloaded_function_score(FuncScope const& func, Args const& args)
 {
     if (args.size() != func->params.size()) {
         return 0u;
@@ -26,20 +26,6 @@ std::size_t get_overloaded_function_score(FuncScope const& func, Args const& arg
 
     std::size_t score = 1u;
     auto const func_def = func->get_ast_node();
-
-    // Score of return type. (Room to consider remains)
-    if (ret && func_def->ret_type) {
-        if (*ret == *(func_def->ret_type)) {
-            score *= 2u;
-        } else {
-            score *= 0u;
-        }
-    }
-
-    // Return type doesn't match.  No need to calculate the score of arguments' coincidence.
-    if (score == 0u) {
-        return 0u;
-    }
 
     if (args.size() == 0) {
         return score;
@@ -76,8 +62,7 @@ std::size_t get_overloaded_function_score(FuncScope const& func, Args const& arg
 
 boost::optional<scope::func_scope>
 global_scope::resolve_func( std::string const& name
-            , std::vector<type::type> const& args
-            , boost::optional<type::type> const& ret_type) const
+            , std::vector<type::type> const& args) const
 {
     boost::optional<scope::func_scope> result = boost::none;
 
@@ -87,7 +72,7 @@ global_scope::resolve_func( std::string const& name
             continue;
         }
 
-        auto const score_tmp = detail::get_overloaded_function_score(f, args, ret_type);
+        auto const score_tmp = detail::get_overloaded_function_score(f, args);
         if (score_tmp > score) {
             score = score_tmp;
             result = f;
@@ -147,16 +132,7 @@ bool func_scope::operator==(func_scope const& rhs) const noexcept
     // Note:
     // Reach here when arguments match completely
 
-    if (!lhs_func_def->ret_type && !rhs_func_def->ret_type) {
-        return true;
-    } else if (lhs_func_def->ret_type && rhs_func_def->ret_type) {
-        assert(*lhs_func_def->ret_type);
-        assert(*rhs_func_def->ret_type);
-        return *lhs_func_def->ret_type == *rhs_func_def->ret_type;
-    } else {
-        // Return type doesn't match.
-        return false;
-    }
+    return true;
 }
 
 std::string func_scope::to_string() const noexcept

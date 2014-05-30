@@ -442,7 +442,7 @@ public:
             apply_lambda(
                     [&](auto const& s)
                     {
-                        return s->resolve_func(name, arg_types, boost::none/*TODO: Temporary*/);
+                        return s->resolve_func(name, arg_types);
                     }, current_scope
                 );
 

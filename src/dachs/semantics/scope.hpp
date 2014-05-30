@@ -64,8 +64,7 @@ struct basic_scope {
 
     virtual boost::optional<scope::func_scope>
     resolve_func( std::string const& name
-                , std::vector<type::type> const& args
-                , boost::optional<type::type> const& ret_type) const
+                , std::vector<type::type> const& args) const
     {
         // TODO:
         // resolve_func() now searches function scopes directly.
@@ -74,7 +73,7 @@ struct basic_scope {
                 [&](auto const& s)
                     -> boost::optional<scope::func_scope>
                 {
-                    return s.lock()->resolve_func(name, args, ret_type);
+                    return s.lock()->resolve_func(name, args);
                 }, enclosing_scope);
     }
 
@@ -146,10 +145,7 @@ struct global_scope final : public basic_scope {
     }
 
     boost::optional<scope::func_scope>
-    resolve_func( std::string const& name
-                , std::vector<type::type> const& args
-                  // Note: ret_type is boost::none if it is procedure or its return type is not obvious
-                , boost::optional<type::type> const& ret_type) const override;
+    resolve_func( std::string const& name, std::vector<type::type> const& args) const override;
 
     boost::optional<scope::class_scope> resolve_class(std::string const& name) const override
     {
