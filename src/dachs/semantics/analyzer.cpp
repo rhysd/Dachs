@@ -158,22 +158,30 @@ public:
             return;
         }
 
+        type::any_type const unit_type = type::make<type::tuple_type>();
         if (!gatherer.result_types.empty()) {
             if (func->kind == ast::symbol::func_kind::proc) {
-                semantic_error(func, boost::format("proc '%1%' can't have return statement") % func->name);
-                return;
+                if (gatherer.result_types.size() != 1 || gatherer.result_types[0] != unit_type) {
+                    semantic_error(func, boost::format("proc '%1%' can't return any value") % func->name);
+                    return;
+                }
             }
             // TODO:
             // Consider return statement without any value
             if (boost::algorithm::all_of(gatherer.result_types, [&](auto const& t){ return gatherer.result_types[0] == t; })) {
-                func->ret_type = gatherer.result_types[0];
+                auto const& deduced_type = gatherer.result_types[0];
+                if (func->ret_type && *func->ret_type != deduced_type) {
+                    semantic_error(func, boost::format("Return type of function '%1%' mismatch\nNote: Specified type is '%2%'\nNote: Deduced type is '%3%'") % func->name % func->ret_type->to_string() % deduced_type.to_string());
+                } else {
+                    func->ret_type = deduced_type;
+                }
             } else {
                 semantic_error(func, boost::format("Mismatch among the result types of return statements in function '%1%'") % func->name);
-                return;
             }
         } else {
             // TODO:
             // If there is no return statement, the result type should be ()
+            func->ret_type = unit_type;
         }
     }
     // }}}
