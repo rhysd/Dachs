@@ -183,6 +183,11 @@ public:
         return value;
     }
 
+    bool is_template() const noexcept
+    {
+        return helper::variant::has<type::template_type>(value);
+    }
+
     template<class T>
     friend bool has(any_type const&);
 };

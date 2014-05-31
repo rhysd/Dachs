@@ -195,7 +195,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     bool is_template() const noexcept
     {
         for (auto const& p : params) {
-            if (type::has<type::template_type>(p->type)) {
+            if (p->type.is_template()) {
                 return true;
             }
         }

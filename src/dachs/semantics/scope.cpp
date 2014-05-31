@@ -111,15 +111,13 @@ bool func_scope::operator==(func_scope const& rhs) const noexcept
         for (; ritr != rend && litr != lend; ++ritr, ++litr) {
             auto const& left_type = (*litr)->type;
             auto const& right_type = (*ritr)->type;
-            bool left_type_is_template = type::has<type::template_type>(left_type);
-            bool right_type_is_template = type::has<type::template_type>(right_type);
 
-            if (left_type_is_template && right_type_is_template) {
+            if (left_type.is_template() && right_type.is_template()) {
                 // Both sides are not template
                 if (left_type != right_type) {
                     return false;
                 }
-            } else if (!left_type_is_template && !right_type_is_template) {
+            } else if (!left_type.is_template() && !right_type.is_template()) {
                 // Both side are template
                 continue;
             } else {
