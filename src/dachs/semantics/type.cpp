@@ -1,5 +1,7 @@
 #include <cassert>
 #include <boost/optional.hpp>
+
+#include "dachs/ast/ast.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/scope.hpp"
 
@@ -62,6 +64,21 @@ bool func_ref_type::operator==(func_ref_type const& rhs) const noexcept
 std::string func_ref_type::to_string() const noexcept
 {
     return "<funcref" + (ref ? ':' + ref->lock()->name + '>' : ">");
+}
+
+boost::optional<ast::node::parameter> template_type::get_ast_node_as_parameter() const noexcept
+{
+    return ast::node::get_shared_as<ast::node::parameter>(ast_node);
+}
+
+std::string template_type::to_string() const noexcept
+{
+    if (auto maybe_param = get_ast_node_as_parameter()) {
+        return "<template:" + (*maybe_param)->to_string() + ">";
+    } else {
+        assert(false);
+        return "<template:UNKNOWN>";
+    }
 }
 
 } // namespace type_node

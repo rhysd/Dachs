@@ -81,10 +81,14 @@ struct weak_ptr_locker : public boost::static_visitor<scope::any_scope> {
 //         scope::func_scope const& func_template,
 //         std::vector<type::type> const& arg_types,
 //         EnclosingScope const& enclosing_scope,
-//         FunctionDefiner const& definer // Predicate to define function
+//         FunctionDefiner const& func_definer // Predicate to define function
 //     ) noexcept
 // {
-//    
+//     auto func_template_def = func_template.get_ast_node();
+//
+//     for (auto const& p : func_template_def->params) {
+//        
+//     }
 // }
 
 // Walk to resolve symbol references
@@ -193,19 +197,14 @@ public:
     void visit(ast::node::parameter const& param, Walker const& recursive_walker)
     {
         auto new_param = symbol::make<symbol::var_symbol>(param, param->name);
+        new_param->type = param->type;
         param->param_symbol = new_param;
         if (auto maybe_func = get_as<scope::func_scope>(current_scope)) {
             auto& func = *maybe_func;
+
             if (!func->define_param(new_param)) {
                 failed++;
                 return;
-            }
-
-            if (!param->param_type) {
-                // Type is not specified. Register template parameter.
-                auto const tmpl = dachs::symbol::make<dachs::symbol::template_type_symbol>(new_param->name);
-                func->define_template_param(tmpl);
-                param->template_type_ref = tmpl;
             }
 
             // Type is already set in forward_symbol_analyzer
@@ -216,12 +215,7 @@ public:
             auto& local = *maybe_local;
             if (!local->define_local_var(new_param)) {
                 failed++;
-            }
-
-            // Add parameter type if specified
-            if (param->param_type) {
-                param->type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, *(param->param_type));
-                new_param->type = *(param->type);
+                return;
             }
         } else {
             assert(false);

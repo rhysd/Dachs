@@ -314,8 +314,7 @@ struct parameter final : public base {
     std::string name;
     boost::optional<node::any_type> param_type;
     dachs::symbol::weak_var_symbol param_symbol;
-    boost::optional<dachs::symbol::template_type_symbol> template_type_ref;
-    boost::optional<type::type> type;
+    type::type type;
 
     parameter(bool const v, std::string const& n, decltype(param_type) const& t) noexcept
         : base(), is_var(v), name(n), param_type(t)

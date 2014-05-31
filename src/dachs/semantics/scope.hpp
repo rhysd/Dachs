@@ -96,16 +96,6 @@ struct basic_scope {
                     return s.lock()->resolve_var(name);
                 }, enclosing_scope);
     }
-
-    virtual boost::optional<symbol::template_type_symbol> resolve_template_type(std::string const& name) const
-    {
-        return apply_lambda(
-                [&name](auto const& s)
-                    -> boost::optional<symbol::template_type_symbol>
-                {
-                    return s.lock()->resolve_template_type(name);
-                }, enclosing_scope);
-    }
 };
 
 struct global_scope final : public basic_scope {
@@ -156,11 +146,6 @@ struct global_scope final : public basic_scope {
     {
         return helper::find_if(const_symbols, [&name](auto const& v){ return v->name == name; });
     }
-
-    boost::optional<symbol::template_type_symbol> resolve_template_type(std::string const&) const override
-    {
-        return boost::none;
-    }
 };
 
 struct local_scope final : public basic_scope {
@@ -195,7 +180,6 @@ struct local_scope final : public basic_scope {
 struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     scope::local_scope body;
     std::vector<symbol::var_symbol> params;
-    std::vector<symbol::template_type_symbol> templates;
 
     template<class Node, class P>
     explicit func_scope(Node const& n, P const& p, std::string const& s) noexcept
@@ -208,15 +192,14 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         return define_symbol(params, new_var);
     }
 
-    void define_template_param(symbol::template_type_symbol const& new_template) noexcept
-    {
-        // Note: No need to check duplication bacause param is already sure to be unique
-        templates.push_back(new_template);
-    }
-
     bool is_template() const noexcept
     {
-        return !templates.empty();
+        for (auto const& p : params) {
+            if (type::has<type::template_type>(p->type)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     ast::node::function_definition get_ast_node() const noexcept;
@@ -234,12 +217,6 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
                         }, enclosing_scope);
     }
 
-    boost::optional<symbol::template_type_symbol> resolve_template_type(std::string const& var_name) const override
-    {
-        return helper::find_if(templates, [&var_name](auto const& t){ return t->name == var_name; });
-        // Do not recursive because functions aren't allowed to nest
-    }
-
     // Compare with rhs considering overloading
     bool operator==(func_scope const& rhs) const noexcept;
 
@@ -253,7 +230,6 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
     std::vector<scope::func_scope> member_func_scopes;
     std::vector<symbol::member_var_symbol> member_var_symbols;
     std::vector<scope::class_scope> inherited_class_scopes;
-    std::vector<symbol::template_type_symbol> templates;
 
     // std::vector<type> for instanciated types (if this isn't template, it should contains only one element)
 
@@ -271,12 +247,6 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
     bool define_member_var_symbols(symbol::member_var_symbol const& new_var) noexcept
     {
         return define_symbol(member_var_symbols, new_var);
-    }
-
-    void define_template_param(symbol::template_type_symbol const& new_template) noexcept
-    {
-        // Note: No need to check duplication bacause param is already sure to be unique
-        templates.push_back(new_template);
     }
 
     // TODO: Resolve member functions and member variables

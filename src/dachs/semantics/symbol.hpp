@@ -57,10 +57,6 @@ struct member_var_symbol final : public basic_symbol {
     {}
 };
 
-struct template_type_symbol final : public basic_symbol {
-    using basic_symbol::basic_symbol;
-};
-
 } // namespace symbol_node
 
 namespace symbol {
@@ -70,7 +66,6 @@ namespace symbol {
    using weak_##n = std::weak_ptr<symbol_node::n>
 DACHS_DEFINE_SYMBOL(var_symbol);
 DACHS_DEFINE_SYMBOL(member_var_symbol);
-DACHS_DEFINE_SYMBOL(template_type_symbol);
 #undef DACHS_DEFINE_SYMBOL
 
 using dachs::helper::make;

@@ -106,6 +106,8 @@ public:
                         type_calculator_from_type_nodes{current_scope},
                         *(p->param_type)
                     );
+            } else {
+                p->type = type::make<type::template_type>(p);
             }
         }
 

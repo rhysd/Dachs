@@ -14,6 +14,7 @@
 #include <boost/optional.hpp>
 #include <boost/mpl/vector.hpp>
 
+#include "dachs/ast/ast_fwd.hpp"
 #include "dachs/semantics/scope_fwd.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/make.hpp"
@@ -33,6 +34,7 @@ struct dict_type;
 struct array_type;
 struct range_type;
 struct qualified_type;
+struct template_type;
 }
 
 namespace type {
@@ -49,6 +51,7 @@ DACHS_DEFINE_TYPE(dict_type);
 DACHS_DEFINE_TYPE(array_type);
 DACHS_DEFINE_TYPE(range_type);
 DACHS_DEFINE_TYPE(qualified_type);
+DACHS_DEFINE_TYPE(template_type);
 #undef DACHS_DEFINE_TYPE
 
 // Considering about the ability to add more qualifiers
@@ -88,6 +91,7 @@ class any_type {
                     , array_type
                     , range_type
                     , qualified_type
+                    , template_type
                 >;
 
     template<class T, class Head, class... Tail>
@@ -576,6 +580,48 @@ struct qualified_type final : public basic_type {
     bool operator==(qualified_type const& rhs) const noexcept
     {
         return contained_type == rhs.contained_type;
+    }
+
+    template<class T>
+    bool operator==(T const&) const noexcept
+    {
+        static_assert(is_type<T>::value, "qualified_type::operator==(): rhs is not a type.");
+        return false;
+    }
+
+    template<class T>
+    bool operator!=(T const& rhs) const noexcept
+    {
+        static_assert(is_type<T>::value, "qualified_type::operator!=(): rhs is not a type.");
+        return !(*this == rhs);
+    }
+};
+
+struct template_type final : public basic_type {
+    ast::node::any_node ast_node;
+
+    template<class Node>
+    explicit template_type(Node const& node) noexcept
+        : ast_node(node)
+    {}
+
+    boost::optional<ast::node::parameter> get_ast_node_as_parameter() const noexcept;
+    std::string to_string() const noexcept override;
+
+    bool operator==(template_type const& rhs)
+    {
+        auto const left_ast_as_param = get_ast_node_as_parameter();
+        auto const right_ast_as_param = rhs.get_ast_node_as_parameter();
+
+        if (left_ast_as_param && right_ast_as_param) {
+            // Compare two shared_ptr.  Return true when both point the same node.
+            return *left_ast_as_param == *right_ast_as_param;
+        }
+
+        // TODO: Add more possible nodes: instance variables
+        // ...
+
+        return false;
     }
 
     template<class T>

@@ -16,37 +16,37 @@ namespace dachs {
 namespace scope_node {
 namespace detail {
 
-template<class FuncScope, class Args>
+template<class FuncScope, class ArgTypes>
 inline
-std::size_t get_overloaded_function_score(FuncScope const& func, Args const& args)
+std::size_t get_overloaded_function_score(FuncScope const& func, ArgTypes const& arg_types)
 {
-    if (args.size() != func->params.size()) {
+    if (arg_types.size() != func->params.size()) {
         return 0u;
     }
 
     std::size_t score = 1u;
     auto const func_def = func->get_ast_node();
 
-    if (args.size() == 0) {
+    if (arg_types.size() == 0) {
         return score;
     }
 
     // Calculate the score of arguments' coincidence
     std::vector<std::size_t> v;
-    v.reserve(args.size());
+    v.reserve(arg_types.size());
 
-    boost::transform(args, func_def->params, std::back_inserter(v),
-            [](auto const& arg, auto const& param)
+    boost::transform(arg_types, func_def->params, std::back_inserter(v),
+            [](auto const& arg_type, auto const& param)
             {
-                assert(arg);
-                if (param->template_type_ref) {
+                assert(arg_type);
+                if (type::has<type::template_type>(param->type)) {
                     // Function parameter is template.  It matches any types.
                     return 1u;
                 }
 
                 assert(param->type);
 
-                if (*param->type == arg) {
+                if (param->type == arg_type) {
                     return 2u;
                 } else {
                     return 0u;
@@ -62,7 +62,7 @@ std::size_t get_overloaded_function_score(FuncScope const& func, Args const& arg
 
 boost::optional<scope::func_scope>
 global_scope::resolve_func( std::string const& name
-            , std::vector<type::type> const& args) const
+            , std::vector<type::type> const& arg_types) const
 {
     boost::optional<scope::func_scope> result = boost::none;
 
@@ -72,7 +72,7 @@ global_scope::resolve_func( std::string const& name
             continue;
         }
 
-        auto const score_tmp = detail::get_overloaded_function_score(f, args);
+        auto const score_tmp = detail::get_overloaded_function_score(f, arg_types);
         if (score_tmp > score) {
             score = score_tmp;
             result = f;
@@ -109,17 +109,17 @@ bool func_scope::operator==(func_scope const& rhs) const noexcept
         auto const rend = lhs_func_def->params.cend();
         auto const lend = rhs_func_def->params.cend();
         for (; ritr != rend && litr != lend; ++ritr, ++litr) {
-            auto const& maybe_left_type = (*litr)->type;
-            auto const& maybe_right_type = (*ritr)->type;
+            auto const& left_type = (*litr)->type;
+            auto const& right_type = (*ritr)->type;
+            bool left_type_is_template = type::has<type::template_type>(left_type);
+            bool right_type_is_template = type::has<type::template_type>(right_type);
 
-            if (maybe_left_type && maybe_right_type) {
+            if (left_type_is_template && right_type_is_template) {
                 // Both sides are not template
-                assert(*maybe_left_type);
-                assert(*maybe_right_type);
-                if (*maybe_left_type != *maybe_right_type) {
+                if (left_type != right_type) {
                     return false;
                 }
-            } else if (!maybe_left_type && !maybe_right_type) {
+            } else if (!left_type_is_template && !right_type_is_template) {
                 // Both side are template
                 continue;
             } else {
@@ -140,7 +140,7 @@ std::string func_scope::to_string() const noexcept
     auto const def = get_ast_node();
     std::string ret = ast::symbol::to_string(def->kind) + ' ' + name + '(';
 
-    ret += boost::algorithm::join(def->params | boost::adaptors::transformed([](auto const& p){ return p->type ? p->type->to_string() : "T"; }), ", ");
+    ret += boost::algorithm::join(def->params | boost::adaptors::transformed([](auto const& p){ return p->type.to_string(); }), ", ");
     ret += ')';
 
     if (def->ret_type) {
