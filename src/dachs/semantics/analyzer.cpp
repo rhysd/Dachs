@@ -15,7 +15,7 @@
 #include "dachs/ast/ast_copier.hpp"
 #include "dachs/semantics/analyzer_common.hpp"
 #include "dachs/semantics/analyzer.hpp"
-#include "dachs/semantics/forward_analyzer.hpp"
+#include "dachs/semantics/forward_analyzer_impl.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/type.hpp"
