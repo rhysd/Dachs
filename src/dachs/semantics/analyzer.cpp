@@ -3,7 +3,6 @@
 #include <cassert>
 #include <iterator>
 #include <unordered_set>
-#include <unordered_map>
 
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
@@ -16,6 +15,7 @@
 #include "dachs/ast/ast_copier.hpp"
 #include "dachs/semantics/analyzer_common.hpp"
 #include "dachs/semantics/analyzer.hpp"
+#include "dachs/semantics/forward_analyzer.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/type.hpp"
@@ -76,37 +76,6 @@ struct weak_ptr_locker : public boost::static_visitor<scope::any_scope> {
     }
 };
 
-// Note:
-// func_template must be visited
-// template<class EnclosingScope, class FunctionDefiner>
-// inline
-// std::pair<ast::node::function_definition, scope::func_scope>
-// instantiate_function_from_template(
-//         scope::func_scope const& func_template,
-//         std::vector<type::type> const& arg_types,
-//         EnclosingScope const& enclosing_scope,
-//         FunctionDefiner const& func_definer // Predicate to define function
-//     ) noexcept
-// {
-//     assert(func_template->params.size() == arg_types.size());
-//
-//     auto func_template_def = func_template.get_ast_node();
-//
-//     std::unordered_map<type::template_type, type::type> template_table;
-//     {
-//         auto tmpl_itr = func_template_def->params.cbegin();
-//         auto arg_itr = arg_types.cbegin();
-//         auto const tmpl_end = func_template_def->params.cend();
-//         for(; tmpl_itr != tmpl_end; ++tmpl_itr, ++arg_itr) {
-//             if ((*tmpl_itr)->type.is_template()) {
-//                 template_table[(*tmpl_itr)->type] = *arg_itr;
-//             }
-//         }
-//     }
-//
-//    
-// }
-
 // Walk to resolve symbol references
 class symbol_analyzer {
 
@@ -129,6 +98,50 @@ class symbol_analyzer {
     {
         output_semantic_error(n, msg);
         failed++;
+    }
+
+    // Note:
+    // func_template must be visited
+    template<class EnclosingScope, class FunctionDefiner>
+    inline
+    std::pair<ast::node::function_definition, scope::func_scope>
+    instantiate_function_from_template(
+            scope::func_scope const& func_template,
+            std::vector<type::type> const& arg_types,
+            EnclosingScope const& enclosing_scope
+        ) noexcept
+    {
+        assert(func_template->params.size() == arg_types.size());
+
+        auto func_template_def = func_template->get_ast_node();
+        auto instantiated_func_def = ast::copy_ast(func_template_def);
+
+        // Note: No need to check functions duplication
+        // Note: type of parameters are analyzed
+        failed += dispatch_forward_analyzer(instantiated_func_def, enclosing_scope);
+        assert(!instantiated_func_def->scope.expired());
+
+        // Replace types of params with instantiated types
+        {
+            assert(instantiated_func_def->params.size() == arg_types.size());
+            auto inst_itr = std::begin(instantiated_func_def->params);
+            auto arg_itr = arg_types.cbegin();
+            auto const inst_end = std::end(instantiated_func_def->params);
+            for(; inst_itr != inst_end; ++inst_itr, ++arg_itr) {
+                if ((*inst_itr)->type.is_template()) {
+                    (*inst_itr)->type = *arg_itr;
+                }
+            }
+        }
+        auto instantiated_func_scope = instantiated_func_def->scope.lock();
+
+        // Last, symnol analyzer visits
+        {
+            symbol_analyzer analyzer{instantiated_func_scope, global};
+            ast::walk_topdown(instantiated_func_def, analyzer);
+        }
+
+        return std::make_pair(instantiated_func_def, instantiated_func_scope);
     }
 
 public:
