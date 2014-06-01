@@ -100,8 +100,6 @@ class symbol_analyzer {
         failed++;
     }
 
-    // Note:
-    // func_template must be visited
     template<class EnclosingScope, class FunctionDefiner>
     inline
     std::pair<ast::node::function_definition, scope::func_scope>
@@ -112,6 +110,7 @@ class symbol_analyzer {
         ) noexcept
     {
         assert(func_template->params.size() == arg_types.size());
+        assert(already_visited_functions.find(func_template) != std::end(already_visited_functions));
 
         auto func_template_def = func_template->get_ast_node();
         auto instantiated_func_def = ast::copy_ast(func_template_def);
