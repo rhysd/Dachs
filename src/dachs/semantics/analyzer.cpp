@@ -110,10 +110,11 @@ class symbol_analyzer {
         ) noexcept
     {
         assert(func_template->params.size() == arg_types.size());
-        assert(already_visited_functions.find(func_template) != std::end(already_visited_functions));
 
         auto func_template_def = func_template->get_ast_node();
         auto instantiated_func_def = ast::copy_ast(func_template_def);
+
+        assert(already_visited_functions.find(func_template_def) != std::end(already_visited_functions));
 
         // Note: No need to check functions duplication
         // Note: type of parameters are analyzed
