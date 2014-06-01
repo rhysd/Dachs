@@ -3,6 +3,7 @@
 #include <cassert>
 #include <iterator>
 #include <unordered_set>
+#include <unordered_map>
 
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
@@ -12,6 +13,7 @@
 #include "dachs/exception.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/ast_walker.hpp"
+#include "dachs/ast/ast_copier.hpp"
 #include "dachs/semantics/analyzer_common.hpp"
 #include "dachs/semantics/analyzer.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -74,6 +76,8 @@ struct weak_ptr_locker : public boost::static_visitor<scope::any_scope> {
     }
 };
 
+// Note:
+// func_template must be visited
 // template<class EnclosingScope, class FunctionDefiner>
 // inline
 // std::pair<ast::node::function_definition, scope::func_scope>
@@ -84,11 +88,23 @@ struct weak_ptr_locker : public boost::static_visitor<scope::any_scope> {
 //         FunctionDefiner const& func_definer // Predicate to define function
 //     ) noexcept
 // {
+//     assert(func_template->params.size() == arg_types.size());
+//
 //     auto func_template_def = func_template.get_ast_node();
 //
-//     for (auto const& p : func_template_def->params) {
-//        
+//     std::unordered_map<type::template_type, type::type> template_table;
+//     {
+//         auto tmpl_itr = func_template_def->params.cbegin();
+//         auto arg_itr = arg_types.cbegin();
+//         auto const tmpl_end = func_template_def->params.cend();
+//         for(; tmpl_itr != tmpl_end; ++tmpl_itr, ++arg_itr) {
+//             if ((*tmpl_itr)->type.is_template()) {
+//                 template_table[(*tmpl_itr)->type] = *arg_itr;
+//             }
+//         }
 //     }
+//
+//    
 // }
 
 // Walk to resolve symbol references
