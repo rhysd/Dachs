@@ -131,20 +131,71 @@ public:
 
 } // namespace detail 
 
+template<class Node, class Scope>
+std::size_t dispatch_forward_analyzer(Node &node, Scope const& scope_root)
+{
+    // Generate scope tree
+    detail::forward_symbol_analyzer forward_resolver{scope_root};
+    ast::walk_topdown(node, forward_resolver);
+
+    return forward_resolver.failed;
+}
+
+template<class Scope>
+std::size_t check_functions_duplication(Scope const& scope_root)
+{
+    std::size_t failed = 0u;
+    auto end = scope_root->functions.cend();
+    for (auto left = scope_root->functions.cbegin(); left != end; ++left) {
+        for (auto right = std::next(left); right != end; ++right) {
+            if (**right == **left) {
+                auto const rhs_def = (*right)->get_ast_node();
+                auto const lhs_def = (*left)->get_ast_node();
+                output_semantic_error(rhs_def, boost::format("'%1%' is redefined.\nNote: Previous definition is at line:%2%, col:%3%") % (*right)->to_string() % lhs_def->line % lhs_def->col);
+                failed++;
+            }
+        }
+    }
+
+    return failed;
+}
+
+// TODO:
+// Consider class scope.  Now global scope is only considered.
+template<class Node, class Scope>
+Scope analyze_ast_node_forward(Node &node, Scope const& scope_root)
+{
+    {
+        std::size_t const failed = dispatch_forward_analyzer(node, scope_root);
+        if (failed > 0) {
+            throw dachs::semantic_check_error{failed, "forward symbol resolution"};
+        }
+    }
+
+    {
+        std::size_t const failed = dispatch_forward_analyzer(node, scope_root);
+        if (!check_functions_duplication(scope_root)) {
+            throw dachs::semantic_check_error{failed, "function duplication check"};
+        }
+    }
+
+    return scope_root;
+}
+
 scope::scope_tree analyze_symbols_forward(ast::ast &a)
 {
-    auto const tree_root = scope::make<scope::global_scope>(a.root);
+    auto const scope_root = scope::make<scope::global_scope>(a.root);
 
     {
         // Builtin functions
 
         // func print(str)
-        auto print_func = scope::make<scope::func_scope>(a.root, tree_root, "print");
+        auto print_func = scope::make<scope::func_scope>(a.root, scope_root, "print");
         print_func->body = scope::make<scope::local_scope>(print_func);
         // Note: These definitions are never duplicate
         print_func->define_param(symbol::make<symbol::var_symbol>(a.root, "value"));
-        tree_root->define_function(print_func);
-        tree_root->define_global_constant(symbol::make<symbol::var_symbol>(a.root, "print"));
+        scope_root->define_function(print_func);
+        scope_root->define_global_constant(symbol::make<symbol::var_symbol>(a.root, "print"));
 
         // Operators
         // cast functions
@@ -155,43 +206,11 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
 
         // range
     }
-
-    {
-        // Generate scope tree
-        detail::forward_symbol_analyzer forward_resolver{tree_root};
-        ast::walk_topdown(a.root, forward_resolver);
-
-        if (forward_resolver.failed > 0) {
-            throw dachs::semantic_check_error{forward_resolver.failed, "forward symbol resolution"};
-        }
-    }
-
-    {
-        // Check function duplication
-
-        std::size_t failed = 0u;
-        auto end = tree_root->functions.cend();
-        for (auto left = tree_root->functions.cbegin(); left != end; ++left) {
-            for (auto right = std::next(left); right != end; ++right) {
-                if (**right == **left) {
-                    auto const rhs_def = (*right)->get_ast_node();
-                    auto const lhs_def = (*left)->get_ast_node();
-                    output_semantic_error(rhs_def, boost::format("'%1%' is redefined.\nNote: Previous definition is at line:%2%, col:%3%") % (*right)->to_string() % lhs_def->line % lhs_def->col);
-                    failed++;
-                }
-            }
-        }
-
-        if (failed > 0) {
-            throw dachs::semantic_check_error{failed, "function duplication check"};
-        }
-
         // Note:
         // Check function duplication after generating scope tree because overload resolution requires
         // of arguments and types of arguments require class information which should be forward-analyzed.
-    }
 
-    return scope::scope_tree{tree_root};
+    return scope::scope_tree{analyze_ast_node_forward(a.root, scope_root)};
 }
 
 } // namespace semantics
