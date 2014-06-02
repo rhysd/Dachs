@@ -3,6 +3,7 @@
 #include <cassert>
 #include <iterator>
 #include <unordered_set>
+#include <tuple>
 
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
@@ -100,21 +101,20 @@ class symbol_analyzer {
         failed++;
     }
 
-    template<class EnclosingScope, class FunctionDefiner>
+    template<class EnclosingScope>
     inline
     std::pair<ast::node::function_definition, scope::func_scope>
     instantiate_function_from_template(
             scope::func_scope const& func_template,
+            ast::node::function_definition const& func_template_def,
             std::vector<type::type> const& arg_types,
             EnclosingScope const& enclosing_scope
         ) noexcept
     {
         assert(func_template->params.size() == arg_types.size());
-
-        auto func_template_def = func_template->get_ast_node();
-        auto instantiated_func_def = ast::copy_ast(func_template_def);
-
         assert(already_visited_functions.find(func_template_def) != std::end(already_visited_functions));
+
+        auto instantiated_func_def = ast::copy_ast(func_template_def);
 
         // Note: No need to check functions duplication
         // Note: type of parameters are analyzed
@@ -482,16 +482,20 @@ public:
             return;
         }
 
-        auto &func = *maybe_func;
+        auto func = *maybe_func;
+        auto func_def = func->get_ast_node();
 
         if (func->is_template()) {
-            // TODO:
-            // If target function is template, instantiate function and reference it
+            // Note:
+            // No need to use apply_lambda for func->enclosing_scope
+            // because enclosing_scope of func_scope is always global_scope.
 
-            // func = ...
+            std::tie(func_def, func) = instantiate_function_from_template(func, func_def, arg_types, global);
+
+            already_visited_functions.insert(func_def);
+            assert(!global->ast_root.expired());
+            global->ast_root.lock()->inu.push_back(func_def);
         }
-
-        auto func_def = func->get_ast_node();
 
         if (auto maybe_ret_type = func_def->ret_type) {
             // TODO: Get return type from instantiated function and check specified return type matches
