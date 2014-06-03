@@ -137,8 +137,11 @@ class symbol_analyzer {
 
         // Last, symnol analyzer visits
         {
-            symbol_analyzer analyzer{instantiated_func_scope, global};
+            // TODO:
+            // Must share already_visited_functions
+            symbol_analyzer analyzer{instantiated_func_scope, enclosing_scope};
             ast::walk_topdown(instantiated_func_def, analyzer);
+            already_visited_functions.insert(instantiated_func_def);
         }
 
         return std::make_pair(instantiated_func_def, instantiated_func_scope);
@@ -492,7 +495,6 @@ public:
 
             std::tie(func_def, func) = instantiate_function_from_template(func, func_def, arg_types, global);
 
-            already_visited_functions.insert(func_def);
             assert(!global->ast_root.expired());
             global->ast_root.lock()->inu.push_back(func_def);
         }
