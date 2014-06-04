@@ -772,6 +772,7 @@ struct function_definition final : public statement {
     boost::optional<node::statement_block> ensure_body;
     scope::weak_func_scope scope;
     boost::optional<type::type> ret_type;
+    std::vector<node::function_definition> instantiated; // Caution: This is not a part of AST!
 
     function_definition(symbol::func_kind const k
                       , std::string const& n

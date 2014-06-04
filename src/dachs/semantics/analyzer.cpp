@@ -104,7 +104,6 @@ class symbol_analyzer {
     // TODO:
     // Share this function in func_scope and member_func_scope
     template<class FuncDefNode, class EnclosingScope>
-    inline
     std::pair<FuncDefNode, scope::func_scope>
     instantiate_function_from_template(
             FuncDefNode const& func_template_def,
@@ -143,6 +142,9 @@ class symbol_analyzer {
             already_visited_functions.insert(instantiated_func_def);
             current_scope = saved_current_scope;
         }
+
+        // Add instantiated function to function template node in AST
+        func_template_def->instantiated.push_back(instantiated_func_def);
 
         return std::make_pair(instantiated_func_def, instantiated_func_scope);
     }
@@ -496,13 +498,12 @@ public:
             std::tie(func_def, func) = instantiate_function_from_template(func_def, arg_types, global);
 
             assert(!global->ast_root.expired());
-            global->ast_root.lock()->inu.push_back(func_def);
         }
 
         if (auto maybe_ret_type = func_def->ret_type) {
             invocation->type = *maybe_ret_type;
         } else {
-            semantic_error(invocation, boost::format("Cannot deduce the return type of function '%1%'") % func->name);
+            semantic_error(invocation, boost::format("Cannot deduce the return type of function '%1%'") % func->to_string());
         }
     }
 
