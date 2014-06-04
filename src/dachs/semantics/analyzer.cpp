@@ -503,7 +503,7 @@ public:
             // TODO: Get return type from instantiated function and check specified return type matches
             invocation->type = *maybe_ret_type;
         } else {
-            semantic_error(invocation, boost::format("cannot deduce the return type of function '%1%'") % func->name);
+            semantic_error(invocation, boost::format("Cannot deduce the return type of function '%1%'") % func->name);
         }
     }
 
@@ -517,10 +517,12 @@ public:
 
         recursive_walker();
 
-        // TODO:
-        // Implement a function to get type from type nodes in AST
-        // TODO:
-        // Check the type of child is the same as the one of lhs
+        auto const actual_type = type_of(typed->child_expr);
+        if (actual_type != typed->type) {
+            semantic_error(typed, boost::format("Type mismatch.  Specified '%1%' but actually typed to '%2%'") % typed->type % actual_type);
+            return;
+        }
+
         // TODO:
         // Use another visitor to set type and check types. Do not use recursive_walker().
     }
