@@ -41,7 +41,7 @@ class scope_tree_stringizer {
         if (boost::empty(symbols)) {
             return "";
         }
-        return boost::accumulate(symbols | transformed([this, i, &prefix](auto const& s){ return indent(i) + prefix + s->name; }),
+        return boost::accumulate(symbols | transformed([this, i, &prefix](auto const& s){ return indent(i) + prefix + s->name + (s->type ? ": " + s->type.to_string() : ""); }),
                           std::string{},
                           [](auto const& acc, auto const& item){
                               return acc + '\n' + item;
@@ -59,7 +59,7 @@ public:
 
     std::string visit(func_scope const& f, size_t const i) const
     {
-        return indent(i) + "FUNCTION_SCOPE: " + f->name
+        return indent(i) + "FUNCTION_SCOPE: " + f->to_string()
             + visit_symbols(f->params, i+1, "DEF: ")
             + '\n' + visit(f->body, i+1);
     }

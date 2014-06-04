@@ -135,6 +135,20 @@ bool func_scope::operator==(func_scope const& rhs) const noexcept
 
 std::string func_scope::to_string() const noexcept
 {
+    if (is_builtin) {
+        return "func " + name + '('
+            + boost::algorithm::join(
+                    params |
+                    boost::adaptors::transformed(
+                        [](auto const& p)
+                        {
+                            return p->name;
+                        }
+                    ), ", "
+                )
+            + ')';
+    }
+
     auto const def = get_ast_node();
     std::string ret = ast::symbol::to_string(def->kind) + ' ' + name + '(';
 

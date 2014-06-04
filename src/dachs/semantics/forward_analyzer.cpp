@@ -11,12 +11,12 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
         // Builtin functions
 
         // func print(str)
-        auto print_func = scope::make<scope::func_scope>(a.root, scope_root, "print");
+        auto print_func = scope::make<scope::func_scope>(a.root, scope_root, "print", true);
         print_func->body = scope::make<scope::local_scope>(print_func);
         // Note: These definitions are never duplicate
-        print_func->define_param(symbol::make<symbol::var_symbol>(a.root, "value"));
+        print_func->define_param(symbol::make<symbol::var_symbol>(a.root, "value", true));
         scope_root->define_function(print_func);
-        scope_root->define_global_constant(symbol::make<symbol::var_symbol>(a.root, "print"));
+        scope_root->define_global_constant(symbol::make<symbol::var_symbol>(a.root, "print", true));
 
         // Operators
         // cast functions

@@ -19,19 +19,20 @@ struct basic_symbol {
     std::string name;
     type::type type;
     ast::node::any_node ast_node;
+    bool is_builtin;
 
-    explicit basic_symbol(std::string const& s) noexcept
-        : name(s), type{}, ast_node{}
+    explicit basic_symbol(std::string const& s, bool const is_builtin = false) noexcept
+        : name(s), type{}, ast_node{}, is_builtin(is_builtin)
     {}
 
     template<class Type>
-    basic_symbol(std::string const& s, Type const& t) noexcept
-        : name(s), type{t}, ast_node{}
+    basic_symbol(std::string const& s, Type const& t, bool const is_builtin = false) noexcept
+        : name(s), type{t}, ast_node{}, is_builtin(is_builtin)
     {}
 
     template<class Node>
-    basic_symbol(Node const& node, std::string const& s) noexcept
-        : name(s), type{}, ast_node{node}
+    basic_symbol(Node const& node, std::string const& s, bool const is_builtin = false) noexcept
+        : name(s), type{}, ast_node{node}, is_builtin(is_builtin)
     {}
 
     std::string to_string() const noexcept
@@ -52,8 +53,8 @@ struct member_var_symbol final : public basic_symbol {
 
     scope::class_scope its_class;
 
-    member_var_symbol(std::string const& name, scope::class_scope c) noexcept
-        : basic_symbol(name), its_class(c)
+    member_var_symbol(std::string const& name, scope::class_scope c, bool const is_builtin = false) noexcept
+        : basic_symbol(name, is_builtin), its_class(c)
     {}
 };
 

@@ -182,9 +182,9 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     std::vector<symbol::var_symbol> params;
 
     template<class Node, class P>
-    explicit func_scope(Node const& n, P const& p, std::string const& s) noexcept
+    explicit func_scope(Node const& n, P const& p, std::string const& s, bool const is_builtin = false) noexcept
         : basic_scope(p)
-        , basic_symbol(n, s)
+        , basic_symbol(n, s, is_builtin)
     {}
 
     bool define_param(symbol::var_symbol const& new_var) noexcept
@@ -234,9 +234,9 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
     // std::vector<type> for instanciated types (if this isn't template, it should contains only one element)
 
     template<class Node, class Parent>
-    explicit class_scope(Node const& ast_node, Parent const& p, std::string const& name) noexcept
+    explicit class_scope(Node const& ast_node, Parent const& p, std::string const& name, bool const is_builtin = false) noexcept
         : basic_scope(p)
-        , basic_symbol(ast_node, name)
+        , basic_symbol(ast_node, name, is_builtin)
     {}
 
     bool define_member_func(scope::func_scope const& new_func) noexcept
