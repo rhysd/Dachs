@@ -176,8 +176,8 @@ Scope analyze_ast_node_forward(Node &node, Scope const& scope_root)
     }
 
     {
-        std::size_t const failed = dispatch_forward_analyzer(node, scope_root);
-        if (!check_functions_duplication(scope_root)) {
+        std::size_t const failed = check_functions_duplication(scope_root);
+        if (failed > 0) {
             throw dachs::semantic_check_error{failed, "function duplication check"};
         }
     }

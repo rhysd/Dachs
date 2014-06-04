@@ -117,7 +117,7 @@ class symbol_analyzer {
         auto instantiated_func_def = ast::copy_ast(func_template_def);
 
         // Note: No need to check functions duplication
-        // Note: type of parameters are analyzed
+        // Note: Type of parameters are analyzed here
         failed += dispatch_forward_analyzer(instantiated_func_def, enclosing_scope);
         assert(!instantiated_func_def->scope.expired());
 
