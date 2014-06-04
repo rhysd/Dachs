@@ -101,17 +101,17 @@ class symbol_analyzer {
         failed++;
     }
 
-    template<class EnclosingScope>
+    // TODO:
+    // Share this function in func_scope and member_func_scope
+    template<class FuncDefNode, class EnclosingScope>
     inline
-    std::pair<ast::node::function_definition, scope::func_scope>
+    std::pair<FuncDefNode, scope::func_scope>
     instantiate_function_from_template(
-            scope::func_scope const& func_template,
-            ast::node::function_definition const& func_template_def,
+            FuncDefNode const& func_template_def,
             std::vector<type::type> const& arg_types,
             EnclosingScope const& enclosing_scope
         ) noexcept
     {
-        assert(func_template->params.size() == arg_types.size());
         assert(already_visited_functions.find(func_template_def) != std::end(already_visited_functions));
 
         auto instantiated_func_def = ast::copy_ast(func_template_def);
@@ -137,11 +137,11 @@ class symbol_analyzer {
 
         // Last, symnol analyzer visits
         {
-            // TODO:
-            // Must share already_visited_functions
-            symbol_analyzer analyzer{instantiated_func_scope, enclosing_scope};
-            ast::walk_topdown(instantiated_func_def, analyzer);
+            auto saved_current_scope = current_scope;
+            current_scope = enclosing_scope;
+            ast::walk_topdown(instantiated_func_def, *this);
             already_visited_functions.insert(instantiated_func_def);
+            current_scope = saved_current_scope;
         }
 
         return std::make_pair(instantiated_func_def, instantiated_func_scope);
@@ -396,9 +396,6 @@ public:
         }
     }
 
-    // TODO:
-    // Calculate type from type nodes here because it requires forward analyzed information
-
     template<class Walker>
     void visit(ast::node::binary_expr const& bin_expr, Walker const& recursive_walker)
     {
@@ -425,7 +422,10 @@ public:
         }
 
         if (bin_expr->op == ".." || bin_expr->op == "...") {
-            bin_expr->type = type::make<type::range_type>(type_of(bin_expr->lhs), type_of(bin_expr->rhs));
+            // TODO:
+            // Range type
+            // TODO:
+            // Relational operators
         } else {
             // TODO:
             // Find operator function and get the result type of it
@@ -493,14 +493,13 @@ public:
             // No need to use apply_lambda for func->enclosing_scope
             // because enclosing_scope of func_scope is always global_scope.
 
-            std::tie(func_def, func) = instantiate_function_from_template(func, func_def, arg_types, global);
+            std::tie(func_def, func) = instantiate_function_from_template(func_def, arg_types, global);
 
             assert(!global->ast_root.expired());
             global->ast_root.lock()->inu.push_back(func_def);
         }
 
         if (auto maybe_ret_type = func_def->ret_type) {
-            // TODO: Get return type from instantiated function and check specified return type matches
             invocation->type = *maybe_ret_type;
         } else {
             semantic_error(invocation, boost::format("Cannot deduce the return type of function '%1%'") % func->name);
