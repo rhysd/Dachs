@@ -441,6 +441,8 @@ public:
             return;
         }
 
+        // TODO:
+        // Find operator function and get the result type of it
         if (any_of({"==", "!=", ">", "<", ">=", "<="}, bin_expr->op)) {
             bin_expr->type = type::get_builtin_type("bool", type::no_opt);
         } else if (bin_expr->op == "&&" || bin_expr->op == "||") {
@@ -452,8 +454,7 @@ public:
             // TODO: Range type
             throw not_implemented_error{__FILE__, __func__, __LINE__, "builtin range type"};
         } else {
-            // TODO:
-            // Find operator function and get the result type of it
+            bin_expr->type = lhs_type;
         }
     }
 
