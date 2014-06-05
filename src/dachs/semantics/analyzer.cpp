@@ -199,6 +199,17 @@ public:
         }
         already_visited_functions.insert(func);
 
+        if (func->is_template()) {
+            // XXX:
+            // Visit only parameters if function template for overload resolution.
+            // This is because type checking and symbol analysis are needed in
+            // not function templates but instantiated functions.
+            for (auto const& p : func->params) {
+                visit_func_parameter(p, func->scope.lock());
+            }
+            return;
+        }
+
         assert(!func->scope.expired());
         with_new_scope(func->scope.lock(), recursive_walker);
 
@@ -430,15 +441,67 @@ public:
             return;
         }
 
-        if (bin_expr->op == ".." || bin_expr->op == "...") {
-            // TODO:
-            // Range type
-            // TODO:
-            // Relational operators
+        if (any_of({"==", "!=", ">", "<", ">=", "<="}, bin_expr->op)) {
+            bin_expr->type = type::get_builtin_type("bool", type::no_opt);
+        } else if (bin_expr->op == "&&" || bin_expr->op == "||") {
+            if (lhs_type != type::get_builtin_type("bool", type::no_opt)) {
+                semantic_error(bin_expr, boost::format("Opeartor '%1%' only takes bool type operand\nNote: Operand type is '%2%'") % bin_expr->op % lhs_type.to_string());
+            }
+            bin_expr->type = type::get_builtin_type("bool", type::no_opt);
+        } else if (bin_expr->op == ".." || bin_expr->op == "...") {
+            // TODO: Range type
+            throw not_implemented_error{__FILE__, __func__, __LINE__, "builtin range type"};
         } else {
             // TODO:
             // Find operator function and get the result type of it
         }
+    }
+
+    template<class Walker>
+    void visit(ast::node::unary_expr const& unary, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        auto const operand_type = type_of(unary->expr);
+
+        if (!operand_type) {
+            return;
+        }
+
+        if (unary->op == "!") {
+            if (operand_type != type::get_builtin_type("bool", type::no_opt)) {
+                semantic_error(unary, boost::format("Opeartor '%1%' only takes bool type operand\nNote: Operand type is '%2%'") % unary->op % operand_type.to_string());
+            }
+            unary->type = type::get_builtin_type("bool", type::no_opt);
+        } else {
+            unary->type = operand_type;
+        }
+    }
+
+    template<class Walker>
+    void visit(ast::node::if_expr const& if_, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        auto const condition_type = type_of(if_->condition_expr);
+        auto const then_type = type_of(if_->then_expr);
+        auto const else_type = type_of(if_->else_expr);
+
+        if (!condition_type || !then_type || !else_type) {
+            return;
+        }
+
+        if (condition_type != type::get_builtin_type("bool", type::no_opt)) {
+            semantic_error(if_, boost::format("Type of condition in if expression must be bool\nNote: Type of condition is '%1%'") % condition_type.to_string());
+            return;
+        }
+
+        if (then_type != else_type) {
+            semantic_error(if_, boost::format("Type mismatch between type of then clause and else clause\nNote: Type of then clause is '%1%'\nNote: Type of else clause is '%2%'") % then_type.to_string() % else_type.to_string());
+            return;
+        }
+
+        if_->type = then_type;
     }
 
     // TODO:
