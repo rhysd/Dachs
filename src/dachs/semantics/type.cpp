@@ -7,27 +7,43 @@
 
 namespace dachs {
 namespace type {
+namespace detail {
+
+static std::vector<builtin_type> const builtin_types
+    = {
+        make<builtin_type>("int"),
+        make<builtin_type>("uint"),
+        make<builtin_type>("float"),
+        make<builtin_type>("char"),
+        make<builtin_type>("bool"),
+        make<builtin_type>("string"),
+        make<builtin_type>("symbol"),
+    };
+
+} // namespace detail
+
+no_opt_t no_opt;
 
 boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept
 {
-    static std::vector<builtin_type> const builtin_types
-        = {
-            make<builtin_type>("int"),
-            make<builtin_type>("uint"),
-            make<builtin_type>("float"),
-            make<builtin_type>("char"),
-            make<builtin_type>("bool"),
-            make<builtin_type>("string"),
-            make<builtin_type>("symbol"),
-        };
-
-    for (auto const& t : builtin_types) {
+    for (auto const& t : detail::builtin_types) {
         if (t->name == name) {
             return t;
         }
     }
 
     return boost::none;
+}
+
+builtin_type get_builtin_type(char const* const name, no_opt_t) noexcept
+{
+    for (auto const& t : detail::builtin_types) {
+        if (t->name == name) {
+            return t;
+        }
+    }
+
+    std::abort();
 }
 
 bool any_type::operator==(any_type const& rhs) const noexcept
