@@ -61,8 +61,7 @@ std::size_t get_overloaded_function_score(FuncScope const& func, ArgTypes const&
 } // namespace detail
 
 boost::optional<scope::func_scope>
-global_scope::resolve_func( std::string const& name
-            , std::vector<type::type> const& arg_types) const
+global_scope::resolve_func( std::string const& name, std::vector<type::type> const& arg_types) const
 {
     boost::optional<scope::func_scope> result = boost::none;
 

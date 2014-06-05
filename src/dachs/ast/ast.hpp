@@ -785,14 +785,9 @@ struct function_definition final : public statement {
 
     bool is_template() const noexcept
     {
-        if (kind == symbol::func_kind::func ) {
-            if (!ret_type) {
-                return true;
-            }
-        }
-
         for (auto const& p : params) {
-            if (!p->param_type) {
+            assert(p->type);
+            if (p->type.is_template()) {
                 return true;
             }
         }

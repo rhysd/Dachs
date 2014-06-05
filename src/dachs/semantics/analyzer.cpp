@@ -7,7 +7,7 @@
 
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
-#include <boost/algorithm/cxx11/all_of.hpp> // For boost::all_of
+#include <boost/algorithm/cxx11/all_of.hpp>
 #include <boost/range/algorithm/transform.hpp>
 
 #include "dachs/exception.hpp"
@@ -22,6 +22,7 @@
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/error.hpp"
 #include "dachs/helper/variant.hpp"
+#include "dachs/helper/util.hpp"
 
 namespace dachs {
 namespace semantics {
@@ -30,6 +31,7 @@ namespace detail {
 using std::size_t;
 using helper::variant::get_as;
 using helper::variant::apply_lambda;
+using helper::any_of;
 
 struct return_types_gatherer {
     std::vector<type::type> result_types;
@@ -143,10 +145,27 @@ class symbol_analyzer {
             current_scope = saved_current_scope;
         }
 
+        assert(!instantiated_func_def->is_template());
+
         // Add instantiated function to function template node in AST
         func_template_def->instantiated.push_back(instantiated_func_def);
 
         return std::make_pair(instantiated_func_def, instantiated_func_scope);
+    }
+
+    void visit_func_parameter(ast::node::parameter const& param, scope::func_scope const& scope)
+    {
+        auto new_param = symbol::make<symbol::var_symbol>(param, param->name);
+        new_param->type = param->type;
+        param->param_symbol = new_param;
+
+        if (!scope->define_param(new_param)) {
+            failed++;
+            return;
+        }
+
+        // Type is already set in forward_symbol_analyzer
+        assert(param->type);
     }
 
 public:
@@ -238,23 +257,15 @@ public:
     template<class Walker>
     void visit(ast::node::parameter const& param, Walker const& recursive_walker)
     {
-        auto new_param = symbol::make<symbol::var_symbol>(param, param->name);
-        new_param->type = param->type;
-        param->param_symbol = new_param;
         if (auto maybe_func = get_as<scope::func_scope>(current_scope)) {
-            auto& func = *maybe_func;
-
-            if (!func->define_param(new_param)) {
-                failed++;
-                return;
-            }
-
-            // Type is already set in forward_symbol_analyzer
-            assert(!param->param_type || param->type);
-
+            visit_func_parameter(param, *maybe_func);
         } else if (auto maybe_local = get_as<scope::local_scope>(current_scope)) {
             // When for statement
+            auto new_param = symbol::make<symbol::var_symbol>(param, param->name);
+            new_param->type = param->type;
+            param->param_symbol = new_param;
             auto& local = *maybe_local;
+
             if (!local->define_local_var(new_param)) {
                 failed++;
                 return;
@@ -341,17 +352,13 @@ public:
             }
         } selector;
 
-        auto const builtin = type::get_builtin_type(boost::apply_visitor(selector, primary_lit->value));
-        assert(builtin);
-        primary_lit->type = *builtin;
+        primary_lit->type = type::get_builtin_type(boost::apply_visitor(selector, primary_lit->value), type::no_opt);
     }
 
     template<class Walker>
     void visit(ast::node::symbol_literal const& sym_lit, Walker const& /*unused because it doesn't have child*/)
     {
-        auto const builtin = type::get_builtin_type("symbol");
-        assert(builtin);
-        sym_lit->type = *builtin;
+        sym_lit->type = type::get_builtin_type("symbol", type::no_opt);
     }
 
     template<class Walker>
@@ -448,17 +455,18 @@ public:
             throw not_implemented_error{__FILE__, __func__, __LINE__, "function variable invocation"};
         }
 
-        if (!(*maybe_var_ref)->type) {
+        auto const& var_ref = *maybe_var_ref;
+        if (!var_ref->type) {
             return;
         }
 
-        std::string const& name = (*maybe_var_ref)->name;
+        std::string const& name = var_ref->name;
 
-        if (!type::has<type::func_ref_type>((*maybe_var_ref)->type)) {
+        if (!type::has<type::func_ref_type>(var_ref->type)) {
             semantic_error(invocation
                          , boost::format("'%1%' is not a function or function reference\nNote: Type of %1% is %2%")
                             % name
-                            % (*maybe_var_ref)->type.to_string()
+                            % var_ref->type.to_string()
                         );
             return;
         }
@@ -483,7 +491,7 @@ public:
                 );
 
         if (!maybe_func) {
-            semantic_error(invocation, boost::format("function '%1%' is not found") % name);
+            semantic_error(invocation, boost::format("Function '%1%' is not found") % name);
             return;
         }
 
