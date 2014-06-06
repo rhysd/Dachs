@@ -8,7 +8,6 @@
 #include <boost/variant/variant.hpp>
 
 #include "dachs/ast/ast.hpp"
-#include "dachs/ast/ast_copier.hpp"
 #include "dachs/helper/util.hpp"
 #include "dachs/helper/make.hpp"
 #include "dachs/helper/variant.hpp"

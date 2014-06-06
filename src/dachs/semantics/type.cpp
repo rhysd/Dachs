@@ -93,7 +93,7 @@ std::string template_type::to_string() const noexcept
     if (auto maybe_param = get_ast_node_as_parameter()) {
         return "<template:" + (*maybe_param)->to_string() + ">";
     } else {
-        DACHS_INTERNAL_COMPILATION_ERROR
+        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
     }
 }
 

@@ -582,7 +582,7 @@ struct qualified_type final : public basic_type {
         case type::qualifier::maybe:
             return contained_type_name + '?';
         default:
-            DACHS_INTERNAL_COMPILATION_ERROR
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
     }
 

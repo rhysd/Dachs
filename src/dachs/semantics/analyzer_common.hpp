@@ -104,7 +104,7 @@ public:
             new_qualifier = type::qualifier::maybe;
             break;
         default:
-            DACHS_INTERNAL_COMPILATION_ERROR
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
 
         return type::make<type::qualified_type>(

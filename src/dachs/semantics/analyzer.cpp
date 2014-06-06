@@ -283,7 +283,7 @@ public:
                 return;
             }
         } else {
-            DACHS_INTERNAL_COMPILATION_ERROR
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
 
         recursive_walker();

@@ -31,7 +31,7 @@ std::string to_string(assign_operator const o)
     case assign_operator::logical_and:    return "&&=";
     case assign_operator::logical_or:     return "||=";
     default:
-        DACHS_INTERNAL_COMPILATION_ERROR
+        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         return "unknown";
     }
 }
@@ -42,7 +42,7 @@ std::string to_string(if_kind const o)
     case if_kind::if_: return "if";
     case if_kind::unless: return "unless";
     default:
-        DACHS_INTERNAL_COMPILATION_ERROR
+        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         return "unknown";
     }
 }
@@ -52,7 +52,7 @@ std::string to_string(qualifier const o)
     switch(o) {
     case qualifier::maybe: return "?";
     default:
-        DACHS_INTERNAL_COMPILATION_ERROR
+        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         return "unknown";
     }
 }
@@ -63,7 +63,7 @@ std::string to_string(func_kind const o)
     case func_kind::func: return "func";
     case func_kind::proc: return "proc";
     default:
-        DACHS_INTERNAL_COMPILATION_ERROR
+        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         return "unknown";
     }
 }

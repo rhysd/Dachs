@@ -70,7 +70,7 @@ public:
             auto &enclosing_scope = *maybe_func_scope;
             enclosing_scope->body = new_local_scope;
         } else {
-            DACHS_INTERNAL_COMPILATION_ERROR
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
         with_new_scope(std::move(new_local_scope), recursive_walker);
     }
