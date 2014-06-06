@@ -9,11 +9,23 @@ namespace dachs {
 
 class not_implemented_error final : public std::runtime_error {
 public:
-    not_implemented_error(char const* const file,
+    template<class Node>
+    not_implemented_error(Node const& node,
+                          char const* const file,
                           char const* const func,
                           std::size_t const line,
                           char const* const what_feature) noexcept
-        : std::runtime_error((boost::format("In %1%, %2% (line:%3%)\n %4% is not implemented yet.") % file % func % line % what_feature).str())
+        : std::runtime_error(
+                (
+                    boost::format("At line:%1%, col:%2%\n %3% is not implemented yet.\nNote: You can contribute to Dachs with implementing this feature. See file:%4%, function:%5%, line:%6% in https://github.com/rhysd/Dachs.")
+                        % node->line
+                        % node->col
+                        % what_feature
+                        % file
+                        % func
+                        % line
+                ).str()
+            )
     {}
 };
 

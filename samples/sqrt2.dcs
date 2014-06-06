@@ -6,7 +6,7 @@ func sqrt'(p, z, x)
     if abs(p-z) < 0.00001
         return z
     end
-    return sqrt'(z, z-(z*z-x)/(2*z), x)
+    return sqrt'(z, z-(z*z-x)/(2.0*z), x)
 end
 
 func sqrt(x)

@@ -562,7 +562,7 @@ struct variable_decl final : public base {
     std::string name;
     boost::optional<node::any_type> maybe_type;
     dachs::symbol::weak_var_symbol symbol;
-    boost::optional<type::type> type;
+    type::type type;
 
     variable_decl(bool const var,
                   std::string const& name,

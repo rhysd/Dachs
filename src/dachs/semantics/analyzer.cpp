@@ -307,7 +307,7 @@ public:
                     type_calculator_from_type_nodes{current_scope},
                     *(decl->maybe_type)
                 );
-            new_var->type = *(decl->type);
+            new_var->type = decl->type;
         }
 
         recursive_walker();
@@ -452,7 +452,7 @@ public:
             bin_expr->type = type::get_builtin_type("bool", type::no_opt);
         } else if (bin_expr->op == ".." || bin_expr->op == "...") {
             // TODO: Range type
-            throw not_implemented_error{__FILE__, __func__, __LINE__, "builtin range type"};
+            throw not_implemented_error{bin_expr, __FILE__, __func__, __LINE__, "builtin range type"};
         } else {
             bin_expr->type = lhs_type;
         }
@@ -516,7 +516,7 @@ public:
 
         auto maybe_var_ref = get_as<ast::node::var_ref>(invocation->child);
         if (!maybe_var_ref) {
-            throw not_implemented_error{__FILE__, __func__, __LINE__, "function variable invocation"};
+            throw not_implemented_error{invocation, __FILE__, __func__, __LINE__, "function variable invocation"};
         }
 
         auto const& var_ref = *maybe_var_ref;
@@ -612,16 +612,16 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::member_access const& /*member_access*/, Walker const& /*unused*/)
+    void visit(ast::node::member_access const& member, Walker const& /*unused*/)
     {
-        throw not_implemented_error{__FILE__, __func__, __LINE__, "member access"};
+        throw not_implemented_error{member, __FILE__, __func__, __LINE__, "member access"};
     }
 
     template<class Walker>
     void visit(ast::node::object_construct const& obj, Walker const& /*unused*/)
     {
         obj->type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, obj->obj_type);
-        throw not_implemented_error{__FILE__, __func__, __LINE__, "object construction"};
+        throw not_implemented_error{obj, __FILE__, __func__, __LINE__, "object construction"};
     }
 
     // TODO: member variable accesses
