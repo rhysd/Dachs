@@ -15,6 +15,7 @@
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/ast_walker.hpp"
 #include "dachs/exception.hpp"
+#include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
 
 namespace dachs {
@@ -69,7 +70,7 @@ public:
             auto &enclosing_scope = *maybe_func_scope;
             enclosing_scope->body = new_local_scope;
         } else {
-            assert(false); // Should not reach here
+            DACHS_INTERNAL_COMPILATION_ERROR
         }
         with_new_scope(std::move(new_local_scope), recursive_walker);
     }

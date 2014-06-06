@@ -10,6 +10,7 @@
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/type.hpp"
+#include "dachs/fatal.hpp"
 
 namespace dachs {
 namespace semantics {
@@ -103,8 +104,7 @@ public:
             new_qualifier = type::qualifier::maybe;
             break;
         default:
-            assert(false);
-            break;
+            DACHS_INTERNAL_COMPILATION_ERROR
         }
 
         return type::make<type::qualified_type>(

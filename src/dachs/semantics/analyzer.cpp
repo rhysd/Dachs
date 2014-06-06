@@ -21,6 +21,7 @@
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/error.hpp"
+#include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/util.hpp"
 
@@ -282,7 +283,7 @@ public:
                 return;
             }
         } else {
-            assert(false);
+            DACHS_INTERNAL_COMPILATION_ERROR
         }
 
         recursive_walker();

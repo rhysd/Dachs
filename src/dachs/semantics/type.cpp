@@ -4,6 +4,7 @@
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/scope.hpp"
+#include "dachs/fatal.hpp"
 
 namespace dachs {
 namespace type {
@@ -92,8 +93,7 @@ std::string template_type::to_string() const noexcept
     if (auto maybe_param = get_ast_node_as_parameter()) {
         return "<template:" + (*maybe_param)->to_string() + ">";
     } else {
-        assert(false);
-        return "<template:UNKNOWN>";
+        DACHS_INTERNAL_COMPILATION_ERROR
     }
 }
 

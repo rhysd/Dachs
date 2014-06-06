@@ -19,6 +19,7 @@
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/make.hpp"
 #include "dachs/helper/util.hpp"
+#include "dachs/fatal.hpp"
 
 namespace dachs {
 
@@ -581,7 +582,7 @@ struct qualified_type final : public basic_type {
         case type::qualifier::maybe:
             return contained_type_name + '?';
         default:
-            assert(false);
+            DACHS_INTERNAL_COMPILATION_ERROR
         }
     }
 
