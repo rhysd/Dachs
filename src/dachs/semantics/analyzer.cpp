@@ -625,6 +625,98 @@ public:
         throw not_implemented_error{obj, __FILE__, __func__, __LINE__, "object construction"};
     }
 
+    template<class Walker>
+    void visit(ast::node::initialize_stmt const& init, Walker const& recursive_walker)
+    {
+        assert(init->var_decls.size() > 0);
+
+        auto const substitute_type =
+            [this, &init](auto const& decl, auto const& t)
+            {
+                if (decl->type) {
+                    if (decl->type != t) {
+                        semantic_error(
+                                init,
+                                boost::format("Types mismatch on substituting '%1%'\nNote: Type of '%1%' is '%2%' but rhs type is '%3%'")
+                                    % decl->name
+                                    % decl->type.to_string()
+                                    % type::to_string(t)
+                            );
+                    }
+                } else {
+                    decl->type = t;
+                }
+            };
+
+        recursive_walker();
+
+        if (!init->maybe_rhs_exprs) {
+            for (auto const& v : init->var_decls) {
+                if (!v->type) {
+                    semantic_error(init, boost::format("Type of '%1%' can't be deduced") % v->name);
+                }
+            }
+            return;
+        }
+
+        auto &rhs_exprs = *init->maybe_rhs_exprs;
+        assert(rhs_exprs.size() > 0);
+
+        for (auto const& e : rhs_exprs) {
+            if (!type_of(e)) {
+                return;
+            }
+        }
+
+        if (init->var_decls.size() == 1) {
+            auto const& var_decl = init->var_decls[0];
+            if (rhs_exprs.size() == 1) {
+                substitute_type(var_decl, type_of(rhs_exprs[0]));
+            } else {
+                auto rhs_type = type::make<type::tuple_type>();
+                rhs_type->element_types.reserve(rhs_exprs.size());
+                for (auto const& e : rhs_exprs) {
+                    rhs_type->element_types.push_back(type_of(e));
+                }
+                substitute_type(var_decl, rhs_type);
+            }
+        } else {
+            if (rhs_exprs.size() == 1) {
+                auto maybe_rhs_type = type::get<type::tuple_type>(type_of(rhs_exprs[0]));
+                if (!maybe_rhs_type) {
+                    semantic_error(init, boost::format("Rhs type of initialization here must be tuple\nNote: Rhs type is %1%") % type_of(rhs_exprs[0]).to_string());
+                    return;
+                }
+                auto const rhs_type = *maybe_rhs_type;
+                if (rhs_type->element_types.size() != init->var_decls.size()) {
+                    semantic_error(init, boost::format("Size of elements in lhs and rhs mismatch\nNote: Size of lhs is %1%, size of rhs is %2%") % init->var_decls.size() % rhs_type->element_types.size());
+                    return;
+                }
+                {
+                    auto tuple_itr = rhs_type->element_types.cbegin();
+                    auto const tuple_end = rhs_type->element_types.cend();
+                    auto decl_itr = std::begin(init->var_decls);
+                    for (; tuple_itr != tuple_end; ++tuple_itr, ++decl_itr) {
+                        substitute_type(*decl_itr, *tuple_itr);
+                    }
+                }
+            } else {
+                if (init->var_decls.size() != rhs_exprs.size()) {
+                    semantic_error(init, boost::format("Size of elements in lhs and rhs mismatch\nNote: Size of lhs is %1%, size of rhs is %2%") % init->var_decls.size() % rhs_exprs.size());
+                    return;
+                }
+                {
+                    auto lhs_itr = std::begin(init->var_decls);
+                    auto const lhs_end = std::end(init->var_decls);
+                    auto rhs_itr = rhs_exprs.cbegin();
+                    for (; lhs_itr != lhs_end; ++lhs_itr, ++rhs_itr) {
+                        substitute_type(*lhs_itr, type_of(*rhs_itr));
+                    }
+                }
+            }
+        }
+    }
+
     // TODO: member variable accesses
     // TODO: method accesses
 

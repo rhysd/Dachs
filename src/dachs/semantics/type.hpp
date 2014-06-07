@@ -194,6 +194,9 @@ public:
 
     template<class T>
     friend bool has(any_type const&);
+
+    template<class T>
+    friend boost::optional<T const&> get(any_type const&);
 };
 
 template<class T>
@@ -202,6 +205,11 @@ inline bool has(any_type const& t)
     return helper::variant::has<T>(t.value);
 }
 
+template<class T>
+inline boost::optional<T const&> get(any_type const& t)
+{
+    return helper::variant::get_as<T>(t.value);
+}
 
 } // namespace type
 
@@ -665,6 +673,17 @@ inline auto apply_lambda_(Lambda &l, Args &... args)
 }
 
 using type = any_type ; // For external use
+
+template<class T, class = typename std::enable_if<traits::is_type<T>::value>::type>
+inline std::string to_string(T const& type) noexcept
+{
+    return type->to_string();
+}
+
+inline std::string to_string(any_type const& type) noexcept
+{
+    return type.to_string();
+}
 
 } // namespace type
 
