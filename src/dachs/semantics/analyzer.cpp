@@ -156,6 +156,9 @@ class symbol_analyzer {
 
     void visit_func_parameter(ast::node::parameter const& param, scope::func_scope const& scope)
     {
+        // Type is already set in forward_symbol_analyzer
+        assert(param->type);
+
         auto new_param = symbol::make<symbol::var_symbol>(param, param->name);
         new_param->type = param->type;
         param->param_symbol = new_param;
@@ -164,9 +167,6 @@ class symbol_analyzer {
             failed++;
             return;
         }
-
-        // Type is already set in forward_symbol_analyzer
-        assert(param->type);
     }
 
 public:
@@ -253,20 +253,6 @@ public:
 
     // Do not analyze in forward_symbol_analyzer because variables can't be referenced forward {{{
     template<class Walker>
-    void visit(ast::node::constant_decl const& const_decl, Walker const& recursive_walker)
-    {
-        auto maybe_global_scope = get_as<scope::global_scope>(current_scope);
-        assert(maybe_global_scope);
-        auto& global_scope = *maybe_global_scope;
-        auto new_var = symbol::make<symbol::var_symbol>(const_decl, const_decl->name);
-        const_decl->symbol = new_var;
-        if (!global_scope->define_global_constant(new_var)) {
-            failed++;
-        }
-        recursive_walker();
-    }
-
-    template<class Walker>
     void visit(ast::node::parameter const& param, Walker const& recursive_walker)
     {
         if (auto maybe_func = get_as<scope::func_scope>(current_scope)) {
@@ -278,7 +264,7 @@ public:
             param->param_symbol = new_param;
             auto& local = *maybe_local;
 
-            if (!local->define_local_var(new_param)) {
+            if (!local->define_variable(new_param)) {
                 failed++;
                 return;
             }
@@ -292,23 +278,34 @@ public:
     template<class Walker>
     void visit(ast::node::variable_decl const& decl, Walker const& recursive_walker)
     {
-        auto maybe_local = get_as<scope::local_scope>(current_scope);
-        assert(maybe_local);
-        auto& local = *maybe_local;
-        auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name);
-        decl->symbol = new_var;
-        if (!local->define_local_var(new_var)) {
-            failed++;
-        }
+        auto const visit_decl =
+            [this, &decl](auto &scope)
+            {
+                auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name);
+                decl->symbol = new_var;
+                if (!scope->define_variable(new_var)) {
+                    failed++;
+                }
 
-        // Set type if the type of variable is specified
-        if (decl->maybe_type) {
-            decl->type
-                = boost::apply_visitor(
-                    type_calculator_from_type_nodes{current_scope},
-                    *(decl->maybe_type)
-                );
-            new_var->type = decl->type;
+                // Set type if the type of variable is specified
+                if (decl->maybe_type) {
+                    decl->type
+                        = boost::apply_visitor(
+                            type_calculator_from_type_nodes{current_scope},
+                            *(decl->maybe_type)
+                        );
+                    new_var->type = decl->type;
+                }
+            };
+
+        // Note:
+        // I can't use apply_lambda() because some scopes don't have define_variable() member
+        if (auto maybe_global_scope = get_as<scope::global_scope>(current_scope)) {
+            visit_decl(*maybe_global_scope);
+        } else if (auto maybe_local = get_as<scope::local_scope>(current_scope)) {
+            visit_decl(*maybe_local);
+        } else {
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
 
         recursive_walker();
@@ -645,6 +642,8 @@ public:
                     }
                 } else {
                     decl->type = t;
+                    assert(!decl->symbol.expired());
+                    decl->symbol.lock()->type = t;
                 }
             };
 
@@ -673,7 +672,7 @@ public:
             if (rhs_exprs.size() == 1) {
                 substitute_type(var_decl, type_of(rhs_exprs[0]));
             } else {
-                auto rhs_type = type::make<type::tuple_type>();
+                auto const rhs_type = type::make<type::tuple_type>();
                 rhs_type->element_types.reserve(rhs_exprs.size());
                 for (auto const& e : rhs_exprs) {
                     rhs_type->element_types.push_back(type_of(e));

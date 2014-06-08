@@ -236,16 +236,6 @@ public:
                 );
     }
 
-    auto copy(node::constant_decl const& cd) const
-    {
-        return make<node::constant_decl>(cd->name, copy(cd->maybe_type));
-    }
-
-    auto copy(node::constant_definition const& cd) const
-    {
-        return make<node::constant_definition>(copy(cd->const_decls), copy(cd->initializers));
-    }
-
     auto copy(node::program const& p) const
     {
         return make<node::program>(copy(p->inu));

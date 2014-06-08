@@ -61,7 +61,6 @@ enum class qualifier {
 };
 
 using dachs::helper::make;
-using dachs::helper::variant::apply_lambda;
 
 struct no_opt_t {};
 extern no_opt_t no_opt;
@@ -81,7 +80,8 @@ struct is_type
 
 } // namespace traits
 
-using dachs::helper::enable_if;
+using ::dachs::helper::enable_if;
+using ::dachs::helper::variant::apply_lambda;
 
 class any_type {
     using value_type
@@ -163,7 +163,7 @@ public:
 
     bool empty() const noexcept
     {
-        return helper::variant::apply_lambda([](auto const& t){ return !bool(t); }, value);
+        return apply_lambda([](auto const& t){ return !bool(t); }, value);
     }
 
     operator bool() const noexcept
@@ -173,16 +173,16 @@ public:
 
     std::string to_string() const noexcept
     {
-        return helper::variant::apply_lambda([](auto const& t) -> std::string { return t ? t->to_string() : "UNKNOWN"; }, value);
+        return apply_lambda([](auto const& t) -> std::string { return t ? t->to_string() : "UNKNOWN"; }, value);
     }
 
     // Note: This may ruin the private data member. Be careful.
-    value_type &raw_type() noexcept
+    value_type &raw_value() noexcept
     {
         return value;
     }
 
-    value_type const& raw_type() const noexcept
+    value_type const& raw_value() const noexcept
     {
         return value;
     }
@@ -659,18 +659,6 @@ struct template_type final : public basic_type {
 } // namespace type_node
 
 namespace type {
-
-template<class Lambda, class... Args>
-inline auto apply_lambda_(Lambda const& l, Args const&... args)
-{
-    return apply_lambda(l, args.raw_type()...);
-}
-
-template<class Lambda, class... Args>
-inline auto apply_lambda_(Lambda &l, Args &... args)
-{
-    return apply_lambda(l, args.raw_type()...);
-}
 
 using type = any_type ; // For external use
 

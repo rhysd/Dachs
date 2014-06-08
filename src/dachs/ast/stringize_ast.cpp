@@ -373,19 +373,6 @@ public:
             + visit_optional_node(fd->ensure_body, indent+lead, "   ");
     }
 
-    String visit(node::constant_decl const& cd, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(cd, indent)
-            + (cd->maybe_type ? '\n' + visit(*(cd->maybe_type), indent+lead, "   ") : "");
-    }
-
-    String visit(node::constant_definition const& cd, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(cd, indent)
-            + visit_nodes(cd->const_decls, indent+lead, cd->initializers.empty())
-            + visit_nodes(cd->initializers, indent+lead, true);
-    }
-
     template<class... Args>
     String visit(boost::variant<Args...> const& v, String const& indent, char const* const lead) const noexcept
     {

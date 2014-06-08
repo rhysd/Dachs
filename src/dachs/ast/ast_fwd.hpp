@@ -106,8 +106,6 @@ struct while_stmt;
 struct postfix_if_stmt;
 struct statement_block;
 struct function_definition;
-struct constant_decl;
-struct constant_definition;
 struct program;
 
 }
@@ -163,8 +161,6 @@ DACHS_DEFINE_NODE_PTR(while_stmt);
 DACHS_DEFINE_NODE_PTR(postfix_if_stmt);
 DACHS_DEFINE_NODE_PTR(statement_block);
 DACHS_DEFINE_NODE_PTR(function_definition);
-DACHS_DEFINE_NODE_PTR(constant_decl);
-DACHS_DEFINE_NODE_PTR(constant_definition);
 DACHS_DEFINE_NODE_PTR(program);
 #undef DACHS_DEFINE_NODE_PTR
 
@@ -212,7 +208,7 @@ using compound_stmt =
 using global_definition =
     boost::variant<
         function_definition,
-        constant_definition
+        initialize_stmt
     >;
 
 class any_node {

@@ -16,7 +16,7 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
         // Note: These definitions are never duplicate
         print_func->define_param(symbol::make<symbol::var_symbol>(a.root, "value", true));
         scope_root->define_function(print_func);
-        scope_root->define_global_constant(symbol::make<symbol::var_symbol>(a.root, "print", true));
+        scope_root->define_variable(symbol::make<symbol::var_symbol>(a.root, "print", true));
 
         // Operators
         // cast functions

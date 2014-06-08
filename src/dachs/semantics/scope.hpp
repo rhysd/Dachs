@@ -116,7 +116,7 @@ struct global_scope final : public basic_scope {
         functions.push_back(new_func);
     }
 
-    bool define_global_constant(symbol::var_symbol const& new_var) noexcept
+    bool define_variable(symbol::var_symbol const& new_var) noexcept
     {
         return define_symbol(const_symbols, new_var);
     }
@@ -162,7 +162,7 @@ struct local_scope final : public basic_scope {
         children.push_back(child);
     }
 
-    bool define_local_var(symbol::var_symbol const& new_var) noexcept
+    bool define_variable(symbol::var_symbol const& new_var) noexcept
     {
         return define_symbol(local_vars, new_var);
     }

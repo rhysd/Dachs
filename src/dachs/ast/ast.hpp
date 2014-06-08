@@ -801,38 +801,6 @@ struct function_definition final : public statement {
     }
 };
 
-struct constant_decl final : public base {
-    std::string name;
-    boost::optional<node::any_type> maybe_type;
-    dachs::symbol::weak_var_symbol symbol;
-    boost::optional<type::type> type;
-
-    constant_decl(std::string const& name,
-                  decltype(maybe_type) const& type) noexcept
-        : base(), name(name), maybe_type(type)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "CONSTANT_DECL: " + name;
-    }
-};
-
-struct constant_definition final : public statement {
-    std::vector<node::constant_decl> const_decls;
-    std::vector<node::any_expr> initializers;
-
-    constant_definition(decltype(const_decls) const& const_decls
-                      , decltype(initializers) const& initializers) noexcept
-        : statement(), const_decls(const_decls), initializers(initializers)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "CONSTANT_DEFINITION";
-    }
-};
-
 struct program final : public base {
     std::vector<node::global_definition> inu;
 

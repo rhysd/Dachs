@@ -830,14 +830,14 @@ public:
             = (
                 variable_name >> -(':' >> -qi::eol >> qualified_type)
             ) [
-                _val = make_node_ptr<ast::node::constant_decl>(_1, _2)
+                _val = make_node_ptr<ast::node::variable_decl>(false, _1, _2)
             ];
 
         constant_definition
             = (
                 constant_decl % comma >> trailing_comma >> ":=" >> -qi::eol >> typed_expr % comma
             ) [
-                _val = make_node_ptr<ast::node::constant_definition>(_1, _2)
+                _val = make_node_ptr<ast::node::initialize_stmt>(_1, _2)
             ];
 
         global_definition
@@ -1034,8 +1034,6 @@ private:
     DACHS_DEFINE_RULE(postfix_if_stmt);
     DACHS_DEFINE_RULE(compound_stmt);
     DACHS_DEFINE_RULE(function_definition);
-    DACHS_DEFINE_RULE(constant_decl);
-    DACHS_DEFINE_RULE(constant_definition);
     DACHS_DEFINE_RULE(global_definition);
 
     rule<char()> character_literal;
@@ -1044,6 +1042,8 @@ private:
     rule<unsigned int()> uinteger_literal;
     rule<bool()> boolean_literal;
     rule<std::string()> string_literal;
+    rule<ast::node::variable_decl()> constant_decl;
+    rule<ast::node::initialize_stmt()> constant_definition;
 
     rule<ast::node::any_expr()>
           primary_literal

@@ -286,21 +286,6 @@ public:
         });
     }
 
-    void walk(node::constant_decl &cd)
-    {
-        visitor.visit(cd, [&]{
-            walk(cd->maybe_type);
-        });
-    }
-
-    void walk(node::constant_definition &cd)
-    {
-        visitor.visit(cd, [&]{
-            walk(cd->const_decls);
-            walk(cd->initializers);
-        });
-    }
-
     void walk(node::program &p)
     {
         visitor.visit(p, [&]{
