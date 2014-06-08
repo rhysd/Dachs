@@ -214,6 +214,15 @@ public:
         assert(!func->scope.expired());
         with_new_scope(func->scope.lock(), recursive_walker);
 
+        // Deduce return type
+
+        // TODO:
+        // When return the function itself recursively, type deduction fails.
+        // If return type is not valid, it means
+        //   1. error occurs
+        //   2. recursive call in return statement
+        // If 2. , compiler should ignore the invalid type and deduce type from other return statements
+
         return_types_gatherer gatherer;
         auto func_ = func; // to remove const
         ast::make_walker(gatherer).walk(func_);
@@ -244,8 +253,6 @@ public:
                 semantic_error(func, boost::format("Mismatch among the result types of return statements in function '%1%'") % func->name);
             }
         } else {
-            // TODO:
-            // If there is no return statement, the result type should be ()
             func->ret_type = unit_type;
         }
     }
@@ -283,18 +290,18 @@ public:
             {
                 auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name);
                 decl->symbol = new_var;
-                if (!scope->define_variable(new_var)) {
-                    failed++;
-                }
 
                 // Set type if the type of variable is specified
                 if (decl->maybe_type) {
-                    decl->type
+                    new_var->type
                         = boost::apply_visitor(
                             type_calculator_from_type_nodes{current_scope},
                             *(decl->maybe_type)
                         );
-                    new_var->type = decl->type;
+                }
+
+                if (!scope->define_variable(new_var)) {
+                    failed++;
                 }
             };
 
@@ -628,22 +635,20 @@ public:
         assert(init->var_decls.size() > 0);
 
         auto const substitute_type =
-            [this, &init](auto const& decl, auto const& t)
+            [this, &init](auto const& symbol, auto const& t)
             {
-                if (decl->type) {
-                    if (decl->type != t) {
+                if (symbol->type) {
+                    if (symbol->type != t) {
                         semantic_error(
                                 init,
                                 boost::format("Types mismatch on substituting '%1%'\nNote: Type of '%1%' is '%2%' but rhs type is '%3%'")
-                                    % decl->name
-                                    % decl->type.to_string()
+                                    % symbol->name
+                                    % symbol->type.to_string()
                                     % type::to_string(t)
                             );
                     }
                 } else {
-                    decl->type = t;
-                    assert(!decl->symbol.expired());
-                    decl->symbol.lock()->type = t;
+                    symbol->type = t;
                 }
             };
 
@@ -651,7 +656,8 @@ public:
 
         if (!init->maybe_rhs_exprs) {
             for (auto const& v : init->var_decls) {
-                if (!v->type) {
+                assert(!v->symbol.expired());
+                if (!v->symbol.lock()->type) {
                     semantic_error(init, boost::format("Type of '%1%' can't be deduced") % v->name);
                 }
             }
@@ -668,16 +674,16 @@ public:
         }
 
         if (init->var_decls.size() == 1) {
-            auto const& var_decl = init->var_decls[0];
+            auto const& var_sym = init->var_decls[0]->symbol.lock();
             if (rhs_exprs.size() == 1) {
-                substitute_type(var_decl, type_of(rhs_exprs[0]));
+                substitute_type(var_sym, type_of(rhs_exprs[0]));
             } else {
                 auto const rhs_type = type::make<type::tuple_type>();
                 rhs_type->element_types.reserve(rhs_exprs.size());
                 for (auto const& e : rhs_exprs) {
                     rhs_type->element_types.push_back(type_of(e));
                 }
-                substitute_type(var_decl, rhs_type);
+                substitute_type(var_sym, rhs_type);
             }
         } else {
             if (rhs_exprs.size() == 1) {
@@ -696,7 +702,7 @@ public:
                     auto const tuple_end = rhs_type->element_types.cend();
                     auto decl_itr = std::begin(init->var_decls);
                     for (; tuple_itr != tuple_end; ++tuple_itr, ++decl_itr) {
-                        substitute_type(*decl_itr, *tuple_itr);
+                        substitute_type((*decl_itr)->symbol.lock(), *tuple_itr);
                     }
                 }
             } else {
@@ -709,7 +715,7 @@ public:
                     auto const lhs_end = std::end(init->var_decls);
                     auto rhs_itr = rhs_exprs.cbegin();
                     for (; lhs_itr != lhs_end; ++lhs_itr, ++rhs_itr) {
-                        substitute_type(*lhs_itr, type_of(*rhs_itr));
+                        substitute_type((*lhs_itr)->symbol.lock(), type_of(*rhs_itr));
                     }
                 }
             }
