@@ -717,31 +717,110 @@ public:
                     semantic_error(init, boost::format("Rhs type of initialization here must be tuple\nNote: Rhs type is %1%") % type_of(rhs_exprs[0]).to_string());
                     return;
                 }
+
                 auto const rhs_type = *maybe_rhs_type;
                 if (rhs_type->element_types.size() != init->var_decls.size()) {
                     semantic_error(init, boost::format("Size of elements in lhs and rhs mismatch\nNote: Size of lhs is %1%, size of rhs is %2%") % init->var_decls.size() % rhs_type->element_types.size());
                     return;
                 }
-                {
-                    auto tuple_itr = rhs_type->element_types.cbegin();
-                    auto const tuple_end = rhs_type->element_types.cend();
-                    auto decl_itr = std::begin(init->var_decls);
-                    for (; tuple_itr != tuple_end; ++tuple_itr, ++decl_itr) {
-                        substitute_type((*decl_itr)->symbol.lock(), *tuple_itr);
-                    }
+
+                auto tuple_itr = rhs_type->element_types.cbegin();
+                auto const tuple_end = rhs_type->element_types.cend();
+                auto decl_itr = std::begin(init->var_decls);
+                for (; tuple_itr != tuple_end; ++tuple_itr, ++decl_itr) {
+                    substitute_type((*decl_itr)->symbol.lock(), *tuple_itr);
                 }
             } else {
                 if (init->var_decls.size() != rhs_exprs.size()) {
                     semantic_error(init, boost::format("Size of elements in lhs and rhs mismatch\nNote: Size of lhs is %1%, size of rhs is %2%") % init->var_decls.size() % rhs_exprs.size());
                     return;
                 }
-                {
-                    auto lhs_itr = std::begin(init->var_decls);
-                    auto const lhs_end = std::end(init->var_decls);
-                    auto rhs_itr = rhs_exprs.cbegin();
-                    for (; lhs_itr != lhs_end; ++lhs_itr, ++rhs_itr) {
-                        substitute_type((*lhs_itr)->symbol.lock(), type_of(*rhs_itr));
-                    }
+
+                auto lhs_itr = std::begin(init->var_decls);
+                auto const lhs_end = std::end(init->var_decls);
+                auto rhs_itr = rhs_exprs.cbegin();
+                for (; lhs_itr != lhs_end; ++lhs_itr, ++rhs_itr) {
+                    substitute_type((*lhs_itr)->symbol.lock(), type_of(*rhs_itr));
+                }
+            }
+        }
+    }
+
+    template<class Walker>
+    void visit(ast::node::assignment_stmt const& assign, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        for (auto const& es : {assign->assignees, assign->rhs_exprs}) {
+            for (auto const& e : es) {
+                if (!type_of(e)) {
+                    return;
+                }
+            }
+        }
+
+        // TODO:
+        // Check assignability of lhs expressions.
+        // If attempting to assign to immutable variable, raise an error.
+
+        auto const check_types =
+            [this, &assign](auto const& t1, auto const& t2)
+            {
+                if (t1 != t2) {
+                    semantic_error(
+                            assign,
+                            boost::format("Types mismatch on assignment\nNote: Type of lhs is '%1%, type of rhs is '%2%'")
+                                % type::to_string(t1)
+                                % type::to_string(t2)
+                        );
+                }
+            };
+
+        if (assign->assignees.size() == 1) {
+            auto const assignee_type = type_of(assign->assignees[0]);
+            if (assign->rhs_exprs.size() == 1) {
+                auto const rhs_type = type_of(assign->rhs_exprs[0]);
+                check_types(assignee_type, rhs_type);
+            } else {
+                auto const maybe_tuple_type = type::get<type::tuple_type>(assignee_type);
+                if (!maybe_tuple_type) {
+                    semantic_error(assign, boost::format("Assignee's type here must be tuple but actually '%1%'") % assignee_type.to_string());
+                    return;
+                }
+
+                auto lhs_type_itr = (*maybe_tuple_type)->element_types.cbegin();
+                auto rhs_expr_itr = assign->rhs_exprs.cbegin();
+                auto const rhs_expr_end = assign->rhs_exprs.cend();
+                for (; rhs_expr_itr != rhs_expr_end; ++lhs_type_itr, ++rhs_expr_itr) {
+                    check_types(*lhs_type_itr, type_of(*rhs_expr_itr));
+                }
+            }
+        } else {
+            if (assign->rhs_exprs.size() == 1) {
+                auto const assigner_type = type_of(assign->rhs_exprs[0]);
+                auto const maybe_tuple_type = type::get<type::tuple_type>(assigner_type);
+                if (!maybe_tuple_type) {
+                    semantic_error(assign, boost::format("Assigner's type here must be tuple but actually '%1%'") % assigner_type.to_string());
+                    return;
+                }
+
+                auto rhs_type_itr = (*maybe_tuple_type)->element_types.cbegin();
+                auto lhs_expr_itr = assign->assignees.cbegin();
+                auto const lhs_expr_end = assign->assignees.cend();
+                for (; lhs_expr_itr != lhs_expr_end; ++rhs_type_itr, ++lhs_expr_itr) {
+                    check_types(type_of(*lhs_expr_itr), *rhs_type_itr);
+                }
+            } else {
+                if (assign->assignees.size() != assign->rhs_exprs.size()) {
+                    semantic_error(assign, boost::format("Size of assignees and assigners mismatches\nNote: Size of assignee is %1%, size of assigner is %2%") % assign->assignees.size() % assign->rhs_exprs.size());
+                    return;
+                }
+
+                auto lhs_itr = assign->assignees.cbegin();
+                auto const lhs_end = assign->assignees.cend();
+                auto rhs_itr = assign->rhs_exprs.cbegin();
+                for (; lhs_itr != lhs_end; ++lhs_itr, ++rhs_itr) {
+                    check_types(type_of(*lhs_itr), type_of(*rhs_itr));
                 }
             }
         }
