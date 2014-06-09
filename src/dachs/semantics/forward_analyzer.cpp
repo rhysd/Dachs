@@ -14,9 +14,9 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
         auto print_func = scope::make<scope::func_scope>(a.root, scope_root, "print", true);
         print_func->body = scope::make<scope::local_scope>(print_func);
         // Note: These definitions are never duplicate
-        print_func->define_param(symbol::make<symbol::var_symbol>(a.root, "value", true));
+        print_func->define_param(symbol::make<symbol::var_symbol>(a.root, "value", true, true));
         scope_root->define_function(print_func);
-        scope_root->define_variable(symbol::make<symbol::var_symbol>(a.root, "print", true));
+        scope_root->define_variable(symbol::make<symbol::var_symbol>(a.root, "print", true, true));
 
         // Operators
         // cast functions

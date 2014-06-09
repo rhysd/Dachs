@@ -159,7 +159,7 @@ class symbol_analyzer {
         // Type is already set in forward_symbol_analyzer
         assert(param->type);
 
-        auto new_param = symbol::make<symbol::var_symbol>(param, param->name);
+        auto new_param = symbol::make<symbol::var_symbol>(param, param->name, !param->is_var);
         new_param->type = param->type;
         param->param_symbol = new_param;
 
@@ -266,7 +266,7 @@ public:
             visit_func_parameter(param, *maybe_func);
         } else if (auto maybe_local = get_as<scope::local_scope>(current_scope)) {
             // When for statement
-            auto new_param = symbol::make<symbol::var_symbol>(param, param->name);
+            auto new_param = symbol::make<symbol::var_symbol>(param, param->name, !param->is_var);
             new_param->type = param->type;
             param->param_symbol = new_param;
             auto& local = *maybe_local;
@@ -288,7 +288,7 @@ public:
         auto const visit_decl =
             [this, &decl](auto &scope)
             {
-                auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name);
+                auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
                 decl->symbol = new_var;
 
                 // Set type if the type of variable is specified

@@ -2,7 +2,6 @@
 #define      DACHS_FATAL_HPP_INCLUDED
 
 #include <cstddef>
-#include <cstddef>
 #include <iostream>
 
 namespace dachs {

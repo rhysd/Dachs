@@ -45,7 +45,12 @@ struct basic_symbol {
 };
 
 struct var_symbol final : public basic_symbol {
-    using basic_symbol::basic_symbol;
+    bool immutable;
+
+    template<class Node>
+    var_symbol(Node const& node, std::string const& s, bool const immutable = true, bool const is_builtin = false) noexcept
+        : basic_symbol(node, s, is_builtin), immutable(immutable)
+    {}
 };
 
 struct member_var_symbol final : public basic_symbol {
