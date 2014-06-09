@@ -387,7 +387,15 @@ public:
                 semantic_error(arr_lit, "Empty array must be typed by ':'");
             }
         } else {
-            arr_lit->type = type::make<type::array_type>(type_of(arr_lit->element_exprs[0]));
+            auto arg0_type = type_of(arr_lit->element_exprs[0]);
+            if (!boost::algorithm::all_of(
+                    arr_lit->element_exprs,
+                    [&](auto const& e){ return arg0_type == type_of(e); })
+                ) {
+                semantic_error(arr_lit, boost::format("All types of array elements must be '%1%'") % arg0_type.to_string());
+                return;
+            }
+            arr_lit->type = type::make<type::array_type>(arg0_type);
         }
     }
 
@@ -416,8 +424,25 @@ public:
                 semantic_error(dict_lit, "Empty dictionary must be typed by ':'");
             }
         } else {
-            auto const& p = dict_lit->value[0];
-            dict_lit->type = type::make<type::dict_type>(type_of(p.first), type_of(p.second));
+            auto key_type_elem0 = type_of(dict_lit->value[0].first);
+            auto value_type_elem0 = type_of(dict_lit->value[0].second);
+            if (!boost::algorithm::all_of(
+                    dict_lit->value,
+                    [&](auto const& v)
+                    {
+                        // TODO:
+                        // More comrehensive error message
+                        return type_of(v.first) == key_type_elem0
+                            && type_of(v.second) == value_type_elem0;
+                    })
+                ) {
+                semantic_error(dict_lit,
+                               boost::format("Type of keys or values mismatches\nNote: Key type is '%1%' and value type is '%2%'")
+                               % key_type_elem0.to_string()
+                               % value_type_elem0.to_string());
+                return;
+            }
+            dict_lit->type = type::make<type::dict_type>(key_type_elem0, value_type_elem0);
         }
     }
 
