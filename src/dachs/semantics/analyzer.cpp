@@ -447,6 +447,40 @@ public:
     }
 
     template<class Walker>
+    void visit(ast::node::index_access const& access, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        auto const child_type = type_of(access->child);
+        auto const index_type = type_of(access->index_expr);
+
+        if (!child_type || !index_type) {
+            return;
+        }
+
+        // TODO
+        // Below implementation is temporary.
+        // Resolve operator [] function and get the return type of it.
+
+        if (auto maybe_array_type = type::get<type::array_type>(child_type)) {
+            // TODO:
+            // Check index_expr's type is int or uint
+            // Get element type of array and set it
+        } else if (auto maybe_tuple_type = type::get<type::tuple_type>(child_type)) {
+            // TODO:
+            // Check index_expr's type is int or uint
+            // Check index is constant literal
+            // Get element type of tuple and set it
+        } else if (auto maybe_dict_type = type::get<type::dict_type>(child_type)) {
+            // TODO:
+            // Check index_expr's type is key type of the dictionary
+            // Get key type of dictionary and set it
+        } else {
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        }
+    }
+
+    template<class Walker>
     void visit(ast::node::binary_expr const& bin_expr, Walker const& recursive_walker)
     {
         recursive_walker();
@@ -458,8 +492,10 @@ public:
             return;
         }
 
-        // TODO: Temporary
-        // Now binary operator requires both side hands have the same type
+        // TODO:
+        // Resolve oeprator function overload and get the result type.
+        // Below implementation is temporary.
+
         if (lhs_type != rhs_type) {
             semantic_error(
                     bin_expr,
