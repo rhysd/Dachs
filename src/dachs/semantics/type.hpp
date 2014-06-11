@@ -250,7 +250,6 @@ struct builtin_type final : public named_type {
         return name;
     }
 
-    // TODO: Restrict T in type nodes
     bool operator==(builtin_type const& rhs) const noexcept
     {
         return name == rhs.name;

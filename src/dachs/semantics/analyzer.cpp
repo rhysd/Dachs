@@ -31,6 +31,7 @@ namespace detail {
 
 using std::size_t;
 using helper::variant::get_as;
+using helper::variant::has;
 using helper::variant::apply_lambda;
 using helper::any_of;
 
@@ -462,19 +463,55 @@ public:
         // Below implementation is temporary.
         // Resolve operator [] function and get the return type of it.
 
-        if (auto maybe_array_type = type::get<type::array_type>(child_type)) {
-            // TODO:
-            // Check index_expr's type is int or uint
-            // Get element type of array and set it
-        } else if (auto maybe_tuple_type = type::get<type::tuple_type>(child_type)) {
-            // TODO:
-            // Check index_expr's type is int or uint
-            // Check index is constant literal
-            // Get element type of tuple and set it
-        } else if (auto maybe_dict_type = type::get<type::dict_type>(child_type)) {
-            // TODO:
-            // Check index_expr's type is key type of the dictionary
-            // Get key type of dictionary and set it
+        if (auto const maybe_array_type = type::get<type::array_type>(child_type)) {
+            auto const& array_type = *maybe_array_type;
+            if (array_type->element_type != type::get_builtin_type("int", type::no_opt)
+                && array_type->element_type != type::get_builtin_type("uint", type::no_opt)) {
+                semantic_error(access, boost::format("Index of array must be int or uint but actually '%1%'") % array_type->element_type.to_string());
+                return;
+            }
+            access->type = array_type->element_type;
+        } else if (auto const maybe_tuple_type = type::get<type::tuple_type>(child_type)) {
+            auto const& tuple_type = *maybe_tuple_type;
+
+            auto const maybe_primary_literal = get_as<ast::node::primary_literal>(access->index_expr);
+            if (!maybe_primary_literal ||
+                    (!has<int>((*maybe_primary_literal)->value)
+                     && !has<uint>((*maybe_primary_literal)->value))
+               ) {
+                semantic_error(access, "Index of tuple must be int or uint literal");
+                return;
+            }
+
+            auto const& literal = (*maybe_primary_literal)->value;
+            auto const out_of_bounds = [this, &access]{ semantic_error(access, "Index access is out of bounds"); };
+            if (auto const maybe_int_lit = get_as<int>(literal)) {
+                if (static_cast<unsigned int>(*maybe_int_lit) >= tuple_type->element_types.size()) {
+                    out_of_bounds();
+                    return;
+                }
+                access->type = tuple_type->element_types[*maybe_int_lit];
+            } else if (auto const maybe_uint_lit = get_as<unsigned int>(literal)) {
+                if (*maybe_uint_lit >= tuple_type->element_types.size()) {
+                    out_of_bounds();
+                    return;
+                }
+                access->type = tuple_type->element_types[*maybe_uint_lit];
+            } else {
+                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+            }
+        } else if (auto const maybe_dict_type = type::get<type::dict_type>(child_type)) {
+            auto const& dict_type = *maybe_dict_type;
+            if (index_type != dict_type->key_type) {
+                semantic_error(
+                    access,
+                    boost::format("Index type of dictionary mismatches\nNote: Expected '%1%' but actually '%2%'")
+                    % dict_type->key_type.to_string()
+                    % index_type.to_string()
+                );
+                return;
+            }
+            access->type = dict_type->value_type;
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
