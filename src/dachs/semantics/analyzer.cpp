@@ -254,7 +254,11 @@ public:
                 semantic_error(func, boost::format("Mismatch among the result types of return statements in function '%1%'") % func->name);
             }
         } else {
-            func->ret_type = unit_type;
+            if (func->ret_type && *func->ret_type != unit_type) {
+                semantic_error(func, boost::format("Return type of function '%1%' mismatch\nNote: Specified type is '%2%'\nNote: Deduced type is '%3%'") % func->name % func->ret_type->to_string() % unit_type.to_string());
+            } else {
+                func->ret_type = unit_type;
+            }
         }
     }
     // }}}
