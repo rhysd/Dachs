@@ -144,7 +144,7 @@ class symbol_analyzer {
             current_scope = enclosing_scope;
             ast::walk_topdown(instantiated_func_def, *this);
             already_visited_functions.insert(instantiated_func_def);
-            current_scope = saved_current_scope;
+            current_scope = std::move(saved_current_scope);
         }
 
         assert(!instantiated_func_def->is_template());
@@ -197,7 +197,13 @@ public:
     void visit(ast::node::function_definition const& func, Walker const& recursive_walker)
     {
         if (already_visited_functions.find(func) != std::end(already_visited_functions)) {
-            return;
+            if (!func->ret_type) {
+                // TODO:
+                // It may mean recursive call?
+                return;
+            } else {
+                return;
+            }
         }
         already_visited_functions.insert(func);
 
@@ -677,6 +683,13 @@ public:
             std::tie(func_def, func) = instantiate_function_from_template(func_def, arg_types, global);
 
             assert(!global->ast_root.expired());
+        }
+
+        if (!func_def->ret_type) {
+            auto saved_current_scope = current_scope;
+            current_scope = global; // enclosing scope of function scope is always global scope
+            ast::walk_topdown(func_def, *this);
+            current_scope = std::move(saved_current_scope);
         }
 
         if (auto maybe_ret_type = func_def->ret_type) {

@@ -1,5 +1,5 @@
-#if !defined DACHS_TYPE_HPP_INCLUDED
-#define      DACHS_TYPE_HPP_INCLUDED
+#if !defined DACHS_SEMANTICS_TYPE_HPP_INCLUDED
+#define      DACHS_SEMANTICS_TYPE_HPP_INCLUDED
 
 #include <string>
 #include <memory>
@@ -676,4 +676,4 @@ inline std::string to_string(any_type const& type) noexcept
 
 } // namespace dachs
 
-#endif    // DACHS_TYPE_HPP_INCLUDED
+#endif    // DACHS_SEMANTICS_TYPE_HPP_INCLUDED
