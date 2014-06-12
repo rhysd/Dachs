@@ -42,26 +42,10 @@ struct return_types_gatherer {
     template<class Walker>
     void visit(ast::node::return_stmt const& ret, Walker const&)
     {
-        if (ret->ret_exprs.size() == 1) {
-            // When return statement has one expression, its return type is the same as it
-            auto t = type_of(ret->ret_exprs[0]);
-            if (!t) {
-                failed_return_stmts.push_back(ret);
-                return;
-            }
-            result_types.push_back(t);
+        if (!ret->ret_type) {
+            failed_return_stmts.push_back(ret);
         } else {
-            // Otherwise its return type is tuple
-            auto ret_type = type::make<type::tuple_type>();
-            for (auto const& e : ret->ret_exprs) {
-                auto t = type_of(e);
-                if (!t) {
-                    failed_return_stmts.push_back(ret);
-                    return;
-                }
-                ret_type->element_types.push_back(t);
-            }
-            result_types.push_back(ret_type);
+            result_types.push_back(ret->ret_type);
         }
     }
 
@@ -78,6 +62,24 @@ struct weak_ptr_locker : public boost::static_visitor<scope::any_scope> {
     {
         assert(!w.expired());
         return w.lock();
+    }
+};
+
+struct recursive_function_return_type_resolver {
+    std::vector<type::type> result;
+
+    template<class Walker>
+    void visit(ast::node::return_stmt const& ret, Walker const&)
+    {
+        if (ret->ret_type) {
+            result.push_back(ret->ret_type);
+        }
+    }
+
+    template<class Node, class Walker>
+    void visit(Node const&, Walker const& recursive_walker)
+    {
+        recursive_walker();
     }
 };
 
@@ -197,13 +199,24 @@ public:
     void visit(ast::node::function_definition const& func, Walker const& recursive_walker)
     {
         if (already_visited_functions.find(func) != std::end(already_visited_functions)) {
-            if (!func->ret_type) {
-                // TODO:
-                // It may mean recursive call?
-                return;
-            } else {
+            if (func->ret_type) {
                 return;
             }
+            recursive_function_return_type_resolver resolver;
+            auto func_ = func; // To remove const
+            ast::make_walker(resolver).walk(func_);
+            if (resolver.result.empty()) {
+                semantic_error(func, boost::format("Can't deduce return type of function '%1%' from return statement") % func->name);
+            } else if (!boost::algorithm::all_of(resolver.result, [&](auto const& t){ return resolver.result[0] == t; })) {
+                std::string note = "";
+                for (auto const& t : resolver.result) {
+                    note += '\'' + t.to_string() + "' ";
+                }
+                semantic_error(func, boost::format("Conflict among some return types in function '%1%'\nNote: Candidates are: " + note) % func->name);
+            } else {
+                func->ret_type = resolver.result[0];
+            }
+            return;
         }
         already_visited_functions.insert(func);
 
@@ -742,6 +755,32 @@ public:
     {
         obj->type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, obj->obj_type);
         throw not_implemented_error{obj, __FILE__, __func__, __LINE__, "object construction"};
+    }
+
+    template<class Walker>
+    void visit(ast::node::return_stmt const& ret, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        if (ret->ret_exprs.size() == 1) {
+            // When return statement has one expression, its return type is the same as it
+            auto t = type_of(ret->ret_exprs[0]);
+            if (!t) {
+                return;
+            }
+            ret->ret_type = t;
+        } else {
+            // Otherwise its return type is tuple
+            auto tuple_type = type::make<type::tuple_type>();
+            for (auto const& e : ret->ret_exprs) {
+                auto t = type_of(e);
+                if (!t) {
+                    return;
+                }
+                tuple_type->element_types.push_back(t);
+            }
+            ret->ret_type = tuple_type;
+        }
     }
 
     template<class Walker>

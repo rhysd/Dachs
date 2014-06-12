@@ -633,6 +633,7 @@ struct if_stmt final : public statement {
 
 struct return_stmt final : public statement {
     std::vector<node::any_expr> ret_exprs;
+    type::type ret_type;
 
     explicit return_stmt(std::vector<node::any_expr> const& rets) noexcept
         : statement(), ret_exprs(rets)
