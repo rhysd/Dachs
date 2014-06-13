@@ -125,20 +125,26 @@ class symbol_analyzer {
         // Note: Type of parameters are analyzed here
         failed += dispatch_forward_analyzer(instantiated_func_def, enclosing_scope);
         assert(!instantiated_func_def->scope.expired());
+        auto instantiated_func_scope = instantiated_func_def->scope.lock();
 
         // Replace types of params with instantiated types
         {
             assert(instantiated_func_def->params.size() == arg_types.size());
-            auto inst_itr = std::begin(instantiated_func_def->params);
+            auto def_param_itr = std::begin(instantiated_func_def->params);
+            auto const def_param_end = std::end(instantiated_func_def->params);
             auto arg_itr = arg_types.cbegin();
-            auto const inst_end = std::end(instantiated_func_def->params);
-            for(; inst_itr != inst_end; ++inst_itr, ++arg_itr) {
-                if ((*inst_itr)->type.is_template()) {
-                    (*inst_itr)->type = *arg_itr;
+            auto scope_param_itr = std::begin(instantiated_func_scope->params);
+            for(; def_param_itr != def_param_end; ++def_param_itr, ++arg_itr, ++scope_param_itr) {
+                if ((*def_param_itr)->type.is_template()) {
+                    (*def_param_itr)->type = *arg_itr;
+                    (*scope_param_itr)->type = *arg_itr;
+                } else if ((*def_param_itr)->type != *arg_itr) {
+                    // Note:
+                    // Never reaches here because type mismatch is already detected in overload resolution
+                    DACHS_RAISE_INTERNAL_COMPILATION_ERROR
                 }
             }
         }
-        auto instantiated_func_scope = instantiated_func_def->scope.lock();
 
         // Last, symnol analyzer visits
         {
@@ -225,9 +231,6 @@ public:
             // Visit only parameters if function template for overload resolution.
             // This is because type checking and symbol analysis are needed in
             // not function templates but instantiated functions.
-            for (auto const& p : func->params) {
-                visit_func_parameter(p, func->scope.lock());
-            }
             return;
         }
 
@@ -281,30 +284,6 @@ public:
         }
     }
     // }}}
-
-    // Do not analyze in forward_symbol_analyzer because variables can't be referenced forward {{{
-    template<class Walker>
-    void visit(ast::node::parameter const& param, Walker const& recursive_walker)
-    {
-        if (auto maybe_func = get_as<scope::func_scope>(current_scope)) {
-            visit_func_parameter(param, *maybe_func);
-        } else if (auto maybe_local = get_as<scope::local_scope>(current_scope)) {
-            // When for statement
-            auto new_param = symbol::make<symbol::var_symbol>(param, param->name, !param->is_var);
-            new_param->type = param->type;
-            param->param_symbol = new_param;
-            auto& local = *maybe_local;
-
-            if (!local->define_variable(new_param)) {
-                failed++;
-                return;
-            }
-        } else {
-            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-        }
-
-        recursive_walker();
-    }
 
     template<class Walker>
     void visit(ast::node::variable_decl const& decl, Walker const& recursive_walker)
@@ -782,6 +761,15 @@ public:
             ret->ret_type = tuple_type;
         }
     }
+
+    // TODO:
+    // get param type from type of array using the same way as initialize_stmt
+    // 
+    // template<class Walker>
+    // void visit(ast::node::for_stmt const& for_, Walker const& recursive_walker)
+    // {
+    //    
+    // }
 
     template<class Walker>
     void visit(ast::node::initialize_stmt const& init, Walker const& recursive_walker)

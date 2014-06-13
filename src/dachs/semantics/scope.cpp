@@ -24,6 +24,8 @@ std::size_t get_overloaded_function_score(FuncScope const& func, ArgTypes const&
         return 0u;
     }
 
+    // TODO:
+    // Do not use get_ast_node() because func_scope already has type
     std::size_t score = 1u;
     auto const func_def = func->get_ast_node();
 

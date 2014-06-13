@@ -98,28 +98,51 @@ public:
             func_def->ret_type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, ret_type_node);
         }
 
-        // Note:
-        // Get type of parameter for checking duplication of overloaded function
-        for (auto const& p : func_def->params) {
-            if (p->param_type) {
-                // XXX:
-                // type_calculator requires class information which should be analyzed forward.
-                // However
-                p->type =
-                    boost::apply_visitor(
-                        type_calculator_from_type_nodes{current_scope},
-                        *(p->param_type)
-                    );
-            } else {
-                p->type = type::make<type::template_type>(p);
-            }
-        }
-
         auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);
         new_func_var->type = new_func->type;
         global_scope->define_function(new_func);
         global_scope->define_global_function_constant(new_func_var);
         with_new_scope(std::move(new_func), recursive_walker);
+    }
+
+    template<class Walker>
+    void visit(ast::node::parameter const& param, Walker const& recursive_walker)
+    {
+        auto new_param_sym = symbol::make<symbol::var_symbol>(param, param->name, !param->is_var);
+        param->param_symbol = new_param_sym;
+
+        if (param->param_type) {
+            // XXX:
+            // type_calculator requires class information which should be analyzed forward.
+            param->type =
+                boost::apply_visitor(
+                    type_calculator_from_type_nodes{current_scope},
+                    *(param->param_type)
+                );
+            new_param_sym->type = param->type;
+        }
+
+        if (auto maybe_func = get_as<scope::func_scope>(current_scope)) {
+            if (!param->param_type) {
+                param->type = type::make<type::template_type>(param);
+                new_param_sym->type = param->type;
+            }
+            if (!(*maybe_func)->define_param(new_param_sym)) {
+                failed++;
+                return;
+            }
+        } else if (auto maybe_local = get_as<scope::local_scope>(current_scope)) {
+            // When for statement
+            auto& local = *maybe_local;
+            if (!local->define_variable(new_param_sym)) {
+                failed++;
+                return;
+            }
+        } else {
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        }
+
+        recursive_walker();
     }
 
     // TODO: class scopes and member function scopes
@@ -133,7 +156,7 @@ public:
 
 };
 
-} // namespace detail 
+} // namespace detail
 
 template<class Node, class Scope>
 std::size_t dispatch_forward_analyzer(Node &node, Scope const& scope_root)
