@@ -764,11 +764,67 @@ public:
 
     // TODO:
     // get param type from type of array using the same way as initialize_stmt
-    // 
+    //
+    template<class Walker>
+    void visit(ast::node::for_stmt const& for_, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        auto const range_t = type_of(for_->range_expr);
+        if (!range_t) {
+            return;
+        }
+
+        auto const substitute_param_type =
+            [this](auto const& param, auto const& t)
+            {
+                if (param->type) {
+                    if (param->type != t) {
+                        semantic_error(
+                                param,
+                                boost::format("Type of '%1%' mismatch\nNote: Type of '%1%' is '%2%' but the range requires '%3%'")
+                                    % param->name
+                                    % param->type.to_string()
+                                    % type::to_string(t)
+                            );
+                    }
+                } else {
+                    param->type = t;
+                    param->param_symbol.lock()->type = t;
+                }
+            };
+
+        if (auto const maybe_array_range_type = type::get<type::array_type>(range_t)) {
+            auto const& array_range_type = *maybe_array_range_type;
+
+            if (auto const maybe_elem_tuple_type = type::get<type::tuple_type>(array_range_type)) {
+                // TODO
+            } else {
+                // TODO
+            }
+        } else if (auto const maybe_dict_range_type = type::get<type::dict_type>(range_t)) {
+            auto const& dict_range_type = *maybe_dict_range_type;
+            if (for_->iter_vars.size() != 2) {
+                semantic_error(for_, boost::format("2 iteration variable is needed to iterate dictionary '%1%'") % dict_range_type->to_string());
+                return;
+            }
+            substitute_param_type(for_->iter_vars[0], dict_range_type->key_type);
+            substitute_param_type(for_->iter_vars[1], dict_range_type->value_type);
+        } else {
+            semantic_error(for_, boost::format("Range to iterate in for statement must be array or dictionary but actually '%1%'") % range_t.to_string());
+        }
+    }
+
     // template<class Walker>
-    // void visit(ast::node::for_stmt const& for_, Walker const& recursive_walker)
+    // void visit(ast::node::while_stmt const& while_, Walker const& recursive_walker)
     // {
-    //    
+    //
+    // }
+
+    // template<class Walker>
+    // void visit(ast::node::postfix_if_stmt const& postfix_if, Walker const& recursive_walker)
+    // {
+    //
     // }
 
     template<class Walker>
