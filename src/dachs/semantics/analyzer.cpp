@@ -834,14 +834,36 @@ public:
         }
     }
 
+    template<class Walker>
+    void visit(ast::node::while_stmt const& while_, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        auto const cond_type = type_of(while_->condition);
+        if (cond_type != type::get_builtin_type("bool", type::no_opt)) {
+            semantic_error(while_, boost::format("Type of condition in while statement must be bool but actually '%1%'") % cond_type.to_string());
+        }
+    }
+
+    template<class Walker>
+    void visit(ast::node::postfix_if_stmt const& postfix_if, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        auto const cond_type = type_of(postfix_if->condition);
+        if (cond_type != type::get_builtin_type("bool", type::no_opt)) {
+            semantic_error(postfix_if, boost::format("Type of condition in postfix if statement must be bool but actually '%1%'") % cond_type.to_string());
+        }
+    }
+
     // template<class Walker>
-    // void visit(ast::node::while_stmt const& while_, Walker const& recursive_walker)
+    // void visit(ast::node::case_stmt const& while_, Walker const& recursive_walker)
     // {
     //
     // }
 
     // template<class Walker>
-    // void visit(ast::node::postfix_if_stmt const& postfix_if, Walker const& recursive_walker)
+    // void visit(ast::node::switch_stmt const& while_, Walker const& recursive_walker)
     // {
     //
     // }
