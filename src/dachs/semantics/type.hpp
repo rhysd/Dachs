@@ -498,27 +498,26 @@ struct dict_type final : public basic_type {
 };
 
 struct range_type final : public basic_type {
-    type::any_type from_type, to_type;
+    type::any_type element_type;
     // TODO: bool is_inclusive
+    bool is_inclusive;
 
     range_type() = default;
 
-    template<class From, class To>
-    range_type(From const& f, To const& t) noexcept
-        : from_type{f}, to_type{t}
+    template<class Elem>
+    range_type(Elem const& e, bool const inclusive) noexcept
+        : element_type(e), is_inclusive(inclusive)
     {}
 
     std::string to_string() const noexcept override
     {
-        return from_type.to_string()
-             + ".."
-             + to_type.to_string();
+        return "<range of " + element_type.to_string() + ">";
+        return "<" + ((is_inclusive ? "inclusive" : "exclusive") + ("range of " + element_type.to_string())) + ">";
     }
 
     bool operator==(range_type const& rhs) const noexcept
     {
-        return from_type == rhs.from_type
-            && to_type == rhs.to_type;
+        return element_type == rhs.element_type;
     }
 
     template<class T>
