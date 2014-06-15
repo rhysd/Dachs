@@ -486,16 +486,17 @@ public:
             }
 
             auto const& literal = (*maybe_primary_literal)->value;
-            auto const out_of_bounds = [this, &access]{ semantic_error(access, "Index access is out of bounds"); };
+            auto const out_of_bounds = [this, &access](auto const i){ semantic_error(access, boost::format("Index access is out of bounds\nNote: Index is %1%") % i); };
             if (auto const maybe_int_lit = get_as<int>(literal)) {
-                if (static_cast<unsigned int>(*maybe_int_lit) >= tuple_type->element_types.size()) {
-                    out_of_bounds();
+                auto const idx = *maybe_int_lit;
+                if (idx < 0 || static_cast<unsigned int>(idx) >= tuple_type->element_types.size()) {
+                    out_of_bounds(*maybe_int_lit);
                     return;
                 }
-                access->type = tuple_type->element_types[*maybe_int_lit];
+                access->type = tuple_type->element_types[idx];
             } else if (auto const maybe_uint_lit = get_as<unsigned int>(literal)) {
                 if (*maybe_uint_lit >= tuple_type->element_types.size()) {
-                    out_of_bounds();
+                    out_of_bounds(*maybe_uint_lit);
                     return;
                 }
                 access->type = tuple_type->element_types[*maybe_uint_lit];
@@ -762,9 +763,6 @@ public:
         }
     }
 
-    // TODO:
-    // get param type from type of array using the same way as initialize_stmt
-    //
     template<class Walker>
     void visit(ast::node::for_stmt const& for_, Walker const& recursive_walker)
     {
@@ -794,14 +792,35 @@ public:
                 }
             };
 
-        if (auto const maybe_array_range_type = type::get<type::array_type>(range_t)) {
-            auto const& array_range_type = *maybe_array_range_type;
+        auto const check_element =
+            [this, &for_, &substitute_param_type](auto const& elem_type)
+            {
+                if (auto const maybe_elem_tuple_type = type::get<type::tuple_type>(elem_type)) {
+                    auto const& elem_tuple_type = *maybe_elem_tuple_type;
+                    if (elem_tuple_type->element_types.size() != for_->iter_vars.size()) {
+                        semantic_error(for_, boost::format("Number of variables and elements of range in 'for' statement mismatches\nNote: %1% variables but %2% elements") % for_->iter_vars.size() % elem_tuple_type->element_types.size());
+                        return;
+                    }
 
-            if (auto const maybe_elem_tuple_type = type::get<type::tuple_type>(array_range_type)) {
-                // TODO
-            } else {
-                // TODO
-            }
+                    auto param_itr = std::begin(for_->iter_vars);
+                    auto const param_end = std::end(for_->iter_vars);
+                    auto elem_type_itr = std::cbegin(elem_tuple_type->element_types);
+                    for (;param_itr != param_end; ++param_itr, ++elem_type_itr) {
+                        substitute_param_type(*param_itr, *elem_type_itr);
+                    }
+                } else {
+                    if (for_->iter_vars.size() != 1) {
+                        semantic_error(for_, "Number of a variable here in 'for' statement must be 1");
+                        return;
+                    }
+                    substitute_param_type(for_->iter_vars[0], elem_type);
+                }
+            };
+
+        if (auto const maybe_array_range_type = type::get<type::array_type>(range_t)) {
+            check_element((*maybe_array_range_type)->element_type);
+        } else if (auto const maybe_range_type = type::get<type::range_type>(range_t)) {
+            check_element((*maybe_range_type)->element_type);
         } else if (auto const maybe_dict_range_type = type::get<type::dict_type>(range_t)) {
             auto const& dict_range_type = *maybe_dict_range_type;
             if (for_->iter_vars.size() != 2) {
@@ -811,7 +830,7 @@ public:
             substitute_param_type(for_->iter_vars[0], dict_range_type->key_type);
             substitute_param_type(for_->iter_vars[1], dict_range_type->value_type);
         } else {
-            semantic_error(for_, boost::format("Range to iterate in for statement must be array or dictionary but actually '%1%'") % range_t.to_string());
+            semantic_error(for_, boost::format("Range to iterate in for statement must be range, array or dictionary but actually '%1%'") % range_t.to_string());
         }
     }
 
