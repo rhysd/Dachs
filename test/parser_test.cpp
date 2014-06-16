@@ -120,6 +120,15 @@ BOOST_AUTO_TEST_CASE(function)
             ; # empty statement
         end
 
+        func hoge'()
+        end
+
+        func hoge?()
+        end
+
+        func hoge'?()
+        end
+
         func hoge(a)
         end
 
@@ -304,6 +313,9 @@ BOOST_AUTO_TEST_CASE(function)
         funcmain
         end
         )");
+
+    CHECK_PARSE_THROW("func hoge?'; end");
+    CHECK_PARSE_THROW("func hoge!; end");
 }
 
 BOOST_AUTO_TEST_CASE(procedure)
@@ -392,6 +404,20 @@ BOOST_AUTO_TEST_CASE(procedure)
     CHECK_PARSE_THROW("proc (a, b); end");
 
     CHECK_PARSE_THROW("procmain; end");
+}
+
+BOOST_AUTO_TEST_CASE(variable_name)
+{
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
+        func main
+            aaa
+            aaa_bbb
+            aaa123
+            _aaa
+            aaa'
+            aaa_'
+        end
+        )")));
 }
 
 BOOST_AUTO_TEST_CASE(literals)

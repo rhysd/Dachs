@@ -299,13 +299,25 @@ public:
                 qi::lexeme[
                     (qi::alpha | qi::char_('_'))[_val += _1]
                     >> *(alnum | qi::char_('_'))[_val += _1]
-                    >> -qi::char_("?!'")[_val += _1]
+                    >> -qi::char_('\'')[_val += _1]
+                    >> -qi::char_('?')[_val += _1]
+                    >> -qi::char_('!')[_val += _1]
+                ]
+            ;
+
+        function_name
+            =
+                qi::lexeme[
+                    (qi::alpha | qi::char_('_'))[_val += _1]
+                    >> *(alnum | qi::char_('_'))[_val += _1]
+                    >> -qi::char_('\'')[_val += _1]
+                    >> -qi::char_('?')[_val += _1]
                 ]
             ;
 
         func_def_name
             =
-                binary_operator | unary_operator | called_function_name
+                binary_operator | unary_operator | function_name
             ;
 
         variable_name
@@ -313,6 +325,7 @@ public:
                 qi::lexeme[
                     (qi::alpha | qi::char_('_'))[_val += _1]
                     >> *(alnum | qi::char_('_'))[_val += _1]
+                    >> -qi::char_('\'')
                 ]
             );
 
@@ -1000,6 +1013,7 @@ public:
         case_when_stmt_block.name("'when' clause in case statement");
         func_body_stmt_block.name("statements in body of function");
         called_function_name.name("name of called function");
+        function_name.name("name of function");
         func_def_name.name("name of function definition");
         variable_name.name("variable name");
         type_name.name("type name");
@@ -1092,7 +1106,7 @@ private:
                                      , case_when_stmt_block
                                      , func_body_stmt_block
                                      ;
-    rule<std::string()> called_function_name, func_def_name, variable_name, type_name, unary_operator, binary_operator;
+    rule<std::string()> called_function_name, function_name, func_def_name, variable_name, type_name, unary_operator, binary_operator;
     rule<qi::unused_type()/*TMP*/> func_precondition;
     decltype(return_stmt) postfix_if_return_stmt;
 

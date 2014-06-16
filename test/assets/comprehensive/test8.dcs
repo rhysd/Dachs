@@ -4,10 +4,10 @@ end
 func hoge?
 end
 
-func hoge!
+func hoge'
 end
 
-func hoge'
+func hoge'?
 end
 
 func main
