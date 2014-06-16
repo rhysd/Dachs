@@ -804,7 +804,7 @@ public:
 
                     auto param_itr = std::begin(for_->iter_vars);
                     auto const param_end = std::end(for_->iter_vars);
-                    auto elem_type_itr = std::cbegin(elem_tuple_type->element_types);
+                    auto elem_type_itr = elem_tuple_type->element_types.cbegin();
                     for (;param_itr != param_end; ++param_itr, ++elem_type_itr) {
                         substitute_param_type(*param_itr, *elem_type_itr);
                     }
