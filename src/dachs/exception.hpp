@@ -17,7 +17,10 @@ public:
                           char const* const what_feature) noexcept
         : std::runtime_error(
                 (
-                    boost::format("At line:%1%, col:%2%\n %3% is not implemented yet.\nNote: You can contribute to Dachs with implementing this feature. See file:%4%, function:%5%, line:%6% in https://github.com/rhysd/Dachs.")
+                    boost::format(
+                            "At line:%1%, col:%2%\n %3% is not implemented yet.\n"
+                            "Note: You can contribute to Dachs with implementing this feature. "
+                            "See file:%4%, function:%5%, line:%6% in https://github.com/rhysd/Dachs.")
                         % node->line
                         % node->col
                         % what_feature

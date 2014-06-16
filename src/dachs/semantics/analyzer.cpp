@@ -575,6 +575,10 @@ public:
             return;
         }
 
+        // TODO:
+        // Below is temporary implementation.
+        // Resolve functions for unary operator and get the return type of it.
+
         if (unary->op == "!") {
             if (operand_type != type::get_builtin_type("bool", type::no_opt)) {
                 semantic_error(unary, boost::format("Opeartor '%1%' only takes bool type operand\nNote: Operand type is '%2%'") % unary->op % operand_type.to_string());
@@ -715,13 +719,11 @@ public:
     template<class Walker>
     void visit(ast::node::cast_expr const& casted, Walker const& recursive_walker)
     {
-
+        recursive_walker();
         casted->type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, casted->casted_type);
 
         // TODO:
-        // Find cast function
-
-        recursive_walker();
+        // Find cast function and get its result type
     }
 
     template<class Walker>
@@ -852,6 +854,16 @@ public:
     {
         recursive_walker();
         check_condition_expr(while_->condition);
+    }
+
+    template<class Walker>
+    void visit(ast::node::if_stmt const& if_, Walker const& recursive_walker)
+    {
+        recursive_walker();
+        check_condition_expr(if_->condition);
+        for (auto const& elseif : if_->elseif_stmts_list) {
+            check_condition_expr(elseif.first);
+        }
     }
 
     template<class Walker>
