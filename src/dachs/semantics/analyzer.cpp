@@ -834,39 +834,66 @@ public:
         }
     }
 
+    void check_condition_expr(ast::node::any_expr const& expr)
+    {
+        apply_lambda(
+            [this](auto const& e)
+            {
+                if (e->type != type::get_builtin_type("bool", type::no_opt)) {
+                    semantic_error(e, boost::format("Type of condition must be bool but actually '%1%'") % e->type.to_string());
+                }
+            }
+            , expr
+        );
+    }
+
     template<class Walker>
     void visit(ast::node::while_stmt const& while_, Walker const& recursive_walker)
     {
         recursive_walker();
-
-        auto const cond_type = type_of(while_->condition);
-        if (cond_type != type::get_builtin_type("bool", type::no_opt)) {
-            semantic_error(while_, boost::format("Type of condition in while statement must be bool but actually '%1%'") % cond_type.to_string());
-        }
+        check_condition_expr(while_->condition);
     }
 
     template<class Walker>
     void visit(ast::node::postfix_if_stmt const& postfix_if, Walker const& recursive_walker)
     {
         recursive_walker();
+        check_condition_expr(postfix_if->condition);
+    }
 
-        auto const cond_type = type_of(postfix_if->condition);
-        if (cond_type != type::get_builtin_type("bool", type::no_opt)) {
-            semantic_error(postfix_if, boost::format("Type of condition in postfix if statement must be bool but actually '%1%'") % cond_type.to_string());
+    template<class Walker>
+    void visit(ast::node::case_stmt const& case_, Walker const& recursive_walker)
+    {
+        recursive_walker();
+        for (auto const& when : case_->when_stmts_list) {
+            check_condition_expr(when.first);
         }
     }
 
-    // template<class Walker>
-    // void visit(ast::node::case_stmt const& while_, Walker const& recursive_walker)
-    // {
-    //
-    // }
-
-    // template<class Walker>
-    // void visit(ast::node::switch_stmt const& while_, Walker const& recursive_walker)
-    // {
-    //
-    // }
+    template<class Walker>
+    void visit(ast::node::switch_stmt const& switch_, Walker const& recursive_walker)
+    {
+        recursive_walker();
+        auto const switcher_type = type_of(switch_->target_expr);
+        for (auto const& when : switch_->when_stmts_list) {
+            for (auto const& cond : when.first) {
+                auto const t = type_of(cond);
+                if (t != switcher_type) {
+                    apply_lambda(
+                            [this, &t, &switcher_type](auto const& node)
+                            {
+                                semantic_error(
+                                    node,
+                                    boost::format("Type of 'when' condition must be '%1%' but actually '%2%'")
+                                        % switcher_type.to_string()
+                                        % t.to_string()
+                                    );
+                            }, cond
+                        );
+                }
+            }
+        }
+    }
 
     template<class Walker>
     void visit(ast::node::initialize_stmt const& init, Walker const& recursive_walker)
