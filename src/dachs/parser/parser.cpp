@@ -299,8 +299,8 @@ public:
                 qi::lexeme[
                     (qi::alpha | qi::char_('_'))[_val += _1]
                     >> *(alnum | qi::char_('_'))[_val += _1]
-                    >> -qi::char_('\'')[_val += _1]
                     >> -qi::char_('?')[_val += _1]
+                    >> -qi::char_('\'')[_val += _1]
                     >> -qi::char_('!')[_val += _1]
                 ]
             ;
@@ -310,8 +310,8 @@ public:
                 qi::lexeme[
                     (qi::alpha | qi::char_('_'))[_val += _1]
                     >> *(alnum | qi::char_('_'))[_val += _1]
-                    >> -qi::char_('\'')[_val += _1]
                     >> -qi::char_('?')[_val += _1]
+                    >> -qi::char_('\'')[_val += _1]
                 ]
             ;
 

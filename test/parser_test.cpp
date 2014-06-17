@@ -126,7 +126,7 @@ BOOST_AUTO_TEST_CASE(function)
         func hoge?()
         end
 
-        func hoge'?()
+        func hoge?'()
         end
 
         func hoge(a)
@@ -314,7 +314,7 @@ BOOST_AUTO_TEST_CASE(function)
         end
         )");
 
-    CHECK_PARSE_THROW("func hoge?'; end");
+    CHECK_PARSE_THROW("func hoge'?; end");
     CHECK_PARSE_THROW("func hoge!; end");
 }
 
@@ -1478,6 +1478,31 @@ BOOST_AUTO_TEST_CASE(while_statement)
             end
         end
         )")));
+}
+
+BOOST_AUTO_TEST_CASE(function_invocation)
+{
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
+        func main
+            foo()
+            foo?()
+            foo'()
+            foo!()
+            foo?'()
+            foo?!()
+            foo'!()
+            foo?'!()
+        end
+        )")));
+
+    CHECK_PARSE_THROW("func main foo'?() end");
+    CHECK_PARSE_THROW("func main foo!?() end");
+    CHECK_PARSE_THROW("func main foo!'() end");
+    CHECK_PARSE_THROW("func main foo!'?() end");
+    CHECK_PARSE_THROW("func main foo!?'() end");
+    CHECK_PARSE_THROW("func main foo'!?() end");
+    CHECK_PARSE_THROW("func main foo?!'() end");
+    CHECK_PARSE_THROW("func main foo'?!() end");
 }
 
 // TODO: Tests for postfix if statement
