@@ -258,7 +258,15 @@ public:
         ast::make_walker(gatherer).walk(func_);
 
         if (!gatherer.failed_return_stmts.empty()) {
-            semantic_error(func, boost::format("Can't deduce return type of function '%1%' from return statement\nNote: return statement is here: line%2%, col%3%") % func->name % gatherer.failed_return_stmts[0]->line % gatherer.failed_return_stmts[0]->col);
+            semantic_error(
+                func,
+                boost::format(
+                    "Can't deduce return type of function '%1%' from return statement\n"
+                    "Note: return statement is here: line%2%, col%3%")
+                    % func->name
+                    % gatherer.failed_return_stmts[0]->line
+                    % gatherer.failed_return_stmts[0]->col
+            );
             return;
         }
 
@@ -271,21 +279,45 @@ public:
                 }
             }
 
-            if (!boost::algorithm::all_of(gatherer.result_types, [&](auto const& t){ return gatherer.result_types[0] == t; })) {
-                semantic_error(func, boost::format("Mismatch among the result types of return statements in function '%1%'") % func->name);
+            if (!boost::algorithm::all_of(
+                        gatherer.result_types,
+                        [&](auto const& t){ return gatherer.result_types[0] == t; })) {
+                semantic_error(
+                        func,
+                        boost::format("Mismatch among the result types of return statements in function '%1%'")
+                            % func->name
+                    );
                 return;
             }
 
             auto const& deduced_type = gatherer.result_types[0];
             if (func->ret_type && *func->ret_type != deduced_type) {
-                semantic_error(func, boost::format("Return type of function '%1%' mismatch\nNote: Specified type is '%2%'\nNote: Deduced type is '%3%'") % func->name % func->ret_type->to_string() % deduced_type.to_string());
+                semantic_error(
+                        func,
+                        boost::format(
+                            "Return type of function '%1%' mismatch\n"
+                            "Note: Specified type is '%2%'\n"
+                            "Note: Deduced type is '%3%'")
+                            % func->name
+                            % func->ret_type->to_string()
+                            % deduced_type.to_string()
+                    );
                 return;
             }
 
             func->ret_type = deduced_type;
         } else {
             if (func->ret_type && *func->ret_type != unit_type) {
-                semantic_error(func, boost::format("Return type of function '%1%' mismatch\nNote: Specified type is '%2%'\nNote: Deduced type is '%3%'") % func->name % func->ret_type->to_string() % unit_type.to_string());
+                semantic_error(
+                        func,
+                        boost::format(
+                            "Return type of function '%1%' mismatch\n"
+                            "Note: Specified type is '%2%'\n"
+                            "Note: Deduced type is '%3%'")
+                            % func->name
+                            % func->ret_type->to_string()
+                            % unit_type.to_string()
+                    );
             }
             func->ret_type = unit_type;
         }
