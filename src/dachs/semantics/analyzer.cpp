@@ -368,13 +368,19 @@ public:
     template<class Walker>
     void visit(ast::node::var_ref const& var, Walker const& recursive_walker)
     {
-        auto maybe_var_symbol = boost::apply_visitor(scope::var_symbol_resolver{var->name}, current_scope);
-        if (maybe_var_symbol) {
-            var->symbol = *maybe_var_symbol;
-            var->type = (*maybe_var_symbol)->type;
-        } else {
-            semantic_error(var, boost::format("Symbol '%1%' is not found") % var->name);
+        auto name = var->name;
+        if (name.back() == '!') {
+            name.pop_back();
         }
+
+        auto maybe_var_symbol = boost::apply_visitor(scope::var_symbol_resolver{name}, current_scope);
+        if (!maybe_var_symbol) {
+            semantic_error(var, boost::format("Symbol '%1%' is not found") % name);
+            return;
+        }
+
+        var->symbol = *maybe_var_symbol;
+        var->type = (*maybe_var_symbol)->type;
         recursive_walker();
     }
 
@@ -665,25 +671,28 @@ public:
     template<class Walker>
     void visit(ast::node::func_invocation const& invocation, Walker const& recursive_walker)
     {
-        recursive_walker();
-
         auto maybe_var_ref = get_as<ast::node::var_ref>(invocation->child);
         if (!maybe_var_ref) {
             throw not_implemented_error{invocation, __FILE__, __func__, __LINE__, "function variable invocation"};
         }
 
-        auto const& var_ref = *maybe_var_ref;
-        if (!var_ref->type) {
+        if ((*maybe_var_ref)->name.back() == '!') {
+            invocation->is_monad_invocation = true;
+            throw not_implemented_error{invocation, __FILE__, __func__, __LINE__, "function invocation with monad"};
+        }
+
+        recursive_walker();
+
+        auto const var_sym = (*maybe_var_ref)->symbol.lock();
+        if (!var_sym->type) {
             return;
         }
 
-        std::string const& name = var_ref->name;
-
-        if (!type::has<type::func_ref_type>(var_ref->type)) {
+        if (!type::has<type::func_ref_type>(var_sym->type)) {
             semantic_error(invocation
                          , boost::format("'%1%' is not a function or function reference\nNote: Type of %1% is %2%")
-                            % name
-                            % var_ref->type.to_string()
+                            % var_sym->name
+                            % var_sym->type.to_string()
                         );
             return;
         }
@@ -703,12 +712,12 @@ public:
             apply_lambda(
                     [&](auto const& s)
                     {
-                        return s->resolve_func(name, arg_types);
+                        return s->resolve_func(var_sym->name, arg_types);
                     }, current_scope
                 );
 
         if (!maybe_func) {
-            semantic_error(invocation, boost::format("Function '%1%' is not found") % name);
+            semantic_error(invocation, boost::format("Function '%1%' is not found") % var_sym->name);
             return;
         }
 
