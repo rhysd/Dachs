@@ -205,7 +205,7 @@ public:
     void visit(ast::node::function_definition const& func, Walker const& recursive_walker)
     {
         if (already_visited_functions.find(func) != std::end(already_visited_functions)) {
-            if (func->ret_type) {
+            if (func->ret_type || func->kind == ast::symbol::func_kind::proc) {
                 return;
             }
             recursive_function_return_type_resolver resolver;
@@ -225,6 +225,13 @@ public:
             return;
         }
         already_visited_functions.insert(func);
+
+        bool const is_query_function = func->name.find('?') != std::string::npos;
+
+        if (func->kind == ast::symbol::func_kind::proc && is_query_function) {
+            semantic_error(func, boost::format("'?' can't be used in a name of procedure because procedure can't return value"));
+            return;
+        }
 
         if (func->is_template()) {
             // XXX:
@@ -263,24 +270,28 @@ public:
                     return;
                 }
             }
-            // TODO:
-            // Consider return statement without any value
-            if (boost::algorithm::all_of(gatherer.result_types, [&](auto const& t){ return gatherer.result_types[0] == t; })) {
-                auto const& deduced_type = gatherer.result_types[0];
-                if (func->ret_type && *func->ret_type != deduced_type) {
-                    semantic_error(func, boost::format("Return type of function '%1%' mismatch\nNote: Specified type is '%2%'\nNote: Deduced type is '%3%'") % func->name % func->ret_type->to_string() % deduced_type.to_string());
-                } else {
-                    func->ret_type = deduced_type;
-                }
-            } else {
+
+            if (!boost::algorithm::all_of(gatherer.result_types, [&](auto const& t){ return gatherer.result_types[0] == t; })) {
                 semantic_error(func, boost::format("Mismatch among the result types of return statements in function '%1%'") % func->name);
+                return;
             }
+
+            auto const& deduced_type = gatherer.result_types[0];
+            if (func->ret_type && *func->ret_type != deduced_type) {
+                semantic_error(func, boost::format("Return type of function '%1%' mismatch\nNote: Specified type is '%2%'\nNote: Deduced type is '%3%'") % func->name % func->ret_type->to_string() % deduced_type.to_string());
+                return;
+            }
+
+            func->ret_type = deduced_type;
         } else {
             if (func->ret_type && *func->ret_type != unit_type) {
                 semantic_error(func, boost::format("Return type of function '%1%' mismatch\nNote: Specified type is '%2%'\nNote: Deduced type is '%3%'") % func->name % func->ret_type->to_string() % unit_type.to_string());
-            } else {
-                func->ret_type = unit_type;
             }
+            func->ret_type = unit_type;
+        }
+
+        if (is_query_function && *func->ret_type != type::get_builtin_type("bool", type::no_opt)) {
+            semantic_error(func, boost::format("function '%1%' must return bool because it includes '?' in its name") % func->name);
         }
     }
     // }}}
