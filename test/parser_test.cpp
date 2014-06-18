@@ -1507,6 +1507,27 @@ BOOST_AUTO_TEST_CASE(function_invocation)
 
 // TODO: Tests for postfix if statement
 
+BOOST_AUTO_TEST_CASE(postfix_if)
+{
+    BOOST_CHECK_NO_THROW(validate(p.parse(R"(
+        func main
+            42 if true
+            return if true
+
+            var v := 42
+            v = 1 + 2 if true
+            v += 42 if true
+        end
+        )")));
+
+    // Parser parses 'return if true' as postfix if statement and rest as an error
+    CHECK_PARSE_THROW(R"(
+        func main
+            return if true then 42 else -42
+        end
+        )");
+}
+
 BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)
 {
     dachs::syntax::parser p;
