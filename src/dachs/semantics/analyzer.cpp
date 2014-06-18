@@ -1142,6 +1142,54 @@ public:
     }
 };
 
+// TODO:
+// Now func main(args) is not permitted and it should be permitted.
+// If main is function template and its parameter is 1, the parameter
+// should be treated as [string] forcely in symbol_analyzer visitor.
+template<class Func>
+bool check_main_func(std::vector<Func> const& funcs)
+{
+    bool found_main = false;
+
+    for (auto const& f : funcs) {
+        if (f->name != "main") {
+            continue;
+        }
+
+        if (found_main) {
+            output_semantic_error(
+                f->get_ast_node(),
+                "Only one main function can exist"
+            );
+            return false;
+        }
+
+        found_main = true;
+
+        if (f->params.empty()) {
+            continue;
+        }
+
+        if (f->params.size() == 1) {
+            auto const& param = f->params[0];
+            if (auto const maybe_array = type::get<type::array_type>(param->type)) {
+                if ((*maybe_array)->element_type == type::get_builtin_type("string", type::no_opt)) {
+                    continue;
+                }
+            }
+        }
+
+        output_semantic_error(
+            f->get_ast_node(),
+            boost::format("Illegal siganture for main function: '%1%'\nNote: main() or main([string]) is required")
+                % f->to_string()
+        );
+        return false;
+    }
+
+    return true;
+}
+
 } // namespace detail
 
 void check_semantics(ast::ast &a, scope::scope_tree &t)
@@ -1149,7 +1197,7 @@ void check_semantics(ast::ast &a, scope::scope_tree &t)
     detail::symbol_analyzer resolver{t.root, t.root};
     ast::walk_topdown(a.root, resolver);
 
-    if (resolver.failed > 0) {
+    if (resolver.failed > 0 || !detail::check_main_func(t.root->functions)) {
         throw dachs::semantic_check_error{resolver.failed, "symbol resolution"};
     }
 }
