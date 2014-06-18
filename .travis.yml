@@ -3,9 +3,9 @@ compiler: clang
 env:
     - CLANG_VERSION="3.4" CMAKE_OPTS="-DCMAKE_CXX_FLAGS=-I/usr/lib/llvm-3.4/lib/clang/3.4.1/include"
     - CLANG_VERSION="3.5" CMAKE_OPTS=""
-matrix:
-    allow_failures:
-        - env: CLANG_VERSION="3.5" CMAKE_OPTS=""
+# matrix:
+#     allow_failures:
+#         - env: CLANG_VERSION="3.5" CMAKE_OPTS=""
 script:
     - sudo apt-get -qq install "clang-${CLANG_VERSION}"
     - uname -a
