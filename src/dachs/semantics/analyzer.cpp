@@ -1159,7 +1159,7 @@ bool check_main_func(std::vector<Func> const& funcs)
         if (found_main) {
             output_semantic_error(
                 f->get_ast_node(),
-                "Only one main function can exist"
+                "Only one main function must exist"
             );
             return false;
         }
