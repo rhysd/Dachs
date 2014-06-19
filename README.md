@@ -3,9 +3,7 @@
 [![Build Status](https://travis-ci.org/rhysd/Dachs.svg?branch=master)](https://travis-ci.org/rhysd/Dachs)
 =========================================================================================================
 
-Doggy Programming Language. :dog2:
-
-Goals:
+Goals :dog2: :
 - Light to write
 - Strongly and statically typed
 - Native code efficiency
