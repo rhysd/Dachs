@@ -24,10 +24,7 @@ std::size_t get_overloaded_function_score(FuncScope const& func, ArgTypes const&
         return 0u;
     }
 
-    // TODO:
-    // Do not use get_ast_node() because func_scope already has type
     std::size_t score = 1u;
-    auto const func_def = func->get_ast_node();
 
     if (arg_types.size() == 0) {
         return score;
@@ -37,7 +34,7 @@ std::size_t get_overloaded_function_score(FuncScope const& func, ArgTypes const&
     std::vector<std::size_t> v;
     v.reserve(arg_types.size());
 
-    boost::transform(arg_types, func_def->params, std::back_inserter(v),
+    boost::transform(arg_types, func->params, std::back_inserter(v),
             [](auto const& arg_type, auto const& param)
             {
                 assert(arg_type);
