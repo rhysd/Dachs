@@ -80,7 +80,7 @@ bool func_ref_type::operator==(func_ref_type const& rhs) const noexcept
 
 std::string func_ref_type::to_string() const noexcept
 {
-    return "<funcref" + (ref ? ':' + ref->lock()->name + '>' : ">");
+    return "<funcref" + (ref ? ':' + ref->lock()->to_string() + '>' : ">");
 }
 
 boost::optional<ast::node::parameter> template_type::get_ast_node_as_parameter() const noexcept

@@ -246,13 +246,6 @@ public:
 
         // Deduce return type
 
-        // TODO:
-        // When return the function itself recursively, type deduction fails.
-        // If return type is not valid, it means
-        //   1. error occurs
-        //   2. recursive call in return statement
-        // If 2. , compiler should ignore the invalid type and deduce type from other return statements
-
         return_types_gatherer gatherer;
         auto func_ = func; // to remove const
         ast::make_walker(gatherer).walk(func_);
