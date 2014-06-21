@@ -8,21 +8,116 @@ set(PACKAGE_VERSION "${DACHS_VERSION_MAJOR}.${DACHS_VERSION_MINOR}.${DACHS_VERSI
 cmake_minimum_required( VERSION 2.8.8 )
 enable_testing()
 
-if(DACHS_CXX_COMPILER)
+# Detect commands {{{
+if (DACHS_CXX_COMPILER)
+    if (NOT DACHS_LLVM_CONFIG)
+        message(FATAL_ERROR "Set -DDACHS_LLVM_CONFIG to specify the path to your llvm-config command.")
+    endif ()
     set(CMAKE_CXX_COMPILER "${DACHS_CXX_COMPILER}")
-elseif(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+elseif (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     message(STATUS "Default compiler is not clang.  Force to use clang.")
-    if(EXISTS "/usr/local/bin/clang++-3.5")
+    if (EXISTS "/usr/local/bin/clang++-3.5")
         set(CMAKE_CXX_COMPILER "/usr/local/bin/clang++-3.5")
-    elseif(EXISTS "/usr/local/bin/clang++-3.4")
+        set(DACHS_CLANG_SUFFIX "-3.5")
+    elseif (EXISTS "/usr/local/bin/clang++-3.4")
         set(CMAKE_CXX_COMPILER "/usr/local/bin/clang++-3.4")
-    elseif(EXISTS "/usr/bin/clang++")
+        set(DACHS_CLANG_SUFFIX "-3.4")
+    elseif (EXISTS "/usr/bin/clang++")
         set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
-    else()
-        message(FATAL_ERROR "Clang is not found. Set -DCMAKE_CXX_COMPILER option")
-    endif()
+        set(DACHS_CLANG_SUFFIX "")
+    else ()
+        message(FATAL_ERROR "Clang is not found. Set -DCMAKE_CXX_COMPILER option.")
+    endif ()
     message(STATUS "${CMAKE_CXX_COMPILER} is detected.")
-endif()
+else ()
+    set(DACHS_CLANG_SUFFIX "")
+endif ()
+
+if (NOT DACHS_LLVM_CONFIG)
+    set(DACHS_LLVM_CONFIG "llvm-config${DACHS_CLANG_SUFFIX}")
+    if (NOT EXISTS DACHS_LLVM_CONFIG)
+        message(FATAL_ERROR "'${DACHS_LLVM_CONFIG}' command is not found. Set -DDACHS_LLVM_CONFIG option.")
+    endif ()
+    message(STATUS "${DACHS_LLVM_CONFIG} is detected.")
+endif ()
+# }}}
+
+# LLVM configurations {{{
+execute_process(
+    COMMAND
+    ${DACHS_LLVM_CONFIG} --version
+    OUTPUT_VARIABLE
+    LLVM_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+execute_process(
+    COMMAND
+    ${DACHS_LLVM_CONFIG} --includedir
+    OUTPUT_VARIABLE
+    LLVM_INCLUDE_DIRS
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+execute_process(
+    COMMAND
+    ${DACHS_LLVM_CONFIG} --libdir
+    OUTPUT_VARIABLE
+    LLVM_LIBRARY_DIRS
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+execute_process(
+    COMMAND
+    ${DACHS_LLVM_CONFIG} --libnames
+    OUTPUT_VARIABLE
+    LLVM_LIBRARY_NAMES_STRING
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+string( REGEX REPLACE " +" ";" LLVM_LIBRARY_NAMES ${LLVM_LIBRARY_NAMES_STRING} )
+string( REGEX REPLACE "lib([^.]*)\\.a" "\\1" LLVM_LIBRARY_NAMES ${LLVM_LIBRARY_NAMES} )
+
+execute_process(
+    COMMAND
+    ${DACHS_LLVM_CONFIG} --components
+    OUTPUT_VARIABLE
+    LLVM_COMPONENTS_STRING
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+string( REGEX MATCHALL "([^ ]+)" LLVM_COMPONENTS ${LLVM_COMPONENTS_STRING} )
+
+set(DACHS_LLVM_COMPONENTS
+    core
+    support
+    )
+
+foreach (c ${DACHS_LLVM_COMPONENTS})
+    list(FIND LLVM_COMPONENTS ${c} found)
+    if (found EQUAL -1)
+        message(FATAL_ERROR "LLVM component '${c}' is not supported.")
+    endif ()
+endforeach (c)
+
+execute_process(
+    COMMAND
+    ${DACHS_LLVM_CONFIG} --libs ${DACHS_LLVM_COMPONENTS}
+    OUTPUT_VARIABLE
+    LLVM_LIBS_STRING
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+string( REGEX MATCHALL "-l([^ ]+)" LLVM_LIBS ${LLVM_LIBS_STRING} )
+
+# TODO: Get ldflags
+# TODO: Add llvm libraries
+# TODO: Link libraries with `target_link_libraries`
+
+include_directories(${LLVM_INCLUDE_DIRS})
+link_directories(${LLVM_LIBRARY_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
+
+message( STATUS "LLVM version    : ${LLVM_VERSION}" )
+message( STATUS "LLVM includedir : ${LLVM_INCLUDE_DIRS}" )
+message( STATUS "LLVM libdir     : ${LLVM_LIBRARY_DIRS}" )
+message( STATUS "LLVM libs       : ${LLVM_LIBS}" )
+# }}}
 
 include_directories( "${PROJECT_SOURCE_DIR}/src" )
 find_package(Boost 1.55.0)
@@ -31,10 +126,10 @@ add_definitions(-std=c++1y -Wall -Wextra)
 set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 
-if(NOT CMAKE_BUILD_TYPE)
+if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." FORCE)
     message(STATUS "Dachs is under development. 'Debug' is set to $CMAKE_BUILD_TYPE as default.")
-endif()
+endif ()
 
 # use debug build as default
 if (NOT CMAKE_BUILD_TYPE)
