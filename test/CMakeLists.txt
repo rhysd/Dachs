@@ -2,13 +2,13 @@ set(Boost_USE_STATIC_LIBS OFF)
 include_directories( "${PROJECT_SOURCE_DIR}/src" )
 add_definitions(-std=c++1y -g -Wall -Wextra)
 
-add_executable(dachs-parser-test parser_test.cpp $<TARGET_OBJECTS:dachs-objects>)
+add_executable(dachs-parser-test parser_test.cpp)
 
 find_package(Boost COMPONENTS system filesystem REQUIRED)
 if (Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
 endif ()
-target_link_libraries(dachs-parser-test ${Boost_LIBRARIES})
+target_link_libraries(dachs-parser-test ${Boost_LIBRARIES} dachs-lib)
 
 if (NOT APPLE)
     # Do not link library explicitly in Mac because it causes SEGV on executing tests.
