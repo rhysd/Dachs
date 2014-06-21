@@ -5,7 +5,7 @@ set(DACHS_VERSION_MINOR 0)
 set(DACHS_VERSION_TEENY 1)
 set(PACKAGE_VERSION "${DACHS_VERSION_MAJOR}.${DACHS_VERSION_MINOR}.${DACHS_VERSION_TEENY}")
 
-cmake_minimum_required( VERSION 2.8.8 )
+cmake_minimum_required(VERSION 2.8.8)
 enable_testing()
 
 # Detect commands {{{
@@ -72,8 +72,8 @@ execute_process(
     LLVM_LIBRARY_NAMES_STRING
     OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-string( REGEX REPLACE " +" ";" LLVM_LIBRARY_NAMES ${LLVM_LIBRARY_NAMES_STRING} )
-string( REGEX REPLACE "lib([^.]*)\\.a" "\\1" LLVM_LIBRARY_NAMES ${LLVM_LIBRARY_NAMES} )
+string(REGEX REPLACE " +" ";" LLVM_LIBRARY_NAMES ${LLVM_LIBRARY_NAMES_STRING})
+string(REGEX REPLACE "lib([^.]*)\\.a" "\\1" LLVM_LIBRARY_NAMES ${LLVM_LIBRARY_NAMES})
 
 execute_process(
     COMMAND
@@ -82,11 +82,14 @@ execute_process(
     LLVM_COMPONENTS_STRING
     OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-string( REGEX MATCHALL "([^ ]+)" LLVM_COMPONENTS ${LLVM_COMPONENTS_STRING} )
+string(REGEX MATCHALL "([^ ]+)" LLVM_COMPONENTS ${LLVM_COMPONENTS_STRING})
 
 set(DACHS_LLVM_COMPONENTS
     core
     support
+    native
+    asmparser
+    asmprinter
     )
 
 foreach (c ${DACHS_LLVM_COMPONENTS})
@@ -103,23 +106,32 @@ execute_process(
     LLVM_LIBS_STRING
     OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-string( REGEX MATCHALL "-l([^ ]+)" LLVM_LIBS ${LLVM_LIBS_STRING} )
+string(REGEX MATCHALL "-l([^ ]+)" LLVM_LIBS ${LLVM_LIBS_STRING})
 
-# TODO: Get ldflags
-# TODO: Add llvm libraries
-# TODO: Link libraries with `target_link_libraries`
+execute_process(
+    COMMAND
+    ${DACHS_LLVM_CONFIG} --ldflags
+    OUTPUT_VARIABLE
+    LLVM_SYS_LIBS_STRING
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+string(REGEX MATCHALL "-l([^ ]+)" LLVM_SYS_LIBS ${LLVM_SYS_LIBS_STRING})
+
+set(REQUIRED_LLVM_LIBRARIES)
+foreach (l ${LLVM_LIBS} ${LLVM_SYS_LIBS})
+    string(REGEX REPLACE "-l([^ ]+)" "\\1" lib_name ${l})
+    list(APPEND REQUIRED_LLVM_LIBRARIES ${lib_name})
+endforeach (l)
 
 include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
-add_definitions(${LLVM_DEFINITIONS})
 
-message( STATUS "LLVM version    : ${LLVM_VERSION}" )
-message( STATUS "LLVM includedir : ${LLVM_INCLUDE_DIRS}" )
-message( STATUS "LLVM libdir     : ${LLVM_LIBRARY_DIRS}" )
-message( STATUS "LLVM libs       : ${LLVM_LIBS}" )
+message(STATUS "LLVM version    : ${LLVM_VERSION}")
+message(STATUS "LLVM includedir : ${LLVM_INCLUDE_DIRS}")
+message(STATUS "LLVM libdir     : ${LLVM_LIBRARY_DIRS}")
 # }}}
 
-include_directories( "${PROJECT_SOURCE_DIR}/src" )
+include_directories("${PROJECT_SOURCE_DIR}/src")
 find_package(Boost 1.55.0)
 include_directories(${Boost_INCLUDE_DIRS})
 add_definitions(-std=c++1y -Wall -Wextra)
