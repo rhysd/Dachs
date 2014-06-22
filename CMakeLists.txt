@@ -129,6 +129,12 @@ link_directories(${LLVM_LIBRARY_DIRS})
 message(STATUS "LLVM version    : ${LLVM_VERSION}")
 message(STATUS "LLVM includedir : ${LLVM_INCLUDE_DIRS}")
 message(STATUS "LLVM libdir     : ${LLVM_LIBRARY_DIRS}")
+
+set(LLVM_DEFINITIONS
+    -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MAC -D__STDC_LIMIT_MACROS
+    )
+add_definitions(${LLVM_DEFINITIONS})
+
 # }}}
 
 include_directories("${PROJECT_SOURCE_DIR}/src")
