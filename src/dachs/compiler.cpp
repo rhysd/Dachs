@@ -1,9 +1,11 @@
 #include <cstdlib>
+
 #include "dachs/compiler.hpp"
 #include "dachs/semantics/semantic_analysis.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/stringize_ast.hpp"
 #include "dachs/semantics/stringize_scope_tree.hpp"
+#include "dachs/codegen/llvmir/code_generator.hpp"
 
 namespace dachs {
 void compiler::compile(std::string const& code)
