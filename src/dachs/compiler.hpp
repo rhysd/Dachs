@@ -13,7 +13,7 @@ class compiler final {
     syntax::parser parser;
 public:
 
-    void /*TEMPORARY*/ compile(std::string const& code);
+    void /*TEMPORARY*/ compile(std::string const& code, bool const colorful = true);
 
     std::string dump_ast(std::string const& code, bool const colorful = true);
     std::string dump_scopes(std::string const& code);

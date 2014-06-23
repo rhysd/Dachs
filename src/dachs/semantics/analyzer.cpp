@@ -1191,7 +1191,7 @@ void check_semantics(ast::ast &a, scope::scope_tree &t)
     ast::walk_topdown(a.root, resolver);
 
     if (resolver.failed > 0 || !detail::check_main_func(t.root->functions)) {
-        throw dachs::semantic_check_error{resolver.failed, "symbol resolution"};
+        throw semantic_check_error{resolver.failed, "symbol resolution"};
     }
 }
 

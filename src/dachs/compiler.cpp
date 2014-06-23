@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <iostream>
 
 #include "dachs/compiler.hpp"
 #include "dachs/semantics/semantic_analysis.hpp"
@@ -8,11 +9,15 @@
 #include "dachs/codegen/llvmir/code_generator.hpp"
 
 namespace dachs {
-void compiler::compile(std::string const& code)
+void compiler::compile(std::string const& code, bool const colorful)
 {
     auto ast = parser.parse(code);
     auto scope_tree = semantics::analyze_semantics(ast);
-    (void) scope_tree;
+    std::cout << ast::stringize_ast(ast, colorful)
+                    + "\n\n=========Scope Tree=========\n\n"
+                    + scope::stringize_scope_tree(scope_tree)
+             << "\n\n=========LLVM IR=========\n\n";
+    codegen::llvmir::generate_llvm_ir(ast, scope_tree).dump();
 }
 
 std::string compiler::dump_ast(std::string const& code, bool const colorful)

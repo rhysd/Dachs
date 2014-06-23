@@ -46,9 +46,14 @@ struct parse_error final : public std::runtime_error {
 };
 
 struct semantic_check_error final : public std::runtime_error {
-public:
     semantic_check_error(std::size_t const num, char const* const stage) noexcept
         : std::runtime_error((boost::format("%1% sematic error(s) generated in %2%") % num % stage).str())
+    {}
+};
+
+struct code_generation_error final : public std::runtime_error {
+    code_generation_error(std::string const& generator_name, std::string const& msg) noexcept
+        : std::runtime_error("Code generation with " + generator_name + " failed: " + msg)
     {}
 };
 

@@ -8,7 +8,10 @@
 
 int main(int const argc, char const* const argv[])
 {
-    // TODO: use Boost.ProgramOptions
+    // TODO: Use Boost.ProgramOptions
+    //  --dump-ast
+    //  --dump-sym-table
+    //  --emit-llvm
     if (argc != 2) {
         std::cerr << "Usage: " << argv[0] << " {file}\n";
         return 1;
@@ -24,8 +27,8 @@ int main(int const argc, char const* const argv[])
 
     dachs::compiler compiler;
     try {
-        std::cout << compiler.dump_ast(code) << std::endl
-                  << c.blue("〜完〜") << std::endl;
+        compiler.compile(code);
+        std::cout << c.blue("〜完〜") << std::endl;
     }
     catch (dachs::parse_error const& e) {
         std::cerr << e.what() << std::endl
@@ -36,6 +39,10 @@ int main(int const argc, char const* const argv[])
         std::cerr << e.what() << std::endl
                   << c.red("〜完〜") << std::endl;
         return 4;
+    }
+    catch (dachs::code_generation_error const& e) {
+        std::cerr << e.what() << std::endl
+                  << c.red("〜完〜") << std::endl;
     }
     catch (dachs::not_implemented_error const& e) {
         std::cerr << e.what() << std::endl
