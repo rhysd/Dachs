@@ -6,7 +6,7 @@
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/stringize_ast.hpp"
 #include "dachs/semantics/stringize_scope_tree.hpp"
-#include "dachs/codegen/llvmir/code_generator.hpp"
+#include "dachs/codegen/llvmir/ir_generator.hpp"
 
 namespace dachs {
 void compiler::compile(std::string const& code, bool const colorful)

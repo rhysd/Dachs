@@ -1,5 +1,6 @@
 #include <unordered_map>
 #include <cstdint>
+#include <memory>
 
 #include <boost/format.hpp>
 #include <boost/variant/static_visitor.hpp>
@@ -8,7 +9,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
 
-#include "dachs/codegen/llvmir/code_generator.hpp"
+#include "dachs/codegen/llvmir/ir_generator.hpp"
 #include "dachs/codegen/llvmir/type_ir_generator.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/symbol.hpp"
@@ -57,11 +58,6 @@ class llvm_ir_generator {
     }
 
 public:
-
-    llvm_ir_generator()
-        : context(llvm::getGlobalContext())
-        , builder(context) // Note: Use global context temporarily
-    {}
 
     llvm_ir_generator(llvm::LLVMContext &c)
         : context(c)
@@ -133,13 +129,21 @@ public:
 
         return module;
     }
+
+    template<class T>
+    val generate(std::shared_ptr<T> const& node)
+    {
+        throw not_implemented_error{node, __FILE__, __func__, __LINE__, node->to_string()};
+    }
 };
 
 } // namespace detail
 
 llvm::Module &generate_llvm_ir(ast::ast const& a, scope::scope_tree const&)
 {
-    return *detail::llvm_ir_generator{}.generate(a.root);
+    // TODO:
+    // Use global context temporarily
+    return *detail::llvm_ir_generator{llvm::getGlobalContext()}.generate(a.root);
 }
 
 } // namespace llvm
