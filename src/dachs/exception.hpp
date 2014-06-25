@@ -9,12 +9,12 @@ namespace dachs {
 
 class not_implemented_error final : public std::runtime_error {
 public:
-    template<class Node>
+    template<class Node, class String>
     not_implemented_error(Node const& node,
                           char const* const file,
                           char const* const func,
                           std::size_t const line,
-                          char const* const what_feature) noexcept
+                          String const& what_feature) noexcept
         : std::runtime_error(
                 (
                     boost::format(
@@ -32,10 +32,11 @@ public:
             )
     {}
 
+    template<class String>
     not_implemented_error(char const* const file,
                           char const* const func,
                           std::size_t const line,
-                          char const* const what_feature) noexcept
+                          String const& what_feature) noexcept
         : std::runtime_error(
                 (
                     boost::format(
