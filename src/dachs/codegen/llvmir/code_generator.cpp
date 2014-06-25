@@ -9,6 +9,7 @@
 #include <llvm/IR/IRBuilder.h>
 
 #include "dachs/codegen/llvmir/code_generator.hpp"
+#include "dachs/codegen/llvmir/type_ir_generator.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -21,7 +22,9 @@ namespace llvmir {
 namespace detail {
 
 class llvm_ir_generator {
-    std::unordered_map<symbol::var_symbol, llvm::Value *> symbol_to_value;
+    using val = llvm::Value *const;
+
+    std::unordered_map<symbol::var_symbol, val> symbol_to_value;
     std::unordered_map<scope::func_scope, llvm::Function *> scope_to_func;
     llvm::Module *module = nullptr;
     llvm::LLVMContext &context;
@@ -53,8 +56,6 @@ class llvm_ir_generator {
         return v;
     }
 
-    using val = llvm::Value;
-
 public:
 
     llvm_ir_generator()
@@ -67,9 +68,9 @@ public:
         , builder(context)
     {}
 
-    val *generate(ast::node::primary_literal const& pl)
+    val generate(ast::node::primary_literal const& pl)
     {
-        struct literal_visitor : public boost::static_visitor<val *> {
+        struct literal_visitor : public boost::static_visitor<val> {
             llvm::LLVMContext &context;
             ast::node::primary_literal const& pl;
 
@@ -77,34 +78,43 @@ public:
                 : context(c), pl(pl)
             {}
 
-            val *operator()(char const c)
+            val operator()(char const c)
             {
-                return llvm::ConstantInt::get(llvm::IntegerType::get(context, 8), static_cast<std::uint8_t const>(c), false);
+                return llvm::ConstantInt::get(
+                        generate_type_ir(pl->type, context),
+                        static_cast<std::uint8_t const>(c), false
+                    );
             }
 
-            val *operator()(double const d)
+            val operator()(double const d)
             {
                 return llvm::ConstantFP::get(context, llvm::APFloat(d));
             }
 
-            val *operator()(bool const b)
+            val operator()(bool const b)
             {
                 return b ? llvm::ConstantInt::getTrue(context) : llvm::ConstantInt::getFalse(context);
             }
 
-            val *operator()(std::string const&)
+            val operator()(std::string const&)
             {
                 throw not_implemented_error{pl, __FILE__, __func__, __LINE__, "string constant generation"};
             }
 
-            val *operator()(int const i)
+            val operator()(int const i)
             {
-                return llvm::ConstantInt::get(llvm::IntegerType::get(context, 64), static_cast<std::int64_t const>(i), false);
+                return llvm::ConstantInt::get(
+                        generate_type_ir(pl->type, context),
+                        static_cast<std::int64_t const>(i), false
+                    );
             }
 
-            val *operator()(unsigned int const ui)
+            val operator()(unsigned int const ui)
             {
-                return llvm::ConstantInt::get(llvm::IntegerType::get(context, 64), static_cast<std::uint64_t const>(ui), true);
+                return llvm::ConstantInt::get(
+                        generate_type_ir(pl->type, context),
+                        static_cast<std::uint64_t const>(ui), true
+                    );
             }
 
         } visitor{context, pl};
@@ -129,8 +139,7 @@ public:
 
 llvm::Module &generate_llvm_ir(ast::ast const& a, scope::scope_tree const&)
 {
-    auto module = detail::llvm_ir_generator{}.generate(a.root);
-    return *module;
+    return *detail::llvm_ir_generator{}.generate(a.root);
 }
 
 } // namespace llvm

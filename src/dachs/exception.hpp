@@ -20,10 +20,29 @@ public:
                     boost::format(
                             "At line:%1%, col:%2%\n %3% is not implemented yet.\n"
                             "Note: You can contribute to Dachs with implementing this feature. "
-                            "See file:%4%, %5%(), line:%6%, "
-                            "and clone https://github.com/rhysd/Dachs.")
+                            "Clone https://github.com/rhysd/Dachs and "
+                            "see %4%, %5%(), line:%6%, ")
                         % node->line
                         % node->col
+                        % what_feature
+                        % file
+                        % func
+                        % line
+                ).str()
+            )
+    {}
+
+    not_implemented_error(char const* const file,
+                          char const* const func,
+                          std::size_t const line,
+                          char const* const what_feature) noexcept
+        : std::runtime_error(
+                (
+                    boost::format(
+                            "%1% is not implemented yet.\n"
+                            "Note: You can contribute to Dachs with implementing this feature. "
+                            "Clone https://github.com/rhysd/Dachs and "
+                            "see %2%, %3%(), line:%4%, ")
                         % what_feature
                         % file
                         % func
