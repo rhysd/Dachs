@@ -68,7 +68,7 @@ end
   - [ ] Exception safety
   - [ ] Parallel processing
 
-This software is disributed under [The MIT License](http://opensource.org/licenses/MIT).
+This software is disributed under [The MIT License](http://opensource.org/licenses/MIT) if not specified in a source file.
 
     Copyright (c) 2014 rhysd
 
