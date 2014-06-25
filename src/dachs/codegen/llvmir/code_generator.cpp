@@ -79,7 +79,7 @@ public:
 
             val *operator()(char const c)
             {
-                return llvm::ConstantInt::get(llvm::IntegerType::get(context, 8), static_cast<std::uint8_t>(c), false);
+                return llvm::ConstantInt::get(llvm::IntegerType::get(context, 8), static_cast<std::uint8_t const>(c), false);
             }
 
             val *operator()(double const d)
@@ -92,19 +92,19 @@ public:
                 return b ? llvm::ConstantInt::getTrue(context) : llvm::ConstantInt::getFalse(context);
             }
 
-            val *operator()(std::string const& s)
+            val *operator()(std::string const&)
             {
                 throw not_implemented_error{pl, __FILE__, __func__, __LINE__, "string constant generation"};
             }
 
             val *operator()(int const i)
             {
-                return llvm::ConstantInt::get(llvm::IntegerType::get(context, 64), static_cast<std::int64_t>(i), false);
+                return llvm::ConstantInt::get(llvm::IntegerType::get(context, 64), static_cast<std::int64_t const>(i), false);
             }
 
             val *operator()(unsigned int const ui)
             {
-                return llvm::ConstantInt::get(llvm::IntegerType::get(context, 64), static_cast<std::uint64_t>(ui), true);
+                return llvm::ConstantInt::get(llvm::IntegerType::get(context, 64), static_cast<std::uint64_t const>(ui), true);
             }
 
         } visitor{context, pl};
