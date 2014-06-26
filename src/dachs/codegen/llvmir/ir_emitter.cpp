@@ -9,6 +9,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/optional.hpp>
+#include <boost/range/adaptor/reversed.hpp>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
@@ -67,6 +68,7 @@ namespace detail {
 
 using helper::variant::apply_lambda;
 using helper::variant::get_as;
+using boost::adaptors::reversed;
 
 class llvm_ir_emitter {
     using val = llvm::Value *const;
@@ -293,8 +295,38 @@ public:
     {
         // Basic block is already emitd on visiting function_definition and for_stmt
         for (auto const& stmt : block->value) {
-            // emit(stmt);
+            emit(stmt);
         }
+    }
+
+    void emit(ast::node::if_stmt const& if_)
+    {
+        auto *else_block = check(if_, llvm::BasicBlock::Create(context, "else"), "else block");
+        if (if_->maybe_else_stmts) {
+            builder.SetInsertPoint(else_block);
+            emit(*if_->maybe_else_stmts);
+        }
+
+        llvm::BasicBlock *then_block;
+        for (auto const& elseif : if_->elseif_stmts_list | reversed) {
+            then_block = check(elseif.second, llvm::BasicBlock::Create(context, "elseif_then"), "elseif block");
+            val cond_val = emit(elseif.first);
+            builder.CreateCondBr(cond_val, then_block, else_block);
+
+            builder.SetInsertPoint(then_block);
+            emit(elseif.second);
+            else_block = then_block;
+        }
+
+        llvm::Value *cond_val = emit(if_->condition);
+        if (if_->kind == ast::symbol::if_kind::unless) {
+            cond_val = check(if_, builder.CreateNot(cond_val, "if_stmt_unless"), "unless statement");
+        }
+
+        then_block = check(if_, llvm::BasicBlock::Create(context, "if_then"), "then block");
+        builder.CreateCondBr(cond_val, then_block, else_block);
+        builder.SetInsertPoint(then_block);
+        emit(if_->then_stmts);
     }
 
     template<class T>
