@@ -6,7 +6,7 @@
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/stringize_ast.hpp"
 #include "dachs/semantics/stringize_scope_tree.hpp"
-#include "dachs/codegen/llvmir/ir_generator.hpp"
+#include "dachs/codegen/llvmir/ir_emitter.hpp"
 
 namespace dachs {
 void compiler::compile(std::string const& code, bool const colorful)
@@ -17,7 +17,7 @@ void compiler::compile(std::string const& code, bool const colorful)
                     + "\n\n=========Scope Tree=========\n\n"
                     + scope::stringize_scope_tree(scope_tree)
              << "\n\n=========LLVM IR=========\n\n";
-    codegen::llvmir::generate_llvm_ir(ast, scope_tree).dump();
+    codegen::llvmir::emit_llvm_ir(ast, scope_tree).dump();
 }
 
 std::string compiler::dump_ast(std::string const& code, bool const colorful)

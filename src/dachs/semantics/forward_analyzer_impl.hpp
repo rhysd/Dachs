@@ -172,7 +172,7 @@ template<class Scope>
 std::size_t check_functions_duplication(Scope const& scope_root)
 {
     std::size_t failed = 0u;
-    auto end = scope_root->functions.cend();
+    auto const end = scope_root->functions.cend();
     for (auto left = scope_root->functions.cbegin(); left != end; ++left) {
         for (auto right = std::next(left); right != end; ++right) {
             if (**right == **left) {

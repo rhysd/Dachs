@@ -10,7 +10,7 @@ namespace dachs {
 namespace codegen {
 namespace llvmir {
 
-llvm::Type *generate_type_ir(type::type const& t, llvm::LLVMContext &);
+llvm::Type *emit_type_ir(type::type const& t, llvm::LLVMContext &);
 
 } // namespace llvmir
 } // namespace codegen

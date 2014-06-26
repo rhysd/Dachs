@@ -14,13 +14,50 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Analysis/Verifier.h>
 
-#include "dachs/codegen/llvmir/ir_generator.hpp"
-#include "dachs/codegen/llvmir/type_ir_generator.hpp"
+#include "dachs/codegen/llvmir/ir_emitter.hpp"
+#include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/helper/variant.hpp"
+
+/*
+ * Note:
+ * When code generator is too big to manage one class,
+ * separate visitors to each nodes to individual classes.
+ * I think they are specialization of class template
+ *
+ * template<class T>
+ * class code_generator : code_generator_base; // If need default implementation, implement it as this primary class
+ *
+ * template<>
+ * class code_generator<ast::node::program> : code_generator_base { ... };
+ *
+ * template<>
+ * class code_generator<ast::node::function_definition> : code_generator_base { ... };
+ *
+ * ...
+ *
+ *
+ * These specialized class template visitors can be separated to individual transform units.
+ *
+ * class codegen_walker {
+ *     llvm::LLVMContext context;
+ *     llvm::IRBuilder<> builder;
+ *
+ * public:
+ *
+ *     template<class T, class W>
+ *     void visit(std::shared_ptr<T> const& n, W const& walker)
+ *     {
+ *         code_generator<T> generator{n, context, builder};
+ *         generator.emit_before();
+ *         walker();
+ *         generator.emit_after();
+ *     }
+ * };
+ */
 
 namespace dachs {
 namespace codegen {
@@ -31,7 +68,7 @@ namespace detail {
 using helper::variant::apply_lambda;
 using helper::variant::get_as;
 
-class llvm_ir_generator {
+class llvm_ir_emitter {
     using val = llvm::Value *const;
 
     std::unordered_map<symbol::var_symbol, val> var_value_table;
@@ -61,22 +98,22 @@ class llvm_ir_generator {
     T check(Node const& n, T v, String const& feature_name)
     {
         if (!v) {
-            error(n, std::string{"Failed to generate"} + feature_name);
+            error(n, std::string{"Failed to emit"} + feature_name);
         }
         return v;
     }
 
     template<class... NodeTypes>
-    auto generate(boost::variant<NodeTypes...> const& ns)
+    auto emit(boost::variant<NodeTypes...> const& ns)
     {
-        return apply_lambda([this](auto const& n){ return generate(n); }, ns);
+        return apply_lambda([this](auto const& n){ return emit(n); }, ns);
     }
 
     template<class Node>
-    auto generate(boost::optional<Node> const& o)
-        -> boost::optional<decltype(generate(std::declval<Node const&>()))>
+    auto emit(boost::optional<Node> const& o)
+        -> boost::optional<decltype(emit(std::declval<Node const&>()))>
     {
-        return o ? generate(*o) : boost::none;
+        return o ? emit(*o) : boost::none;
     }
 
     boost::optional<llvm::Function *> lookup_func(scope::func_scope const& scope)
@@ -91,12 +128,12 @@ class llvm_ir_generator {
 
 public:
 
-    llvm_ir_generator(llvm::LLVMContext &c)
+    llvm_ir_emitter(llvm::LLVMContext &c)
         : context(c)
         , builder(context)
     {}
 
-    val generate(ast::node::primary_literal const& pl)
+    val emit(ast::node::primary_literal const& pl)
     {
         struct literal_visitor : public boost::static_visitor<val> {
             llvm::LLVMContext &context;
@@ -109,7 +146,7 @@ public:
             val operator()(char const c)
             {
                 return llvm::ConstantInt::get(
-                        generate_type_ir(pl->type, context),
+                        emit_type_ir(pl->type, context),
                         static_cast<std::uint8_t const>(c), false
                     );
             }
@@ -132,7 +169,7 @@ public:
             val operator()(int const i)
             {
                 return llvm::ConstantInt::get(
-                        generate_type_ir(pl->type, context),
+                        emit_type_ir(pl->type, context),
                         static_cast<std::int64_t const>(i), false
                     );
             }
@@ -140,7 +177,7 @@ public:
             val operator()(unsigned int const ui)
             {
                 return llvm::ConstantInt::get(
-                        generate_type_ir(pl->type, context),
+                        emit_type_ir(pl->type, context),
                         static_cast<std::uint64_t const>(ui), true
                     );
             }
@@ -150,7 +187,7 @@ public:
         return check(pl, boost::apply_visitor(visitor, pl->value), "constant");
     }
 
-    llvm::Module *generate(ast::node::program const& p)
+    llvm::Module *emit(ast::node::program const& p)
     {
         module = new llvm::Module("Should replace this name with a file name", context);
         if (!module) {
@@ -158,13 +195,13 @@ public:
         }
 
         // Note:
-        // Generate Function prototypes in advance for forward reference
+        // emit Function prototypes in advance for forward reference
 
         for (auto const& i : p->inu) {
             if (auto const maybe_func_def = get_as<ast::node::function_definition>(i)) {
                 auto const& func_def = *maybe_func_def;
 
-                auto const generate_prototype =
+                auto const emit_prototype =
                     [this](ast::node::function_definition const& func_def)
                     {
                         assert(!func_def->scope.expired());
@@ -173,11 +210,11 @@ public:
                         auto const scope = func_def->scope.lock();
 
                         for (auto const& param_sym : scope->params) {
-                            param_type_irs.push_back(generate_type_ir(param_sym->type, context));
+                            param_type_irs.push_back(emit_type_ir(param_sym->type, context));
                         }
 
                         auto func_type_ir = llvm::FunctionType::get(
-                                generate_type_ir(*func_def->ret_type, context),
+                                emit_type_ir(*func_def->ret_type, context),
                                 param_type_irs,
                                 false
                             );
@@ -206,35 +243,35 @@ public:
 
                 if (func_def->is_template()) {
                     for (auto const& instantiated_func_def : func_def->instantiated) {
-                        generate_prototype(instantiated_func_def);
+                        emit_prototype(instantiated_func_def);
                     }
                 } else {
-                    generate_prototype(func_def);
+                    emit_prototype(func_def);
                 }
             }
         }
 
         for (auto const& i : p->inu) {
-            generate(i);
+            emit(i);
         }
 
         return module;
     }
 
     // Note:
-    // IR for the function is already generated in generate(ast::node::program const&)
-    void generate(ast::node::function_definition const& func_def)
+    // IR for the function is already emitd in emit(ast::node::program const&)
+    void emit(ast::node::function_definition const& func_def)
     {
         if (func_def->is_template()) {
             for (auto const& i : func_def->instantiated) {
-                generate(i);
+                emit(i);
             }
             return;
         }
 
         // Note:
         // It is no need to visit params because it is already visited
-        // in generate(ast::node::program const&) because of forward reference
+        // in emit(ast::node::program const&) because of forward reference
 
         // Note: Already checked the scope is not empty
         auto maybe_prototype_ir = lookup_func(func_def->scope.lock());
@@ -243,18 +280,24 @@ public:
         auto const block = llvm::BasicBlock::Create(context, "entry", prototype_ir);
         builder.SetInsertPoint(block);
 
-        generate(func_def->body);
+        emit(func_def->body);
 
         auto const unit_type = type::make<type::tuple_type>();
         if (!func_def->ret_type || func_def->kind == ast::symbol::func_kind::proc) {
             builder.CreateRetVoid();
         }
+    }
 
-        verifyFunction(*prototype_ir);
+    void emit(ast::node::statement_block const& block)
+    {
+        // Basic block is already emitd on visiting function_definition and for_stmt
+        for (auto const& stmt : block->value) {
+            emit(stmt);
+        }
     }
 
     template<class T>
-    val generate(std::shared_ptr<T> const& node)
+    val emit(std::shared_ptr<T> const& node)
     {
         throw not_implemented_error{node, __FILE__, __func__, __LINE__, node->to_string()};
     }
@@ -262,11 +305,13 @@ public:
 
 } // namespace detail
 
-llvm::Module &generate_llvm_ir(ast::ast const& a, scope::scope_tree const&)
+llvm::Module &emit_llvm_ir(ast::ast const& a, scope::scope_tree const&)
 {
     // TODO:
     // Use global context temporarily
-    return *detail::llvm_ir_generator{llvm::getGlobalContext()}.generate(a.root);
+    // TODO
+    // Verify IR using VerifyModule() and VerifierPass class
+    return *detail::llvm_ir_emitter{llvm::getGlobalContext()}.emit(a.root);
 }
 
 } // namespace llvm

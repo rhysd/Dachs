@@ -2,7 +2,7 @@
 #include <llvm/IR/DerivedTypes.h>
 
 #include "dachs/semantics/type.hpp"
-#include "dachs/codegen/llvmir/type_ir_generator.hpp"
+#include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
@@ -15,7 +15,7 @@ namespace detail {
 
 using helper::variant::apply_lambda;
 
-class type_ir_generator {
+class type_ir_emitter {
     llvm::LLVMContext &context;
 
     template<class String>
@@ -26,11 +26,11 @@ class type_ir_generator {
 
 public:
 
-    explicit type_ir_generator(llvm::LLVMContext &c)
+    explicit type_ir_emitter(llvm::LLVMContext &c)
         : context(c)
     {}
 
-    llvm::Type *generate(type::builtin_type const& builtin)
+    llvm::Type *emit(type::builtin_type const& builtin)
     {
         llvm::Type *result;
 
@@ -53,58 +53,58 @@ public:
         }
 
         if (!result) {
-            error("Failed to generate a builtin type: " + builtin->to_string());
+            error("Failed to emit a builtin type: " + builtin->to_string());
         }
 
         return result;
     }
 
-    llvm::Type *generate(type::class_type const&)
+    llvm::Type *emit(type::class_type const&)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "class type LLVM IR generation"};
     }
 
-    llvm::Type *generate(type::tuple_type const&)
+    llvm::Type *emit(type::tuple_type const&)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "tuple type LLVM IR generation"};
     }
 
-    llvm::Type *generate(type::func_type const&)
+    llvm::Type *emit(type::func_type const&)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "function type LLVM IR generation"};
     }
 
-    llvm::Type *generate(type::proc_type const&)
+    llvm::Type *emit(type::proc_type const&)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "procedure type LLVM IR generation"};
     }
 
-    llvm::Type *generate(type::func_ref_type const&)
+    llvm::Type *emit(type::func_ref_type const&)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "function reference type LLVM IR generation"};
     }
 
-    llvm::Type *generate(type::dict_type const&)
+    llvm::Type *emit(type::dict_type const&)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "dictionary type LLVM IR generation"};
     }
 
-    llvm::Type *generate(type::array_type const&)
+    llvm::Type *emit(type::array_type const&)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "array type LLVM IR generation"};
     }
 
-    llvm::Type *generate(type::range_type const&)
+    llvm::Type *emit(type::range_type const&)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "range type LLVM IR generation"};
     }
 
-    llvm::Type *generate(type::qualified_type const&)
+    llvm::Type *emit(type::qualified_type const&)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "qualified type LLVM IR generation"};
     }
 
-    llvm::Type *generate(type::template_type const&)
+    llvm::Type *emit(type::template_type const&)
     {
         DACHS_RAISE_INTERNAL_COMPILATION_ERROR
     }
@@ -112,12 +112,12 @@ public:
 
 } // namespace detail
 
-llvm::Type *generate_type_ir(type::type const& t, llvm::LLVMContext &context)
+llvm::Type *emit_type_ir(type::type const& t, llvm::LLVMContext &context)
 {
     return helper::variant::apply_lambda(
                 [&context](auto const& t)
                 {
-                    return detail::type_ir_generator{context}.generate(t);
+                    return detail::type_ir_emitter{context}.emit(t);
                 }, t.raw_value()
             );
 }

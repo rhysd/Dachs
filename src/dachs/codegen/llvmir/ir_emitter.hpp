@@ -10,7 +10,7 @@ namespace dachs {
 namespace codegen {
 namespace llvmir {
 
-llvm::Module &generate_llvm_ir(ast::ast const& a, scope::scope_tree const& t);
+llvm::Module &emit_llvm_ir(ast::ast const& a, scope::scope_tree const& t);
 
 } // namespace llvm
 } // namespace codegen
