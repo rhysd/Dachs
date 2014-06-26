@@ -101,21 +101,32 @@ endforeach (c)
 
 execute_process(
     COMMAND
-    ${DACHS_LLVM_CONFIG} --libs ${DACHS_LLVM_COMPONENTS}
-    OUTPUT_VARIABLE
-    LLVM_LIBS_STRING
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-string(REGEX MATCHALL "-l([^ ]+)" LLVM_LIBS ${LLVM_LIBS_STRING})
-
-execute_process(
-    COMMAND
     ${DACHS_LLVM_CONFIG} --ldflags
     OUTPUT_VARIABLE
     LLVM_SYS_LIBS_STRING
     OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 string(REGEX MATCHALL "-l([^ ]+)" LLVM_SYS_LIBS ${LLVM_SYS_LIBS_STRING})
+
+# In Ubuntu, somehow references to LLVM objects are not found in static link libraries.
+# Because of workaround for this, use shared library if DACHS_USE_LLVM_SHARED_LIB is specified
+if(DACHS_USE_LLVM_SHARED_LIB)
+    foreach(l "LLVM" "LLVM-3.4" "LLVM-3.5")
+        if (EXISTS "${LLVM_LIBRARY_DIRS}/lib${l}.so")
+            set(LLVM_LIBS ${l})
+            break()
+        endif ()
+    endforeach(l)
+else()
+    execute_process(
+        COMMAND
+        ${DACHS_LLVM_CONFIG} --libs ${DACHS_LLVM_COMPONENTS}
+        OUTPUT_VARIABLE
+        LLVM_LIBS_STRING
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    string(REGEX MATCHALL "-l([^ ]+)" LLVM_LIBS ${LLVM_LIBS_STRING})
+endif()
 
 set(REQUIRED_LLVM_LIBRARIES)
 foreach (l ${LLVM_LIBS} ${LLVM_SYS_LIBS})

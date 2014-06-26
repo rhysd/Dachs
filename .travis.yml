@@ -1,8 +1,8 @@
 language: cpp
 compiler: clang
 env:
-    - CLANG_VERSION="3.4" CMAKE_OPTS="-DCMAKE_CXX_FLAGS=-I/usr/lib/llvm-3.4/lib/clang/3.4.1/include -DDACHS_LLVM_CONFIG=/usr/bin/llvm-config-3.4"
-    - CLANG_VERSION="3.5" CMAKE_OPTS="-DDACHS_LLVM_CONFIG=/usr/bin/llvm-config-3.5"
+    - CLANG_VERSION="3.4" CMAKE_OPTS="-DCMAKE_CXX_FLAGS=-I/usr/lib/llvm-3.4/lib/clang/3.4.1/include -DDACHS_LLVM_CONFIG=/usr/bin/llvm-config-3.4 -DDACHS_USE_LLVM_SHARED_LIB=1"
+    - CLANG_VERSION="3.5" CMAKE_OPTS="-DDACHS_LLVM_CONFIG=/usr/bin/llvm-config-3.5 -DDACHS_USE_LLVM_SHARED_LIB=1"
 matrix:
     allow_failures:
         - env: CLANG_VERSION="3.5" CMAKE_OPTS="-DDACHS_LLVM_CONFIG=/usr/bin/llvm-config-3.5"
