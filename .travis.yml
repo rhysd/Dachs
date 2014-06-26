@@ -5,7 +5,7 @@ env:
     - CLANG_VERSION="3.5" CMAKE_OPTS="-DDACHS_LLVM_CONFIG=/usr/bin/llvm-config-3.5 -DDACHS_USE_LLVM_SHARED_LIB=1"
 matrix:
     allow_failures:
-        - env: CLANG_VERSION="3.5" CMAKE_OPTS="-DDACHS_LLVM_CONFIG=/usr/bin/llvm-config-3.5"
+        - env: CLANG_VERSION="3.5" CMAKE_OPTS="-DDACHS_LLVM_CONFIG=/usr/bin/llvm-config-3.5 -DDACHS_USE_LLVM_SHARED_LIB=1"
 script:
     - sudo apt-get -qq install "clang-${CLANG_VERSION}"
     - uname -a
