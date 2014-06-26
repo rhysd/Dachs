@@ -111,13 +111,13 @@ bool func_scope::operator==(func_scope const& rhs) const noexcept
             auto const& right_type = (*ritr)->type;
 
             if (left_type.is_template() && right_type.is_template()) {
+                // Both sides are template
+                continue;
+            } else if (!left_type.is_template() && !right_type.is_template()) {
                 // Both sides are not template
                 if (left_type != right_type) {
                     return false;
                 }
-            } else if (!left_type.is_template() && !right_type.is_template()) {
-                // Both side are template
-                continue;
             } else {
                 // One side is template and other side is not a template
                 return false;
