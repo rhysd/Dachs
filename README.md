@@ -51,13 +51,15 @@ end
 -  Sematic analysis
   - [x] Scope tree
   - [x] Symbol tables
-  - [ ] Overload resolution
+  - [x] Overload resolution
+  - [x] Simple return type deduction
   - [ ] Type inference
-  - [ ] Semantic checks
+  - [x] Semantic checks
   - [ ] Test
 
 -  Code generation
   - [ ] LLVM IR code generation
+  - [ ] Executable generation
   - [ ] Test
 
 -  Misc
