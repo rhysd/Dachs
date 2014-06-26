@@ -2,7 +2,7 @@
 #define      DACHS_CODEGEN_LLVMIR_TYPE_IR_GENERATOR_HPP_INCLUDED
 
 #include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Type.h>
 
 #include "dachs/semantics/type.hpp"
 

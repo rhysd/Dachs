@@ -126,6 +126,48 @@ class llvm_ir_emitter {
         }
     }
 
+    void emit_func_prototype(ast::node::function_definition const& func_def)
+    {
+        assert(!func_def->scope.expired());
+        std::vector<llvm::Type *> param_type_irs;
+        param_type_irs.reserve(func_def->params.size());
+        auto const scope = func_def->scope.lock();
+
+        for (auto const& param_sym : scope->params) {
+            param_type_irs.push_back(emit_type_ir(param_sym->type, context));
+        }
+
+        auto func_type_ir = llvm::FunctionType::get(
+                emit_type_ir(*func_def->ret_type, context),
+                param_type_irs,
+                false
+            );
+
+        check(func_def, func_type_ir, "function type");
+
+        // Note:
+        // Use to_string() instead of mangling.
+        auto func_ir = llvm::Function::Create(
+                func_type_ir,
+                llvm::Function::ExternalLinkage,
+                scope->to_string(), module
+            );
+
+        check(func_def, func_type_ir, "function");
+
+        {
+            auto arg_itr = func_ir->arg_begin();
+            auto param_itr = std::begin(scope->params);
+            for (; param_itr != std::end(scope->params); ++arg_itr, ++param_itr) {
+                arg_itr->setName((*param_itr)->name);
+                var_value_table.insert(std::make_pair(*param_itr, arg_itr));
+            }
+        }
+
+        func_table.insert(std::make_pair(scope, func_ir));
+    }
+
+
 public:
 
     llvm_ir_emitter(llvm::LLVMContext &c)
@@ -196,57 +238,16 @@ public:
 
         // Note:
         // emit Function prototypes in advance for forward reference
-
-        auto const emit_prototype =
-            [this](ast::node::function_definition const& func_def)
-            {
-                assert(!func_def->scope.expired());
-                std::vector<llvm::Type *> param_type_irs;
-                param_type_irs.reserve(func_def->params.size());
-                auto const scope = func_def->scope.lock();
-
-                for (auto const& param_sym : scope->params) {
-                    param_type_irs.push_back(emit_type_ir(param_sym->type, context));
-                }
-
-                auto func_type_ir = llvm::FunctionType::get(
-                        emit_type_ir(*func_def->ret_type, context),
-                        param_type_irs,
-                        false
-                    );
-
-                check(func_def, func_type_ir, "function type");
-
-                auto func_ir = llvm::Function::Create(
-                        func_type_ir,
-                        llvm::Function::ExternalLinkage,
-                        func_def->name, module
-                    );
-
-                check(func_def, func_type_ir, "function");
-
-                {
-                    auto arg_itr = func_ir->arg_begin();
-                    auto param_itr = std::begin(scope->params);
-                    for (; param_itr != std::end(scope->params); ++arg_itr, ++param_itr) {
-                        arg_itr->setName((*param_itr)->name);
-                        var_value_table.insert(std::make_pair(*param_itr, arg_itr));
-                    }
-                }
-
-                func_table.insert(std::make_pair(scope, func_ir));
-            };
-
         for (auto const& i : p->inu) {
             if (auto const maybe_func_def = get_as<ast::node::function_definition>(i)) {
                 auto const& func_def = *maybe_func_def;
 
                 if (func_def->is_template()) {
                     for (auto const& instantiated_func_def : func_def->instantiated) {
-                        emit_prototype(instantiated_func_def);
+                        emit_func_prototype(instantiated_func_def);
                     }
                 } else {
-                    emit_prototype(func_def);
+                    emit_func_prototype(func_def);
                 }
             }
         }
@@ -292,7 +293,7 @@ public:
     {
         // Basic block is already emitd on visiting function_definition and for_stmt
         for (auto const& stmt : block->value) {
-            emit(stmt);
+            // emit(stmt);
         }
     }
 

@@ -117,7 +117,7 @@ class symbol_analyzer {
             EnclosingScope const& enclosing_scope
         ) noexcept
     {
-        assert(already_visited_functions.find(func_template_def) != std::end(already_visited_functions));
+        assert(func_template_def->is_template());
 
         auto instantiated_func_def = ast::copy_ast(func_template_def);
 
