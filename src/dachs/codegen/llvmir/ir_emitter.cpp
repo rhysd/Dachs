@@ -329,6 +329,19 @@ public:
         emit(if_->then_stmts);
     }
 
+    void emit(ast::node::return_stmt const& return_)
+    {
+        if (return_->ret_exprs.size() == 1) {
+            builder.CreateRet(emit(return_->ret_exprs[0]));
+        } else if (return_->ret_exprs.empty()) {
+            // TODO:
+            // Return statements with no expression in functions should returns unit
+            builder.CreateRetVoid();
+        } else {
+            throw not_implemented_error{return_, __FILE__, __func__, __LINE__, "returning multiple value"};
+        }
+    }
+
     template<class T>
     val emit(std::shared_ptr<T> const& node)
     {
