@@ -65,6 +65,11 @@ struct weak_ptr_locker : public boost::static_visitor<scope::any_scope> {
     }
 };
 
+// TODO:
+// If recursive call is used in 'if' expression, it fails to deduce
+// func fib(n)
+//     return (if n <= 1 then 1 else fib(n-1)+fib(n-2))
+// end
 struct recursive_function_return_type_resolver {
     std::vector<type::type> result;
 
@@ -739,6 +744,8 @@ public:
         } else {
             semantic_error(invocation, boost::format("Cannot deduce the return type of function '%1%'") % func->to_string());
         }
+
+        invocation->func_symbol = func;
     }
 
     template<class Walker>

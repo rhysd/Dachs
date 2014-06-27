@@ -192,6 +192,11 @@ public:
         return helper::variant::has<type::template_type>(value);
     }
 
+    bool is_builtin() const noexcept
+    {
+        return helper::variant::has<type::builtin_type>(value);
+    }
+
     template<class T>
     friend bool has(any_type const&);
 
@@ -669,6 +674,12 @@ inline std::string to_string(T const& type) noexcept
 inline std::string to_string(any_type const& type) noexcept
 {
     return type.to_string();
+}
+
+template<class Variant>
+inline any_type type_of(Variant const& v) noexcept
+{
+    return apply_lambda([](auto const& n){ return n->type; }, v);
 }
 
 } // namespace type

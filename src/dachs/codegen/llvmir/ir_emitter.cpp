@@ -9,7 +9,6 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/optional.hpp>
-#include <boost/range/adaptor/reversed.hpp>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
@@ -20,6 +19,7 @@
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
+#include "dachs/semantics/type.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/helper/variant.hpp"
 
@@ -68,7 +68,6 @@ namespace detail {
 
 using helper::variant::apply_lambda;
 using helper::variant::get_as;
-using boost::adaptors::reversed;
 
 class llvm_ir_emitter {
     using val = llvm::Value *;
@@ -78,6 +77,12 @@ class llvm_ir_emitter {
     llvm::Module *module = nullptr;
     llvm::LLVMContext &context;
     llvm::IRBuilder<> builder;
+
+    template<class Node>
+    void error(Node const& n, boost::format const& msg)
+    {
+        error(n, msg.str());
+    }
 
     template<class Node, class String>
     void error(Node const& n, String const& msg)
@@ -90,10 +95,10 @@ class llvm_ir_emitter {
             };
     }
 
-    template<class Node>
-    void error(Node const& n, boost::format const& msg)
+    template<class Node, class T>
+    T check(Node const& n, T v, boost::format const& fmt)
     {
-        error(n, msg.str());
+        return check(n, v, fmt.str());
     }
 
     template<class Node, class T, class String>
@@ -122,6 +127,16 @@ class llvm_ir_emitter {
     {
         auto const result = func_table.find(scope);
         if (result == std::end(func_table)) {
+            return boost::none;
+        } else {
+            return result->second;
+        }
+    }
+
+    boost::optional<val> lookup_var(symbol::var_symbol const& var)
+    {
+        auto const result = var_value_table.find(var);
+        if (result == std::end(var_value_table)) {
             return boost::none;
         } else {
             return result->second;
@@ -351,6 +366,166 @@ public:
         } else {
             throw not_implemented_error{return_, __FILE__, __func__, __LINE__, "returning multiple value"};
         }
+    }
+
+    val emit(ast::node::func_invocation const& invocation)
+    {
+        std::vector<val> args;
+        args.reserve(invocation->args.size());
+        for (auto const& a : invocation->args) {
+            args.push_back(emit(a));
+        }
+
+        assert(!invocation->func_symbol.expired());
+        auto *const callee = module->getFunction(invocation->func_symbol.lock()->to_string());
+
+        // TODO
+        // Monad invocation
+
+        return builder.CreateCall(callee, args, "funinvotmp");
+    }
+
+    val emit(ast::node::binary_expr const& bin_expr)
+    {
+        auto const lhs_type = type::type_of(bin_expr->lhs);
+        auto const rhs_type = type::type_of(bin_expr->rhs);
+
+        if (!lhs_type.is_builtin() || !rhs_type.is_builtin()) {
+            error(bin_expr, "Binary expression now only supports float, int, bool and uint");
+        }
+
+        auto const lhs_builtin_type = *type::get<type::builtin_type>(lhs_type);
+        auto const rhs_builtin_type = *type::get<type::builtin_type>(rhs_type);
+
+        auto const is_supported = [](auto const& t){ return t->name == "int" || t->name == "float" || t->name == "uint" || t->name == "bool"; };
+
+        if (!is_supported(lhs_builtin_type) || !is_supported(rhs_builtin_type)) {
+            error(bin_expr, "Binary expression now only supports float, int and uint");
+        }
+
+        val const lhs = emit(bin_expr->lhs);
+        val const rhs = emit(bin_expr->rhs);
+        bool const is_float = lhs_builtin_type->name == "float";
+        bool const is_int = lhs_builtin_type->name == "int";
+        bool const is_uint = lhs_builtin_type->name == "uint";
+        val result = nullptr;
+
+        if (bin_expr->op == ">>") {
+            result = builder.CreateAShr(lhs, rhs, "shrtmp");
+        } else if (bin_expr-> op == "<<") {
+            result = builder.CreateShl(lhs, rhs, "shltmp");
+        } else if (bin_expr-> op == "*") {
+            if (is_int || is_uint) {
+                result = builder.CreateMul(lhs, rhs, "multmp");
+            } else if (is_float) {
+                result = builder.CreateFMul(lhs, rhs, "fmultmp");
+            }
+        } else if (bin_expr-> op == "/") {
+            if (is_int) {
+                result = builder.CreateSDiv(lhs, rhs, "sdivtmp");
+            } else if (is_uint) {
+                result = builder.CreateUDiv(lhs, rhs, "udivtmp");
+            } else if (is_float) {
+                result = builder.CreateFDiv(lhs, rhs, "fdivtmp");
+            }
+        } else if (bin_expr-> op == "%") {
+            if (is_int) {
+                result = builder.CreateSRem(lhs, rhs, "sremtmp");
+            } else if (is_uint) {
+                result = builder.CreateURem(lhs, rhs, "uremtmp");
+            } else if (is_float) {
+                result = builder.CreateFRem(lhs, rhs, "fremtmp");
+            }
+        } else if (bin_expr-> op == "+") {
+            if (is_int || is_uint) {
+                result = builder.CreateAdd(lhs, rhs, "addtmp");
+            } else if (is_float) {
+                result = builder.CreateFAdd(lhs, rhs, "faddtmp");
+            }
+        } else if (bin_expr-> op == "-") {
+            if (is_int || is_uint) {
+                result = builder.CreateSub(lhs, rhs, "subtmp");
+            } else if (is_float) {
+                result = builder.CreateFSub(lhs, rhs, "fsubtmp");
+            }
+        } else if (bin_expr-> op == "&") {
+            result = builder.CreateAnd(lhs, rhs, "andtmp");
+        } else if (bin_expr-> op == "^") {
+            result = builder.CreateXor(lhs, rhs, "xortmp");
+        } else if (bin_expr-> op == "|") {
+            result = builder.CreateOr(lhs, rhs, "ortmp");
+        } else if (bin_expr-> op == "<") {
+            if (is_int) {
+                result = builder.CreateICmpSLT(lhs, rhs, "icmpslttmp");
+            } else if (is_uint) {
+                result = builder.CreateICmpULT(lhs, rhs, "icmpulttmp");
+            } else if (is_float) {
+                result = builder.CreateFCmpULT(lhs, rhs, "fcmpulttmp");
+            }
+        } else if (bin_expr-> op == ">") {
+            if (is_int) {
+                result = builder.CreateICmpSGT(lhs, rhs, "icmpsgttmp");
+            } else if (is_uint) {
+                result = builder.CreateICmpUGT(lhs, rhs, "icmpugttmp");
+            } else if (is_float) {
+                result = builder.CreateFCmpUGT(lhs, rhs, "fcmpugttmp");
+            }
+        } else if (bin_expr-> op == "<=") {
+            if (is_int) {
+                result = builder.CreateICmpSLE(lhs, rhs, "icmpsletmp");
+            } else if (is_uint) {
+                result = builder.CreateICmpULE(lhs, rhs, "icmpuletmp");
+            } else if (is_float) {
+                result = builder.CreateFCmpULE(lhs, rhs, "fcmpuletmp");
+            }
+        } else if (bin_expr-> op == ">=") {
+            if (is_int) {
+                result = builder.CreateICmpSGE(lhs, rhs, "icmpsgetmp");
+            } else if (is_uint) {
+                result = builder.CreateICmpUGE(lhs, rhs, "icmpugetmp");
+            } else if (is_float) {
+                result = builder.CreateFCmpUGE(lhs, rhs, "fcmpugetmp");
+            }
+        } else if (bin_expr-> op == "==") {
+            if (is_int || is_uint) {
+                result = builder.CreateICmpEQ(lhs, rhs, "icmpeqtmp");
+            } else if (is_float) {
+                result = builder.CreateFCmpUEQ(lhs, rhs, "fcmpeqtmp");
+            }
+        } else if (bin_expr-> op == "!=") {
+            if (is_int || is_uint) {
+                result = builder.CreateICmpNE(lhs, rhs, "icmpnetmp");
+            } else if (is_float) {
+                result = builder.CreateFCmpUNE(lhs, rhs, "fcmpnetmp");
+            }
+        } else if (bin_expr-> op == "&&") {
+            if (!is_float) {
+                result = builder.CreateAnd(lhs, rhs, "andltmp");
+            }
+        } else if (bin_expr-> op == "||") {
+            if (!is_float) {
+                result = builder.CreateOr(lhs, rhs, "orltmp");
+            }
+        }
+
+        check(
+            bin_expr,
+            result,
+            boost::format("binary operator '%1%', rhs type is '%2%', lhs type is '%3%'")
+                % bin_expr->op
+                % lhs_builtin_type->to_string()
+                % rhs_builtin_type->to_string()
+        );
+
+        return result;
+    }
+
+    val emit(ast::node::var_ref const& var)
+    {
+        assert(!var->symbol.expired());
+        auto const maybe_var_value = lookup_var(var->symbol.lock());
+        assert(maybe_var_value);
+        return *maybe_var_value;
     }
 
     template<class T>

@@ -16,11 +16,7 @@ namespace dachs {
 namespace semantics {
 namespace detail {
 
-template<class Variant>
-inline type::type type_of(Variant const& v) noexcept
-{
-    return helper::variant::apply_lambda([](auto const& n){ return n->type; }, v);
-}
+using type::type_of;
 
 struct class_resolver
     : boost::static_visitor<boost::optional<scope::class_scope>> {
