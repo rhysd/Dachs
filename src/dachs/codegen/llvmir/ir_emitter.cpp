@@ -71,7 +71,7 @@ using helper::variant::get_as;
 using boost::adaptors::reversed;
 
 class llvm_ir_emitter {
-    using val = llvm::Value *const;
+    using val = llvm::Value *;
 
     std::unordered_map<symbol::var_symbol, val> var_value_table;
     std::unordered_map<scope::func_scope, llvm::Function *const> func_table;
@@ -301,32 +301,43 @@ public:
 
     void emit(ast::node::if_stmt const& if_)
     {
-        auto *else_block = check(if_, llvm::BasicBlock::Create(context, "else"), "else block");
+        auto *parent = builder.GetInsertBlock()->getParent();
+
+        auto *then_block = check(if_, llvm::BasicBlock::Create(context, "if.then", parent), "then block");
+        auto *else_block = check(if_, llvm::BasicBlock::Create(context, "if.else", parent), "else block");
+        auto *end_block = check(if_, llvm::BasicBlock::Create(context, "if.end"), "end of block");
+
+        // IR for if-then clause
+        val cond_val = emit(if_->condition);
+        if (if_->kind == ast::symbol::if_kind::unless) {
+            cond_val = check(if_, builder.CreateNot(cond_val, "if_stmt_unless"), "unless statement");
+        }
+        builder.CreateCondBr(cond_val, then_block, else_block);
+        builder.SetInsertPoint(then_block);
+        emit(if_->then_stmts);
+        builder.CreateBr(end_block);
+        builder.SetInsertPoint(else_block);
+
+        // IR for elseif clause
+        for (auto const& elseif : if_->elseif_stmts_list) {
+            then_block = check(if_, llvm::BasicBlock::Create(context, "if.then", parent), "then block");
+            else_block = check(if_, llvm::BasicBlock::Create(context, "if.else", parent), "else block");
+            cond_val = emit(elseif.first);
+            builder.CreateCondBr(cond_val, then_block, else_block);
+            builder.SetInsertPoint(then_block);
+            emit(elseif.second);
+            builder.CreateBr(end_block);
+            builder.SetInsertPoint(else_block);
+        }
+
+        // IR for else clause
         if (if_->maybe_else_stmts) {
             builder.SetInsertPoint(else_block);
             emit(*if_->maybe_else_stmts);
         }
 
-        llvm::BasicBlock *then_block;
-        for (auto const& elseif : if_->elseif_stmts_list | reversed) {
-            then_block = check(elseif.second, llvm::BasicBlock::Create(context, "elseif_then"), "elseif block");
-            val cond_val = emit(elseif.first);
-            builder.CreateCondBr(cond_val, then_block, else_block);
-
-            builder.SetInsertPoint(then_block);
-            emit(elseif.second);
-            else_block = then_block;
-        }
-
-        llvm::Value *cond_val = emit(if_->condition);
-        if (if_->kind == ast::symbol::if_kind::unless) {
-            cond_val = check(if_, builder.CreateNot(cond_val, "if_stmt_unless"), "unless statement");
-        }
-
-        then_block = check(if_, llvm::BasicBlock::Create(context, "if_then"), "then block");
-        builder.CreateCondBr(cond_val, then_block, else_block);
-        builder.SetInsertPoint(then_block);
-        emit(if_->then_stmts);
+        parent->getBasicBlockList().push_back(end_block);
+        builder.SetInsertPoint(end_block);
     }
 
     void emit(ast::node::return_stmt const& return_)
