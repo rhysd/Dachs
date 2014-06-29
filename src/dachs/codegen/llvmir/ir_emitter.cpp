@@ -167,7 +167,8 @@ class llvm_ir_emitter {
         auto func_ir = llvm::Function::Create(
                 func_type_ir,
                 llvm::Function::ExternalLinkage,
-                scope->to_string(), module
+                scope->name == "main" ? "main" : scope->to_string(),
+                module
             );
 
         check(func_def, func_type_ir, "function");
