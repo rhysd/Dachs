@@ -64,8 +64,14 @@ public:
         throw not_implemented_error{__FILE__, __func__, __LINE__, "class type LLVM IR generation"};
     }
 
-    llvm::Type *emit(type::tuple_type const&)
+    llvm::Type *emit(type::tuple_type const& t)
     {
+        // TODO:
+        // Unit type should be Void?
+        // I must check Void type in LLVM can have a value.
+        if (t->element_types.empty()) {
+            return llvm::Type::getVoidTy(context);
+        }
         throw not_implemented_error{__FILE__, __func__, __LINE__, "tuple type LLVM IR generation"};
     }
 

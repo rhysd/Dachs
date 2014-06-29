@@ -47,6 +47,17 @@ builtin_type get_builtin_type(char const* const name, no_opt_t) noexcept
     std::abort();
 }
 
+template<class String>
+bool any_type::is_builtin(String const& name) const noexcept
+{
+    auto const t = helper::variant::get_as<builtin_type>(value);
+    if (!t) {
+        return false;
+    }
+
+    return (*t)->name == name;
+}
+
 bool any_type::operator==(any_type const& rhs) const noexcept
 {
     return apply_lambda(

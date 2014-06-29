@@ -197,6 +197,9 @@ public:
         return helper::variant::has<type::builtin_type>(value);
     }
 
+    template<class String>
+    bool is_builtin(String const& name) const noexcept;
+
     template<class T>
     friend bool has(any_type const&);
 
