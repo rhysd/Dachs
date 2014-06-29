@@ -94,8 +94,9 @@ public:
         // Note:
         // Get return type for checking duplication of overloaded function
         if (func_def->return_type) {
-            auto const& ret_type_node = *func_def->return_type;
-            func_def->ret_type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, ret_type_node);
+            auto ret_type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, *func_def->return_type);
+            func_def->ret_type = ret_type;
+            new_func->ret_type = ret_type;
         }
 
         auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);

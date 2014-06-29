@@ -304,6 +304,7 @@ public:
             }
 
             func->ret_type = deduced_type;
+            scope->ret_type = func->ret_type;
         } else {
             if (func->ret_type && *func->ret_type != unit_type) {
                 semantic_error(
@@ -318,6 +319,7 @@ public:
                     );
             }
             func->ret_type = unit_type;
+            scope->ret_type = unit_type;
         }
 
         if (is_query_function && *func->ret_type != type::get_builtin_type("bool", type::no_opt)) {
