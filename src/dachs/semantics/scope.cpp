@@ -95,17 +95,14 @@ bool func_scope::operator==(func_scope const& rhs) const noexcept
         return false;
     }
 
-    auto const lhs_func_def = get_ast_node();
-    auto const rhs_func_def = rhs.get_ast_node();
-
     // Check arguments' types
     {
         // Note:
         // Do not use std::cbegin()/std::cend() because of libstdc++
-        auto ritr = lhs_func_def->params.cbegin();
-        auto litr = rhs_func_def->params.cbegin();
-        auto const rend = lhs_func_def->params.cend();
-        auto const lend = rhs_func_def->params.cend();
+        auto ritr = params.cbegin();
+        auto litr = rhs.params.cbegin();
+        auto const rend = params.cend();
+        auto const lend = rhs.params.cend();
         for (; ritr != rend && litr != lend; ++ritr, ++litr) {
             auto const& left_type = (*litr)->type;
             auto const& right_type = (*ritr)->type;

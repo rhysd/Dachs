@@ -105,7 +105,7 @@ class llvm_ir_emitter {
     T check(Node const& n, T v, String const& feature_name)
     {
         if (!v) {
-            error(n, std::string{"Failed to emit"} + feature_name);
+            error(n, std::string{"Failed to emit "} + feature_name);
         }
         return v;
     }
@@ -292,6 +292,12 @@ class llvm_ir_emitter {
             }
         }
 
+        return nullptr;
+    }
+
+    val emit_builtin_func(scope::func_scope const& builtin)
+    {
+        // TODO:
         return nullptr;
     }
 
@@ -488,12 +494,17 @@ public:
         }
 
         assert(!invocation->func_symbol.expired());
-        auto *const callee = module->getFunction(invocation->func_symbol.lock()->to_string());
+        auto scope = invocation->func_symbol.lock();
+        if (scope->is_builtin) {
+            return check(invocation, emit_builtin_func(scope), "Built-in function");
+        }
+
+        auto *const callee = module->getFunction(scope->to_string());
 
         // TODO
         // Monad invocation
 
-        return builder.CreateCall(callee, args, "funinvotmp");
+        return builder.CreateCall(callee, args, "funcinvotmp");
     }
 
     val emit(ast::node::binary_expr const& bin_expr)
@@ -507,7 +518,6 @@ public:
 
         auto const lhs_builtin_type = *type::get<type::builtin_type>(lhs_type);
         auto const rhs_builtin_type = *type::get<type::builtin_type>(rhs_type);
-
         auto const is_supported = [](auto const& t){ return t->name == "int" || t->name == "float" || t->name == "uint" || t->name == "bool"; };
 
         if (!is_supported(lhs_builtin_type) || !is_supported(rhs_builtin_type)) {

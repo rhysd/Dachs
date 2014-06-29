@@ -226,6 +226,8 @@ public:
                 semantic_error(func, boost::format("Conflict among some return types in function '%1%'\nNote: Candidates are: " + note) % func->name);
             } else {
                 func->ret_type = resolver.result[0];
+                assert(!func->scope.expired());
+                func->scope.lock()->ret_type = resolver.result[0];
             }
             return;
         }
@@ -247,7 +249,8 @@ public:
         }
 
         assert(!func->scope.expired());
-        with_new_scope(func->scope.lock(), recursive_walker);
+        auto scope = func->scope.lock();
+        with_new_scope(scope, recursive_walker);
 
         // Deduce return type
 
@@ -722,6 +725,14 @@ public:
         }
 
         auto func = *maybe_func;
+
+        if (func->is_builtin) {
+            assert(func->ret_type);
+            invocation->type = *func->ret_type;
+            invocation->func_symbol = func;
+            return;
+        }
+
         auto func_def = func->get_ast_node();
 
         if (func->is_template()) {
