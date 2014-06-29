@@ -307,9 +307,10 @@ public:
         struct literal_visitor : public boost::static_visitor<val> {
             llvm::LLVMContext &context;
             ast::node::primary_literal const& pl;
+            llvm::IRBuilder<> &builder;
 
-            literal_visitor(llvm::LLVMContext &c, ast::node::primary_literal const& pl)
-                : context(c), pl(pl)
+            literal_visitor(llvm::LLVMContext &c, ast::node::primary_literal const& pl, llvm::IRBuilder<> &b)
+                : context(c), pl(pl), builder(b)
             {}
 
             val operator()(char const c)
@@ -330,9 +331,9 @@ public:
                 return b ? llvm::ConstantInt::getTrue(context) : llvm::ConstantInt::getFalse(context);
             }
 
-            val operator()(std::string const&)
+            val operator()(std::string const& s)
             {
-                throw not_implemented_error{pl, __FILE__, __func__, __LINE__, "string constant generation"};
+                return builder.CreateGlobalStringPtr(s.c_str());
             }
 
             val operator()(int const i)
@@ -351,7 +352,7 @@ public:
                     );
             }
 
-        } visitor{context, pl};
+        } visitor{context, pl, builder};
 
         return check(pl, boost::apply_visitor(visitor, pl->value), "constant");
     }
