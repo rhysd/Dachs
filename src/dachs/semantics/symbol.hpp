@@ -19,7 +19,7 @@ struct basic_symbol {
     std::string name;
     type::type type;
     ast::node::any_node ast_node;
-    bool is_builtin;
+    bool const is_builtin;
 
     explicit basic_symbol(std::string const& s, bool const is_builtin = false) noexcept
         : name(s), type{}, ast_node{}, is_builtin(is_builtin)

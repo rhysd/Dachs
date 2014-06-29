@@ -167,6 +167,8 @@ class llvm_ir_emitter {
         auto func_ir = llvm::Function::Create(
                 func_type_ir,
                 llvm::Function::ExternalLinkage,
+                // Note:
+                // Simply use "main" because lli requires "main" function as entry point of the program
                 scope->name == "main" ? "main" : scope->to_string(),
                 module
             );
@@ -185,6 +187,113 @@ class llvm_ir_emitter {
         func_table.insert(std::make_pair(scope, func_ir));
     }
 
+    // Note: Temporary
+    val emit_builtin_binary_expression(std::string const& op, val const lhs, val const rhs, std::string const& lhs_type_name)
+    {
+        bool const is_float = lhs_type_name == "float";
+        bool const is_int = lhs_type_name == "int";
+        bool const is_uint = lhs_type_name == "uint";
+
+        if (op == ">>") {
+            return builder.CreateAShr(lhs, rhs, "shrtmp");
+        } else if (op == "<<") {
+            return builder.CreateShl(lhs, rhs, "shltmp");
+        } else if (op == "*") {
+            if (is_int || is_uint) {
+                return builder.CreateMul(lhs, rhs, "multmp");
+            } else if (is_float) {
+                return builder.CreateFMul(lhs, rhs, "fmultmp");
+            }
+        } else if (op == "/") {
+            if (is_int) {
+                return builder.CreateSDiv(lhs, rhs, "sdivtmp");
+            } else if (is_uint) {
+                return builder.CreateUDiv(lhs, rhs, "udivtmp");
+            } else if (is_float) {
+                return builder.CreateFDiv(lhs, rhs, "fdivtmp");
+            }
+        } else if (op == "%") {
+            if (is_int) {
+                return builder.CreateSRem(lhs, rhs, "sremtmp");
+            } else if (is_uint) {
+                return builder.CreateURem(lhs, rhs, "uremtmp");
+            } else if (is_float) {
+                return builder.CreateFRem(lhs, rhs, "fremtmp");
+            }
+        } else if (op == "+") {
+            if (is_int || is_uint) {
+                return builder.CreateAdd(lhs, rhs, "addtmp");
+            } else if (is_float) {
+                return builder.CreateFAdd(lhs, rhs, "faddtmp");
+            }
+        } else if (op == "-") {
+            if (is_int || is_uint) {
+                return builder.CreateSub(lhs, rhs, "subtmp");
+            } else if (is_float) {
+                return builder.CreateFSub(lhs, rhs, "fsubtmp");
+            }
+        } else if (op == "&") {
+            return builder.CreateAnd(lhs, rhs, "andtmp");
+        } else if (op == "^") {
+            return builder.CreateXor(lhs, rhs, "xortmp");
+        } else if (op == "|") {
+            return builder.CreateOr(lhs, rhs, "ortmp");
+        } else if (op == "<") {
+            if (is_int) {
+                return builder.CreateICmpSLT(lhs, rhs, "icmpslttmp");
+            } else if (is_uint) {
+                return builder.CreateICmpULT(lhs, rhs, "icmpulttmp");
+            } else if (is_float) {
+                return builder.CreateFCmpULT(lhs, rhs, "fcmpulttmp");
+            }
+        } else if (op == ">") {
+            if (is_int) {
+                return builder.CreateICmpSGT(lhs, rhs, "icmpsgttmp");
+            } else if (is_uint) {
+                return builder.CreateICmpUGT(lhs, rhs, "icmpugttmp");
+            } else if (is_float) {
+                return builder.CreateFCmpUGT(lhs, rhs, "fcmpugttmp");
+            }
+        } else if (op == "<=") {
+            if (is_int) {
+                return builder.CreateICmpSLE(lhs, rhs, "icmpsletmp");
+            } else if (is_uint) {
+                return builder.CreateICmpULE(lhs, rhs, "icmpuletmp");
+            } else if (is_float) {
+                return builder.CreateFCmpULE(lhs, rhs, "fcmpuletmp");
+            }
+        } else if (op == ">=") {
+            if (is_int) {
+                return builder.CreateICmpSGE(lhs, rhs, "icmpsgetmp");
+            } else if (is_uint) {
+                return builder.CreateICmpUGE(lhs, rhs, "icmpugetmp");
+            } else if (is_float) {
+                return builder.CreateFCmpUGE(lhs, rhs, "fcmpugetmp");
+            }
+        } else if (op == "==") {
+            if (is_int || is_uint) {
+                return builder.CreateICmpEQ(lhs, rhs, "icmpeqtmp");
+            } else if (is_float) {
+                return builder.CreateFCmpUEQ(lhs, rhs, "fcmpeqtmp");
+            }
+        } else if (op == "!=") {
+            if (is_int || is_uint) {
+                return builder.CreateICmpNE(lhs, rhs, "icmpnetmp");
+            } else if (is_float) {
+                return builder.CreateFCmpUNE(lhs, rhs, "fcmpnetmp");
+            }
+        } else if (op == "&&") {
+            if (!is_float) {
+                return builder.CreateAnd(lhs, rhs, "andltmp");
+            }
+        } else if (op == "||") {
+            if (!is_float) {
+                return builder.CreateOr(lhs, rhs, "orltmp");
+            }
+        }
+
+        return nullptr;
+    }
 
 public:
 
@@ -404,121 +513,14 @@ public:
             error(bin_expr, "Binary expression now only supports float, int and uint");
         }
 
-        val const lhs = emit(bin_expr->lhs);
-        val const rhs = emit(bin_expr->rhs);
-        bool const is_float = lhs_builtin_type->name == "float";
-        bool const is_int = lhs_builtin_type->name == "int";
-        bool const is_uint = lhs_builtin_type->name == "uint";
-        val result = nullptr;
-
-        if (bin_expr->op == ">>") {
-            result = builder.CreateAShr(lhs, rhs, "shrtmp");
-        } else if (bin_expr-> op == "<<") {
-            result = builder.CreateShl(lhs, rhs, "shltmp");
-        } else if (bin_expr-> op == "*") {
-            if (is_int || is_uint) {
-                result = builder.CreateMul(lhs, rhs, "multmp");
-            } else if (is_float) {
-                result = builder.CreateFMul(lhs, rhs, "fmultmp");
-            }
-        } else if (bin_expr-> op == "/") {
-            if (is_int) {
-                result = builder.CreateSDiv(lhs, rhs, "sdivtmp");
-            } else if (is_uint) {
-                result = builder.CreateUDiv(lhs, rhs, "udivtmp");
-            } else if (is_float) {
-                result = builder.CreateFDiv(lhs, rhs, "fdivtmp");
-            }
-        } else if (bin_expr-> op == "%") {
-            if (is_int) {
-                result = builder.CreateSRem(lhs, rhs, "sremtmp");
-            } else if (is_uint) {
-                result = builder.CreateURem(lhs, rhs, "uremtmp");
-            } else if (is_float) {
-                result = builder.CreateFRem(lhs, rhs, "fremtmp");
-            }
-        } else if (bin_expr-> op == "+") {
-            if (is_int || is_uint) {
-                result = builder.CreateAdd(lhs, rhs, "addtmp");
-            } else if (is_float) {
-                result = builder.CreateFAdd(lhs, rhs, "faddtmp");
-            }
-        } else if (bin_expr-> op == "-") {
-            if (is_int || is_uint) {
-                result = builder.CreateSub(lhs, rhs, "subtmp");
-            } else if (is_float) {
-                result = builder.CreateFSub(lhs, rhs, "fsubtmp");
-            }
-        } else if (bin_expr-> op == "&") {
-            result = builder.CreateAnd(lhs, rhs, "andtmp");
-        } else if (bin_expr-> op == "^") {
-            result = builder.CreateXor(lhs, rhs, "xortmp");
-        } else if (bin_expr-> op == "|") {
-            result = builder.CreateOr(lhs, rhs, "ortmp");
-        } else if (bin_expr-> op == "<") {
-            if (is_int) {
-                result = builder.CreateICmpSLT(lhs, rhs, "icmpslttmp");
-            } else if (is_uint) {
-                result = builder.CreateICmpULT(lhs, rhs, "icmpulttmp");
-            } else if (is_float) {
-                result = builder.CreateFCmpULT(lhs, rhs, "fcmpulttmp");
-            }
-        } else if (bin_expr-> op == ">") {
-            if (is_int) {
-                result = builder.CreateICmpSGT(lhs, rhs, "icmpsgttmp");
-            } else if (is_uint) {
-                result = builder.CreateICmpUGT(lhs, rhs, "icmpugttmp");
-            } else if (is_float) {
-                result = builder.CreateFCmpUGT(lhs, rhs, "fcmpugttmp");
-            }
-        } else if (bin_expr-> op == "<=") {
-            if (is_int) {
-                result = builder.CreateICmpSLE(lhs, rhs, "icmpsletmp");
-            } else if (is_uint) {
-                result = builder.CreateICmpULE(lhs, rhs, "icmpuletmp");
-            } else if (is_float) {
-                result = builder.CreateFCmpULE(lhs, rhs, "fcmpuletmp");
-            }
-        } else if (bin_expr-> op == ">=") {
-            if (is_int) {
-                result = builder.CreateICmpSGE(lhs, rhs, "icmpsgetmp");
-            } else if (is_uint) {
-                result = builder.CreateICmpUGE(lhs, rhs, "icmpugetmp");
-            } else if (is_float) {
-                result = builder.CreateFCmpUGE(lhs, rhs, "fcmpugetmp");
-            }
-        } else if (bin_expr-> op == "==") {
-            if (is_int || is_uint) {
-                result = builder.CreateICmpEQ(lhs, rhs, "icmpeqtmp");
-            } else if (is_float) {
-                result = builder.CreateFCmpUEQ(lhs, rhs, "fcmpeqtmp");
-            }
-        } else if (bin_expr-> op == "!=") {
-            if (is_int || is_uint) {
-                result = builder.CreateICmpNE(lhs, rhs, "icmpnetmp");
-            } else if (is_float) {
-                result = builder.CreateFCmpUNE(lhs, rhs, "fcmpnetmp");
-            }
-        } else if (bin_expr-> op == "&&") {
-            if (!is_float) {
-                result = builder.CreateAnd(lhs, rhs, "andltmp");
-            }
-        } else if (bin_expr-> op == "||") {
-            if (!is_float) {
-                result = builder.CreateOr(lhs, rhs, "orltmp");
-            }
-        }
-
-        check(
+        return check(
             bin_expr,
-            result,
-            boost::format("binary operator '%1%', rhs type is '%2%', lhs type is '%3%'")
+            emit_builtin_binary_expression(bin_expr->op, emit(bin_expr->lhs), emit(bin_expr->rhs), lhs_builtin_type->name),
+            boost::format("binary operator '%1%' (rhs type is '%2%', lhs type is '%3%')")
                 % bin_expr->op
                 % lhs_builtin_type->to_string()
                 % rhs_builtin_type->to_string()
         );
-
-        return result;
     }
 
     val emit(ast::node::var_ref const& var)
