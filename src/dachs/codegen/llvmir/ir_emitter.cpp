@@ -15,6 +15,8 @@
 #include <llvm/IR/Value.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Function.h>
 #include <llvm/Analysis/Verifier.h>
 
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
@@ -161,7 +163,7 @@ class llvm_ir_emitter {
         auto func_type_ir = llvm::FunctionType::get(
                 emit_type_ir(*func_def->ret_type, context),
                 param_type_irs,
-                false
+                false // Non-variadic
             );
 
         check(func_def, func_type_ir, "function type");
@@ -318,8 +320,8 @@ public:
 
         emit(func_def->body);
 
-        auto const unit_type = type::make<type::tuple_type>();
-        if (!func_def->ret_type || func_def->kind == ast::symbol::func_kind::proc) {
+        assert(!func_def->scope.expired());
+        if (!func_def->scope.lock()->has_return_stmt || !func_def->ret_type || func_def->kind == ast::symbol::func_kind::proc) {
             builder.CreateRetVoid();
         }
     }

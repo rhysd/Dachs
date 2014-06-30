@@ -181,6 +181,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     scope::local_scope body;
     std::vector<symbol::var_symbol> params;
     boost::optional<type::type> ret_type;
+    bool has_return_stmt = true;
 
     template<class Node, class P>
     explicit func_scope(Node const& n, P const& p, std::string const& s, bool const is_builtin = false) noexcept
