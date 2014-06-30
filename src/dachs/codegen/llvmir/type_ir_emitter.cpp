@@ -45,9 +45,9 @@ public:
         } else if (builtin->name == "bool") {
             result = llvm::Type::getInt1Ty(context);
         } else if (builtin->name == "string") {
-            throw not_implemented_error{__FILE__, __func__, __LINE__, "string type LLVM IR generation"};
+            result = llvm::Type::getInt8PtrTy(context);
         } else if (builtin->name == "symbol") {
-            throw not_implemented_error{__FILE__, __func__, __LINE__, "symbol type LLVM IR generation"};
+            result = llvm::Type::getInt8PtrTy(context);
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }

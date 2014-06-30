@@ -1,6 +1,7 @@
 #include <unordered_map>
 #include <memory>
 #include <utility>
+#include <string>
 #include <cstdint>
 #include <cassert>
 
@@ -11,11 +12,14 @@
 #include <boost/optional.hpp>
 
 #include <llvm/IR/Module.h>
+#include <llvm/IR/Value.h>
+#include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Analysis/Verifier.h>
 
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
+#include "dachs/codegen/llvmir/tmp_builtin_operator_ir_emitter.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -187,114 +191,6 @@ class llvm_ir_emitter {
         func_table.insert(std::make_pair(scope, func_ir));
     }
 
-    // Note: Temporary
-    val emit_builtin_binary_expression(std::string const& op, val const lhs, val const rhs, std::string const& lhs_type_name)
-    {
-        bool const is_float = lhs_type_name == "float";
-        bool const is_int = lhs_type_name == "int";
-        bool const is_uint = lhs_type_name == "uint";
-
-        if (op == ">>") {
-            return builder.CreateAShr(lhs, rhs, "shrtmp");
-        } else if (op == "<<") {
-            return builder.CreateShl(lhs, rhs, "shltmp");
-        } else if (op == "*") {
-            if (is_int || is_uint) {
-                return builder.CreateMul(lhs, rhs, "multmp");
-            } else if (is_float) {
-                return builder.CreateFMul(lhs, rhs, "fmultmp");
-            }
-        } else if (op == "/") {
-            if (is_int) {
-                return builder.CreateSDiv(lhs, rhs, "sdivtmp");
-            } else if (is_uint) {
-                return builder.CreateUDiv(lhs, rhs, "udivtmp");
-            } else if (is_float) {
-                return builder.CreateFDiv(lhs, rhs, "fdivtmp");
-            }
-        } else if (op == "%") {
-            if (is_int) {
-                return builder.CreateSRem(lhs, rhs, "sremtmp");
-            } else if (is_uint) {
-                return builder.CreateURem(lhs, rhs, "uremtmp");
-            } else if (is_float) {
-                return builder.CreateFRem(lhs, rhs, "fremtmp");
-            }
-        } else if (op == "+") {
-            if (is_int || is_uint) {
-                return builder.CreateAdd(lhs, rhs, "addtmp");
-            } else if (is_float) {
-                return builder.CreateFAdd(lhs, rhs, "faddtmp");
-            }
-        } else if (op == "-") {
-            if (is_int || is_uint) {
-                return builder.CreateSub(lhs, rhs, "subtmp");
-            } else if (is_float) {
-                return builder.CreateFSub(lhs, rhs, "fsubtmp");
-            }
-        } else if (op == "&") {
-            return builder.CreateAnd(lhs, rhs, "andtmp");
-        } else if (op == "^") {
-            return builder.CreateXor(lhs, rhs, "xortmp");
-        } else if (op == "|") {
-            return builder.CreateOr(lhs, rhs, "ortmp");
-        } else if (op == "<") {
-            if (is_int) {
-                return builder.CreateICmpSLT(lhs, rhs, "icmpslttmp");
-            } else if (is_uint) {
-                return builder.CreateICmpULT(lhs, rhs, "icmpulttmp");
-            } else if (is_float) {
-                return builder.CreateFCmpULT(lhs, rhs, "fcmpulttmp");
-            }
-        } else if (op == ">") {
-            if (is_int) {
-                return builder.CreateICmpSGT(lhs, rhs, "icmpsgttmp");
-            } else if (is_uint) {
-                return builder.CreateICmpUGT(lhs, rhs, "icmpugttmp");
-            } else if (is_float) {
-                return builder.CreateFCmpUGT(lhs, rhs, "fcmpugttmp");
-            }
-        } else if (op == "<=") {
-            if (is_int) {
-                return builder.CreateICmpSLE(lhs, rhs, "icmpsletmp");
-            } else if (is_uint) {
-                return builder.CreateICmpULE(lhs, rhs, "icmpuletmp");
-            } else if (is_float) {
-                return builder.CreateFCmpULE(lhs, rhs, "fcmpuletmp");
-            }
-        } else if (op == ">=") {
-            if (is_int) {
-                return builder.CreateICmpSGE(lhs, rhs, "icmpsgetmp");
-            } else if (is_uint) {
-                return builder.CreateICmpUGE(lhs, rhs, "icmpugetmp");
-            } else if (is_float) {
-                return builder.CreateFCmpUGE(lhs, rhs, "fcmpugetmp");
-            }
-        } else if (op == "==") {
-            if (is_int || is_uint) {
-                return builder.CreateICmpEQ(lhs, rhs, "icmpeqtmp");
-            } else if (is_float) {
-                return builder.CreateFCmpUEQ(lhs, rhs, "fcmpeqtmp");
-            }
-        } else if (op == "!=") {
-            if (is_int || is_uint) {
-                return builder.CreateICmpNE(lhs, rhs, "icmpnetmp");
-            } else if (is_float) {
-                return builder.CreateFCmpUNE(lhs, rhs, "fcmpnetmp");
-            }
-        } else if (op == "&&") {
-            if (!is_float) {
-                return builder.CreateAnd(lhs, rhs, "andltmp");
-            }
-        } else if (op == "||") {
-            if (!is_float) {
-                return builder.CreateOr(lhs, rhs, "orltmp");
-            }
-        }
-
-        return nullptr;
-    }
-
     val emit_builtin_func(scope::func_scope const& builtin)
     {
         // TODO:
@@ -361,6 +257,11 @@ public:
         } visitor{context, pl, builder};
 
         return check(pl, boost::apply_visitor(visitor, pl->value), "constant");
+    }
+
+    val emit(ast::node::symbol_literal const& sym)
+    {
+        return check(sym, builder.CreateGlobalStringPtr(sym->value.c_str()), "symbol constant");
     }
 
     llvm::Module *emit(ast::node::program const& p)
@@ -496,7 +397,7 @@ public:
         assert(!invocation->func_symbol.expired());
         auto scope = invocation->func_symbol.lock();
         if (scope->is_builtin) {
-            return check(invocation, emit_builtin_func(scope), "Built-in function");
+            return check(invocation, emit_builtin_func(scope), "built-in function");
         }
 
         auto *const callee = module->getFunction(scope->to_string());
@@ -526,7 +427,7 @@ public:
 
         return check(
             bin_expr,
-            emit_builtin_binary_expression(bin_expr->op, emit(bin_expr->lhs), emit(bin_expr->rhs), lhs_builtin_type->name),
+            tmp_builtin_bin_op_ir_emitter{builder, emit(bin_expr->lhs), emit(bin_expr->rhs), bin_expr->op}.emit(lhs_builtin_type),
             boost::format("binary operator '%1%' (rhs type is '%2%', lhs type is '%3%')")
                 % bin_expr->op
                 % lhs_builtin_type->to_string()
