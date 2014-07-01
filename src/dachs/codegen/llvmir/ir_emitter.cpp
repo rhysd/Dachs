@@ -360,27 +360,32 @@ public:
         builder.CreateCondBr(cond_val, then_block, else_block);
         builder.SetInsertPoint(then_block);
         emit(if_->then_stmts);
-        builder.CreateBr(end_block);
+        if (!then_block->getTerminator()) {
+            builder.CreateBr(end_block);
+        }
         builder.SetInsertPoint(else_block);
 
         // IR for elseif clause
         for (auto const& elseif : if_->elseif_stmts_list) {
+            cond_val = emit(elseif.first);
             then_block = check(if_, llvm::BasicBlock::Create(context, "if.then", parent), "then block");
             else_block = check(if_, llvm::BasicBlock::Create(context, "if.else", parent), "else block");
-            cond_val = emit(elseif.first);
             builder.CreateCondBr(cond_val, then_block, else_block);
             builder.SetInsertPoint(then_block);
             emit(elseif.second);
-            builder.CreateBr(end_block);
+            if (!then_block->getTerminator()) {
+                builder.CreateBr(end_block);
+            }
             builder.SetInsertPoint(else_block);
         }
 
         // IR for else clause
         if (if_->maybe_else_stmts) {
-            builder.SetInsertPoint(else_block);
             emit(*if_->maybe_else_stmts);
         }
-        builder.CreateBr(end_block);
+        if (!else_block->getTerminator()) {
+            builder.CreateBr(end_block);
+        }
 
         parent->getBasicBlockList().push_back(end_block);
         builder.SetInsertPoint(end_block);
