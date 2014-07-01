@@ -4,6 +4,7 @@
 #include <string>
 #include <cstdint>
 #include <cassert>
+#include <iostream>
 
 #include <boost/format.hpp>
 #include <boost/variant/variant.hpp>
@@ -325,9 +326,13 @@ public:
                 || func_def->kind == ast::symbol::func_kind::proc
                 || *func_def->ret_type == unit_type) {
             builder.CreateRetVoid();
+        } else {
+            // Note:
+            // Believe that the insert block is the last block of the function
+            if (!builder.GetInsertBlock()->getTerminator()) {
+                builder.CreateUnreachable();
+            }
         }
-
-        builder.CreateUnreachable();
     }
 
     void emit(ast::node::statement_block const& block)
@@ -373,8 +378,8 @@ public:
         if (if_->maybe_else_stmts) {
             builder.SetInsertPoint(else_block);
             emit(*if_->maybe_else_stmts);
-            builder.CreateBr(end_block);
         }
+        builder.CreateBr(end_block);
 
         parent->getBasicBlockList().push_back(end_block);
         builder.SetInsertPoint(end_block);
@@ -463,9 +468,13 @@ llvm::Module &emit_llvm_ir(ast::ast const& a, scope::scope_tree const&)
 {
     // TODO:
     // Use global context temporarily
-    // TODO
-    // Verify IR using VerifyModule() and VerifierPass class
-    return *detail::llvm_ir_emitter{llvm::getGlobalContext()}.emit(a.root);
+    auto &the_module = *detail::llvm_ir_emitter{llvm::getGlobalContext()}.emit(a.root);
+    std::string errmsg;
+    if (llvm::verifyModule(the_module, llvm::ReturnStatusAction, &errmsg)) {
+        // throw code_generation_error{"LLVM IR generator", errmsg};
+        std::cout << errmsg << std::endl;
+    }
+    return the_module;
 }
 
 } // namespace llvm
