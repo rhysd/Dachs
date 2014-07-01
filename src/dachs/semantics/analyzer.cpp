@@ -323,7 +323,6 @@ public:
             }
             func->ret_type = unit_type;
             scope->ret_type = unit_type;
-            scope->has_return_stmt = false;
         }
 
         if (is_query_function && *func->ret_type != type::get_builtin_type("bool", type::no_opt)) {

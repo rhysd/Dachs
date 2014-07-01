@@ -320,10 +320,14 @@ public:
 
         emit(func_def->body);
 
-        assert(!func_def->scope.expired());
-        if (!func_def->scope.lock()->has_return_stmt || !func_def->ret_type || func_def->kind == ast::symbol::func_kind::proc) {
+        auto const unit_type = type::make<type::tuple_type>();
+        if (!func_def->ret_type
+                || func_def->kind == ast::symbol::func_kind::proc
+                || *func_def->ret_type == unit_type) {
             builder.CreateRetVoid();
         }
+
+        builder.CreateUnreachable();
     }
 
     void emit(ast::node::statement_block const& block)
@@ -369,6 +373,7 @@ public:
         if (if_->maybe_else_stmts) {
             builder.SetInsertPoint(else_block);
             emit(*if_->maybe_else_stmts);
+            builder.CreateBr(end_block);
         }
 
         parent->getBasicBlockList().push_back(end_block);
