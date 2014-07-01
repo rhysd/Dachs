@@ -4,17 +4,22 @@
 extern "C" {
     void dachs_put_float__(double const d)
     {
-        std::puts(std::to_string(d).c_str());
+        std::printf("%lf\n", d);
     }
 
     void dachs_put_int__(int const i)
     {
-        std::puts(std::to_string(i).c_str());
+        std::printf("%d\n", i);
     }
 
     void dachs_put_uint__(unsigned int const u)
     {
-        std::puts(std::to_string(u).c_str());
+        std::printf("%u\n", u);
+    }
+
+    void dachs_put_string__(char const* const s)
+    {
+        std::printf("%s\n", s);
     }
 
     void dachs_print_float__(double const d)
@@ -32,7 +37,7 @@ extern "C" {
         std::printf("%u", u);
     }
 
-    void dachs_print_string__(char *s)
+    void dachs_print_string__(char const* const s)
     {
         std::printf(s);
     }
