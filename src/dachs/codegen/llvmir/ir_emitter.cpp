@@ -29,6 +29,7 @@
 #include "dachs/semantics/type.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/helper/variant.hpp"
+#include "dachs/helper/colorizer.hpp"
 
 /*
  * Note:
@@ -471,8 +472,8 @@ llvm::Module &emit_llvm_ir(ast::ast const& a, scope::scope_tree const&)
     auto &the_module = *detail::llvm_ir_emitter{llvm::getGlobalContext()}.emit(a.root);
     std::string errmsg;
     if (llvm::verifyModule(the_module, llvm::ReturnStatusAction, &errmsg)) {
-        // throw code_generation_error{"LLVM IR generator", errmsg};
-        std::cout << errmsg << std::endl;
+        helper::colorizer<std::string> c;
+        std::cout << c.red(errmsg) << std::endl;
     }
     return the_module;
 }

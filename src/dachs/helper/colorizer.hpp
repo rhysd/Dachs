@@ -95,6 +95,11 @@ public:
     {
         return colorize(color::blue, target, end_seq, b);
     }
+
+    String reset() const noexcept
+    {
+        return enabled ? start_sequence(brightness::light, color::none) : "";
+    }
 };
 
 } // namespace helper
