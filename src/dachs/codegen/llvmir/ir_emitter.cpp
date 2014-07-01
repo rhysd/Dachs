@@ -23,6 +23,7 @@
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/tmp_builtin_operator_ir_emitter.hpp"
+#include "dachs/codegen/llvmir/builtin_func_ir_emitter.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -85,6 +86,7 @@ class llvm_ir_emitter {
     llvm::Module *module = nullptr;
     llvm::LLVMContext &context;
     llvm::IRBuilder<> builder;
+    builtin_function_emitter builtin_func_emitter;
 
     template<class Node>
     void error(Node const& n, boost::format const& msg)
@@ -195,17 +197,12 @@ class llvm_ir_emitter {
         func_table.insert(std::make_pair(scope, func_ir));
     }
 
-    val emit_builtin_func(scope::func_scope const& builtin)
-    {
-        // TODO:
-        return nullptr;
-    }
-
 public:
 
     llvm_ir_emitter(llvm::LLVMContext &c)
         : context(c)
         , builder(context)
+        , builtin_func_emitter(context)
     {}
 
     val emit(ast::node::primary_literal const& pl)
@@ -274,6 +271,8 @@ public:
         if (!module) {
             error(p, "module");
         }
+
+        builtin_func_emitter.set_module(module);
 
         // Note:
         // emit Function prototypes in advance for forward reference
@@ -415,7 +414,16 @@ public:
         assert(!invocation->func_symbol.expired());
         auto scope = invocation->func_symbol.lock();
         if (scope->is_builtin) {
-            return check(invocation, emit_builtin_func(scope), "built-in function");
+            // Note:
+            // scope->params is not available because builtin funcitons remains as function templates
+            std::vector<type::type> param_types;
+            param_types.reserve(invocation->args.size());
+            for (auto const& e : invocation->args) {
+                param_types.push_back(type::type_of(e));
+            }
+
+            auto callee = check(invocation, builtin_func_emitter.emit(scope->name, param_types), boost::format("builtin function '%1%'") % scope->name);
+            return builder.CreateCall(callee, args);
         }
 
         auto *const callee = module->getFunction(scope->to_string());
@@ -423,7 +431,7 @@ public:
         // TODO
         // Monad invocation
 
-        return builder.CreateCall(callee, args, "funcinvotmp");
+        return builder.CreateCall(callee, args);
     }
 
     val emit(ast::node::binary_expr const& bin_expr)
