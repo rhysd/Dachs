@@ -22,6 +22,11 @@ extern "C" {
         std::printf("%s\n", s);
     }
 
+    void dachs_put_symbol__(char const* const s)
+    {
+        std::printf("%s\n", s);
+    }
+
     void dachs_print_float__(double const d)
     {
         std::printf("%lf", d);
@@ -38,6 +43,11 @@ extern "C" {
     }
 
     void dachs_print_string__(char const* const s)
+    {
+        std::printf(s);
+    }
+
+    void dachs_print_symbol__(char const* const s)
     {
         std::printf(s);
     }

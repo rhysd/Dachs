@@ -38,6 +38,8 @@ public:
         module = m;
     }
 
+    // TODO:
+    // This is teporary implementation.
     llvm::Function *emit_print_func(type::builtin_type const& arg_type)
     {
         auto const func_itr = print_func_table.find(arg_type->name);
@@ -66,9 +68,18 @@ public:
             };
 
         assert(module);
-        if (arg_type->name == "string") {
+        auto const& n = arg_type->name;
+        if (n == "string" || n == "symbol") {
             target = define_print_func(llvm::Type::getInt8PtrTy(context));
-        } // TODO: else ...
+        } else if (n == "int" || n == "uint") {
+            target = define_print_func(llvm::Type::getInt64Ty(context));
+        } else if (n == "float") {
+            target = define_print_func(llvm::Type::getDoubleTy(context));
+        } else if (n == "char") {
+            target = define_print_func(llvm::Type::getInt8Ty(context));
+        } else if (n == "bool") {
+            target = define_print_func(llvm::Type::getInt1Ty(context));
+        }
 
         print_func_table.insert(std::make_pair(arg_type->name, target));
         return target;
