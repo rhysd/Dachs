@@ -10,6 +10,7 @@
 #include "dachs/ast/stringize_ast.hpp"
 #include "dachs/semantics/stringize_scope_tree.hpp"
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
+#include "dachs/codegen/llvmir/executable_generator.hpp"
 
 namespace dachs {
 
@@ -23,6 +24,7 @@ void compiler::compile(std::string const& file, std::string const& code, bool co
              << "\n\n=========LLVM IR=========\n\n";
     auto &module = codegen::llvmir::emit_llvm_ir(ast, scope_tree);
     module.dump();
+    codegen::llvmir::generate_executable(module, file, {});
 }
 
 std::string compiler::dump_ast(std::string const& code, bool const colorful) const
