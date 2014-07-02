@@ -1167,7 +1167,7 @@ private:
     // }}}
 };
 
-ast::ast parser::parse(std::string const& code)
+ast::ast parser::parse(std::string const& code) const
 {
     auto itr = detail::line_pos_iterator(std::begin(code));
     using iterator_type = decltype(itr);

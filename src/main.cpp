@@ -18,7 +18,7 @@ int do_compiler_action(char const* const file, Action const& action)
     dachs::helper::colorizer<std::string> c;
 
     try {
-        action(code);
+        action(file, code);
         std::cout << c.blue("〜完〜") << std::endl;
         return 0;
     }
@@ -59,6 +59,7 @@ int main(int const argc, char const* const argv[])
     // TODO: Use Boost.ProgramOptions
 
     switch (argc) {
+
         dachs::compiler compiler;
 
     case 3: {
@@ -67,17 +68,17 @@ int main(int const argc, char const* const argv[])
         if (opt == "--dump-ast") {
             return do_compiler_action(
                     argv[2],
-                    [&](auto const& s){ std::cout << compiler.dump_ast(s, true); }
+                    [&](auto const&, auto const& s){ std::cout << compiler.dump_ast(s, true); }
                 );
         } else if (opt == "--dump-sym-table") {
             return do_compiler_action(
                     argv[2],
-                    [&](auto const& s){ std::cout << compiler.dump_scopes(s); }
+                    [&](auto const&, auto const& s){ std::cout << compiler.dump_scopes(s); }
                 );
         } else if (opt == "--emit-llvm") {
             return do_compiler_action(
                     argv[2],
-                    [&](auto const& s){ std::cout << compiler.dump_llvm_ir(s); }
+                    [&](auto const&, auto const& s){ std::cout << compiler.dump_llvm_ir(s); }
                 );
         } else {
             show_usage();
@@ -88,7 +89,7 @@ int main(int const argc, char const* const argv[])
     case 2:
         return do_compiler_action(
                 argv[1],
-                [&](auto const& s){ compiler.compile(s); }
+                [&](auto const& f, auto const& s){ compiler.compile(f, s); }
             );
 
     default:

@@ -14,7 +14,7 @@ namespace syntax {
 
 class parser final {
 public:
-    ast::ast parse(std::string const& code);
+    ast::ast parse(std::string const& code) const;
 };
 
 } // namespace syntax

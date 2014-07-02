@@ -13,11 +13,11 @@ class compiler final {
     syntax::parser parser;
 public:
 
-    void /*TEMPORARY*/ compile(std::string const& code, bool const colorful = true);
+    void /*TEMPORARY*/ compile(std::string const& file, std::string const& code, bool const colorful = true) const;
 
-    std::string dump_ast(std::string const& code, bool const colorful = true);
-    std::string dump_scopes(std::string const& code);
-    std::string dump_llvm_ir(std::string const& code);
+    std::string dump_ast(std::string const& code, bool const colorful = true) const;
+    std::string dump_scopes(std::string const& code) const;
+    std::string dump_llvm_ir(std::string const& code) const;
 };
 
 } // namespace dachs

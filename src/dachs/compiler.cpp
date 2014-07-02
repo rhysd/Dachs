@@ -12,7 +12,8 @@
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
 
 namespace dachs {
-void compiler::compile(std::string const& code, bool const colorful)
+
+void compiler::compile(std::string const& file, std::string const& code, bool const colorful) const
 {
     auto ast = parser.parse(code);
     auto scope_tree = semantics::analyze_semantics(ast);
@@ -20,22 +21,23 @@ void compiler::compile(std::string const& code, bool const colorful)
                     + "\n\n=========Scope Tree=========\n\n"
                     + scope::stringize_scope_tree(scope_tree)
              << "\n\n=========LLVM IR=========\n\n";
-    codegen::llvmir::emit_llvm_ir(ast, scope_tree).dump();
+    auto &module = codegen::llvmir::emit_llvm_ir(ast, scope_tree);
+    module.dump();
 }
 
-std::string compiler::dump_ast(std::string const& code, bool const colorful)
+std::string compiler::dump_ast(std::string const& code, bool const colorful) const
 {
     return ast::stringize_ast(parser.parse(code), colorful);
 }
 
-std::string compiler::dump_scopes(std::string const& code)
+std::string compiler::dump_scopes(std::string const& code) const
 {
     auto ast = parser.parse(code);
     auto scope_tree = semantics::analyze_semantics(ast);
     return scope::stringize_scope_tree(scope_tree);
 }
 
-std::string compiler::dump_llvm_ir(std::string const& code)
+std::string compiler::dump_llvm_ir(std::string const& code) const
 {
     auto ast = parser.parse(code);
     auto scope_tree = semantics::analyze_semantics(ast);
