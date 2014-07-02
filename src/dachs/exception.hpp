@@ -72,8 +72,13 @@ struct semantic_check_error final : public std::runtime_error {
 };
 
 struct code_generation_error final : public std::runtime_error {
-    code_generation_error(std::string const& generator_name, std::string const& msg) noexcept
+    template<class String>
+    code_generation_error(std::string const& generator_name, String const& msg) noexcept
         : std::runtime_error("Code generation with " + generator_name + " failed: " + msg)
+    {}
+
+    code_generation_error(std::string const& generator_name, boost::format const& format) noexcept
+        : code_generation_error(generator_name, format.str())
     {}
 };
 

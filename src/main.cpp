@@ -1,6 +1,8 @@
 #include <exception>
 #include <iostream>
 
+#include <boost/algorithm/string/predicate.hpp>
+
 #include "dachs/compiler.hpp"
 #include "dachs/helper/colorizer.hpp"
 #include "dachs/helper/util.hpp"
@@ -9,10 +11,16 @@
 template<class Action>
 int do_compiler_action(char const* const file, Action const& action)
 {
+
+    if (!boost::algorithm::ends_with(file, ".dcs")) {
+        std::cerr << "File's extension must be '.dcs'." << std::endl;
+        return 2;
+    }
+
     auto const maybe_code = dachs::helper::read_file<std::string>(file);
     if (!maybe_code) {
         std::cerr << "File cannot be opened: " << file << std::endl;
-        return 2;
+        return 3;
     }
     auto const& code = *maybe_code;
     dachs::helper::colorizer<std::string> c;
@@ -25,22 +33,22 @@ int do_compiler_action(char const* const file, Action const& action)
     catch (dachs::parse_error const& e) {
         std::cerr << e.what() << std::endl
                   << c.red("〜完〜") << std::endl;
-        return 3;
+        return 10;
     }
     catch (dachs::semantic_check_error const& e) {
         std::cerr << e.what() << std::endl
                   << c.red("〜完〜") << std::endl;
-        return 4;
+        return 11;
     }
     catch (dachs::code_generation_error const& e) {
         std::cerr << e.what() << std::endl
                   << c.red("〜完〜") << std::endl;
-        return 5;
+        return 12;
     }
     catch (dachs::not_implemented_error const& e) {
         std::cerr << e.what() << std::endl
                   << c.red("〜完〜") << std::endl;
-        return 6;
+        return 13;
     }
     catch (std::exception const& e) {
         std::cerr << "Internal compilation error: " << e.what() << std::endl;
