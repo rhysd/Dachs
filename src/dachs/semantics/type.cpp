@@ -47,6 +47,12 @@ builtin_type get_builtin_type(char const* const name, no_opt_t) noexcept
     std::abort();
 }
 
+tuple_type const& get_unit_type() noexcept
+{
+    static auto const unit_type = make<tuple_type>();
+    return unit_type;
+}
+
 template<class String>
 bool any_type::is_builtin(String const& name) const noexcept
 {

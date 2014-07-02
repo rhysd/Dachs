@@ -321,10 +321,9 @@ public:
 
         emit(func_def->body);
 
-        auto const unit_type = type::make<type::tuple_type>();
         if (!func_def->ret_type
                 || func_def->kind == ast::symbol::func_kind::proc
-                || *func_def->ret_type == unit_type) {
+                || *func_def->ret_type == type::get_unit_type()) {
             builder.CreateRetVoid();
         } else {
             // Note:

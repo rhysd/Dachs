@@ -66,6 +66,7 @@ struct no_opt_t {};
 extern no_opt_t no_opt;
 boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept;
 builtin_type get_builtin_type(char const* const name, no_opt_t) noexcept;
+tuple_type const& get_unit_type() noexcept;
 
 namespace traits {
 

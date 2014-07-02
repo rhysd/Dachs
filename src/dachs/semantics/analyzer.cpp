@@ -271,10 +271,9 @@ public:
             return;
         }
 
-        type::any_type const unit_type = type::make<type::tuple_type>();
         if (!gatherer.result_types.empty()) {
             if (func->kind == ast::symbol::func_kind::proc) {
-                if (gatherer.result_types.size() != 1 || gatherer.result_types[0] != unit_type) {
+                if (gatherer.result_types.size() != 1 || gatherer.result_types[0] != type::get_unit_type()) {
                     semantic_error(func, boost::format("proc '%1%' can't return any value") % func->name);
                     return;
                 }
@@ -309,7 +308,7 @@ public:
             func->ret_type = deduced_type;
             scope->ret_type = func->ret_type;
         } else {
-            if (func->ret_type && *func->ret_type != unit_type) {
+            if (func->ret_type && *func->ret_type != type::get_unit_type()) {
                 semantic_error(
                         func,
                         boost::format(
@@ -318,11 +317,11 @@ public:
                             "Note: Deduced type is '%3%'")
                             % func->name
                             % func->ret_type->to_string()
-                            % unit_type.to_string()
+                            % type::get_unit_type()->to_string()
                     );
             }
-            func->ret_type = unit_type;
-            scope->ret_type = unit_type;
+            func->ret_type = type::get_unit_type();
+            scope->ret_type = type::get_unit_type();
         }
 
         if (is_query_function && *func->ret_type != type::get_builtin_type("bool", type::no_opt)) {

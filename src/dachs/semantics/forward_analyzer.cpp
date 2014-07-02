@@ -9,13 +9,12 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
 
     {
         auto dummy_template_type = type::make<type::template_type>(a.root);
-        auto unit_type = type::make<type::tuple_type>();
         // Builtin functions
 
         // func print(str)
         auto print_func = scope::make<scope::func_scope>(a.root, scope_root, "print", true);
         print_func->body = scope::make<scope::local_scope>(print_func);
-        print_func->ret_type = unit_type;
+        print_func->ret_type = type::get_unit_type();
         // Note: These definitions are never duplicate
         auto p = symbol::make<symbol::var_symbol>(a.root, "value", true, true);
         p->type = dummy_template_type;
