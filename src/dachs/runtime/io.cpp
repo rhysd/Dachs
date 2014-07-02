@@ -44,11 +44,11 @@ extern "C" {
 
     void dachs_print_string__(char const* const s)
     {
-        std::printf(s);
+        std::printf("%s", s);
     }
 
     void dachs_print_symbol__(char const* const s)
     {
-        std::printf(s);
+        std::printf("%s", s);
     }
 }
