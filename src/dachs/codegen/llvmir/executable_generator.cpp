@@ -46,7 +46,7 @@ detail::unused initialize_x86_info_once()
     return u;
 }
 
-void generate_executable(llvm::Module &module, std::string const& file_name, std::vector<std::string> const& linker_options)
+void generate_executable(llvm::Module &module, std::string const& file_name, std::vector<std::string> const& libdirs)
 {
     initialize_x86_info_once();
 
@@ -111,8 +111,12 @@ void generate_executable(llvm::Module &module, std::string const& file_name, std
 
     {
         // TODO: Temporary
-        auto const command
-            = "clang " + obj_name + " -o " + base_name + " -L src/dachs -l dachs-lib";
+        auto command
+            = "clang " + obj_name + " -o " + base_name + " -l dachs-lib";
+
+        for (auto const& lib : libdirs) {
+            command += " -L " + lib;
+        }
 
         int const cmd_result = std::system(command.c_str());
         if (WEXITSTATUS(cmd_result) != 0) {

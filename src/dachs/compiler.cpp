@@ -1,6 +1,8 @@
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
+#include <vector>
+#include <string>
 
 #include <llvm/Support/raw_ostream.h>
 
@@ -14,7 +16,7 @@
 
 namespace dachs {
 
-void compiler::compile(std::string const& file, std::string const& code, bool const colorful) const
+void compiler::compile(std::string const& file, std::string const& code, std::vector<std::string> const& libdirs, bool const colorful) const
 {
     auto ast = parser.parse(code);
     auto scope_tree = semantics::analyze_semantics(ast);
@@ -24,7 +26,7 @@ void compiler::compile(std::string const& file, std::string const& code, bool co
              << "\n\n=========LLVM IR=========\n\n";
     auto &module = codegen::llvmir::emit_llvm_ir(ast, scope_tree);
     module.dump();
-    codegen::llvmir::generate_executable(module, file, {});
+    codegen::llvmir::generate_executable(module, file, libdirs);
 }
 
 std::string compiler::dump_ast(std::string const& code, bool const colorful) const

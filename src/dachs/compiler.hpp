@@ -13,7 +13,7 @@ class compiler final {
     syntax::parser parser;
 public:
 
-    void /*TEMPORARY*/ compile(std::string const& file, std::string const& code, bool const colorful = true) const;
+    void /*TEMPORARY*/ compile(std::string const& file, std::string const& code, std::vector<std::string> const& libdirs, bool const colorful = true) const;
 
     std::string dump_ast(std::string const& code, bool const colorful = true) const;
     std::string dump_scopes(std::string const& code) const;

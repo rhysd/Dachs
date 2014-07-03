@@ -1,7 +1,12 @@
 #include <exception>
 #include <iostream>
+#include <vector>
+#include <string>
+#include <cstring>
 
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/classification.hpp>
 
 #include "dachs/compiler.hpp"
 #include "dachs/helper/colorizer.hpp"
@@ -56,37 +61,60 @@ int do_compiler_action(char const* const file, Action const& action)
     }
 }
 
-int main(int const argc, char const* const argv[])
+std::vector<char const*> filter_libdir(char const* const* arg, std::vector<std::string> &libdirs)
+{
+    std::vector<char const*> args;
+    for (; *arg; ++arg) {
+        if (boost::algorithm::starts_with(*arg, "--libdir=")) {
+            auto libs_str = std::string{*arg}.substr(std::strlen("--libdir="));
+            std::vector<std::string> libs;
+            boost::algorithm::split(
+                    libs,
+                    libs_str,
+                    boost::is_any_of(",")
+                );
+            libdirs.insert(std::end(libdirs), std::begin(libs), std::end(libs));
+        } else {
+            args.emplace_back(*arg);
+        }
+    }
+    return args;
+}
+
+int main(int const, char const* const argv[])
 {
     auto const show_usage =
-        [=]()
+        [argv]()
         {
-            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm] {file}\n";
+            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm] [--libdir={path}] {file}\n";
         };
 
     // TODO: Use Boost.ProgramOptions
 
-    switch (argc) {
+    std::vector<std::string> libdirs;
+    std::vector<char const*> args = filter_libdir(&argv[0], libdirs);
+
+    switch (args.size()) {
 
         dachs::compiler compiler;
 
     case 3: {
-        std::string const opt = argv[1];
+        std::string const opt = args[1];
 
         if (opt == "--dump-ast") {
             return do_compiler_action(
-                    argv[2],
-                    [&](auto const&, auto const& s){ std::cout << compiler.dump_ast(s, true); }
+                    args[2],
+                    [&](auto const&, auto const& s){ std::cout << compiler.dump_ast(s, true) << std::endl; }
                 );
         } else if (opt == "--dump-sym-table") {
             return do_compiler_action(
-                    argv[2],
-                    [&](auto const&, auto const& s){ std::cout << compiler.dump_scopes(s); }
+                    args[2],
+                    [&](auto const&, auto const& s){ std::cout << compiler.dump_scopes(s) << std::endl; }
                 );
         } else if (opt == "--emit-llvm") {
             return do_compiler_action(
-                    argv[2],
-                    [&](auto const&, auto const& s){ std::cout << compiler.dump_llvm_ir(s); }
+                    args[2],
+                    [&](auto const&, auto const& s){ std::cout << compiler.dump_llvm_ir(s) << std::endl; }
                 );
         } else {
             show_usage();
@@ -96,8 +124,8 @@ int main(int const argc, char const* const argv[])
 
     case 2:
         return do_compiler_action(
-                argv[1],
-                [&](auto const& f, auto const& s){ compiler.compile(f, s); }
+                args[1],
+                [&](auto const& f, auto const& s){ compiler.compile(f, s, libdirs); }
             );
 
     default:
