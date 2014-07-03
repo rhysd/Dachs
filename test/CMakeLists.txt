@@ -8,7 +8,7 @@ find_package(Boost COMPONENTS system filesystem REQUIRED)
 if (Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
 endif ()
-target_link_libraries(dachs-parser-test ${Boost_LIBRARIES} dachs-static)
+target_link_libraries(dachs-parser-test ${Boost_LIBRARIES} dachs-lib)
 
 if (NOT APPLE)
     # Do not link library explicitly in Mac because it causes SEGV on executing tests.
