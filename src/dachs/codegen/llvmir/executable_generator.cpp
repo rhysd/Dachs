@@ -111,11 +111,15 @@ void generate_executable(llvm::Module &module, std::string const& file_name, std
 
     {
         // TODO: Temporary
+
+        auto const os_type = triple.getOS();
         auto command
-            = "clang " + obj_name + " -o " + base_name + " -l dachs-lib";
+            = os_type == llvm::Triple::Darwin
+                ? "ld -macosx_version_min 10.9.0 \"" + obj_name + "\" -o \"" + base_name + "\" -lSystem -ldachs"
+                : "clang " + obj_name + " -o " + base_name + " -ldachs"; // Fallback...
 
         for (auto const& lib : libdirs) {
-            command += " -L " + lib;
+            command += " -L \"" + lib + '"';
         }
 
         int const cmd_result = std::system(command.c_str());
