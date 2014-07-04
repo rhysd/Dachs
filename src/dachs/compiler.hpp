@@ -19,7 +19,8 @@ class compiler final {
 
 public:
 
-    std::string compile(std::string const& file, files_type const& libdirs, bool const colorful = true, bool const debug = false) const;
+    std::string compile(files_type const& files, files_type const& libdirs, bool const colorful = true, bool const debug = false) const;
+    std::vector<std::string> compile_to_objects(files_type const& files, bool const colorful = true, bool const debug = false) const;
 
     std::string report_ast(std::string const& file, std::string const& code, bool const colorful = true) const;
     std::string report_scope_tree(std::string const& file, std::string const& code) const;

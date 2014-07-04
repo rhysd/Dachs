@@ -12,19 +12,16 @@
 #include "dachs/helper/colorizer.hpp"
 #include "dachs/exception.hpp"
 
+namespace dachs {
+namespace cmdline {
+
 template<class Action>
 int do_compiler_action(Action const& action)
 {
-    // auto const maybe_code = dachs::helper::read_file<std::string>(file);
-    // if (!maybe_code) {
-    //     std::cerr << "File cannot be opened: " << file << std::endl;
-    //     return 3;
-    // }
     dachs::helper::colorizer<std::string> c;
 
     try {
         action();
-        std::cout << c.blue("〜完〜") << std::endl;
         return 0;
     }
     catch (std::runtime_error const& e) {
@@ -64,12 +61,12 @@ auto get_command_options(ArgPtr arg)
         std::vector<char const*> rest_args;
         std::vector<std::string> source_files;
         std::vector<std::string> libdirs;
-        bool output_object = false;
         bool debug = false;
+        bool enable_color = true; 
     } cmdopts;
 
     std::string const debug_str = "--debug";
-    std::string const output_objects = "--output-obj";
+    std::string const disable_color_str = "--disable_color";
 
     for (; *arg; ++arg) {
         if (boost::algorithm::starts_with(*arg, "--libdir=")) {
@@ -85,8 +82,8 @@ auto get_command_options(ArgPtr arg)
             cmdopts.source_files.emplace_back(*arg);
         } else if (*arg == debug_str) {
             cmdopts.debug = true;
-        } else if (*arg == output_objects) {
-            cmdopts.output_object = true;
+        } else if (*arg == disable_color_str) {
+            cmdopts.enable_color = false;
         } else {
             cmdopts.rest_args.emplace_back(*arg);
         }
@@ -95,18 +92,21 @@ auto get_command_options(ArgPtr arg)
     return cmdopts;
 }
 
+} // namespace cmdline
+} // namespace dachs
+
 int main(int const, char const* const argv[])
 {
     auto const show_usage =
         [argv]()
         {
-            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm] [--libdir={path}] {file}\n";
+            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj] [--debug] [--libdir={path}] {file}\n";
         };
 
 
     // TODO: Use Boost.ProgramOptions
 
-    auto const cmdopts = get_command_options(&argv[1]);
+    auto const cmdopts = dachs::cmdline::get_command_options(&argv[1]);
     dachs::compiler compiler;
 
     switch (cmdopts.rest_args.size()) {
@@ -115,16 +115,20 @@ int main(int const, char const* const argv[])
         std::string const opt = cmdopts.rest_args[0];
 
         if (opt == "--dump-ast") {
-            return do_compiler_action(
-                [&]{ compiler.dump_asts(std::cout, cmdopts.source_files); }
+            return dachs::cmdline::do_compiler_action(
+                [&]{ compiler.dump_asts(std::cout, cmdopts.source_files, cmdopts.enable_color); }
             );
         } else if (opt == "--dump-sym-table") {
-            return do_compiler_action(
+            return dachs::cmdline::do_compiler_action(
                 [&]{ compiler.dump_scope_trees(std::cout, cmdopts.source_files); }
             );
         } else if (opt == "--emit-llvm") {
-            return do_compiler_action(
+            return dachs::cmdline::do_compiler_action(
                 [&]{ compiler.dump_llvm_irs(std::cout, cmdopts.source_files); }
+            );
+        } else if (opt == "--output-obj") {
+            return dachs::cmdline::do_compiler_action(
+                [&]{ compiler.compile_to_objects(cmdopts.source_files, cmdopts.enable_color, cmdopts.debug); }
             );
         } else {
             show_usage();
@@ -133,8 +137,8 @@ int main(int const, char const* const argv[])
     }
 
     case 0:
-        return do_compiler_action(
-            [&]{ compiler.compile(cmdopts.source_files[0], cmdopts.libdirs, true, cmdopts.debug); }
+        return dachs::cmdline::do_compiler_action(
+            [&]{ compiler.compile(cmdopts.source_files, cmdopts.libdirs, cmdopts.enable_color, cmdopts.debug); }
         );
 
     default:

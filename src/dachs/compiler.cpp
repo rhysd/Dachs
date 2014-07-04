@@ -26,20 +26,50 @@ std::string compiler::read(std::string const& file) const
     return *maybe_code;
 }
 
-std::string compiler::compile(std::string const& file, std::vector<std::string> const& libdirs, bool const colorful, bool const debug) const
+std::string compiler::compile(compiler::files_type const& files, std::vector<std::string> const& libdirs, bool const colorful, bool const debug) const
 {
-    auto const code = read(file);
+    std::vector<llvm::Module *> modules;
 
-    auto ast = parser.parse(code, file);
-    auto scope_tree = semantics::analyze_semantics(ast);
-    std::cout << ast::stringize_ast(ast, colorful)
-                    + "\n\n=========Scope Tree=========\n\n"
-                    + scope::stringize_scope_tree(scope_tree)
-             << "\n\n=========LLVM IR=========\n\n";
-    auto &module = codegen::llvmir::emit_llvm_ir(ast, scope_tree);
-    module.dump();
+    for (auto const& f : files) {
+        auto const code = read(f);
+        auto ast = parser.parse(code, f);
+        auto scope_tree = semantics::analyze_semantics(ast);
+        auto &module = codegen::llvmir::emit_llvm_ir(ast, scope_tree);
+        if (debug) {
+            std::cerr << "file: " << f << '\n'
+                      << ast::stringize_ast(ast, colorful)
+                            + "\n\n=========Scope Tree=========\n\n"
+                            + scope::stringize_scope_tree(scope_tree)
+                    << "\n\n=========LLVM IR=========\n\n";
+            module.dump();
+        }
+        modules.push_back(&module);
+    }
 
-    return codegen::llvmir::generate_executable(module, file, libdirs);
+    return codegen::llvmir::generate_executable(modules, libdirs);
+}
+
+std::vector<std::string> compiler::compile_to_objects(compiler::files_type const& files, bool const colorful, bool const debug) const
+{
+    std::vector<llvm::Module *> modules;
+
+    for (auto const& f : files) {
+        auto const code = read(f);
+        auto ast = parser.parse(code, f);
+        auto scope_tree = semantics::analyze_semantics(ast);
+        auto &module = codegen::llvmir::emit_llvm_ir(ast, scope_tree);
+        if (debug) {
+            std::cerr << "file: " << f << '\n'
+                      << ast::stringize_ast(ast, colorful)
+                            + "\n\n=========Scope Tree=========\n\n"
+                            + scope::stringize_scope_tree(scope_tree)
+                    << "\n\n=========LLVM IR=========\n\n";
+            module.dump();
+        }
+        modules.push_back(&module);
+    }
+
+    return codegen::llvmir::generate_objects(modules);
 }
 
 std::string compiler::report_ast(std::string const& file, std::string const& code, bool const colorful) const
@@ -84,8 +114,7 @@ void compiler::dump_scope_trees(std::ostream &out, compiler::files_type const& f
 void compiler::dump_llvm_irs(std::ostream &out, compiler::files_type const& files) const
 {
    for (auto const& f : files) {
-       out << "file: " << f << '\n'
-           << report_llvm_ir(f, read(f)) << '\n';
+       out << report_llvm_ir(f, read(f)) << "\n\n";
    }
 }
 

@@ -10,7 +10,10 @@ namespace dachs {
 namespace codegen {
 namespace llvmir {
 
-std::string generate_executable(llvm::Module &target_module, std::string const& file_name, std::vector<std::string> const& linker_options);
+class binary_generator;
+
+std::string generate_executable(std::vector<llvm::Module *> const& modules, std::vector<std::string> const& libdirs);
+std::vector<std::string> generate_objects(std::vector<llvm::Module *> const& modules);
 
 } // namespace llvmir
 } // namespace codegen

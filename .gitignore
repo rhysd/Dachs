@@ -4,3 +4,7 @@ cmake_install.cmake
 Makefile
 Testing
 CTestTestfile.cmake
+*.o
+*.ll
+*.bc
+*.s
