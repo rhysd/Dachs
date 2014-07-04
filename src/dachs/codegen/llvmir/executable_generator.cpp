@@ -46,7 +46,7 @@ detail::unused initialize_x86_info_once()
     return u;
 }
 
-void generate_executable(llvm::Module &module, std::string const& file_name, std::vector<std::string> const& libdirs)
+std::string generate_executable(llvm::Module &module, std::string const& file_name, std::vector<std::string> const& libdirs)
 {
     initialize_x86_info_once();
 
@@ -128,11 +128,11 @@ void generate_executable(llvm::Module &module, std::string const& file_name, std
         }
     }
 
-    {
-        if (std::remove(obj_name.c_str()) != 0) {
-            throw code_generation_error{"LLVM IR generator", "Failed to remove an object file: " + obj_name};
-        }
+    if (std::remove(obj_name.c_str()) != 0) {
+        throw code_generation_error{"LLVM IR generator", "Failed to remove an object file: " + obj_name};
     }
+
+    return base_name;
 }
 
 } // namespace llvmir

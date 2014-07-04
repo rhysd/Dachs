@@ -819,6 +819,7 @@ struct program final : public base {
 
 struct ast {
     node::program root;
+    std::string const name;
 };
 
 } // namespace ast

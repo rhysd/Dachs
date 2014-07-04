@@ -87,6 +87,7 @@ class llvm_ir_emitter {
     llvm::LLVMContext &context;
     llvm::IRBuilder<> builder;
     builtin_function_emitter builtin_func_emitter;
+    std::string const& file;
 
     template<class Node>
     void error(Node const& n, boost::format const& msg)
@@ -199,10 +200,11 @@ class llvm_ir_emitter {
 
 public:
 
-    llvm_ir_emitter(llvm::LLVMContext &c)
+    llvm_ir_emitter(llvm::LLVMContext &c, std::string const& f)
         : context(c)
         , builder(context)
         , builtin_func_emitter(context)
+        , file(f)
     {}
 
     val emit(ast::node::primary_literal const& pl)
@@ -267,7 +269,7 @@ public:
 
     llvm::Module *emit(ast::node::program const& p)
     {
-        module = new llvm::Module("Should replace this name with a file name", context);
+        module = new llvm::Module(file, context);
         if (!module) {
             error(p, "module");
         }
@@ -481,7 +483,7 @@ llvm::Module &emit_llvm_ir(ast::ast const& a, scope::scope_tree const&)
 {
     // TODO:
     // Use global context temporarily
-    auto &the_module = *detail::llvm_ir_emitter{llvm::getGlobalContext()}.emit(a.root);
+    auto &the_module = *detail::llvm_ir_emitter{llvm::getGlobalContext(), a.name}.emit(a.root);
     std::string errmsg;
     if (llvm::verifyModule(the_module, llvm::ReturnStatusAction, &errmsg)) {
         helper::colorizer<std::string> c;

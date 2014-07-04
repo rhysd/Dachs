@@ -47,6 +47,7 @@ void check_no_throw_in_all_cases_in_directory(std::string const& dir_name)
                 BOOST_CHECK_NO_THROW(
                     parser.parse(
                         *dachs::helper::read_file<std::string>(p.c_str())
+                        , "test_file"
                     )
                 );
             });
@@ -61,6 +62,7 @@ void check_throw_in_all_cases_in_directory(std::string const& dir_name)
                 BOOST_CHECK_THROW(
                     parser.parse(
                         *dachs::helper::read_file<std::string>(p.c_str())
+                        , "test_file"
                     )
                     , dachs::parse_error
                 );
