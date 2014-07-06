@@ -435,6 +435,29 @@ public:
         return builder.CreateCall(callee, args);
     }
 
+    val emit(ast::node::unary_expr const& unary)
+    {
+        auto const val_type = type::type_of(unary->expr);
+        if (!val_type.is_builtin()) {
+            error(unary, "Unary expression now only supports float, int, bool and uint");
+        }
+
+        auto const builtin = *type::get<type::builtin_type>(val_type);
+        auto const& name = builtin->name;
+
+        if (name != "int" && name != "float" && name != "bool" && name != "uint") {
+            error(unary, "Unary expression now only supports float, int, bool and uint");
+        }
+
+        return check(
+            unary,
+            tmp_builtin_unary_op_ir_emitter{builder, emit(unary->expr), unary->op}.emit(builtin),
+            boost::format("unary operator '%1%' (operand's type is '%2%')")
+                % unary->op
+                % builtin->to_string()
+        );
+    }
+
     val emit(ast::node::binary_expr const& bin_expr)
     {
         auto const lhs_type = type::type_of(bin_expr->lhs);
@@ -449,7 +472,7 @@ public:
         auto const is_supported = [](auto const& t){ return t->name == "int" || t->name == "float" || t->name == "uint" || t->name == "bool"; };
 
         if (!is_supported(lhs_builtin_type) || !is_supported(rhs_builtin_type)) {
-            error(bin_expr, "Binary expression now only supports float, int and uint");
+            error(bin_expr, "Binary expression now only supports float, int, bool and uint");
         }
 
         return check(

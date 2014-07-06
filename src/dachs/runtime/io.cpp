@@ -27,6 +27,11 @@ extern "C" {
         std::printf("%s\n", s);
     }
 
+    void dachs_put_bool__(bool const b)
+    {
+        std::printf("%s\n", b ? "true" : "false");
+    }
+
     void dachs_print_float__(double const d)
     {
         std::printf("%lf", d);
@@ -50,5 +55,10 @@ extern "C" {
     void dachs_print_symbol__(char const* const s)
     {
         std::printf("%s", s);
+    }
+
+    void dachs_print_bool__(bool const b)
+    {
+        std::printf("%s", b ? "true" : "false");
     }
 }

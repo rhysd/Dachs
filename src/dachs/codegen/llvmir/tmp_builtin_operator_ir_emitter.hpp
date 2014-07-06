@@ -160,7 +160,48 @@ public:
 };
 
 // TODO
-// class tmp_builtin_unary_op_ir_emitter;
+class tmp_builtin_unary_op_ir_emitter{
+    llvm::IRBuilder<> &builder;
+    llvm::Value *const value;
+    std::string const& op;
+
+    using return_type = llvm::Value *;
+
+public:
+
+    tmp_builtin_unary_op_ir_emitter(
+                llvm::IRBuilder<> &b,
+                llvm::Value *const v,
+                std::string const& op
+            )
+        : builder(b)
+        , value(v)
+        , op(op)
+    {}
+
+    return_type emit(type::builtin_type const& builtin)
+    {
+        bool const is_float = builtin->name == "float";
+        bool const is_int = builtin->name == "int";
+
+        if (op == "+") {
+            // Note: Do nothing.
+            return value;
+        } else if (op == "-") {
+            if (is_int) {
+                return builder.CreateNeg(value, "negtmp");
+            } else if (is_float) {
+                return builder.CreateFNeg(value, "fnegtmp");
+            }
+        } else if (op == "~" || op == "!") {
+            if (!is_float) {
+                return builder.CreateNot(value, "nottmp");
+            }
+        }
+
+        return nullptr;
+    }
+};
 
 } // namespace llvmir
 } // namespace codegen
