@@ -24,6 +24,7 @@
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/util.hpp"
+#include "dachs/helper/each.hpp"
 
 namespace dachs {
 namespace semantics {
@@ -135,20 +136,21 @@ class symbol_analyzer {
         // Replace types of params with instantiated types
         {
             assert(instantiated_func_def->params.size() == arg_types.size());
-            auto def_param_itr = std::begin(instantiated_func_def->params);
-            auto const def_param_end = std::end(instantiated_func_def->params);
-            auto arg_itr = arg_types.cbegin();
-            auto scope_param_itr = std::begin(instantiated_func_scope->params);
-            for(; def_param_itr != def_param_end; ++def_param_itr, ++arg_itr, ++scope_param_itr) {
-                if ((*def_param_itr)->type.is_template()) {
-                    (*def_param_itr)->type = *arg_itr;
-                    (*scope_param_itr)->type = *arg_itr;
-                } else if ((*def_param_itr)->type != *arg_itr) {
-                    // Note:
-                    // Never reaches here because type mismatch is already detected in overload resolution
-                    DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+
+            helper::each([](auto &def_param, auto const& arg, auto &scope_param)
+                {
+                    if (def_param->type.is_template()) {
+                        def_param->type = arg;
+                        scope_param->type = arg;
+                    } else if (def_param->type != arg) {
+                        // Note:
+                        // Never reaches here because type mismatch is already detected in overload resolution
+                        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+                    }
                 }
-            }
+                , instantiated_func_def->params
+                , arg_types
+                , instantiated_func_scope->params);
         }
 
         // Last, symnol analyzer visits
@@ -846,7 +848,7 @@ public:
                     if (param->type != t) {
                         semantic_error(
                                 param,
-                                boost::format("Type of '%1%' mismatch\nNote: Type of '%1%' is '%2%' but the range requires '%3%'")
+                                boost::format("Type of '%1%' mismatches\nNote: Type of '%1%' is '%2%' but the range requires '%3%'")
                                     % param->name
                                     % param->type.to_string()
                                     % type::to_string(t)
@@ -868,12 +870,9 @@ public:
                         return;
                     }
 
-                    auto param_itr = std::begin(for_->iter_vars);
-                    auto const param_end = std::end(for_->iter_vars);
-                    auto elem_type_itr = elem_tuple_type->element_types.cbegin();
-                    for (;param_itr != param_end; ++param_itr, ++elem_type_itr) {
-                        substitute_param_type(*param_itr, *elem_type_itr);
-                    }
+                    helper::each([&](auto &p, auto const& e){ substitute_param_type(p, e); }
+                                , for_->iter_vars
+                                , elem_tuple_type->element_types);
                 } else {
                     if (for_->iter_vars.size() != 1) {
                         semantic_error(for_, "Number of a variable here in 'for' statement must be 1");
@@ -1041,12 +1040,10 @@ public:
                     return;
                 }
 
-                auto tuple_itr = rhs_type->element_types.cbegin();
-                auto const tuple_end = rhs_type->element_types.cend();
-                auto decl_itr = std::begin(init->var_decls);
-                for (; tuple_itr != tuple_end; ++tuple_itr, ++decl_itr) {
-                    substitute_type((*decl_itr)->symbol.lock(), *tuple_itr);
-                }
+                helper::each([&](auto const& elem_t, auto const& decl)
+                                { substitute_type(decl->symbol.lock(), elem_t); }
+                            , rhs_type->element_types
+                            , init->var_decls);
             } else {
                 if (init->var_decls.size() != rhs_exprs.size()) {
                     semantic_error(init, boost::format("Size of elements in lhs and rhs mismatch\nNote: Size of lhs is %1%, size of rhs is %2%") % init->var_decls.size() % rhs_exprs.size());
@@ -1059,6 +1056,11 @@ public:
                 for (; lhs_itr != lhs_end; ++lhs_itr, ++rhs_itr) {
                     substitute_type((*lhs_itr)->symbol.lock(), type_of(*rhs_itr));
                 }
+
+                helper::each([&](auto const& lhs, auto const& rhs)
+                                { substitute_type(lhs->symbol.lock(), type_of(rhs)); }
+                            , init->var_decls
+                            , rhs_exprs);
             }
         }
     }

@@ -11,6 +11,8 @@
 #include <boost/optional.hpp>
 #include <boost/range/algorithm/find.hpp>
 #include <boost/range/algorithm/find_if.hpp>
+#include <boost/range/iterator_range.hpp>
+#include <boost/iterator/zip_iterator.hpp>
 
 namespace dachs {
 namespace helper {
@@ -84,6 +86,15 @@ template<class T, class U>
 inline bool any_of(std::initializer_list<T> const& list, U const& value)
 {
     return std::any_of(std::begin(list), std::end(list), [&value](T const& v){ return v == value; });
+}
+
+template<class... Ranges>
+inline auto zipped(Ranges &... ranges /*lvalue references*/)
+{
+    return boost::make_iterator_range(
+            boost::make_zip_iterator(boost::make_tuple(boost::begin(ranges)...)),
+            boost::make_zip_iterator(boost::make_tuple(boost::end(ranges)...))
+        );
 }
 
 } // namespace helper
