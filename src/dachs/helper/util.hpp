@@ -11,8 +11,6 @@
 #include <boost/optional.hpp>
 #include <boost/range/algorithm/find.hpp>
 #include <boost/range/algorithm/find_if.hpp>
-#include <boost/range/iterator_range.hpp>
-#include <boost/iterator/zip_iterator.hpp>
 
 namespace dachs {
 namespace helper {
