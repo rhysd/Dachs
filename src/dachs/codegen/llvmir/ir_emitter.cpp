@@ -2,9 +2,10 @@
 #include <memory>
 #include <utility>
 #include <string>
+#include <iostream>
+#include <stack>
 #include <cstdint>
 #include <cassert>
-#include <iostream>
 
 #include <boost/format.hpp>
 #include <boost/variant/variant.hpp>
@@ -88,6 +89,27 @@ class llvm_ir_emitter {
     llvm::IRBuilder<> builder;
     builtin_function_emitter builtin_func_emitter;
     std::string const& file;
+    std::stack<llvm::BasicBlock *> loop_stack; // Loop stack for continue and break statements
+
+    auto push_loop(llvm::BasicBlock *loop_value)
+    {
+        loop_stack.push(loop_value);
+
+        struct automatic_popper {
+            std::stack<llvm::BasicBlock *> &s;
+            llvm::BasicBlock *const pushed_loop;
+            automatic_popper(decltype(s) &s, llvm::BasicBlock *const loop)
+                : s(s), pushed_loop(loop)
+            {}
+            ~automatic_popper()
+            {
+                assert(!s.empty());
+                assert(s.top() == pushed_loop);
+                s.pop();
+            }
+        } popper{loop_stack, loop_value};
+        return popper;
+    }
 
     template<class Node>
     void error(Node const& n, boost::format const& msg)
@@ -296,6 +318,8 @@ public:
             emit(i);
         }
 
+        assert(loop_stack.empty());
+
         return module;
     }
 
@@ -491,6 +515,32 @@ public:
         auto const maybe_var_value = lookup_var(var->symbol.lock());
         assert(maybe_var_value);
         return *maybe_var_value;
+    }
+
+    void emit(ast::node::while_stmt const& while_)
+    {
+        auto *const parent = builder.GetInsertBlock()->getParent();
+        assert(parent);
+
+        auto *cond_block = check(while_, llvm::BasicBlock::Create(context, "while.cond", parent), "condition in 'for'");
+        auto *body_block = check(while_, llvm::BasicBlock::Create(context, "while.body", parent), "body of 'for'");
+        auto *exit_block = check(while_, llvm::BasicBlock::Create(context, "while.exit", parent), "exit of 'for'");
+
+        // Loop header
+        builder.CreateBr(cond_block);
+        builder.SetInsertPoint(cond_block);
+        val cond_val = emit(while_->condition);
+        builder.CreateCondBr(cond_val, body_block, exit_block);
+
+        // Loop body
+        auto const auto_popper = push_loop(cond_block);
+        builder.SetInsertPoint(body_block);
+        emit(while_->body_stmts);
+        if (!body_block->getTerminator()) {
+            builder.CreateBr(cond_block);
+        }
+
+        builder.SetInsertPoint(exit_block);
     }
 
     template<class T>
