@@ -9,6 +9,37 @@
 #include <boost/range/iterator_range.hpp>
 #include <boost/tuple/tuple.hpp>
 
+// Fallback for libstdc++ 4.8
+#if defined(__GLIBCPP__) || defined(__GLIBCXX__)
+#if (__GNUC__ == 4 && __GNUC_MINOR__ <= 8)
+namespace std {
+
+template <std::size_t... Indices>
+struct index_sequence {
+};
+
+template <std::size_t Start, std::size_t Last, std::size_t Step = 1,
+          class Acc = index_sequence<>, bool Finish = (Start >= Last)>
+struct index_range {
+    typedef Acc type;
+};
+
+template <std::size_t Start, std::size_t Last, std::size_t Step,
+          std::size_t... Indices>
+struct index_range<Start, Last, Step, index_sequence<Indices...>, false>
+    : index_range<Start + Step, Last, Step, index_sequence<Indices..., Start>> {
+};
+
+template <std::size_t Start, std::size_t Last, std::size_t Step = 1>
+using idx_range = typename index_range<Start, Last, Step>::type;
+
+template <std::size_t Size>
+using make_index_sequence = typename index_range<0, Size, 1>::type;
+
+}  // namespace std
+#endif // #if defined(__GLIBCPP__) || defined(__GLIBCXX__)
+#endif // #if (__GNUC__ == 4 && __GNUC_MINOR__ <= 8)
+
 namespace dachs {
 namespace helper {
 
