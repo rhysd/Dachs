@@ -352,15 +352,22 @@ public:
 
                 if (!scope->define_variable(new_var)) {
                     failed++;
+                    return false;
                 }
+
+                return true;
             };
 
         // Note:
         // I can't use apply_lambda() because some scopes don't have define_variable() member
         if (auto maybe_global_scope = get_as<scope::global_scope>(current_scope)) {
-            visit_decl(*maybe_global_scope);
+            if (!visit_decl(*maybe_global_scope)) {
+                return;
+            }
         } else if (auto maybe_local = get_as<scope::local_scope>(current_scope)) {
-            visit_decl(*maybe_local);
+            if (!visit_decl(*maybe_local)) {
+                return;
+            }
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
@@ -1010,6 +1017,12 @@ public:
 
         for (auto const& e : rhs_exprs) {
             if (!type_of(e)) {
+                return;
+            }
+        }
+
+        for (auto const& v : init->var_decls) {
+            if (v->symbol.expired()) {
                 return;
             }
         }
