@@ -12,6 +12,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/optional.hpp>
+#include <boost/algorithm/cxx11/any_of.hpp>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Value.h>
@@ -129,18 +130,32 @@ class llvm_ir_emitter {
     }
 
     template<class Node, class T>
-    T check(Node const& n, T v, boost::format const& fmt)
+    T check(Node const& n, T const v, boost::format const& fmt)
     {
         return check(n, v, fmt.str());
     }
 
     template<class Node, class T, class String>
-    T check(Node const& n, T v, String const& feature_name)
+    T check(Node const& n, T const v, String const& feature_name)
     {
         if (!v) {
             error(n, std::string{"Failed to emit "} + feature_name);
         }
         return v;
+    }
+
+    template<class Node, class String, class... Values>
+    void check_all(Node const& n, String const& feature, Values const... vs)
+    {
+        // Note:
+        // All types in 'Values' are assumed to be the same type.
+        // Note:
+        // We can't use any_of() because template 'Range' can't be infered.
+        for (auto const v : {vs...}) {
+            if (!v) {
+                error(n, std::string{"Failed to emit "} + feature);
+            }
+        }
     }
 
     template<class... NodeTypes>
@@ -374,9 +389,10 @@ public:
     {
         auto *parent = builder.GetInsertBlock()->getParent();
 
-        auto *then_block = check(if_, llvm::BasicBlock::Create(context, "if.then", parent), "then block");
-        auto *else_block = check(if_, llvm::BasicBlock::Create(context, "if.else", parent), "else block");
-        auto *end_block = check(if_, llvm::BasicBlock::Create(context, "if.end"), "end of block");
+        auto *then_block = llvm::BasicBlock::Create(context, "if.then", parent);
+        auto *else_block = llvm::BasicBlock::Create(context, "if.else", parent);
+        auto *end_block  = llvm::BasicBlock::Create(context, "if.end");
+        check_all(if_, "if statement", then_block, else_block, end_block);
 
         // IR for if-then clause
         val cond_val = emit(if_->condition);
@@ -394,8 +410,9 @@ public:
         // IR for elseif clause
         for (auto const& elseif : if_->elseif_stmts_list) {
             cond_val = emit(elseif.first);
-            then_block = check(if_, llvm::BasicBlock::Create(context, "if.then", parent), "then block");
-            else_block = check(if_, llvm::BasicBlock::Create(context, "if.else", parent), "else block");
+            then_block = llvm::BasicBlock::Create(context, "if.then", parent);
+            else_block = llvm::BasicBlock::Create(context, "if.else", parent);
+            check_all(if_, "elseif clause", then_block, else_block);
             builder.CreateCondBr(cond_val, then_block, else_block);
             builder.SetInsertPoint(then_block);
             emit(elseif.second);
@@ -531,9 +548,10 @@ public:
         auto *const parent = builder.GetInsertBlock()->getParent();
         assert(parent);
 
-        auto *cond_block = check(while_, llvm::BasicBlock::Create(context, "while.cond", parent), "condition in 'for'");
-        auto *body_block = check(while_, llvm::BasicBlock::Create(context, "while.body", parent), "body of 'for'");
-        auto *exit_block = check(while_, llvm::BasicBlock::Create(context, "while.exit", parent), "exit of 'for'");
+        auto *const cond_block = llvm::BasicBlock::Create(context, "while.cond", parent);
+        auto *const body_block = llvm::BasicBlock::Create(context, "while.body", parent);
+        auto *const exit_block = llvm::BasicBlock::Create(context, "while.exit", parent);
+        check_all(while_, "for statement", cond_block, body_block, exit_block);
 
         // Loop header
         builder.CreateBr(cond_block);
