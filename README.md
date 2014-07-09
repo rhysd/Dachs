@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/rhysd/Dachs.svg?branch=master)](https://travis-ci.org/rhysd/Dachs)
 =========================================================================================================
 
-Goals :dog2: :
+Goals :dog2:
 - Light to write
 - Strongly and statically typed
 - Native code efficiency
@@ -11,12 +11,30 @@ Goals :dog2: :
 - Immutability-aware
 - Dog-friendly
 
-```
-import std.io as io
+<pre>
+<i># Type of parameter and returned value can be inferred</i>
+<b>func</b> abs(n)
+    <b>return</b> (<b>if</b> n > 0.0 <b>then</b> n <b>else</b> -n)
+<b>end</b>
 
+<i># Parameters and variables are defined as immutable value by default</i>
+<b>func</b> sqrt(x)
+    <b>var</b> z, p := x, 0.0   <i># but 'var' is available to declare a mutable variable</i>
+    <b>for</b> abs(p-z) > 0.00001
+        p, z = z, z-(z*z-x)/(2*z)
+    <b>end</b>
+    <b>return</b> z
+<b>end</b>
+
+<b>func</b> main
+    print(sqrt(10.0))
+<b>end</b>
+</pre>
+
+<!--
 # Type of parameter and returned value can be inferred
 func abs(n)
-    return if n > 0.0 then n else -n
+    return (if n > 0.0 then n else -n)
 end
 
 # Parameters and variables are defined as immutable value by default
@@ -28,10 +46,10 @@ func sqrt(x)
     return z
 end
 
-func main()
-    io.println(sqrt(10.0))
+func main
+    print(sqrt(10.0))
 end
-```
+-->
 
 ## Progress Report
 
