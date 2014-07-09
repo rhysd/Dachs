@@ -32,17 +32,28 @@ std::string compiler::compile(compiler::files_type const& files, std::vector<std
 
     for (auto const& f : files) {
         auto const code = read(f);
+        if (debug) {
+            std::cerr << "file: " << f << '\n';
+        }
+
         auto ast = parser.parse(code, f);
+        if (debug) {
+            std::cerr << ast::stringize_ast(ast, colorful) << "\n\n";
+        }
+
         auto scope_tree = semantics::analyze_semantics(ast);
+        if (debug) {
+            std::cerr << "=========Scope Tree=========\n\n"
+                      <<  scope::stringize_scope_tree(scope_tree) << "\n\n";
+
+        }
+
         auto &module = codegen::llvmir::emit_llvm_ir(ast, scope_tree);
         if (debug) {
-            std::cerr << "file: " << f << '\n'
-                      << ast::stringize_ast(ast, colorful)
-                            + "\n\n=========Scope Tree=========\n\n"
-                            + scope::stringize_scope_tree(scope_tree)
-                    << "\n\n=========LLVM IR=========\n\n";
+            std::cerr << "=========LLVM IR=========\n\n";
             module.dump();
         }
+
         modules.push_back(&module);
     }
 
