@@ -142,8 +142,8 @@ public:
         auto const executable_name = get_base_name_from_module(*modules[0]);
         auto command
             = os_type == llvm::Triple::Darwin
-                ? "ld -macosx_version_min 10.9.0 \"" + objs_string + "\" -o \"" + executable_name + "\" -lSystem -ldachs"
-                : "clang " + objs_string + " -o " + executable_name + " -ldachs"; // Fallback...
+                ? "ld -macosx_version_min 10.9.0 \"" + objs_string + "\" -o \"" + executable_name + "\" -lSystem -ldachs -L /usr/lib -L /usr/local/lib"
+                : "clang " + objs_string + " -o " + executable_name + " -ldachs -L /usr/lib -L /usr/local/lib"; // Fallback...
 
         for (auto const& lib : libdirs) {
             command += " -L \"" + lib + '"';
