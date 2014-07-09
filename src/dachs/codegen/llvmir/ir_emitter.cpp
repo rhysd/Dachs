@@ -347,6 +347,10 @@ public:
 
         emit(func_def->body);
 
+        if (builder.GetInsertBlock()->getTerminator()) {
+            return;
+        }
+
         if (!func_def->ret_type
                 || func_def->kind == ast::symbol::func_kind::proc
                 || *func_def->ret_type == type::get_unit_type()) {
@@ -354,9 +358,7 @@ public:
         } else {
             // Note:
             // Believe that the insert block is the last block of the function
-            if (!builder.GetInsertBlock()->getTerminator()) {
-                builder.CreateUnreachable();
-            }
+            builder.CreateUnreachable();
         }
     }
 
@@ -417,6 +419,13 @@ public:
 
     void emit(ast::node::return_stmt const& return_)
     {
+        if (builder.GetInsertBlock()->getTerminator()) {
+            // Note:
+            // Basic block is already terminated.
+            // Unreachable return statements should be checked in semantic checks
+            return;
+        }
+
         if (return_->ret_exprs.size() == 1) {
             builder.CreateRet(emit(return_->ret_exprs[0]));
         } else if (return_->ret_exprs.empty()) {
