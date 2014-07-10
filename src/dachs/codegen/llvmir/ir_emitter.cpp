@@ -26,6 +26,7 @@
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/tmp_builtin_operator_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/builtin_func_ir_emitter.hpp"
+#include <dachs/codegen/llvmir/variable_table.hpp>
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -33,6 +34,7 @@
 #include "dachs/exception.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/colorizer.hpp"
+#include "dachs/helper/each.hpp"
 
 /*
  * Note:
@@ -83,11 +85,11 @@ using helper::variant::get_as;
 class llvm_ir_emitter {
     using val = llvm::Value *;
 
-    std::unordered_map<symbol::var_symbol, val> var_value_table;
-    std::unordered_map<scope::func_scope, llvm::Function *const> func_table;
     llvm::Module *module = nullptr;
     llvm::LLVMContext &context;
     llvm::IRBuilder<> builder;
+    variable_table var_table;
+    std::unordered_map<scope::func_scope, llvm::Function *const> func_table;
     builtin_function_emitter builtin_func_emitter;
     std::string const& file;
     std::stack<llvm::BasicBlock *> loop_stack; // Loop stack for continue and break statements
@@ -147,8 +149,7 @@ class llvm_ir_emitter {
     template<class Node, class String, class... Values>
     void check_all(Node const& n, String const& feature, Values const... vs)
     {
-        // Note:
-        // All types in 'Values' are assumed to be the same type.
+        static_assert(helper::are_same<Values...>::value, "check_all(): Type of values are invalid");
         // Note:
         // We can't use any_of() because template 'Range' can't be infered.
         for (auto const v : {vs...}) {
@@ -175,16 +176,6 @@ class llvm_ir_emitter {
     {
         auto const result = func_table.find(scope);
         if (result == std::end(func_table)) {
-            return boost::none;
-        } else {
-            return result->second;
-        }
-    }
-
-    boost::optional<val> lookup_var(symbol::var_symbol const& var)
-    {
-        auto const result = var_value_table.find(var);
-        if (result == std::end(var_value_table)) {
             return boost::none;
         } else {
             return result->second;
@@ -228,7 +219,7 @@ class llvm_ir_emitter {
             auto param_itr = std::begin(scope->params);
             for (; param_itr != std::end(scope->params); ++arg_itr, ++param_itr) {
                 arg_itr->setName((*param_itr)->name);
-                var_value_table.insert(std::make_pair(*param_itr, arg_itr));
+                var_table.insert(*param_itr, arg_itr);
             }
         }
 
@@ -240,6 +231,7 @@ public:
     llvm_ir_emitter(llvm::LLVMContext &c, std::string const& f)
         : context(c)
         , builder(context)
+        , var_table(builder)
         , builtin_func_emitter(context)
         , file(f)
     {}
@@ -538,9 +530,7 @@ public:
     val emit(ast::node::var_ref const& var)
     {
         assert(!var->symbol.expired());
-        auto const maybe_var_value = lookup_var(var->symbol.lock());
-        assert(maybe_var_value);
-        return *maybe_var_value;
+        return check(var, var_table.get_ir_for(var->symbol.lock()), "loading variable");
     }
 
     void emit(ast::node::while_stmt const& while_)
@@ -568,6 +558,64 @@ public:
         }
 
         builder.SetInsertPoint(exit_block);
+    }
+
+    void emit(ast::node::initialize_stmt const& init)
+    {
+        auto const assignee_size = init->var_decls.size();
+        auto const assigner_size
+            = init->maybe_rhs_exprs ?
+                init->maybe_rhs_exprs->size() : 0;
+
+        assert(assignee_size != 0);
+        assert(assigner_size != 0);
+
+        auto const emit_alloca_from_decl
+            = [&](auto const& decl)
+            {
+                assert(!decl->symbol.expired());
+                auto sym = decl->symbol.lock();
+                auto const t = sym->type;
+                assert(t);
+                auto inst = builder.CreateAlloca(emit_type_ir(t, context));
+
+                var_table.insert(std::move(sym), inst);
+
+                return check(decl, inst, "variable allocation");
+            };
+
+        if (assignee_size == assigner_size) {
+            helper::each(
+                    [&, this](auto const& d, auto const& e)
+                    {
+                        auto inst = emit_alloca_from_decl(d);
+                        auto val = emit(e);
+                        builder.CreateStore(val, inst);
+                    }
+                    , init->var_decls, *init->maybe_rhs_exprs);
+            for (auto const& d : init->var_decls) {
+                emit_alloca_from_decl(d);
+            }
+        } else if (assignee_size == 1) {
+            assert(assigner_size > 1);
+
+            // TODO:
+            // Get assignee's type (tuple) and emit IR
+            //  1. Allocate tuple
+            //  2. Assign rhs's values to fields of the tuple
+            //  3. Store the tuple value as lhs
+
+            throw not_implemented_error{init, __FILE__, __func__, __LINE__, "multiple to one assignment"};
+        } else if (assigner_size == 1) {
+            assert(assignee_size > 1);
+
+            // TODO:
+            // Get the rhs types, access the elements and store the values to the assignees
+
+            throw not_implemented_error{init, __FILE__, __func__, __LINE__, "one to multiple assignment"};
+        } else {
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        }
     }
 
     template<class T>

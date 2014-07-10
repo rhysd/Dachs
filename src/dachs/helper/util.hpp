@@ -97,6 +97,26 @@ inline auto zipped(Ranges &... ranges /*lvalue references*/)
         );
 }
 
+template<class... Args>
+struct are_same;
+
+template<class T>
+struct are_same<T> : std::true_type
+{};
+
+template<class T, class U>
+struct are_same<T, U> : std::is_same<T, U>
+{};
+
+template<class T, class U, class... R>
+struct are_same<T, U, R...>
+    : std::conditional<
+        std::is_same<T, U>::value,
+        are_same<T, R...>,
+        std::false_type
+      >::type
+{};
+
 } // namespace helper
 }  // namespace dachs
 

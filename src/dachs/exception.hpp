@@ -18,7 +18,7 @@ public:
         : std::runtime_error(
                 (
                     boost::format(
-                            "At line:%1%, col:%2%\n %3% is not implemented yet.\n"
+                            "In line:%1%, col:%2%\n%3% is not implemented yet.\n"
                             "Note: You can contribute to Dachs with implementing this feature. "
                             "Clone https://github.com/rhysd/Dachs and "
                             "see %4%, %5%(), line:%6%, ")
