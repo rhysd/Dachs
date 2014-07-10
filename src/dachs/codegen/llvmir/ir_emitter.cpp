@@ -223,7 +223,7 @@ class llvm_ir_emitter {
             }
         }
 
-        func_table.insert(std::make_pair(scope, func_ir));
+        func_table.emplace(scope, func_ir);
     }
 
 public:
