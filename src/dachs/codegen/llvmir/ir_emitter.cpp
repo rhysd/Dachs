@@ -618,6 +618,35 @@ public:
         }
     }
 
+    void emit(ast::node::assignment_stmt const& assign)
+    {
+        // Load rhs value
+        std::vector<val> rhs_values;
+
+        auto const assignee_size = assign->assignees.size();
+        auto const assigner_size = assign->rhs_exprs.size();
+        assert(assignee_size > 0 && assigner_size > 0);
+
+        if (assignee_size == assigner_size) {
+            for (auto const& rhs : rhs_exprs) {
+                rhs_values.push_back(emit(rhs));
+            }
+        } else if (assignee_size == 1) {
+            throw not_implemented_error{init, __FILE__, __func__, __LINE__, "multiple to one assignment"};
+        } else if (assigner_size == 1) {
+            throw not_implemented_error{init, __FILE__, __func__, __LINE__, "one to multiple assignment"};
+        } else {
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        }
+        assert(rhs_values.size() == assignee_size);
+
+        // Load lhs value
+        // Process operators.(if compound operator, use binary_operator process)
+        // Store result to the right place lhs indicating
+
+        return nullptr;
+    }
+
     template<class T>
     val emit(std::shared_ptr<T> const& node)
     {
