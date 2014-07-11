@@ -562,13 +562,13 @@ public:
 
     void emit(ast::node::initialize_stmt const& init)
     {
-        auto const assignee_size = init->var_decls.size();
-        auto const assigner_size
+        auto const initializee_size = init->var_decls.size();
+        auto const initializer_size
             = init->maybe_rhs_exprs ?
                 init->maybe_rhs_exprs->size() : 0;
 
-        assert(assignee_size != 0);
-        assert(assigner_size != 0);
+        assert(initializee_size != 0);
+        assert(initializer_size != 0);
 
         auto const emit_alloca_from_decl
             = [&](auto const& decl)
@@ -584,7 +584,7 @@ public:
                 return check(decl, inst, "variable allocation");
             };
 
-        if (assignee_size == assigner_size) {
+        if (initializee_size == initializer_size) {
             helper::each(
                     [&, this](auto const& d, auto const& e)
                     {
@@ -596,21 +596,21 @@ public:
             for (auto const& d : init->var_decls) {
                 emit_alloca_from_decl(d);
             }
-        } else if (assignee_size == 1) {
-            assert(assigner_size > 1);
+        } else if (initializee_size == 1) {
+            assert(initializer_size > 1);
 
             // TODO:
-            // Get assignee's type (tuple) and emit IR
+            // Get initializee's type (tuple) and emit IR
             //  1. Allocate tuple
             //  2. Assign rhs's values to fields of the tuple
             //  3. Store the tuple value as lhs
 
             throw not_implemented_error{init, __FILE__, __func__, __LINE__, "multiple to one assignment"};
-        } else if (assigner_size == 1) {
-            assert(assignee_size > 1);
+        } else if (initializer_size == 1) {
+            assert(initializee_size > 1);
 
             // TODO:
-            // Get the rhs types, access the elements and store the values to the assignees
+            // Get the rhs types, access the elements and store the values to the initializees
 
             throw not_implemented_error{init, __FILE__, __func__, __LINE__, "one to multiple assignment"};
         } else {
