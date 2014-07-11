@@ -628,13 +628,13 @@ public:
         assert(assignee_size > 0 && assigner_size > 0);
 
         if (assignee_size == assigner_size) {
-            for (auto const& rhs : rhs_exprs) {
+            for (auto const& rhs : assign->rhs_exprs) {
                 rhs_values.push_back(emit(rhs));
             }
         } else if (assignee_size == 1) {
-            throw not_implemented_error{init, __FILE__, __func__, __LINE__, "multiple to one assignment"};
+            throw not_implemented_error{assign, __FILE__, __func__, __LINE__, "multiple to one assignment"};
         } else if (assigner_size == 1) {
-            throw not_implemented_error{init, __FILE__, __func__, __LINE__, "one to multiple assignment"};
+            throw not_implemented_error{assign, __FILE__, __func__, __LINE__, "one to multiple assignment"};
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
@@ -643,8 +643,6 @@ public:
         // Load lhs value
         // Process operators.(if compound operator, use binary_operator process)
         // Store result to the right place lhs indicating
-
-        return nullptr;
     }
 
     template<class T>

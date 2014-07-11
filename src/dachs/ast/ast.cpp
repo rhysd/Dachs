@@ -14,28 +14,6 @@ namespace dachs {
 namespace ast {
 namespace symbol {
 
-std::string to_string(assign_operator const o)
-{
-    switch(o) {
-    case assign_operator::assign:         return "=";
-    case assign_operator::mult:           return "*=";
-    case assign_operator::div:            return "/=";
-    case assign_operator::mod:            return "%=";
-    case assign_operator::add:            return "+=";
-    case assign_operator::sub:            return "-=";
-    case assign_operator::left_shift:     return ">>=";
-    case assign_operator::right_shift:    return "<<=";
-    case assign_operator::arithmetic_and: return "&=";
-    case assign_operator::arithmetic_xor: return "^=";
-    case assign_operator::arithmetic_or:  return "|=";
-    case assign_operator::logical_and:    return "&&=";
-    case assign_operator::logical_or:     return "||=";
-    default:
-        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-        return "unknown";
-    }
-}
-
 std::string to_string(if_kind const o)
 {
     switch(o) {
