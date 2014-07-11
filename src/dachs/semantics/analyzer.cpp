@@ -9,6 +9,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/algorithm/cxx11/all_of.hpp>
 #include <boost/range/algorithm/transform.hpp>
+#include <boost/range/adaptor/transformed.hpp>
 
 #include "dachs/exception.hpp"
 #include "dachs/ast/ast.hpp"
@@ -35,6 +36,7 @@ using helper::variant::get_as;
 using helper::variant::has;
 using helper::variant::apply_lambda;
 using helper::any_of;
+using boost::adaptors::transformed;
 
 struct return_types_gatherer {
     std::vector<type::type> result_types;
@@ -1063,13 +1065,6 @@ public:
                     return;
                 }
 
-                auto lhs_itr = std::begin(init->var_decls);
-                auto const lhs_end = std::end(init->var_decls);
-                auto rhs_itr = rhs_exprs.cbegin();
-                for (; lhs_itr != lhs_end; ++lhs_itr, ++rhs_itr) {
-                    substitute_type((*lhs_itr)->symbol.lock(), type_of(*rhs_itr));
-                }
-
                 helper::each([&](auto const& lhs, auto const& rhs)
                                 { substitute_type(lhs->symbol.lock(), type_of(rhs)); }
                             , init->var_decls
@@ -1127,12 +1122,22 @@ public:
                 if (t1 != t2) {
                     semantic_error(
                             assign,
-                            boost::format("Types mismatch on assignment\nNote: Type of lhs is '%1%, type of rhs is '%2%'")
+                            boost::format("Types mismatch on assignment\nNote: Type of lhs is '%1%', type of rhs is '%2%'")
                                 % type::to_string(t1)
                                 % type::to_string(t2)
                         );
                 }
             };
+
+        auto const check_type_seqs =
+            [&](auto const& type_seq1, auto const& type_seq2)
+            {
+                helper::each([&](auto const& t1, auto const& t2)
+                                { check_types(t1, t2); }
+                            , type_seq1, type_seq2);
+            };
+
+        auto const to_type_seq = transformed([](auto const& e){ return type::type_of(e); });
 
         if (assign->assignees.size() == 1) {
             auto const assignee_type = type_of(assign->assignees[0]);
@@ -1146,12 +1151,8 @@ public:
                     return;
                 }
 
-                auto lhs_type_itr = (*maybe_tuple_type)->element_types.cbegin();
-                auto rhs_expr_itr = assign->rhs_exprs.cbegin();
-                auto const rhs_expr_end = assign->rhs_exprs.cend();
-                for (; rhs_expr_itr != rhs_expr_end; ++lhs_type_itr, ++rhs_expr_itr) {
-                    check_types(*lhs_type_itr, type_of(*rhs_expr_itr));
-                }
+                check_type_seqs((*maybe_tuple_type)->element_types
+                              , assign->rhs_exprs | to_type_seq);
             }
         } else {
             if (assign->rhs_exprs.size() == 1) {
@@ -1162,24 +1163,16 @@ public:
                     return;
                 }
 
-                auto rhs_type_itr = (*maybe_tuple_type)->element_types.cbegin();
-                auto lhs_expr_itr = assign->assignees.cbegin();
-                auto const lhs_expr_end = assign->assignees.cend();
-                for (; lhs_expr_itr != lhs_expr_end; ++rhs_type_itr, ++lhs_expr_itr) {
-                    check_types(type_of(*lhs_expr_itr), *rhs_type_itr);
-                }
+                check_type_seqs(assign->assignees | to_type_seq
+                              , (*maybe_tuple_type)->element_types);
             } else {
                 if (assign->assignees.size() != assign->rhs_exprs.size()) {
                     semantic_error(assign, boost::format("Size of assignees and assigners mismatches\nNote: Size of assignee is %1%, size of assigner is %2%") % assign->assignees.size() % assign->rhs_exprs.size());
                     return;
                 }
 
-                auto lhs_itr = assign->assignees.cbegin();
-                auto const lhs_end = assign->assignees.cend();
-                auto rhs_itr = assign->rhs_exprs.cbegin();
-                for (; lhs_itr != lhs_end; ++lhs_itr, ++rhs_itr) {
-                    check_types(type_of(*lhs_itr), type_of(*rhs_itr));
-                }
+                check_type_seqs(assign->assignees | to_type_seq
+                              , assign->rhs_exprs | to_type_seq);
             }
         }
     }

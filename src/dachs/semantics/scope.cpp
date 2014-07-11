@@ -11,6 +11,7 @@
 #include "dachs/ast/ast.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/helper/variant.hpp"
+#include "dachs/helper/util.hpp"
 
 namespace dachs {
 namespace scope_node {
@@ -96,29 +97,21 @@ bool func_scope::operator==(func_scope const& rhs) const noexcept
     }
 
     // Check arguments' types
-    {
-        // Note:
-        // Do not use std::cbegin()/std::cend() because of libstdc++
-        auto ritr = params.cbegin();
-        auto litr = rhs.params.cbegin();
-        auto const rend = params.cend();
-        auto const lend = rhs.params.cend();
-        for (; ritr != rend && litr != lend; ++ritr, ++litr) {
-            auto const& left_type = (*litr)->type;
-            auto const& right_type = (*ritr)->type;
+    for (auto const& t : helper::zipped(params, rhs.params)) {
+        auto const& left_type = boost::get<0>(t)->type;
+        auto const& right_type = boost::get<1>(t)->type;
 
-            if (left_type.is_template() && right_type.is_template()) {
-                // Both sides are template
-                continue;
-            } else if (!left_type.is_template() && !right_type.is_template()) {
-                // Both sides are not template
-                if (left_type != right_type) {
-                    return false;
-                }
-            } else {
-                // One side is template and other side is not a template
+        if (left_type.is_template() && right_type.is_template()) {
+            // Both sides are template
+            continue;
+        } else if (!left_type.is_template() && !right_type.is_template()) {
+            // Both sides are not template
+            if (left_type != right_type) {
                 return false;
             }
+        } else {
+            // One side is template and other side is not a template
+            return false;
         }
     }
 
