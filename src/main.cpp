@@ -97,12 +97,13 @@ auto get_command_options(ArgPtr arg)
 
 int main(int const, char const* const argv[])
 {
+    (U'ω') /* Hello, Dachs! */;
+
     auto const show_usage =
         [argv]()
         {
             std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj] [--debug] [--libdir={path}] {file}\n";
         };
-
 
     // TODO: Use Boost.ProgramOptions
 
