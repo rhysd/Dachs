@@ -564,7 +564,8 @@ struct variable_decl final : public base {
     boost::optional<node::any_type> maybe_type;
     dachs::symbol::weak_var_symbol symbol;
 
-    variable_decl(bool const var,
+    template<class T>
+    variable_decl(T const& var,
                   std::string const& name,
                   decltype(maybe_type) const& type) noexcept
         : is_var(var), name(name), maybe_type(type)

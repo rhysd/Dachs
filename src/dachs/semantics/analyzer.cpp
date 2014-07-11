@@ -1091,9 +1091,35 @@ public:
             }
         }
 
-        // TODO:
-        // Check assignability of lhs expressions.
-        // If attempting to assign to immutable variable, raise an error.
+        // Check assignees' immutablity
+        for (auto const& lhs : assign->assignees) {
+            if (auto const maybe_var_ref = get_as<ast::node::var_ref>(lhs)) {
+                // foo = ...
+                auto const var_sym = (*maybe_var_ref)->symbol.lock();
+                if (var_sym->immutable) {
+                    semantic_error(assign, boost::format("Can't assign to immutable variable '%1%'") % var_sym->name);
+                    return;
+                }
+            } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs)) {
+                auto const child = (*maybe_index_access)->child;
+                assert(has<type::array_type>(type_of(child)) || has<type::tuple_type>(type_of(child)));
+
+                // foo[idx] = ...
+                if (auto const maybe_var_ref = get_as<ast::node::var_ref>(child)) {
+                    auto const var_sym = (*maybe_var_ref)->symbol.lock();
+                    if (var_sym->immutable) {
+                        semantic_error(assign, boost::format("Can't assignment to immutable array or tuple '%1%'") % var_sym->name);
+                        return;
+                    }
+                } else {
+                    semantic_error(assign, "Lhs of assignment must be simple array/tuple index access like foo[idx] = ...");
+                    return;
+                }
+            } else {
+                semantic_error(assign, "Lhs of assignment must be variable access, index access or member access.");
+                return;
+            }
+        }
 
         auto const check_types =
             [this, &assign](auto const& t1, auto const& t2)

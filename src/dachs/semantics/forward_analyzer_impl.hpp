@@ -99,7 +99,7 @@ public:
             new_func->ret_type = ret_type;
         }
 
-        auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name);
+        auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name, true /*immutable*/);
         new_func_var->type = new_func->type;
         global_scope->define_function(new_func);
         global_scope->define_global_function_constant(new_func_var);

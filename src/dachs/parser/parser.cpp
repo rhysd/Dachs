@@ -663,7 +663,7 @@ public:
 
         variable_decl
             = (
-                qi::as<bool>()[-DACHS_KWD(qi::string("var"))]
+                -DACHS_KWD(qi::string("var"))
                 >> variable_name >> -(
                     // Note: In this paren, > can't be used because of :=
                     -qi::eol >> ':' >> -qi::eol >> qualified_type
