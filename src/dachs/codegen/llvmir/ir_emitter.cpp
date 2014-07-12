@@ -500,30 +500,36 @@ public:
         );
     }
 
+    template<class Node>
+    void check_available_type_for_binary_expression(Node const& node, type::type const& lhs, type::type const& rhs)
+    {
+        if (!lhs.is_builtin() || !rhs.is_builtin()) {
+            error(node, "Binary expression now only supports float, int, bool and uint");
+        }
+
+        auto const lhs_builtin_type = *type::get<type::builtin_type>(lhs);
+        auto const rhs_builtin_type = *type::get<type::builtin_type>(rhs);
+        auto const is_supported = [](auto const& t){ return t->name == "int" || t->name == "float" || t->name == "uint" || t->name == "bool"; };
+
+        if (!is_supported(lhs_builtin_type) || !is_supported(rhs_builtin_type)) {
+            error(node, "Binary expression now only supports float, int, bool and uint");
+        }
+    }
+
     val emit(ast::node::binary_expr const& bin_expr)
     {
         auto const lhs_type = type::type_of(bin_expr->lhs);
         auto const rhs_type = type::type_of(bin_expr->rhs);
 
-        if (!lhs_type.is_builtin() || !rhs_type.is_builtin()) {
-            error(bin_expr, "Binary expression now only supports float, int, bool and uint");
-        }
-
-        auto const lhs_builtin_type = *type::get<type::builtin_type>(lhs_type);
-        auto const rhs_builtin_type = *type::get<type::builtin_type>(rhs_type);
-        auto const is_supported = [](auto const& t){ return t->name == "int" || t->name == "float" || t->name == "uint" || t->name == "bool"; };
-
-        if (!is_supported(lhs_builtin_type) || !is_supported(rhs_builtin_type)) {
-            error(bin_expr, "Binary expression now only supports float, int, bool and uint");
-        }
+        check_available_type_for_binary_expression(bin_expr, lhs_type, rhs_type);
 
         return check(
             bin_expr,
-            tmp_builtin_bin_op_ir_emitter{builder, emit(bin_expr->lhs), emit(bin_expr->rhs), bin_expr->op}.emit(lhs_builtin_type),
+            tmp_builtin_bin_op_ir_emitter{builder, emit(bin_expr->lhs), emit(bin_expr->rhs), bin_expr->op}.emit(*type::get<type::builtin_type>(lhs_type)),
             boost::format("binary operator '%1%' (rhs type is '%2%', lhs type is '%3%')")
                 % bin_expr->op
-                % lhs_builtin_type->to_string()
-                % rhs_builtin_type->to_string()
+                % type::to_string(lhs_type)
+                % type::to_string(rhs_type)
         );
     }
 
@@ -630,9 +636,12 @@ public:
         assert(assignee_size > 0 && assigner_size > 0);
 
         if (assignee_size == assigner_size) {
-            for (auto const& rhs : assign->rhs_exprs) {
-                rhs_values.push_back(emit(rhs));
-            }
+            helper::each(
+                    [&](auto const& lhs, auto const& rhs)
+                    {
+                        check_available_type_for_binary_expression(assign, type::type_of(lhs), type::type_of(rhs));
+                        rhs_values.push_back(emit(rhs));
+                    }, assign->assignees, assign->rhs_exprs);
         } else if (assignee_size == 1) {
             throw not_implemented_error{assign, __FILE__, __func__, __LINE__, "multiple to one assignment"};
         } else if (assigner_size == 1) {
@@ -650,13 +659,16 @@ public:
                     assert(!(*maybe_var_ref)->symbol.expired());
                     auto const lhs_sym = (*maybe_var_ref)->symbol.lock();
 
-                    if (assign->op != "=") {
+                    if (assign->op == "=") {
+                        check(assign, var_table.emit_ir_to_store(lhs_sym, rhs_value), "storing rhs value");
+                    } else {
+                        auto const bin_op = assign->op.substr(0, assign->op.size()-1);
                         // Load lhs value
                         // Process operators.(if compound operator, use binary_operator process)
-                        throw not_implemented_error{assign, __FILE__, __func__, __LINE__, "compound assignment"};
+                        auto const loaded_val = var_table.emit_ir_to_load(lhs_sym);
+                        auto const lhs_value = tmp_builtin_bin_op_ir_emitter{builder, loaded_val, rhs_value, bin_op}.emit(*type::get<type::builtin_type>(type::type_of(lhs_expr)));
+                        check(assign, var_table.emit_ir_to_store(lhs_sym, lhs_value), "storing rhs value");
                     }
-
-                    check(assign, var_table.emit_ir_to_store(lhs_sym, rhs_value), "storing rhs value");
                 } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs_expr)) {
                     throw not_implemented_error{assign, __FILE__, __func__, __LINE__, "index access in assignment"};
                 } else {
