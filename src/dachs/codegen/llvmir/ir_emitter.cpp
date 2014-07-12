@@ -510,7 +510,7 @@ public:
         auto const rhs_builtin_type = *type::get<type::builtin_type>(rhs);
         auto const is_supported = [](auto const& t){ return t->name == "int" || t->name == "float" || t->name == "uint" || t->name == "bool"; };
 
-        return !is_supported(lhs_builtin_type) || !is_supported(rhs_builtin_type);
+        return is_supported(lhs_builtin_type) && is_supported(rhs_builtin_type);
     }
 
     val emit(ast::node::binary_expr const& bin_expr)
