@@ -158,7 +158,8 @@ public:
         // XXX:
         // Use macro instead of user-defined literal because rvalue of Boost.Spirit
         // parser must be copied by boost::proto::deep_copy. Or it causes SEGV.
-        #define DACHS_KWD(...) (&(qi::lexeme[(__VA_ARGS__) >> !(qi::alnum | '_')]) >> (__VA_ARGS__))
+        #define DACHS_KWD(...) (qi::lexeme[(__VA_ARGS__) >> !(qi::alnum | '_')])
+        #define DACHS_KWD_STRICT(...) (&(qi::lexeme[(__VA_ARGS__) >> !(qi::alnum | '_')]) >> (__VA_ARGS__))
 
         sep = +(';' ^ qi::eol);
 
@@ -345,7 +346,7 @@ public:
 
         parameter
             = (
-                -DACHS_KWD(string("var"))
+                -DACHS_KWD_STRICT(qi::matches[lit("var")])
                 >> variable_name
                 >> -(
                     -qi::eol >> ':' >> -qi::eol >> qualified_type
@@ -680,7 +681,7 @@ public:
 
         variable_decl
             = (
-                -DACHS_KWD(qi::string("var"))
+                -DACHS_KWD_STRICT(qi::matches[lit("var")])
                 >> variable_name >> -(
                     // Note: In this paren, > can't be used because of :=
                     -qi::eol >> ':' >> -qi::eol >> qualified_type
