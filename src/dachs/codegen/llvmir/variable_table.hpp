@@ -2,6 +2,7 @@
 #define      DACHS_CODEGEN_LLVMIR_VARIABLE_TABLE_HPP_INCLUDED
 
 #include <unordered_map>
+#include <cassert>
 
 #include <boost/optional.hpp>
 
@@ -82,13 +83,61 @@ public:
         return nullptr;
     }
 
+    val lookup_register_value(symbol::var_symbol const& s) const noexcept
+    {
+        if (auto const maybe_reg_val = detail::lookup_table(register_table, s)) {
+            return *maybe_reg_val;
+        } else {
+            return nullptr;
+        }
+    }
+
+    val lookup_alloca_value(symbol::var_symbol const& s) const noexcept
+    {
+        if (auto const maybe_alloca_val = detail::lookup_table(alloca_table, s)) {
+            return *maybe_alloca_val;
+        } else {
+            return nullptr;
+        }
+    }
+
+    val lookup_value(symbol::var_symbol const& s) const noexcept
+    {
+        if (auto const maybe_reg_val = detail::lookup_table(register_table, s)) {
+            return *maybe_reg_val;
+        }
+
+        if (auto const maybe_alloca_val = detail::lookup_table(alloca_table, s)) {
+            return *maybe_alloca_val;
+        }
+
+        return nullptr;
+    }
+
+    bool erase_register_value(symbol::var_symbol const& s) noexcept
+    {
+        return register_table.erase(s) == 1;
+    }
+
+    bool erase_alloca_value(symbol::var_symbol const& s) noexcept
+    {
+        return alloca_table.erase(s) == 1;
+    }
+
+    bool erase_value(symbol::var_symbol const& s) noexcept
+    {
+        return erase_register_value(s) || erase_alloca_value(s);
+    }
+
     bool insert(symbol::var_symbol const& key, val const value) noexcept
     {
+        assert(!detail::exists_in_table(alloca_table, key));
         return register_table.emplace(key, value).second;
     }
 
     bool insert(symbol::var_symbol const& key, llvm::AllocaInst *const value) noexcept
     {
+        assert(!detail::exists_in_table(register_table, key));
         return alloca_table.emplace(key, value).second;
     }
 };

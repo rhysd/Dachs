@@ -345,7 +345,7 @@ public:
 
         parameter
             = (
-                qi::as<bool>()[-DACHS_KWD(qi::string("var"))]
+                -DACHS_KWD(qi::string("var"))
                 >> variable_name
                 >> -(
                     -qi::eol >> ':' >> -qi::eol >> qualified_type

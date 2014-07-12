@@ -316,7 +316,8 @@ struct parameter final : public base {
     dachs::symbol::weak_var_symbol param_symbol;
     type::type type;
 
-    parameter(bool const v, std::string const& n, decltype(param_type) const& t) noexcept
+    template<class T>
+    parameter(T const& v, std::string const& n, decltype(param_type) const& t) noexcept
         : base(), is_var(v), name(n), param_type(t)
     {}
 

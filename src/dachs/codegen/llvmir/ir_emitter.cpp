@@ -330,8 +330,35 @@ public:
         return module;
     }
 
+    void emit(ast::node::parameter const& param)
+    {
+        assert(!param->param_symbol.expired());
+
+        auto const param_sym = param->param_symbol.lock();
+        if (!param_sym->immutable) {
+            // Note:
+            // The parameter is already registered as register value for variable table in func_prototype()
+            // So at first we delete the value and re-register it as allocated value
+            auto const register_val = var_table.lookup_register_value(param_sym);
+            assert(register_val);
+            var_table.erase_register_value(param_sym);
+
+            auto const inst
+                = check(
+                    param,
+                    builder.CreateAlloca(emit_type_ir(param_sym->type, context)),
+                    "allocation for variable parameter"
+                );
+
+            auto const result = var_table.insert(param_sym, inst);
+            assert(result);
+            check(param, builder.CreateStore(register_val, inst), "storing variable parameter");
+        }
+
+    }
+
     // Note:
-    // IR for the function is already emitd in emit(ast::node::program const&)
+    // IR for the function prototype is already emitd in emit(ast::node::program const&)
     void emit(ast::node::function_definition const& func_def)
     {
         if (func_def->is_template()) {
@@ -341,16 +368,16 @@ public:
             return;
         }
 
-        // Note:
-        // It is no need to visit params because it is already visited
-        // in emit(ast::node::program const&) because of forward reference
-
         // Note: Already checked the scope is not empty
         auto maybe_prototype_ir = lookup_func(func_def->scope.lock());
         assert(maybe_prototype_ir);
         auto &prototype_ir = *maybe_prototype_ir;
         auto const block = llvm::BasicBlock::Create(context, "entry", prototype_ir);
         builder.SetInsertPoint(block);
+
+        for (auto const& p : func_def->params) {
+            emit(p);
+        }
 
         emit(func_def->body);
 
@@ -579,10 +606,10 @@ public:
             = [&](auto const& decl)
             {
                 assert(!decl->symbol.expired());
-                auto sym = decl->symbol.lock();
+                auto const sym = decl->symbol.lock();
                 auto const t = sym->type;
                 assert(t);
-                auto inst = builder.CreateAlloca(emit_type_ir(t, context));
+                auto const inst = builder.CreateAlloca(emit_type_ir(t, context));
 
                 var_table.insert(std::move(sym), inst);
 
