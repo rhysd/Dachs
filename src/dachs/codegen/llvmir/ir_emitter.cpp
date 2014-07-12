@@ -500,20 +500,17 @@ public:
         );
     }
 
-    template<class Node>
-    void check_available_type_for_binary_expression(Node const& node, type::type const& lhs, type::type const& rhs)
+    bool is_available_type_for_binary_expression(type::type const& lhs, type::type const& rhs) const noexcept
     {
         if (!lhs.is_builtin() || !rhs.is_builtin()) {
-            error(node, "Binary expression now only supports float, int, bool and uint");
+            return false;
         }
 
         auto const lhs_builtin_type = *type::get<type::builtin_type>(lhs);
         auto const rhs_builtin_type = *type::get<type::builtin_type>(rhs);
         auto const is_supported = [](auto const& t){ return t->name == "int" || t->name == "float" || t->name == "uint" || t->name == "bool"; };
 
-        if (!is_supported(lhs_builtin_type) || !is_supported(rhs_builtin_type)) {
-            error(node, "Binary expression now only supports float, int, bool and uint");
-        }
+        return !is_supported(lhs_builtin_type) || !is_supported(rhs_builtin_type);
     }
 
     val emit(ast::node::binary_expr const& bin_expr)
@@ -521,11 +518,13 @@ public:
         auto const lhs_type = type::type_of(bin_expr->lhs);
         auto const rhs_type = type::type_of(bin_expr->rhs);
 
-        check_available_type_for_binary_expression(bin_expr, lhs_type, rhs_type);
+        if (!is_available_type_for_binary_expression(lhs_type, rhs_type)) {
+            error(bin_expr, "Binary expression now only supports float, int, bool and uint");
+        }
 
         return check(
             bin_expr,
-            tmp_builtin_bin_op_ir_emitter{builder, emit(bin_expr->lhs), emit(bin_expr->rhs), bin_expr->op}.emit(*type::get<type::builtin_type>(lhs_type)),
+            tmp_builtin_bin_op_ir_emitter{builder, emit(bin_expr->lhs), emit(bin_expr->rhs), bin_expr->op}.emit(lhs_type),
             boost::format("binary operator '%1%' (rhs type is '%2%', lhs type is '%3%')")
                 % bin_expr->op
                 % type::to_string(lhs_type)
@@ -639,7 +638,9 @@ public:
             helper::each(
                     [&](auto const& lhs, auto const& rhs)
                     {
-                        check_available_type_for_binary_expression(assign, type::type_of(lhs), type::type_of(rhs));
+                        if (!is_available_type_for_binary_expression(type::type_of(lhs), type::type_of(rhs))) {
+                            error(assign, "Binary expression now only supports float, int, bool and uint");
+                        }
                         rhs_values.push_back(emit(rhs));
                     }, assign->assignees, assign->rhs_exprs);
         } else if (assignee_size == 1) {
@@ -665,9 +666,14 @@ public:
                         auto const bin_op = assign->op.substr(0, assign->op.size()-1);
                         // Load lhs value
                         // Process operators.(if compound operator, use binary_operator process)
-                        auto const loaded_val = var_table.emit_ir_to_load(lhs_sym);
-                        auto const lhs_value = tmp_builtin_bin_op_ir_emitter{builder, loaded_val, rhs_value, bin_op}.emit(*type::get<type::builtin_type>(type::type_of(lhs_expr)));
-                        check(assign, var_table.emit_ir_to_store(lhs_sym, lhs_value), "storing rhs value");
+                        auto const lhs_value =
+                            tmp_builtin_bin_op_ir_emitter{
+                                builder,
+                                var_table.emit_ir_to_load(lhs_sym),
+                                rhs_value,
+                                bin_op
+                            }.emit(type::type_of(lhs_expr));
+                        check(assign, var_table.emit_ir_to_store(lhs_sym, lhs_value), "storing rhs value in compound assignment '" + bin_op + '\'');
                     }
                 } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs_expr)) {
                     throw not_implemented_error{assign, __FILE__, __func__, __LINE__, "index access in assignment"};

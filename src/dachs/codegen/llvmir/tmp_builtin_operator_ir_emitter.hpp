@@ -26,14 +26,29 @@ public:
                 llvm::Value *const l,
                 llvm::Value *const r,
                 std::string const& op
-            )
+            ) noexcept
         : builder(b)
         , lhs(l)
         , rhs(r)
         , op(op)
     {}
 
-    return_type emit(type::builtin_type const& builtin)
+    return_type emit(type::type const& t) noexcept
+    {
+        if (auto const bt = type::get<type::builtin_type>(t)) {
+            return emit(*bt);
+        } else if (auto const at = type::get<type::array_type>(t)) {
+            return emit(*at);
+        } else if (auto const tt = type::get<type::tuple_type>(t)) {
+            return emit(*tt);
+        } else if (auto const rt = type::get<type::range_type>(t)) {
+            return emit(*rt);
+        } else {
+            return nullptr;
+        }
+    }
+
+    return_type emit(type::builtin_type const& builtin) noexcept
     {
         bool const is_float = builtin->name == "float";
         bool const is_int = builtin->name == "int";
@@ -140,19 +155,19 @@ public:
         return nullptr;
     }
 
-    return_type emit(type::array_type const&)
+    return_type emit(type::array_type const&) noexcept
     {
         // TODO
         return nullptr;
     }
 
-    return_type emit(type::tuple_type const&)
+    return_type emit(type::tuple_type const&) noexcept
     {
         // TODO
         return nullptr;
     }
 
-    return_type emit(type::range_type const&)
+    return_type emit(type::range_type const&) noexcept
     {
         // TODO
         return nullptr;
