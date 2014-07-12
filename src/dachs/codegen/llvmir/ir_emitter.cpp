@@ -530,7 +530,7 @@ public:
     val emit(ast::node::var_ref const& var)
     {
         assert(!var->symbol.expired());
-        return check(var, var_table.get_ir_for(var->symbol.lock()), "loading variable");
+        return check(var, var_table.emit_ir_to_load(var->symbol.lock()), "loading variable");
     }
 
     void emit(ast::node::while_stmt const& while_)
@@ -620,6 +620,8 @@ public:
 
     void emit(ast::node::assignment_stmt const& assign)
     {
+        assert(assign->op.back() == '=');
+
         // Load rhs value
         std::vector<val> rhs_values;
 
@@ -638,11 +640,31 @@ public:
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
-        assert(rhs_values.size() == assignee_size);
 
-        // Load lhs value
-        // Process operators.(if compound operator, use binary_operator process)
-        // Store result to the right place lhs indicating
+        assert(assignee_size == rhs_values.size());
+
+        helper::each(
+            [&, this](auto const& lhs_expr, auto const rhs_value)
+            {
+                if (auto const maybe_var_ref = get_as<ast::node::var_ref>(lhs_expr)) {
+                    assert(!(*maybe_var_ref)->symbol.expired());
+                    auto const lhs_sym = (*maybe_var_ref)->symbol.lock();
+
+                    if (assign->op != "=") {
+                        // Load lhs value
+                        // Process operators.(if compound operator, use binary_operator process)
+                        throw not_implemented_error{assign, __FILE__, __func__, __LINE__, "compound assignment"};
+                    }
+
+                    check(assign, var_table.emit_ir_to_store(lhs_sym, rhs_value), "storing rhs value");
+                } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs_expr)) {
+                    throw not_implemented_error{assign, __FILE__, __func__, __LINE__, "index access in assignment"};
+                } else {
+                    DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+                }
+            }
+            , assign->assignees, rhs_values
+        );
     }
 
     template<class T>
