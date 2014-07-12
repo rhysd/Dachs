@@ -13,22 +13,6 @@ namespace ast {
 
 namespace symbol {
 
-enum class assign_operator {
-    assign,
-    mult,
-    div,
-    mod,
-    add,
-    sub,
-    left_shift,
-    right_shift,
-    arithmetic_and,
-    arithmetic_xor,
-    arithmetic_or,
-    logical_and,
-    logical_or,
-};
-
 enum class if_kind {
     if_,
     unless,
@@ -43,7 +27,6 @@ enum class func_kind {
     proc,
 };
 
-std::string to_string(assign_operator const o);
 std::string to_string(if_kind const o);
 std::string to_string(qualifier const o);
 std::string to_string(func_kind const o);

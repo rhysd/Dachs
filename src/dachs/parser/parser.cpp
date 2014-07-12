@@ -654,6 +654,23 @@ public:
                 -qualifier[_val = make_node_ptr<ast::node::qualified_type>(_1, _val)]
             ;
 
+        assign_operator
+            =
+                string("=")
+              | string("*=")
+              | string("/=")
+              | string("%=")
+              | string("+=")
+              | string("-=")
+              | string("<<=")
+              | string(">>=")
+              | string("&=")
+              | string("^=")
+              | string("|=")
+              | string("&&=")
+              | string("||=")
+            ;
+
         assignment_stmt
             = (
                 postfix_expr % comma >> assign_operator >> typed_expr % comma
@@ -1105,7 +1122,7 @@ private:
                                      , case_when_stmt_block
                                      , func_body_stmt_block
                                      ;
-    rule<std::string()> called_function_name, function_name, func_def_name, variable_name, type_name, unary_operator, binary_operator;
+    rule<std::string()> called_function_name, function_name, func_def_name, variable_name, type_name, unary_operator, binary_operator, assign_operator;
     rule<qi::unused_type()/*TMP*/> func_precondition;
     decltype(return_stmt) postfix_if_return_stmt;
 
@@ -1114,27 +1131,6 @@ private:
     // }}}
 
     // Symbol tables {{{
-    struct assign_operator_rule_type : public qi::symbols<char, ast::symbol::assign_operator> {
-        assign_operator_rule_type()
-        {
-            add
-                ("=", ast::symbol::assign_operator::assign)
-                ("*=", ast::symbol::assign_operator::mult)
-                ("/=", ast::symbol::assign_operator::div)
-                ("%=", ast::symbol::assign_operator::mod)
-                ("+=", ast::symbol::assign_operator::add)
-                ("-=", ast::symbol::assign_operator::sub)
-                ("<<=", ast::symbol::assign_operator::left_shift)
-                (">>=", ast::symbol::assign_operator::right_shift)
-                ("&=", ast::symbol::assign_operator::arithmetic_and)
-                ("^=", ast::symbol::assign_operator::arithmetic_xor)
-                ("|=", ast::symbol::assign_operator::arithmetic_or)
-                ("&&=", ast::symbol::assign_operator::logical_and)
-                ("||=", ast::symbol::assign_operator::logical_or)
-            ;
-        }
-    } assign_operator;
-
     struct if_kind_rule_type : public qi::symbols<char, ast::symbol::if_kind> {
         if_kind_rule_type()
         {

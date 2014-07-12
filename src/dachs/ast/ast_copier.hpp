@@ -189,7 +189,7 @@ public:
 
     auto copy(node::assignment_stmt const& as) const
     {
-        return copy_node<node::assignment_stmt>(as, copy(as->assignees), as->assign_op, copy(as->rhs_exprs));
+        return copy_node<node::assignment_stmt>(as, copy(as->assignees), as->op, copy(as->rhs_exprs));
     }
 
     auto copy(node::statement_block const& sb) const

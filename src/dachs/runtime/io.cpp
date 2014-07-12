@@ -17,6 +17,11 @@ extern "C" {
         std::printf("%u\n", u);
     }
 
+    void dachs_put_char__(char const c)
+    {
+        std::printf("%c\n", c);
+    }
+
     void dachs_put_string__(char const* const s)
     {
         std::printf("%s\n", s);
@@ -45,6 +50,11 @@ extern "C" {
     void dachs_print_uint__(unsigned int const u)
     {
         std::printf("%u", u);
+    }
+
+    void dachs_print_char__(char const c)
+    {
+        std::printf("%c", c);
     }
 
     void dachs_print_string__(char const* const s)

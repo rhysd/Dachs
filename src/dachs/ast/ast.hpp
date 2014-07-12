@@ -594,13 +594,13 @@ struct initialize_stmt final : public statement {
 
 struct assignment_stmt final : public statement {
     std::vector<node::any_expr> assignees;
-    symbol::assign_operator assign_op;
+    std::string op;
     std::vector<node::any_expr> rhs_exprs;
 
     assignment_stmt(decltype(assignees) const& assignees,
-                    symbol::assign_operator assign_op,
+                    std::string const& op,
                     decltype(rhs_exprs) const& rhs_exprs) noexcept
-        : statement(), assignees(assignees), assign_op(assign_op), rhs_exprs(rhs_exprs)
+        : statement(), assignees(assignees), op(op), rhs_exprs(rhs_exprs)
     {}
 
     std::string to_string() const noexcept override
