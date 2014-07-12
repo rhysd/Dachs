@@ -310,7 +310,7 @@ struct var_ref final : public expression {
 };
 
 struct parameter final : public base {
-    bool is_var = false;
+    bool is_var;
     std::string name;
     boost::optional<node::any_type> param_type;
     dachs::symbol::weak_var_symbol param_symbol;
