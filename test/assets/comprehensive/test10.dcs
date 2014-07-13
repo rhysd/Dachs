@@ -1,6 +1,21 @@
+func put
+    print('\n')
+end
 
-hoge := 42
+func f(var a)
+    print(a)
+    a += 3
+    put()
+    print(a)
+end
 
-func main
-    println(hoge)
+func main()
+    var a, var b := 42, 3.14
+    a, b += 1, 1.0
+    a, b /= 3, 2.0
+    print(a)
+    put()
+    print(b)
+    put()
+    f(11)
 end
