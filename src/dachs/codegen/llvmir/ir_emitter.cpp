@@ -115,13 +115,13 @@ class llvm_ir_emitter {
     }
 
     template<class Node>
-    void error(Node const& n, boost::format const& msg)
+    void error(Node const& n, boost::format const& msg) const
     {
         error(n, msg.str());
     }
 
     template<class Node, class String>
-    void error(Node const& n, String const& msg)
+    void error(Node const& n, String const& msg) const
     {
         // TODO:
         // Dump builder's debug information and context's information
@@ -146,17 +146,21 @@ class llvm_ir_emitter {
         return v;
     }
 
-    template<class Node, class String, class... Values>
-    void check_all(Node const& n, String const& feature, Values const... vs)
+    template<class Node, class String, class Value>
+    void check_all(Node const& n, String const& feature, Value const v) const
     {
-        static_assert(helper::are_same<Values...>::value, "check_all(): Type of values are invalid");
-        // Note:
-        // We can't use any_of() because template 'Range' can't be infered.
-        for (auto const v : {vs...}) {
-            if (!v) {
-                error(n, std::string{"Failed to emit "} + feature);
-            }
+        if (!v) {
+            error(n, std::string{"Failed to emit "} + feature);
         }
+    }
+
+    template<class Node, class String, class Value, class... Values>
+    void check_all(Node const& n, String const& feature, Value const v, Values const... vs) const
+    {
+        if (!v) {
+            error(n, std::string{"Failed to emit "} + feature);
+        }
+        check_all(n, feature, vs...);
     }
 
     template<class... NodeTypes>
@@ -406,12 +410,12 @@ public:
 
     void emit(ast::node::if_stmt const& if_)
     {
-        auto *parent = builder.GetInsertBlock()->getParent();
+        auto *const parent = builder.GetInsertBlock()->getParent();
 
         auto *then_block = llvm::BasicBlock::Create(context, "if.then", parent);
         auto *else_block = llvm::BasicBlock::Create(context, "if.else", parent);
-        auto *end_block  = llvm::BasicBlock::Create(context, "if.end");
-        check_all(if_, "if statement", then_block, else_block, end_block);
+        auto *const end_block  = llvm::BasicBlock::Create(context, "if.end");
+        check_all(if_, "if statement", parent, then_block, else_block, end_block);
 
         // IR for if-then clause
         val cond_val = emit(if_->condition);
@@ -710,6 +714,39 @@ public:
             }
             , assign->assignees, rhs_values
         );
+    }
+
+    void emit(ast::node::case_stmt const& case_)
+    {
+        auto *const parent = builder.GetInsertBlock()->getParent();
+        auto *const end_block = llvm::BasicBlock::Create(context, "case.end");
+        check_all(case_, "case statement", parent, end_block);
+
+        llvm::BasicBlock *else_block;
+        for (auto const& when_stmts : case_->when_stmts_list) {
+            auto *const cond_val = emit(when_stmts.first);
+            auto *const when_block = llvm::BasicBlock::Create(context, "case.when", parent);
+            else_block = llvm::BasicBlock::Create(context, "case.else", parent);
+            check_all(case_, "case when clause", when_block, else_block);
+
+            builder.CreateCondBr(cond_val, when_block, else_block);
+            builder.SetInsertPoint(when_block);
+            emit(when_stmts.second);
+            if (!when_block->getTerminator()) {
+                builder.CreateBr(end_block);
+            }
+            builder.SetInsertPoint(else_block);
+        }
+
+        if (case_->maybe_else_stmts) {
+            emit(*case_->maybe_else_stmts);
+        }
+        if (!else_block->getTerminator()) {
+            builder.CreateBr(end_block);
+        }
+
+        parent->getBasicBlockList().push_back(end_block);
+        builder.SetInsertPoint(end_block);
     }
 
     template<class T>
