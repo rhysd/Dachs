@@ -27,6 +27,7 @@
 #include "dachs/codegen/llvmir/tmp_builtin_operator_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/builtin_func_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/variable_table.hpp"
+#include "dachs/codegen/llvmir/ir_builder_helper.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -35,7 +36,6 @@
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/colorizer.hpp"
 #include "dachs/helper/each.hpp"
-#include "dachs/codegen/llvmir/ir_builder_helper.hpp"
 
 /*
  * Note:
@@ -165,7 +165,7 @@ class llvm_ir_emitter {
     }
 
     template<class Node>
-    auto get_helper(Node const& node) noexcept
+    auto get_helper(std::shared_ptr<Node> const& node) noexcept
         -> basic_ir_builder_helper<Node>
     {
         return {node, builder, context};
@@ -419,51 +419,38 @@ public:
 
     void emit(ast::node::if_stmt const& if_)
     {
-        auto *const parent = builder.GetInsertBlock()->getParent();
+        auto helper = get_helper(if_);
 
-        auto *then_block = llvm::BasicBlock::Create(context, "if.then", parent);
-        auto *else_block = llvm::BasicBlock::Create(context, "if.else", parent);
-        auto *const end_block  = llvm::BasicBlock::Create(context, "if.end");
-        check_all(if_, "if statement", parent, then_block, else_block, end_block);
+        auto *then_block = helper.create_block_for_parent("if.then");
+        auto *else_block = helper.create_block_for_parent("if.else");
+        auto *const end_block = helper.create_block("if.end");
 
         // IR for if-then clause
         val cond_val = emit(if_->condition);
         if (if_->kind == ast::symbol::if_kind::unless) {
             cond_val = check(if_, builder.CreateNot(cond_val, "if_stmt_unless"), "unless statement");
         }
-        builder.CreateCondBr(cond_val, then_block, else_block);
-        builder.SetInsertPoint(then_block);
+        helper.create_cond_br(cond_val, then_block, else_block);
         emit(if_->then_stmts);
-        if (!then_block->getTerminator()) {
-            builder.CreateBr(end_block);
-        }
-        builder.SetInsertPoint(else_block);
+        helper.terminate_with_br(end_block, else_block);
 
         // IR for elseif clause
         for (auto const& elseif : if_->elseif_stmts_list) {
             cond_val = emit(elseif.first);
-            then_block = llvm::BasicBlock::Create(context, "if.then", parent);
-            else_block = llvm::BasicBlock::Create(context, "if.else", parent);
-            check_all(if_, "elseif clause", then_block, else_block);
-            builder.CreateCondBr(cond_val, then_block, else_block);
-            builder.SetInsertPoint(then_block);
+            then_block = helper.create_block_for_parent("if.then");
+            else_block = helper.create_block_for_parent("if.else");
+            helper.create_cond_br(cond_val, then_block, else_block);
             emit(elseif.second);
-            if (!then_block->getTerminator()) {
-                builder.CreateBr(end_block);
-            }
-            builder.SetInsertPoint(else_block);
+            helper.terminate_with_br(end_block, else_block);
         }
 
         // IR for else clause
         if (if_->maybe_else_stmts) {
             emit(*if_->maybe_else_stmts);
         }
-        if (!else_block->getTerminator()) {
-            builder.CreateBr(end_block);
-        }
+        helper.terminate_with_br(end_block);
 
-        parent->getBasicBlockList().push_back(end_block);
-        builder.SetInsertPoint(end_block);
+        helper.append_block(end_block);
     }
 
     void emit(ast::node::return_stmt const& return_)
@@ -580,29 +567,21 @@ public:
 
     void emit(ast::node::while_stmt const& while_)
     {
-        auto *const parent = builder.GetInsertBlock()->getParent();
-        assert(parent);
+        auto helper = get_helper(while_);
 
-        auto *const cond_block = llvm::BasicBlock::Create(context, "while.cond", parent);
-        auto *const body_block = llvm::BasicBlock::Create(context, "while.body", parent);
-        auto *const exit_block = llvm::BasicBlock::Create(context, "while.exit", parent);
-        check_all(while_, "for statement", cond_block, body_block, exit_block);
+        auto *const cond_block = helper.create_block_for_parent("while.cond");
+        auto *const body_block = helper.create_block_for_parent("while.body");
+        auto *const exit_block = helper.create_block_for_parent("while.exit");
 
         // Loop header
-        builder.CreateBr(cond_block);
-        builder.SetInsertPoint(cond_block);
+        helper.create_br(cond_block);
         val cond_val = emit(while_->condition);
-        builder.CreateCondBr(cond_val, body_block, exit_block);
+        helper.create_cond_br(cond_val, body_block, exit_block);
 
         // Loop body
         auto const auto_popper = push_loop(cond_block);
-        builder.SetInsertPoint(body_block);
         emit(while_->body_stmts);
-        if (!body_block->getTerminator()) {
-            builder.CreateBr(cond_block);
-        }
-
-        builder.SetInsertPoint(exit_block);
+        helper.terminate_with_br(cond_block, exit_block);
     }
 
     void emit(ast::node::initialize_stmt const& init)
@@ -727,35 +706,26 @@ public:
 
     void emit(ast::node::case_stmt const& case_)
     {
-        auto *const parent = builder.GetInsertBlock()->getParent();
-        auto *const end_block = llvm::BasicBlock::Create(context, "case.end");
-        check_all(case_, "case statement", parent, end_block);
+        auto helper = get_helper(case_);
+        auto *const end_block = helper.create_block("case.end");
 
         llvm::BasicBlock *else_block;
         for (auto const& when_stmts : case_->when_stmts_list) {
             auto *const cond_val = emit(when_stmts.first);
-            auto *const when_block = llvm::BasicBlock::Create(context, "case.when", parent);
-            else_block = llvm::BasicBlock::Create(context, "case.else", parent);
-            check_all(case_, "case when clause", when_block, else_block);
+            auto *const when_block = helper.create_block_for_parent("case.when");
+            else_block = helper.create_block_for_parent("case.else");
 
-            builder.CreateCondBr(cond_val, when_block, else_block);
-            builder.SetInsertPoint(when_block);
+            helper.create_cond_br(cond_val, when_block, else_block);
             emit(when_stmts.second);
-            if (!when_block->getTerminator()) {
-                builder.CreateBr(end_block);
-            }
-            builder.SetInsertPoint(else_block);
+            helper.terminate_with_br(end_block, else_block);
         }
 
         if (case_->maybe_else_stmts) {
             emit(*case_->maybe_else_stmts);
         }
-        if (!else_block->getTerminator()) {
-            builder.CreateBr(end_block);
-        }
+        helper.terminate_with_br(end_block);
 
-        parent->getBasicBlockList().push_back(end_block);
-        builder.SetInsertPoint(end_block);
+        helper.append_block(end_block);
     }
 
     /*
@@ -779,9 +749,8 @@ public:
      */
     void emit(ast::node::switch_stmt const& switch_)
     {
-        auto *const parent = builder.GetInsertBlock()->getParent();
-        auto *const end_block = llvm::BasicBlock::Create(context, "switch.end");
-        check_all(switch_, "switch statement", parent, end_block);
+        auto helper = get_helper(switch_);
+        auto *const end_block = helper.create_block("switch.end");
 
         auto *const target_val = emit(switch_->target_expr);
         auto const target_type = type::type_of(switch_->target_expr);
@@ -790,18 +759,12 @@ public:
         llvm::BasicBlock *else_block;
         for (auto const& when_stmt : switch_->when_stmts_list) {
             assert(when_stmt.first.size() > 0);
-            auto *const then_block = llvm::BasicBlock::Create(context, "switch.then");
-            else_block = llvm::BasicBlock::Create(context, "switch.else");
-            check_all(switch_, "switch when clause", then_block, else_block);
+            auto *const then_block = helper.create_block("switch.then");
+            else_block = helper.create_block("switch.else");
 
             // Emit condition IRs
             for (auto const& cmp_expr : when_stmt.first) {
-                auto *const next_cond_block
-                    = check(
-                        switch_,
-                        llvm::BasicBlock::Create(context, "switch.cond.next"),
-                        "block for next condition in 'when' clause in switch statement"
-                    );
+                auto *const next_cond_block = helper.create_block("switch.cond.next");
 
                 if (!is_available_type_for_binary_expression(target_type, type::type_of(cmp_expr))) {
                     error(switch_, "Case statement condition now only supports some builtin types");
@@ -813,40 +776,32 @@ public:
                         tmp_builtin_bin_op_ir_emitter{
                             builder,
                             target_val,
-                            check(switch_, emit(cmp_expr), "compared value in condition in switch statement"),
+                            emit(cmp_expr),
                             "=="
                         }.emit(target_type),
                         "condition in switch statement"
                     );
 
-                builder.CreateCondBr(cond_val, then_block, next_cond_block);
-                parent->getBasicBlockList().push_back(next_cond_block);
-                builder.SetInsertPoint(next_cond_block);
+                helper.create_cond_br(cond_val, then_block, next_cond_block, nullptr);
+                helper.append_block(next_cond_block);
             }
-            builder.CreateBr(else_block);
+            helper.create_br(else_block, nullptr);
 
             // Note:
             // Though it is easy to insert IR for then block before condition blocks,
             // it is less readable than the IR order implemented here.
-            parent->getBasicBlockList().push_back(then_block);
-            builder.SetInsertPoint(then_block);
+            helper.append_block(then_block);
             emit(when_stmt.second);
-            if (!then_block->getTerminator()) {
-                builder.CreateBr(end_block);
-            }
-            parent->getBasicBlockList().push_back(else_block);
-            builder.SetInsertPoint(else_block);
+            helper.terminate_with_br(end_block);
+            helper.append_block(else_block);
         }
 
         if (switch_->maybe_else_stmts) {
             emit(*switch_->maybe_else_stmts);
         }
-        if (!else_block->getTerminator()) {
-            builder.CreateBr(end_block);
-        }
+        helper.terminate_with_br(end_block);
 
-        parent->getBasicBlockList().push_back(end_block);
-        builder.SetInsertPoint(end_block);
+        helper.append_block(end_block);
     }
 
     template<class T>
