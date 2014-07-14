@@ -26,7 +26,7 @@
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/tmp_builtin_operator_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/builtin_func_ir_emitter.hpp"
-#include <dachs/codegen/llvmir/variable_table.hpp>
+#include "dachs/codegen/llvmir/variable_table.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
