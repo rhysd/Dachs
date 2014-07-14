@@ -1,0 +1,21 @@
+func fizzbuzz(n)
+    case
+    when n % 15 == 0
+        print("fizzbuzz\n")
+    when n % 3 == 0
+        print("fizz\n")
+    when n % 5 == 0
+        print("buzz\n")
+    else
+        print(n)
+        print('\n')
+    end
+end
+
+func main
+    var i := 1
+    for i < 100
+        fizzbuzz(i)
+        i += 1
+    end
+end
