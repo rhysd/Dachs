@@ -35,6 +35,7 @@
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/colorizer.hpp"
 #include "dachs/helper/each.hpp"
+#include "dachs/codegen/llvmir/ir_builder_helper.hpp"
 
 /*
  * Note:
@@ -161,6 +162,13 @@ class llvm_ir_emitter {
             error(n, std::string{"Failed to emit "} + feature);
         }
         check_all(n, feature, vs...);
+    }
+
+    template<class Node>
+    auto get_helper(Node const& node) noexcept
+        -> basic_ir_builder_helper<Node>
+    {
+        return {node, builder, context};
     }
 
     template<class... NodeTypes>
