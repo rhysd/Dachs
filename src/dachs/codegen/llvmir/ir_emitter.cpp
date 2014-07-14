@@ -750,6 +750,97 @@ public:
         builder.SetInsertPoint(end_block);
     }
 
+    /*
+     * - statement
+     *   case v
+     *   when a, b
+     *   else
+     *   end
+     *
+     * - IR
+     *   ; emit a
+     *   v == a ? br lthen : br l1
+     *   l1:
+     *   v == b ? br lthen : br l2
+     *   l2:
+     *   br lelse
+     *   lthen:
+     *   ; body
+     *   br lend
+     *   lelse:
+     */
+    void emit(ast::node::switch_stmt const& switch_)
+    {
+        auto *const parent = builder.GetInsertBlock()->getParent();
+        auto *const end_block = llvm::BasicBlock::Create(context, "switch.end");
+        check_all(switch_, "switch statement", parent, end_block);
+
+        auto *const target_val = emit(switch_->target_expr);
+        auto const target_type = type::type_of(switch_->target_expr);
+
+        // Emit when clause
+        llvm::BasicBlock *else_block;
+        for (auto const& when_stmt : switch_->when_stmts_list) {
+            assert(when_stmt.first.size() > 0);
+            auto *const then_block = llvm::BasicBlock::Create(context, "switch.then");
+            else_block = llvm::BasicBlock::Create(context, "switch.else");
+            check_all(switch_, "switch when clause", then_block, else_block);
+
+            // Emit condition IRs
+            for (auto const& cmp_expr : when_stmt.first) {
+                auto *const next_cond_block
+                    = check(
+                        switch_,
+                        llvm::BasicBlock::Create(context, "switch.cond.next"),
+                        "block for next condition in 'when' clause in switch statement"
+                    );
+
+                if (!is_available_type_for_binary_expression(target_type, type::type_of(cmp_expr))) {
+                    error(switch_, "Case statement condition now only supports some builtin types");
+                }
+
+                auto *const cond_val 
+                    = check(
+                        switch_,
+                        tmp_builtin_bin_op_ir_emitter{
+                            builder,
+                            target_val,
+                            check(switch_, emit(cmp_expr), "compared value in condition in switch statement"),
+                            "=="
+                        }.emit(target_type),
+                        "condition in switch statement"
+                    );
+
+                builder.CreateCondBr(cond_val, then_block, next_cond_block);
+                parent->getBasicBlockList().push_back(next_cond_block);
+                builder.SetInsertPoint(next_cond_block);
+            }
+            builder.CreateBr(else_block);
+
+            // Note:
+            // Though it is easy to insert IR for then block before condition blocks,
+            // it is less readable than the IR order implemented here.
+            parent->getBasicBlockList().push_back(then_block);
+            builder.SetInsertPoint(then_block);
+            emit(when_stmt.second);
+            if (!then_block->getTerminator()) {
+                builder.CreateBr(end_block);
+            }
+            parent->getBasicBlockList().push_back(else_block);
+            builder.SetInsertPoint(else_block);
+        }
+
+        if (switch_->maybe_else_stmts) {
+            emit(*switch_->maybe_else_stmts);
+        }
+        if (!else_block->getTerminator()) {
+            builder.CreateBr(end_block);
+        }
+
+        parent->getBasicBlockList().push_back(end_block);
+        builder.SetInsertPoint(end_block);
+    }
+
     template<class T>
     val emit(std::shared_ptr<T> const& node)
     {
