@@ -132,13 +132,13 @@ class llvm_ir_emitter {
     }
 
     template<class Node, class T>
-    T check(Node const& n, T const v, boost::format const& fmt)
+    T check(Node const& n, T const v, boost::format const& fmt) const
     {
         return check(n, v, fmt.str());
     }
 
     template<class Node, class T, class String>
-    T check(Node const& n, T const v, String const& feature_name)
+    T check(Node const& n, T const v, String const& feature_name) const
     {
         if (!v) {
             error(n, std::string{"Failed to emit "} + feature_name);
@@ -356,6 +356,7 @@ public:
 
             auto const result = var_table.insert(param_sym, inst);
             assert(result);
+            (void) result;
             check(param, builder.CreateStore(register_val, inst), "storing variable parameter");
         }
 
