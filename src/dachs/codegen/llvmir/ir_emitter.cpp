@@ -165,7 +165,7 @@ class llvm_ir_emitter {
     }
 
     template<class Node>
-    auto get_helper(std::shared_ptr<Node> const& node) noexcept
+    auto get_ir_helper(std::shared_ptr<Node> const& node) noexcept
         -> basic_ir_builder_helper<Node>
     {
         return {node, builder, context};
@@ -419,7 +419,7 @@ public:
 
     void emit(ast::node::if_stmt const& if_)
     {
-        auto helper = get_helper(if_);
+        auto helper = get_ir_helper(if_);
 
         auto *then_block = helper.create_block_for_parent("if.then");
         auto *else_block = helper.create_block_for_parent("if.else");
@@ -567,7 +567,7 @@ public:
 
     void emit(ast::node::while_stmt const& while_)
     {
-        auto helper = get_helper(while_);
+        auto helper = get_ir_helper(while_);
 
         auto *const cond_block = helper.create_block_for_parent("while.cond");
         auto *const body_block = helper.create_block_for_parent("while.body");
@@ -706,7 +706,7 @@ public:
 
     void emit(ast::node::case_stmt const& case_)
     {
-        auto helper = get_helper(case_);
+        auto helper = get_ir_helper(case_);
         auto *const end_block = helper.create_block("case.end");
 
         llvm::BasicBlock *else_block;
@@ -749,7 +749,7 @@ public:
      */
     void emit(ast::node::switch_stmt const& switch_)
     {
-        auto helper = get_helper(switch_);
+        auto helper = get_ir_helper(switch_);
         auto *const end_block = helper.create_block("switch.end");
 
         auto *const target_val = emit(switch_->target_expr);
@@ -806,7 +806,7 @@ public:
 
     val emit(ast::node::if_expr const& if_)
     {
-        auto helper = get_helper(if_);
+        auto helper = get_ir_helper(if_);
 
         auto *const then_block = helper.create_block_for_parent("expr.if.then");
         auto *const else_block = helper.create_block_for_parent("expr.if.else");
@@ -832,7 +832,7 @@ public:
 
     void emit(ast::node::postfix_if_stmt const& postfix_if)
     {
-        auto helper = get_helper(postfix_if);
+        auto helper = get_ir_helper(postfix_if);
 
         auto *const then_block = helper.create_block_for_parent("postfixif.then");
         auto *const end_block = helper.create_block_for_parent("postfixif.end");
