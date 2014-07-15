@@ -56,14 +56,14 @@ public:
     }
 
     // If current block is not terminated, create br
-    auto terminate_with_br(llvm::BasicBlock *const dest, llvm::BasicBlock *const next = nullptr)
-        -> decltype(std::declval<builder_type>().CreateBr(dest))
+    llvm::BranchInst *terminate_with_br(llvm::BasicBlock *const dest, llvm::BasicBlock *const next = nullptr)
     {
-        if (builder.GetInsertBlock()->getTerminator()) {
-            return nullptr;
+        llvm::BranchInst *br = nullptr;
+
+        if (!builder.GetInsertBlock()->getTerminator()) {
+            br = check(builder.CreateBr(dest), "branch instruction");
         }
 
-        auto const br = check(builder.CreateBr(dest), "branch instruction");
         if (next) {
             builder.SetInsertPoint(next);
         }
