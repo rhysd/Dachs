@@ -830,6 +830,23 @@ public:
         return phi;
     }
 
+    void emit(ast::node::postfix_if_stmt const& postfix_if)
+    {
+        auto helper = get_helper(postfix_if);
+
+        auto *const then_block = helper.create_block_for_parent("postfixif.then");
+        auto *const end_block = helper.create_block_for_parent("postfixif.end");
+
+        val cond_val = emit(postfix_if->condition);
+        if (postfix_if->kind == ast::symbol::if_kind::unless) {
+            cond_val = check(postfix_if, builder.CreateNot(cond_val, "postfix_if_unless"), "unless expression");
+        }
+        helper.create_cond_br(cond_val, then_block, end_block);
+
+        emit(postfix_if->body);
+        helper.terminate_with_br(end_block, end_block);
+    }
+
     template<class T>
     val emit(std::shared_ptr<T> const& node)
     {
