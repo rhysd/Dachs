@@ -804,6 +804,32 @@ public:
         helper.append_block(end_block);
     }
 
+    val emit(ast::node::if_expr const& if_)
+    {
+        auto helper = get_helper(if_);
+
+        auto *const then_block = helper.create_block_for_parent("expr.if.then");
+        auto *const else_block = helper.create_block_for_parent("expr.if.else");
+        auto *const merge_block = helper.create_block_for_parent("expr.if.merge");
+
+        val cond_val = emit(if_->condition_expr);
+        if (if_->kind == ast::symbol::if_kind::unless) {
+            cond_val = check(if_, builder.CreateNot(cond_val, "if_expr_unless"), "unless expression");
+        }
+        helper.create_cond_br(cond_val, then_block, else_block);
+
+        auto *const then_val = emit(if_->then_expr);
+        helper.terminate_with_br(merge_block, else_block);
+
+        auto *const else_val = emit(if_->else_expr);
+        helper.terminate_with_br(merge_block, merge_block);
+
+        auto *const phi = builder.CreatePHI(emit_type_ir(if_->type, context), 2, "expr.if.tmp");
+        phi->addIncoming(then_val, then_block);
+        phi->addIncoming(else_val, else_block);
+        return phi;
+    }
+
     template<class T>
     val emit(std::shared_ptr<T> const& node)
     {
