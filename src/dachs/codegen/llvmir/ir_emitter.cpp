@@ -847,6 +847,79 @@ public:
         helper.terminate_with_br(end_block, end_block);
     }
 
+    val emit(ast::node::cast_expr const& cast)
+    {
+        auto *const child_val = emit(cast->child);
+        auto const child_type = type::type_of(cast->child);
+        if (cast->type == child_type) {
+            return child_val;
+        }
+
+        auto const cast_error
+            = [&]
+            {
+                error(
+                    cast,
+                    boost::format("Cannot cast from '%1%' to '%2%'\n"
+                                  "Note: Now only some built-in primary types are supported."
+                                  "(int, uint, float and char)")
+                        % type::to_string(child_type)
+                        % type::to_string(cast->type)
+                );
+            };
+
+        auto const maybe_builtin_from_type = type::get<type::builtin_type>(child_type);
+        auto const maybe_builtin_to_type = type::get<type::builtin_type>(cast->type);
+        if (!maybe_builtin_from_type || !maybe_builtin_to_type) {
+            cast_error();
+        }
+
+        auto const& from_type = *maybe_builtin_from_type;
+        auto const& to_type = *maybe_builtin_to_type;
+        auto const& from = from_type->name;
+        auto const& to = to_type->name;
+        auto *const to_type_ir = emit_type_ir(to_type, context);
+
+        auto const cast_check
+            = [&](auto const v)
+            {
+                return check(cast, v, "cast from " + from + " to " + to);
+            };
+
+        if (from == "int") {
+            if (to == "uint") {
+                return child_val; // Note: Do nothing.
+            } else if (to == "float") {
+                return cast_check(builder.CreateSIToFP(child_val, to_type_ir));
+            } else if (to == "char") {
+                return cast_check(builder.CreateTrunc(child_val, to_type_ir));
+            }
+        } else if (from == "uint") {
+            if (to == "int") {
+                return child_val; // Note: Do nothing
+            } else if (to == "float") {
+                return cast_check(builder.CreateUIToFP(child_val, to_type_ir));
+            } else if (to == "char") {
+                return cast_check(builder.CreateTrunc(child_val, to_type_ir));
+            }
+        } else if (from == "float") {
+            if (to == "int" || to == "char") {
+                return cast_check(builder.CreateFPToSI(child_val, to_type_ir));
+            } else if (to == "uint") {
+                return cast_check(builder.CreateFPToUI(child_val, to_type_ir));
+            }
+        } else if (from == "char") {
+            if (to == "int" || to == "uint") {
+                return cast_check(builder.CreateSExt(child_val, to_type_ir));
+            } else if (to == "float") {
+                return cast_check(builder.CreateSIToFP(child_val, to_type_ir));
+            }
+        }
+
+        cast_error();
+        return nullptr; // Note: Required to avoid compiler warning.
+    }
+
     template<class T>
     val emit(std::shared_ptr<T> const& node)
     {
