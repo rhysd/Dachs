@@ -117,34 +117,71 @@ int main(int const, char const* const argv[])
 
         if (opt == "--dump-ast") {
             return dachs::cmdline::do_compiler_action(
-                [&]{ compiler.dump_asts(std::cout, cmdopts.source_files, cmdopts.enable_color); }
+                [&]
+                {
+                    compiler.dump_asts(
+                        std::cout,
+                        cmdopts.source_files,
+                        cmdopts.enable_color
+                    );
+                }
             );
         } else if (opt == "--dump-sym-table") {
             return dachs::cmdline::do_compiler_action(
-                [&]{ compiler.dump_scope_trees(std::cout, cmdopts.source_files); }
+                [&]
+                {
+                    compiler.dump_scope_trees(
+                        std::cout,
+                        cmdopts.source_files
+                    );
+                }
             );
         } else if (opt == "--emit-llvm") {
             return dachs::cmdline::do_compiler_action(
-                [&]{ compiler.dump_llvm_irs(std::cout, cmdopts.source_files); }
+                [&]
+                {
+                    compiler.dump_llvm_irs(
+                        std::cout,
+                        cmdopts.source_files
+                    );
+                }
             );
         } else if (opt == "--output-obj") {
             return dachs::cmdline::do_compiler_action(
-                [&]{ compiler.compile_to_objects(cmdopts.source_files, cmdopts.enable_color, cmdopts.debug); }
+                [&]
+                {
+                    compiler.compile_to_objects(
+                        cmdopts.source_files,
+                        cmdopts.enable_color,
+                        cmdopts.debug
+                    );
+                }
             );
-        } else {
-            show_usage();
-            return 1;
         }
     }
+    break;
 
     case 0:
-        return dachs::cmdline::do_compiler_action(
-            [&]{ compiler.compile(cmdopts.source_files, cmdopts.libdirs, cmdopts.enable_color, cmdopts.debug); }
-        );
+        if (cmdopts.source_files.size() > 0) {
+            return dachs::cmdline::do_compiler_action(
+                [&]
+                {
+                    compiler.compile(
+                        cmdopts.source_files,
+                        cmdopts.libdirs,
+                        cmdopts.enable_color,
+                        cmdopts.debug
+                    );
+                }
+            );
+        }
+    break;
 
     default:
-        show_usage();
-        return 1;
+    break;
     }
+
+    show_usage();
+    return 1;
 }
 
