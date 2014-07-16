@@ -1,4 +1,4 @@
-![Dachs Programming Language](https://raw.githubusercontent.com/rhysd/Dachs/master/misc/dachs-logo.jpg)
+![Dachs Programming Language](misc/dachs-logo.jpg)
 
 [![Build Status](https://travis-ci.org/rhysd/Dachs.svg?branch=master)](https://travis-ci.org/rhysd/Dachs)
 =========================================================================================================
@@ -64,7 +64,7 @@ end
   - [ ] Block
   - [ ] Variadic arguments
   - [ ] Module
-  - [ ] Test
+  - [x] Test
 
 -  Sematic analysis
   - [x] Scope tree
@@ -77,7 +77,7 @@ end
 
 -  Code generation
   - [ ] LLVM IR code generation
-  - [ ] Executable generation
+  - [x] Executable generation
   - [ ] Test
 
 -  Misc
