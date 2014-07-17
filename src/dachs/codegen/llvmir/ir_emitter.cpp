@@ -94,6 +94,7 @@ class llvm_ir_emitter {
     builtin_function_emitter builtin_func_emitter;
     std::string const& file;
     std::stack<llvm::BasicBlock *> loop_stack; // Loop stack for continue and break statements
+    type_ir_emitter type_emitter;
 
     auto push_loop(llvm::BasicBlock *loop_value)
     {
@@ -202,11 +203,11 @@ class llvm_ir_emitter {
         auto const scope = func_def->scope.lock();
 
         for (auto const& param_sym : scope->params) {
-            param_type_irs.push_back(emit_type_ir(param_sym->type, context));
+            param_type_irs.push_back(type_emitter.emit(param_sym->type));
         }
 
         auto func_type_ir = llvm::FunctionType::get(
-                emit_type_ir(*func_def->ret_type, context),
+                type_emitter.emit(*func_def->ret_type),
                 param_type_irs,
                 false // Non-variadic
             );
@@ -238,6 +239,19 @@ class llvm_ir_emitter {
         func_table.emplace(scope, func_ir);
     }
 
+    bool is_available_type_for_binary_expression(type::type const& lhs, type::type const& rhs) const noexcept
+    {
+        if (!lhs.is_builtin() || !rhs.is_builtin()) {
+            return false;
+        }
+
+        auto const lhs_builtin_type = *type::get<type::builtin_type>(lhs);
+        auto const rhs_builtin_type = *type::get<type::builtin_type>(rhs);
+        auto const is_supported = [](auto const& t){ return t->name == "int" || t->name == "float" || t->name == "uint" || t->name == "bool"; };
+
+        return is_supported(lhs_builtin_type) && is_supported(rhs_builtin_type);
+    }
+
 public:
 
     llvm_ir_emitter(llvm::LLVMContext &c, std::string const& f)
@@ -246,6 +260,7 @@ public:
         , var_table(builder)
         , builtin_func_emitter(context)
         , file(f)
+        , type_emitter(context)
     {}
 
     val emit(ast::node::primary_literal const& pl)
@@ -308,6 +323,33 @@ public:
         return check(sym, builder.CreateGlobalStringPtr(sym->value.c_str()), "symbol constant");
     }
 
+    llvm::AllocaInst *emit(ast::node::tuple_literal const& tuple)
+    {
+        auto const the_type = type::get<type::tuple_type>(tuple->type);
+        assert(the_type);
+
+        auto alloca_inst = builder.CreateAlloca(type_emitter.emit(*the_type));
+        auto const& elem_exprs = tuple->element_exprs;
+        for (unsigned int idx = 0; idx < elem_exprs.size(); ++idx) {
+            auto *const elem_val = emit(elem_exprs[idx]);
+            val const indices[] = {
+                    builder.getInt32(0),
+                    builder.getInt32(idx)
+                };
+            builder.CreateStore(
+                    elem_val,
+                    llvm::GetElementPtrInst::Create(
+                        alloca_inst,
+                        indices,
+                        "",
+                        builder.GetInsertBlock()
+                    )
+                );
+        }
+
+        return check(tuple, alloca_inst, "tuple literal");
+    }
+
     llvm::Module *emit(ast::node::program const& p)
     {
         module = new llvm::Module(file, context);
@@ -358,7 +400,7 @@ public:
             auto const inst
                 = check(
                     param,
-                    builder.CreateAlloca(emit_type_ir(param_sym->type, context)),
+                    builder.CreateAlloca(type_emitter.emit(param_sym->type)),
                     "allocation for variable parameter"
                 );
 
@@ -527,19 +569,6 @@ public:
         );
     }
 
-    bool is_available_type_for_binary_expression(type::type const& lhs, type::type const& rhs) const noexcept
-    {
-        if (!lhs.is_builtin() || !rhs.is_builtin()) {
-            return false;
-        }
-
-        auto const lhs_builtin_type = *type::get<type::builtin_type>(lhs);
-        auto const rhs_builtin_type = *type::get<type::builtin_type>(rhs);
-        auto const is_supported = [](auto const& t){ return t->name == "int" || t->name == "float" || t->name == "uint" || t->name == "bool"; };
-
-        return is_supported(lhs_builtin_type) && is_supported(rhs_builtin_type);
-    }
-
     val emit(ast::node::binary_expr const& bin_expr)
     {
         auto const lhs_type = type::type_of(bin_expr->lhs);
@@ -563,6 +592,50 @@ public:
     {
         assert(!var->symbol.expired());
         return check(var, var_table.emit_ir_to_load(var->symbol.lock()), "loading variable");
+    }
+
+    val emit(ast::node::index_access const& access)
+    {
+        auto const child_type = type::type_of(access->child);
+        auto const child_val = emit(access->child);
+
+        if (auto const child_tuple_type = type::get<type::tuple_type>(child_type)) {
+
+            // Note:
+            // Do not emit index expression because it is a integer literal and it is
+            // processed in compile time
+            auto const primary_lit = get_as<ast::node::primary_literal>(access->index_expr);
+            assert(primary_lit);
+            auto const& literal = (*primary_lit)->value;
+
+            auto const emit_index_access
+                = [&, this](unsigned int const idx)
+                {
+                    val const indices[]
+                        = {
+                            builder.getInt32(0u),
+                            builder.getInt32(idx)
+                        };
+                    return builder.CreateLoad(
+                            llvm::GetElementPtrInst::Create(
+                                child_val,
+                                indices,
+                                "",
+                                builder.GetInsertBlock()
+                            )
+                        );
+                };
+
+            if (auto const opt_idx = get_as<int>(literal)) {
+                return emit_index_access(static_cast<unsigned int>(*opt_idx));
+            } else if (auto const opt_idx = get_as<unsigned int>(literal)) {
+                return emit_index_access(*opt_idx);
+            } else {
+                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+            }
+        } else {
+            return nullptr;
+        }
     }
 
     void emit(ast::node::while_stmt const& while_)
@@ -601,7 +674,7 @@ public:
                 auto const sym = decl->symbol.lock();
                 auto const t = sym->type;
                 assert(t);
-                auto const inst = builder.CreateAlloca(emit_type_ir(t, context));
+                auto const inst = builder.CreateAlloca(type_emitter.emit(t), nullptr/*array size*/, sym->name);
 
                 var_table.insert(std::move(sym), inst);
 
@@ -612,15 +685,14 @@ public:
             helper::each(
                     [&, this](auto const& d, auto const& e)
                     {
-                        auto val = emit(e);
+                        auto *const val = emit(e);
                         if (!d->is_var) {
                             // If the variable is immutable, do not copy rhs value
-                            var_table.insert(d->symbol.lock(), val);
-                            return;
+                            var_table.insert(std::move(d->symbol.lock()), val);
+                        } else {
+                            auto *const inst = emit_alloca_from_decl(d);
+                            builder.CreateStore(val, inst);
                         }
-
-                        auto inst = emit_alloca_from_decl(d);
-                        builder.CreateStore(val, inst);
                     }
                     , init->var_decls, *init->maybe_rhs_exprs);
         } else if (initializee_size == 1) {
@@ -827,7 +899,7 @@ public:
         auto *const else_val = emit(if_->else_expr);
         helper.terminate_with_br(merge_block, merge_block);
 
-        auto *const phi = builder.CreatePHI(emit_type_ir(if_->type, context), 2, "expr.if.tmp");
+        auto *const phi = builder.CreatePHI(type_emitter.emit(if_->type), 2, "expr.if.tmp");
         phi->addIncoming(then_val, then_block);
         phi->addIncoming(else_val, else_block);
         return phi;
@@ -881,7 +953,7 @@ public:
         auto const& to_type = *maybe_builtin_to_type;
         auto const& from = from_type->name;
         auto const& to = to_type->name;
-        auto *const to_type_ir = emit_type_ir(to_type, context);
+        auto *const to_type_ir = type_emitter.emit(to_type);
 
         auto const cast_check
             = [&](auto const v)

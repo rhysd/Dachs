@@ -61,7 +61,7 @@ public:
         }
 
         if (auto const maybe_alloca_val = detail::lookup_table(alloca_table, sym)) {
-            return builder.CreateLoad(*maybe_alloca_val);
+            return builder.CreateLoad(*maybe_alloca_val, sym->name);
         }
 
         return nullptr;
