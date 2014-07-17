@@ -1,0 +1,12 @@
+func fib(n)
+    case n
+    when 0, 1
+        return 1
+    else
+        return fib(n-1) + fib(n-2)
+    end
+end
+
+func main()
+    print(fib(10))
+end
