@@ -612,14 +612,17 @@ public:
             helper::each(
                     [&, this](auto const& d, auto const& e)
                     {
-                        auto inst = emit_alloca_from_decl(d);
                         auto val = emit(e);
+                        if (!d->is_var) {
+                            // If the variable is immutable, do not copy rhs value
+                            var_table.insert(d->symbol.lock(), val);
+                            return;
+                        }
+
+                        auto inst = emit_alloca_from_decl(d);
                         builder.CreateStore(val, inst);
                     }
                     , init->var_decls, *init->maybe_rhs_exprs);
-            for (auto const& d : init->var_decls) {
-                emit_alloca_from_decl(d);
-            }
         } else if (initializee_size == 1) {
             assert(initializer_size > 1);
 
