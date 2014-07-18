@@ -597,7 +597,7 @@ public:
     val emit(ast::node::index_access const& access)
     {
         auto const child_type = type::type_of(access->child);
-        auto const child_val = emit(access->child);
+        auto child_val = emit(access->child);
 
         if (auto const child_tuple_type = type::get<type::tuple_type>(child_type)) {
 
@@ -667,15 +667,13 @@ public:
         assert(initializee_size != 0);
         assert(initializer_size != 0);
 
-        auto const emit_alloca_from_decl
-            = [&](auto const& decl)
+        auto const emit_alloca_from_sym
+            = [&](auto const& sym)
             {
-                assert(!decl->symbol.expired());
-                auto const sym = decl->symbol.lock();
                 auto const t = sym->type;
                 assert(t);
                 auto const inst = check(
-                        decl,
+                        init,
                         builder.CreateAlloca(type_emitter.emit(t), nullptr/*array size*/, sym->name),
                         "variable allocation"
                     );
@@ -689,15 +687,19 @@ public:
             helper::each(
                     [&, this](auto const& d, auto const& e)
                     {
+                        assert(!d->symbol.expired());
+
                         auto *val = emit(e);
+                        auto const sym = d->symbol.lock();
                         if (!d->is_var) {
                             // If the variable is immutable, do not copy rhs value
-                            var_table.insert(std::move(d->symbol.lock()), val);
+                            val->setName(sym->name);
+                            var_table.insert(std::move(sym), val);
                         } else {
                             if (llvm::isa<llvm::AllocaInst>(val)) {
                                 val = check(init, builder.CreateLoad(val), "loading rhs");
                             }
-                            auto *const inst = emit_alloca_from_decl(d);
+                            auto *const inst = emit_alloca_from_sym(sym);
                             check(init, builder.CreateStore(val, inst), "storing to lhs");
                         }
                     }
