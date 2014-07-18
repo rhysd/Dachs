@@ -674,24 +674,31 @@ public:
                 auto const sym = decl->symbol.lock();
                 auto const t = sym->type;
                 assert(t);
-                auto const inst = builder.CreateAlloca(type_emitter.emit(t), nullptr/*array size*/, sym->name);
+                auto const inst = check(
+                        decl,
+                        builder.CreateAlloca(type_emitter.emit(t), nullptr/*array size*/, sym->name),
+                        "variable allocation"
+                    );
 
                 var_table.insert(std::move(sym), inst);
 
-                return check(decl, inst, "variable allocation");
+                return inst;
             };
 
         if (initializee_size == initializer_size) {
             helper::each(
                     [&, this](auto const& d, auto const& e)
                     {
-                        auto *const val = emit(e);
+                        auto *val = emit(e);
                         if (!d->is_var) {
                             // If the variable is immutable, do not copy rhs value
                             var_table.insert(std::move(d->symbol.lock()), val);
                         } else {
+                            if (llvm::isa<llvm::AllocaInst>(val)) {
+                                val = check(init, builder.CreateLoad(val), "loading rhs");
+                            }
                             auto *const inst = emit_alloca_from_decl(d);
-                            builder.CreateStore(val, inst);
+                            check(init, builder.CreateStore(val, inst), "storing to lhs");
                         }
                     }
                     , init->var_decls, *init->maybe_rhs_exprs);
