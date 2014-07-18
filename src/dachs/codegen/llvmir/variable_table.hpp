@@ -11,6 +11,7 @@
 #include <llvm/IR/Function.h>
 
 #include "dachs/semantics/symbol.hpp"
+#include "dachs/fatal.hpp"
 
 namespace dachs {
 namespace codegen {
@@ -43,6 +44,7 @@ class variable_table {
 
     table_type register_table;
     table_type alloca_table;
+    table_type aggregate_table;
     // table_type global_table;
     // table_type constant_table; // Need?
 
@@ -64,6 +66,10 @@ public:
             return builder.CreateLoad(*maybe_alloca_val, sym->name);
         }
 
+        if (auto const maybe_aggregate_val = detail::lookup_table(aggregate_table, sym)) {
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        }
+
         return nullptr;
     }
 
@@ -78,6 +84,10 @@ public:
 
         if (auto const maybe_alloca_val = detail::lookup_table(alloca_table, sym)) {
             return builder.CreateStore(v, *maybe_alloca_val);
+        }
+
+        if (auto const maybe_aggregate_val = detail::lookup_table(aggregate_table, sym)) {
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
 
         return nullptr;
@@ -101,6 +111,15 @@ public:
         }
     }
 
+    val lookup_aggregate_value(symbol::var_symbol const& s) const noexcept
+    {
+        if (auto const maybe_aggregate_val = detail::lookup_table(aggregate_table, s)) {
+            return *maybe_aggregate_val;
+        } else {
+            return nullptr;
+        }
+    }
+
     val lookup_value(symbol::var_symbol const& s) const noexcept
     {
         if (auto const maybe_reg_val = detail::lookup_table(register_table, s)) {
@@ -109,6 +128,10 @@ public:
 
         if (auto const maybe_alloca_val = detail::lookup_table(alloca_table, s)) {
             return *maybe_alloca_val;
+        }
+
+        if (auto const maybe_aggregate_val = detail::lookup_table(aggregate_table, s)) {
+            return *maybe_aggregate_val;
         }
 
         return nullptr;
@@ -139,6 +162,18 @@ public:
     {
         assert(!detail::exists_in_table(register_table, key));
         return alloca_table.emplace(key, value).second;
+    }
+
+    bool insert(symbol::var_symbol const& key, llvm::StructType *const value) noexcept
+    {
+        assert(!detail::exiswts_in_table(aggregate_table, key));
+        return aggregate_table.emplace(key, value).second;
+    }
+
+    bool insert(symbol::var_symbol const& key, llvm::ArrayType *const value) noexcept
+    {
+        assert(!detail::exiswts_in_table(aggregate_table, key));
+        return aggregate_table.emplace(key, value).second;
     }
 };
 
