@@ -36,7 +36,24 @@ bool exists_in_table(Map const& heystack, T const& needle)
     return heystack.find(needle) != std::end(heystack);
 }
 
+template<class T>
+bool is_aggregate(T const *const t)
+{
+    return llvm::isa<llvm::StructType>(t) || llvm::isa<llvm::ArrayType>(t);
+}
+
 } // namespace detail
+
+// Note:
+//
+// Value
+// |
+// |- Register Value
+// |
+// |- Alloca Value
+//    |
+//    |- Aggregate Value
+//    |- Other Value
 
 class variable_table {
     using val = llvm::Value *;
@@ -44,7 +61,7 @@ class variable_table {
 
     table_type register_table;
     table_type alloca_table;
-    table_type aggregate_table;
+    table_type alloca_aggregate_table;
     // table_type global_table;
     // table_type constant_table; // Need?
 
@@ -66,7 +83,8 @@ public:
             return builder.CreateLoad(*maybe_alloca_val, sym->name);
         }
 
-        if (auto const maybe_aggregate_val = detail::lookup_table(aggregate_table, sym)) {
+        if (auto const maybe_aggregate_val = detail::lookup_table(alloca_aggregate_table, sym)) {
+            // TODO: Use memcpy
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
 
@@ -86,7 +104,9 @@ public:
             return builder.CreateStore(v, *maybe_alloca_val);
         }
 
-        if (auto const maybe_aggregate_val = detail::lookup_table(aggregate_table, sym)) {
+        if (auto const maybe_aggregate_val = detail::lookup_table(alloca_aggregate_table, sym)) {
+            auto const aggregate_val = *maybe_aggregate_val;
+            // TODO: Use memcpy
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
 
@@ -113,7 +133,7 @@ public:
 
     val lookup_aggregate_value(symbol::var_symbol const& s) const noexcept
     {
-        if (auto const maybe_aggregate_val = detail::lookup_table(aggregate_table, s)) {
+        if (auto const maybe_aggregate_val = detail::lookup_table(alloca_aggregate_table, s)) {
             return *maybe_aggregate_val;
         } else {
             return nullptr;
@@ -130,7 +150,7 @@ public:
             return *maybe_alloca_val;
         }
 
-        if (auto const maybe_aggregate_val = detail::lookup_table(aggregate_table, s)) {
+        if (auto const maybe_aggregate_val = detail::lookup_table(alloca_aggregate_table, s)) {
             return *maybe_aggregate_val;
         }
 
@@ -161,19 +181,11 @@ public:
     bool insert(symbol::var_symbol const& key, llvm::AllocaInst *const value) noexcept
     {
         assert(!detail::exists_in_table(register_table, key));
-        return alloca_table.emplace(key, value).second;
-    }
-
-    bool insert(symbol::var_symbol const& key, llvm::StructType *const value) noexcept
-    {
-        assert(!detail::exiswts_in_table(aggregate_table, key));
-        return aggregate_table.emplace(key, value).second;
-    }
-
-    bool insert(symbol::var_symbol const& key, llvm::ArrayType *const value) noexcept
-    {
-        assert(!detail::exiswts_in_table(aggregate_table, key));
-        return aggregate_table.emplace(key, value).second;
+        if (detail::is_aggregate(value->getType())) {
+            return alloca_aggregate_table.emplace(key, value).second;
+        } else {
+            return alloca_table.emplace(key, value).second;
+        }
     }
 };
 

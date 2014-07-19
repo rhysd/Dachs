@@ -703,7 +703,8 @@ public:
                             check(init, builder.CreateStore(val, inst), "storing to lhs");
                         }
                     }
-                    , init->var_decls, *init->maybe_rhs_exprs);
+                    , init->var_decls, *init->maybe_rhs_exprs
+                );
         } else if (initializee_size == 1) {
             assert(initializer_size > 1);
 
