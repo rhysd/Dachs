@@ -286,10 +286,10 @@ public:
         });
     }
 
-    void walk(node::program &p)
+    void walk(node::inu &p)
     {
         visitor.visit(p, [&]{
-            walk(p->inu);
+            walk(p->definitions);
         });
     }
 

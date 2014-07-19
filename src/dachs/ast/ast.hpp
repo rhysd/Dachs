@@ -804,23 +804,23 @@ struct function_definition final : public statement {
     }
 };
 
-struct program final : public base {
-    std::vector<node::global_definition> inu;
+struct inu final : public base {
+    std::vector<node::global_definition> definitions;
 
-    explicit program(decltype(inu) const& value) noexcept
-        : base(), inu(value)
+    explicit inu(decltype(definitions) const& defs) noexcept
+        : base(), definitions(defs)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "PROGRAM: num of definitions is " + std::to_string(inu.size());
+        return "PROGRAM: num of definitions is " + std::to_string(definitions.size());
     }
 };
 
 } // namespace node_type
 
 struct ast {
-    node::program root;
+    node::inu root;
     std::string const name;
 };
 

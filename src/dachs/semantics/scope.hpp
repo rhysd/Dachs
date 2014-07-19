@@ -102,7 +102,7 @@ struct global_scope final : public basic_scope {
     std::vector<scope::func_scope> functions;
     std::vector<symbol::var_symbol> const_symbols;
     std::vector<scope::class_scope> classes;
-    std::weak_ptr<ast::node_type::program> ast_root;
+    std::weak_ptr<ast::node_type::inu> ast_root;
 
     template<class RootType>
     global_scope(RootType const& ast_root) noexcept

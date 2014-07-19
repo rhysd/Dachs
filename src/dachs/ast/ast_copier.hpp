@@ -245,9 +245,9 @@ public:
                 );
     }
 
-    auto copy(node::program const& p) const
+    auto copy(node::inu const& p) const
     {
-        return copy_node<node::program>(p, copy(p->inu));
+        return copy_node<node::inu>(p, copy(p->definitions));
     }
 
 };

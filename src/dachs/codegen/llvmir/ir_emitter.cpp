@@ -47,7 +47,7 @@
  * class code_generator : code_generator_base; // If need default implementation, implement it as this primary class
  *
  * template<>
- * class code_generator<ast::node::program> : code_generator_base { ... };
+ * class code_generator<ast::node::inu> : code_generator_base { ... };
  *
  * template<>
  * class code_generator<ast::node::function_definition> : code_generator_base { ... };
@@ -350,7 +350,7 @@ public:
         return check(tuple, alloca_inst, "tuple literal");
     }
 
-    llvm::Module *emit(ast::node::program const& p)
+    llvm::Module *emit(ast::node::inu const& p)
     {
         module = new llvm::Module(file, context);
         if (!module) {
@@ -361,7 +361,7 @@ public:
 
         // Note:
         // emit Function prototypes in advance for forward reference
-        for (auto const& i : p->inu) {
+        for (auto const& i : p->definitions) {
             if (auto const maybe_func_def = get_as<ast::node::function_definition>(i)) {
                 auto const& func_def = *maybe_func_def;
 
@@ -375,7 +375,7 @@ public:
             }
         }
 
-        for (auto const& i : p->inu) {
+        for (auto const& i : p->definitions) {
             emit(i);
         }
 
@@ -413,7 +413,7 @@ public:
     }
 
     // Note:
-    // IR for the function prototype is already emitd in emit(ast::node::program const&)
+    // IR for the function prototype is already emitd in emit(ast::node::inu const&)
     void emit(ast::node::function_definition const& func_def)
     {
         if (func_def->is_template()) {

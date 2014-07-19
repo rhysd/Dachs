@@ -89,7 +89,7 @@ struct while_stmt;
 struct postfix_if_stmt;
 struct statement_block;
 struct function_definition;
-struct program;
+struct inu;
 
 }
 
@@ -144,7 +144,7 @@ DACHS_DEFINE_NODE_PTR(while_stmt);
 DACHS_DEFINE_NODE_PTR(postfix_if_stmt);
 DACHS_DEFINE_NODE_PTR(statement_block);
 DACHS_DEFINE_NODE_PTR(function_definition);
-DACHS_DEFINE_NODE_PTR(program);
+DACHS_DEFINE_NODE_PTR(inu);
 #undef DACHS_DEFINE_NODE_PTR
 
 using any_expr =
@@ -238,7 +238,7 @@ public:
     bool is_root() const noexcept
     {
         assert(!node.expired());
-        return bool{std::dynamic_pointer_cast<node::program>(node.lock())};
+        return bool{std::dynamic_pointer_cast<node::inu>(node.lock())};
     }
 
 };

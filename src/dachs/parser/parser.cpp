@@ -146,13 +146,13 @@ struct strict_real_policies_disallowing_trailing_dot final
 };
 
 template<class Iterator>
-class grammar final : public qi::grammar<Iterator, ast::node::program(), comment_skipper<Iterator>> {
+class grammar final : public qi::grammar<Iterator, ast::node::inu(), comment_skipper<Iterator>> {
     template<class Value, class... Extra>
     using rule = qi::rule<Iterator, Value, comment_skipper<Iterator>, Extra...>;
 
 public:
     grammar(Iterator const code_begin) noexcept
-        : grammar::base_type(program)
+        : grammar::base_type(inu)
     {
 
         // XXX:
@@ -174,11 +174,11 @@ public:
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
 
-        program
+        inu
             = (
                 -sep > -(global_definition % sep) > -sep > (qi::eol | qi::eoi)
             ) [
-                _val = make_node_ptr<ast::node::program>(as_vector(_1))
+                _val = make_node_ptr<ast::node::inu>(as_vector(_1))
             ];
 
         character_literal
@@ -888,7 +888,7 @@ public:
                 detail::position_getter<Iterator>{code_begin}
                 , _val, _1, _3)
 
-            , program
+            , inu
             , primary_literal
             , array_literal
             , tuple_literal
@@ -941,7 +941,7 @@ public:
         );
 
         qi::on_error<qi::fail>(
-            program,
+            inu,
             // _1 : begin of string to parse
             // _2 : end of string to parse
             // _3 : iterator at failed point
@@ -964,7 +964,7 @@ public:
         // }}}
 
         // Rule names {{{
-        program.name("program");
+        inu.name("program");
         primary_literal.name("primary literal");
         integer_literal.name("integer literal");
         uinteger_literal.name("unsigned integer literal");
@@ -1050,7 +1050,7 @@ private:
 #define DACHS_DEFINE_RULE(n) rule<ast::node::n()> n
 #define DACHS_DEFINE_RULE_WITH_LOCALS(n, ...) rule<ast::node::n(), qi::locals< __VA_ARGS__ >> n
 
-    DACHS_DEFINE_RULE(program);
+    DACHS_DEFINE_RULE(inu);
     DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE(object_construct);
     DACHS_DEFINE_RULE(if_stmt);
@@ -1171,7 +1171,7 @@ ast::ast parser::parse(std::string const& code, std::string const& file_name) co
     auto const end = detail::line_pos_iterator(std::end(code));
     grammar<iterator_type> spiritual_parser(begin);
     comment_skipper<iterator_type> skipper;
-    ast::node::program root;
+    ast::node::inu root;
 
     if (!qi::phrase_parse(itr, end, spiritual_parser, skipper, root) || itr != end) {
         throw parse_error{spirit::get_line(itr), spirit::get_column(begin, itr)};

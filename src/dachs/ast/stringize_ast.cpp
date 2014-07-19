@@ -144,9 +144,9 @@ public:
         : c(colorful)
     {}
 
-    String visit(node::program const& p, String const& indent) const noexcept
+    String visit(node::inu const& p, String const& indent) const noexcept
     {
-        return prefix_of(p, indent) + visit_nodes(p->inu, indent + "   ", true);
+        return prefix_of(p, indent) + visit_nodes(p->definitions, indent + "   ", true);
     }
 
     String visit(node::array_literal const& al, String const& indent, char const* const lead) const noexcept
