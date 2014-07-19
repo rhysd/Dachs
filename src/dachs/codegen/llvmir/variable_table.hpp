@@ -11,6 +11,7 @@
 #include <llvm/IR/Function.h>
 
 #include "dachs/semantics/symbol.hpp"
+#include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/fatal.hpp"
 
 namespace dachs {
@@ -59,18 +60,17 @@ class variable_table {
     using val = llvm::Value *;
     using table_type = std::unordered_map<symbol::var_symbol, val>;
 
+    context &ctx;
     table_type register_table;
     table_type alloca_table;
     table_type alloca_aggregate_table;
     // table_type global_table;
     // table_type constant_table; // Need?
 
-    llvm::IRBuilder<> &builder;
-
 public:
 
-    explicit variable_table(llvm::IRBuilder<> &b) noexcept
-        : builder(b)
+    explicit variable_table(context &c) noexcept
+        : ctx(c)
     {}
 
     val emit_ir_to_load(symbol::var_symbol const& sym) noexcept
@@ -80,7 +80,7 @@ public:
         }
 
         if (auto const maybe_alloca_val = detail::lookup_table(alloca_table, sym)) {
-            return builder.CreateLoad(*maybe_alloca_val, sym->name);
+            return ctx.builder.CreateLoad(*maybe_alloca_val, sym->name);
         }
 
         if (auto const maybe_aggregate_val = detail::lookup_table(alloca_aggregate_table, sym)) {
@@ -101,7 +101,7 @@ public:
         }
 
         if (auto const maybe_alloca_val = detail::lookup_table(alloca_table, sym)) {
-            return builder.CreateStore(v, *maybe_alloca_val);
+            return ctx.builder.CreateStore(v, *maybe_alloca_val);
         }
 
         if (auto const maybe_aggregate_val = detail::lookup_table(alloca_aggregate_table, sym)) {

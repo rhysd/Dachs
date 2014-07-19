@@ -58,7 +58,7 @@
  * These specialized class template visitors can be separated to individual transform units.
  *
  * class codegen_walker {
- *     llvm::LLVMContext context;
+ *     context ctx;
  *     llvm::IRBuilder<> builder;
  *
  * public:
@@ -66,7 +66,7 @@
  *     template<class T, class W>
  *     void visit(std::shared_ptr<T> const& n, W const& walker)
  *     {
- *         code_generator<T> generator{n, context, builder};
+ *         code_generator<T> generator{n, ctx, builder};
  *         generator.emit_before();
  *         walker();
  *         generator.emit_after();
@@ -87,8 +87,7 @@ class llvm_ir_emitter {
     using val = llvm::Value *;
 
     llvm::Module *module = nullptr;
-    llvm::LLVMContext &context;
-    llvm::IRBuilder<> builder;
+    context &ctx;
     variable_table var_table;
     std::unordered_map<scope::func_scope, llvm::Function *const> func_table;
     builtin_function_emitter builtin_func_emitter;
@@ -169,7 +168,7 @@ class llvm_ir_emitter {
     auto get_ir_helper(std::shared_ptr<Node> const& node) noexcept
         -> basic_ir_builder_helper<Node>
     {
-        return {node, builder, context};
+        return {node, ctx.builder, ctx.llvm_context};
     }
 
     template<class... NodeTypes>
@@ -254,53 +253,51 @@ class llvm_ir_emitter {
 
 public:
 
-    llvm_ir_emitter(llvm::LLVMContext &c, std::string const& f)
-        : context(c)
-        , builder(context)
-        , var_table(builder)
-        , builtin_func_emitter(context)
+    llvm_ir_emitter(std::string const& f, context &c)
+        : ctx(c)
+        , var_table(ctx)
+        , builtin_func_emitter(ctx.llvm_context)
         , file(f)
-        , type_emitter(context)
+        , type_emitter(ctx.llvm_context)
     {}
 
     val emit(ast::node::primary_literal const& pl)
     {
         struct literal_visitor : public boost::static_visitor<val> {
-            llvm::LLVMContext &context;
+            context &c;
             ast::node::primary_literal const& pl;
-            llvm::IRBuilder<> &builder;
 
-            literal_visitor(llvm::LLVMContext &c, ast::node::primary_literal const& pl, llvm::IRBuilder<> &b)
-                : context(c), pl(pl), builder(b)
+            literal_visitor(context &c, ast::node::primary_literal const& pl)
+                : c(c), pl(pl)
             {}
 
-            val operator()(char const c)
+            val operator()(char const ch)
             {
                 return llvm::ConstantInt::get(
-                        emit_type_ir(pl->type, context),
-                        static_cast<std::uint8_t const>(c), false
+                        emit_type_ir(pl->type, c.llvm_context),
+                        static_cast<std::uint8_t const>(ch), false
                     );
             }
 
             val operator()(double const d)
             {
-                return llvm::ConstantFP::get(context, llvm::APFloat(d));
+                return llvm::ConstantFP::get(c.llvm_context, llvm::APFloat(d));
             }
 
             val operator()(bool const b)
             {
-                return b ? llvm::ConstantInt::getTrue(context) : llvm::ConstantInt::getFalse(context);
+                return b ? llvm::ConstantInt::getTrue(c.llvm_context) : llvm::ConstantInt::getFalse(c.llvm_context);
             }
 
             val operator()(std::string const& s)
             {
-                return builder.CreateGlobalStringPtr(s.c_str());
+                return c.builder.CreateGlobalStringPtr(s.c_str());
             }
 
             val operator()(int const i)
             {
                 return llvm::ConstantInt::get(
-                        emit_type_ir(pl->type, context),
+                        emit_type_ir(pl->type, c.llvm_context),
                         static_cast<std::int64_t const>(i), false
                     );
             }
@@ -308,19 +305,19 @@ public:
             val operator()(unsigned int const ui)
             {
                 return llvm::ConstantInt::get(
-                        emit_type_ir(pl->type, context),
+                        emit_type_ir(pl->type, c.llvm_context),
                         static_cast<std::uint64_t const>(ui), true
                     );
             }
 
-        } visitor{context, pl, builder};
+        } visitor{ctx, pl};
 
         return check(pl, boost::apply_visitor(visitor, pl->value), "constant");
     }
 
     val emit(ast::node::symbol_literal const& sym)
     {
-        return check(sym, builder.CreateGlobalStringPtr(sym->value.c_str()), "symbol constant");
+        return check(sym, ctx.builder.CreateGlobalStringPtr(sym->value.c_str()), "symbol constant");
     }
 
     llvm::AllocaInst *emit(ast::node::tuple_literal const& tuple)
@@ -328,21 +325,21 @@ public:
         auto const the_type = type::get<type::tuple_type>(tuple->type);
         assert(the_type);
 
-        auto alloca_inst = builder.CreateAlloca(type_emitter.emit(*the_type));
+        auto alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(*the_type));
         auto const& elem_exprs = tuple->element_exprs;
         for (unsigned int idx = 0; idx < elem_exprs.size(); ++idx) {
             auto *const elem_val = emit(elem_exprs[idx]);
             val const indices[] = {
-                    builder.getInt32(0),
-                    builder.getInt32(idx)
+                    ctx.builder.getInt32(0),
+                    ctx.builder.getInt32(idx)
                 };
-            builder.CreateStore(
+            ctx.builder.CreateStore(
                     elem_val,
                     llvm::GetElementPtrInst::Create(
                         alloca_inst,
                         indices,
                         "",
-                        builder.GetInsertBlock()
+                        ctx.builder.GetInsertBlock()
                     )
                 );
         }
@@ -352,10 +349,11 @@ public:
 
     llvm::Module *emit(ast::node::inu const& p)
     {
-        module = new llvm::Module(file, context);
+        module = new llvm::Module(file, ctx.llvm_context);
         if (!module) {
             error(p, "module");
         }
+        module->setDataLayout(ctx.data_layout->getStringRepresentation());
 
         builtin_func_emitter.set_module(module);
 
@@ -400,14 +398,14 @@ public:
             auto const inst
                 = check(
                     param,
-                    builder.CreateAlloca(type_emitter.emit(param_sym->type)),
+                    ctx.builder.CreateAlloca(type_emitter.emit(param_sym->type)),
                     "allocation for variable parameter"
                 );
 
             auto const result = var_table.insert(param_sym, inst);
             assert(result);
             (void) result;
-            check(param, builder.CreateStore(register_val, inst), "storing variable parameter");
+            check(param, ctx.builder.CreateStore(register_val, inst), "storing variable parameter");
         }
 
     }
@@ -427,8 +425,8 @@ public:
         auto maybe_prototype_ir = lookup_func(func_def->scope.lock());
         assert(maybe_prototype_ir);
         auto &prototype_ir = *maybe_prototype_ir;
-        auto const block = llvm::BasicBlock::Create(context, "entry", prototype_ir);
-        builder.SetInsertPoint(block);
+        auto const block = llvm::BasicBlock::Create(ctx.llvm_context, "entry", prototype_ir);
+        ctx.builder.SetInsertPoint(block);
 
         for (auto const& p : func_def->params) {
             emit(p);
@@ -436,18 +434,18 @@ public:
 
         emit(func_def->body);
 
-        if (builder.GetInsertBlock()->getTerminator()) {
+        if (ctx.builder.GetInsertBlock()->getTerminator()) {
             return;
         }
 
         if (!func_def->ret_type
                 || func_def->kind == ast::symbol::func_kind::proc
                 || *func_def->ret_type == type::get_unit_type()) {
-            builder.CreateRetVoid();
+            ctx.builder.CreateRetVoid();
         } else {
             // Note:
             // Believe that the insert block is the last block of the function
-            builder.CreateUnreachable();
+            ctx.builder.CreateUnreachable();
         }
     }
 
@@ -470,7 +468,7 @@ public:
         // IR for if-then clause
         val cond_val = emit(if_->condition);
         if (if_->kind == ast::symbol::if_kind::unless) {
-            cond_val = check(if_, builder.CreateNot(cond_val, "if_stmt_unless"), "unless statement");
+            cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_stmt_unless"), "unless statement");
         }
         helper.create_cond_br(cond_val, then_block, else_block);
         emit(if_->then_stmts);
@@ -497,7 +495,7 @@ public:
 
     void emit(ast::node::return_stmt const& return_)
     {
-        if (builder.GetInsertBlock()->getTerminator()) {
+        if (ctx.builder.GetInsertBlock()->getTerminator()) {
             // Note:
             // Basic block is already terminated.
             // Unreachable return statements should be checked in semantic checks
@@ -505,11 +503,11 @@ public:
         }
 
         if (return_->ret_exprs.size() == 1) {
-            builder.CreateRet(emit(return_->ret_exprs[0]));
+            ctx.builder.CreateRet(emit(return_->ret_exprs[0]));
         } else if (return_->ret_exprs.empty()) {
             // TODO:
             // Return statements with no expression in functions should returns unit
-            builder.CreateRetVoid();
+            ctx.builder.CreateRetVoid();
         } else {
             throw not_implemented_error{return_, __FILE__, __func__, __LINE__, "returning multiple value"};
         }
@@ -535,7 +533,7 @@ public:
             }
 
             auto callee = check(invocation, builtin_func_emitter.emit(scope->name, param_types), boost::format("builtin function '%1%'") % scope->name);
-            return builder.CreateCall(callee, args);
+            return ctx.builder.CreateCall(callee, args);
         }
 
         auto *const callee = module->getFunction(scope->to_string());
@@ -543,7 +541,7 @@ public:
         // TODO
         // Monad invocation
 
-        return builder.CreateCall(callee, args);
+        return ctx.builder.CreateCall(callee, args);
     }
 
     val emit(ast::node::unary_expr const& unary)
@@ -562,7 +560,7 @@ public:
 
         return check(
             unary,
-            tmp_builtin_unary_op_ir_emitter{builder, emit(unary->expr), unary->op}.emit(builtin),
+            tmp_builtin_unary_op_ir_emitter{ctx.builder, emit(unary->expr), unary->op}.emit(builtin),
             boost::format("unary operator '%1%' (operand's type is '%2%')")
                 % unary->op
                 % builtin->to_string()
@@ -580,7 +578,7 @@ public:
 
         return check(
             bin_expr,
-            tmp_builtin_bin_op_ir_emitter{builder, emit(bin_expr->lhs), emit(bin_expr->rhs), bin_expr->op}.emit(lhs_type),
+            tmp_builtin_bin_op_ir_emitter{ctx.builder, emit(bin_expr->lhs), emit(bin_expr->rhs), bin_expr->op}.emit(lhs_type),
             boost::format("binary operator '%1%' (rhs type is '%2%', lhs type is '%3%')")
                 % bin_expr->op
                 % type::to_string(lhs_type)
@@ -613,15 +611,15 @@ public:
                 {
                     val const indices[]
                         = {
-                            builder.getInt32(0u),
-                            builder.getInt32(idx)
+                            ctx.builder.getInt32(0u),
+                            ctx.builder.getInt32(idx)
                         };
-                    return builder.CreateLoad(
+                    return ctx.builder.CreateLoad(
                             llvm::GetElementPtrInst::Create(
                                 child_val,
                                 indices,
                                 "",
-                                builder.GetInsertBlock()
+                                ctx.builder.GetInsertBlock()
                             )
                         );
                 };
@@ -674,7 +672,7 @@ public:
                 assert(t);
                 auto const inst = check(
                         init,
-                        builder.CreateAlloca(type_emitter.emit(t), nullptr/*array size*/, sym->name),
+                        ctx.builder.CreateAlloca(type_emitter.emit(t), nullptr/*array size*/, sym->name),
                         "variable allocation"
                     );
 
@@ -697,10 +695,10 @@ public:
                             var_table.insert(std::move(sym), val);
                         } else {
                             if (llvm::isa<llvm::AllocaInst>(val)) {
-                                val = check(init, builder.CreateLoad(val), "loading rhs");
+                                val = check(init, ctx.builder.CreateLoad(val), "loading rhs");
                             }
                             auto *const inst = emit_alloca_from_sym(sym);
-                            check(init, builder.CreateStore(val, inst), "storing to lhs");
+                            check(init, ctx.builder.CreateStore(val, inst), "storing to lhs");
                         }
                     }
                     , init->var_decls, *init->maybe_rhs_exprs
@@ -772,7 +770,7 @@ public:
                         // Process operators.(if compound operator, use binary_operator process)
                         auto const lhs_value =
                             tmp_builtin_bin_op_ir_emitter{
-                                builder,
+                                ctx.builder,
                                 var_table.emit_ir_to_load(lhs_sym),
                                 rhs_value,
                                 bin_op
@@ -859,7 +857,7 @@ public:
                     = check(
                         switch_,
                         tmp_builtin_bin_op_ir_emitter{
-                            builder,
+                            ctx.builder,
                             target_val,
                             emit(cmp_expr),
                             "=="
@@ -899,7 +897,7 @@ public:
 
         val cond_val = emit(if_->condition_expr);
         if (if_->kind == ast::symbol::if_kind::unless) {
-            cond_val = check(if_, builder.CreateNot(cond_val, "if_expr_unless"), "unless expression");
+            cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_expr_unless"), "unless expression");
         }
         helper.create_cond_br(cond_val, then_block, else_block);
 
@@ -909,7 +907,7 @@ public:
         auto *const else_val = emit(if_->else_expr);
         helper.terminate_with_br(merge_block, merge_block);
 
-        auto *const phi = builder.CreatePHI(type_emitter.emit(if_->type), 2, "expr.if.tmp");
+        auto *const phi = ctx.builder.CreatePHI(type_emitter.emit(if_->type), 2, "expr.if.tmp");
         phi->addIncoming(then_val, then_block);
         phi->addIncoming(else_val, else_block);
         return phi;
@@ -924,7 +922,7 @@ public:
 
         val cond_val = emit(postfix_if->condition);
         if (postfix_if->kind == ast::symbol::if_kind::unless) {
-            cond_val = check(postfix_if, builder.CreateNot(cond_val, "postfix_if_unless"), "unless expression");
+            cond_val = check(postfix_if, ctx.builder.CreateNot(cond_val, "postfix_if_unless"), "unless expression");
         }
         helper.create_cond_br(cond_val, then_block, end_block);
 
@@ -975,29 +973,29 @@ public:
             if (to == "uint") {
                 return child_val; // Note: Do nothing.
             } else if (to == "float") {
-                return cast_check(builder.CreateSIToFP(child_val, to_type_ir));
+                return cast_check(ctx.builder.CreateSIToFP(child_val, to_type_ir));
             } else if (to == "char") {
-                return cast_check(builder.CreateTrunc(child_val, to_type_ir));
+                return cast_check(ctx.builder.CreateTrunc(child_val, to_type_ir));
             }
         } else if (from == "uint") {
             if (to == "int") {
                 return child_val; // Note: Do nothing
             } else if (to == "float") {
-                return cast_check(builder.CreateUIToFP(child_val, to_type_ir));
+                return cast_check(ctx.builder.CreateUIToFP(child_val, to_type_ir));
             } else if (to == "char") {
-                return cast_check(builder.CreateTrunc(child_val, to_type_ir));
+                return cast_check(ctx.builder.CreateTrunc(child_val, to_type_ir));
             }
         } else if (from == "float") {
             if (to == "int" || to == "char") {
-                return cast_check(builder.CreateFPToSI(child_val, to_type_ir));
+                return cast_check(ctx.builder.CreateFPToSI(child_val, to_type_ir));
             } else if (to == "uint") {
-                return cast_check(builder.CreateFPToUI(child_val, to_type_ir));
+                return cast_check(ctx.builder.CreateFPToUI(child_val, to_type_ir));
             }
         } else if (from == "char") {
             if (to == "int" || to == "uint") {
-                return cast_check(builder.CreateSExt(child_val, to_type_ir));
+                return cast_check(ctx.builder.CreateSExt(child_val, to_type_ir));
             } else if (to == "float") {
-                return cast_check(builder.CreateSIToFP(child_val, to_type_ir));
+                return cast_check(ctx.builder.CreateSIToFP(child_val, to_type_ir));
             }
         }
 
@@ -1014,11 +1012,9 @@ public:
 
 } // namespace detail
 
-llvm::Module &emit_llvm_ir(ast::ast const& a, scope::scope_tree const&)
+llvm::Module &emit_llvm_ir(ast::ast const& a, scope::scope_tree const&, context &ctx)
 {
-    // TODO:
-    // Use global context temporarily
-    auto &the_module = *detail::llvm_ir_emitter{llvm::getGlobalContext(), a.name}.emit(a.root);
+    auto &the_module = *detail::llvm_ir_emitter{a.name, ctx}.emit(a.root);
     std::string errmsg;
     if (llvm::verifyModule(the_module, llvm::ReturnStatusAction, &errmsg)) {
         helper::colorizer<std::string> c;

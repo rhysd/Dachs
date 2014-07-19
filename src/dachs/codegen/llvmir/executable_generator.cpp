@@ -7,15 +7,9 @@
 #include <boost/algorithm/string/join.hpp>
 
 #include <llvm/IR/Module.h>
-#include <llvm/ADT/Triple.h>
-#include <llvm/IR/DataLayout.h>
-#include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetLibraryInfo.h>
 #include <llvm/Pass.h>
 #include <llvm/PassManager.h>
-#include <llvm/Support/Host.h>
-#include <llvm/Support/TargetRegistry.h>
-#include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Support/FormattedStream.h>
 
@@ -26,39 +20,10 @@ namespace dachs {
 namespace codegen {
 namespace llvmir {
 
-class binary_generator_base {
-    struct unused {};
-
-public:
-
-    binary_generator_base()
-    {
-        // Initialize once
-        static auto const u
-            = []
-            {
-                LLVMInitializeX86TargetInfo();
-                LLVMInitializeX86Target();
-                LLVMInitializeX86TargetMC();
-                LLVMInitializeX86AsmPrinter();
-                LLVMInitializeX86AsmParser();
-                return unused{};
-            }();
-        (void)u;
-    }
-
-    virtual ~binary_generator_base()
-    {}
-};
-
-class binary_generator final : private binary_generator_base {
+class binary_generator final {
 
     std::vector<llvm::Module *> modules;
-    llvm::Triple const triple;
-    std::string tmp_buffer;
-    llvm::Target const* const target;
-    llvm::TargetOptions options;
-    llvm::TargetMachine *const target_machine;
+    context &ctx;
 
     std::string get_base_name_from_module(llvm::Module const& module) const
     {
@@ -73,23 +38,22 @@ class binary_generator final : private binary_generator_base {
     std::string generate_object(llvm::Module &module)
     {
         llvm::PassManager pm;
-        pm.add(new llvm::TargetLibraryInfo(triple));
-        target_machine->addAnalysisPasses(pm);
+        pm.add(new llvm::TargetLibraryInfo(ctx.triple));
+        ctx.target_machine->addAnalysisPasses(pm);
 
-        if (llvm::DataLayout const* const layout = target_machine->getDataLayout()) {
-            pm.add(new llvm::DataLayout(*layout));
-        } else {
-            pm.add(new llvm::DataLayout(&module));
-        }
+        // Note:
+        // This implies that all passes MUST be allocated with 'new'.
+        pm.add(new llvm::DataLayout(*ctx.data_layout));
 
         auto const obj_name = get_base_name_from_module(module) + ".o";
 
-        llvm::tool_output_file out{obj_name.c_str(), tmp_buffer, llvm::sys::fs::F_None | llvm::sys::fs::F_Binary};
+        std::string buffer;
+        llvm::tool_output_file out{obj_name.c_str(), buffer, llvm::sys::fs::F_None | llvm::sys::fs::F_Binary};
         out.keep(); // Do not delete object file
 
         llvm::formatted_raw_ostream formatted_os{out.os()};
-        if (target_machine->addPassesToEmitFile(pm, formatted_os, llvm::TargetMachine::CGFT_ObjectFile)) {
-            throw code_generation_error{"LLVM IR generator", boost::format("Failed to create an object file '%1%': %2%") % obj_name % tmp_buffer};
+        if (ctx.target_machine->addPassesToEmitFile(pm, formatted_os, llvm::TargetMachine::CGFT_ObjectFile)) {
+            throw code_generation_error{"LLVM IR generator", boost::format("Failed to create an object file '%1%': %2%") % obj_name % buffer};
         }
 
         pm.run(module);
@@ -99,27 +63,10 @@ class binary_generator final : private binary_generator_base {
 
 public:
 
-    binary_generator(decltype(modules) const& ms) noexcept
-        : binary_generator_base()
-        , modules(ms)
-        , triple(llvm::sys::getDefaultTargetTriple())
-        , tmp_buffer()
-        , target(llvm::TargetRegistry::lookupTarget(triple.getTriple(), tmp_buffer))
-        , options()
-        , target_machine(target->createTargetMachine(triple.getTriple(), ""/*cpu name*/, ""/*feature*/, options))
+    binary_generator(decltype(modules) const& ms, context &c)
+        : modules(ms), ctx(c)
     {
         assert(!ms.empty());
-    }
-
-    void verify()
-    {
-        if (!target) {
-            throw code_generation_error{"LLVM IR generator", boost::format("On looking up target with '%1%': %2%") % triple.getTriple() % tmp_buffer};
-        }
-
-        if (!target_machine) {
-            throw code_generation_error{"LLVM IR generator", boost::format("Failed to get a target machine for %1%") % triple.getTriple()};
-        }
     }
 
     std::vector<std::string> generate_objects()
@@ -136,7 +83,7 @@ public:
     {
         // TODO: Temporary
         auto const obj_names = generate_objects();
-        auto const os_type = triple.getOS();
+        auto const os_type = ctx.triple.getOS();
         auto const objs_string
             = boost::algorithm::join(obj_names, " ");
         auto const executable_name = get_base_name_from_module(*modules[0]);
@@ -170,17 +117,15 @@ public:
     }
 };
 
-std::string generate_executable(std::vector<llvm::Module *> const& modules, std::vector<std::string> const& libdirs)
+std::string generate_executable(std::vector<llvm::Module *> const& modules, std::vector<std::string> const& libdirs, context &ctx)
 {
-    binary_generator generator{modules};
-    generator.verify();
+    binary_generator generator{modules, ctx};
     return generator.generate_executable(libdirs);
 }
 
-std::vector<std::string> generate_objects(std::vector<llvm::Module *> const& modules)
+std::vector<std::string> generate_objects(std::vector<llvm::Module *> const& modules, context &ctx)
 {
-    binary_generator generator{modules};
-    generator.verify();
+    binary_generator generator{modules, ctx};
     return generator.generate_objects();
 }
 

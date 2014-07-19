@@ -13,6 +13,7 @@
 #include "dachs/semantics/stringize_scope_tree.hpp"
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
 #include "dachs/codegen/llvmir/executable_generator.hpp"
+#include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/helper/util.hpp"
 
 namespace dachs {
@@ -29,6 +30,7 @@ std::string compiler::read(std::string const& file) const
 std::string compiler::compile(compiler::files_type const& files, std::vector<std::string> const& libdirs, bool const colorful, bool const debug) const
 {
     std::vector<llvm::Module *> modules;
+    codegen::llvmir::context context;
 
     for (auto const& f : files) {
         auto const code = read(f);
@@ -48,7 +50,7 @@ std::string compiler::compile(compiler::files_type const& files, std::vector<std
 
         }
 
-        auto &module = codegen::llvmir::emit_llvm_ir(ast, scope_tree);
+        auto &module = codegen::llvmir::emit_llvm_ir(ast, scope_tree, context);
         if (debug) {
             std::cerr << "=========LLVM IR=========\n\n";
             module.dump();
@@ -57,18 +59,19 @@ std::string compiler::compile(compiler::files_type const& files, std::vector<std
         modules.push_back(&module);
     }
 
-    return codegen::llvmir::generate_executable(modules, libdirs);
+    return codegen::llvmir::generate_executable(modules, libdirs, context);
 }
 
 std::vector<std::string> compiler::compile_to_objects(compiler::files_type const& files, bool const colorful, bool const debug) const
 {
     std::vector<llvm::Module *> modules;
+    codegen::llvmir::context context;
 
     for (auto const& f : files) {
         auto const code = read(f);
         auto ast = parser.parse(code, f);
         auto scope_tree = semantics::analyze_semantics(ast);
-        auto &module = codegen::llvmir::emit_llvm_ir(ast, scope_tree);
+        auto &module = codegen::llvmir::emit_llvm_ir(ast, scope_tree, context);
         if (debug) {
             std::cerr << "file: " << f << '\n'
                       << ast::stringize_ast(ast, colorful)
@@ -80,7 +83,7 @@ std::vector<std::string> compiler::compile_to_objects(compiler::files_type const
         modules.push_back(&module);
     }
 
-    return codegen::llvmir::generate_objects(modules);
+    return codegen::llvmir::generate_objects(modules, context);
 }
 
 std::string compiler::report_ast(std::string const& file, std::string const& code, bool const colorful) const
@@ -102,7 +105,9 @@ std::string compiler::report_llvm_ir(std::string const& file, std::string const&
 
     std::string result;
     llvm::raw_string_ostream raw_os{result};
-    codegen::llvmir::emit_llvm_ir(ast, scope_tree).print(raw_os, nullptr);
+
+    codegen::llvmir::context context;
+    codegen::llvmir::emit_llvm_ir(ast, scope_tree, context).print(raw_os, nullptr);
     return result;
 }
 

@@ -6,14 +6,16 @@
 
 #include <llvm/IR/Module.h>
 
+#include "dachs/codegen/llvmir/context.hpp"
+
 namespace dachs {
 namespace codegen {
 namespace llvmir {
 
 class binary_generator;
 
-std::string generate_executable(std::vector<llvm::Module *> const& modules, std::vector<std::string> const& libdirs);
-std::vector<std::string> generate_objects(std::vector<llvm::Module *> const& modules);
+std::string generate_executable(std::vector<llvm::Module *> const& modules, std::vector<std::string> const& libdirs, context &ctx);
+std::vector<std::string> generate_objects(std::vector<llvm::Module *> const& modules, context &ctx);
 
 } // namespace llvmir
 } // namespace codegen
