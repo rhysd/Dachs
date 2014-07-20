@@ -329,18 +329,9 @@ public:
         auto const& elem_exprs = tuple->element_exprs;
         for (unsigned int idx = 0; idx < elem_exprs.size(); ++idx) {
             auto *const elem_val = emit(elem_exprs[idx]);
-            val const indices[] = {
-                    ctx.builder.getInt32(0),
-                    ctx.builder.getInt32(idx)
-                };
             ctx.builder.CreateStore(
                     elem_val,
-                    llvm::GetElementPtrInst::Create(
-                        alloca_inst,
-                        indices,
-                        "",
-                        ctx.builder.GetInsertBlock()
-                    )
+                    ctx.builder.CreateStructGEP(alloca_inst, idx)
                 );
         }
 
@@ -609,18 +600,12 @@ public:
             auto const emit_index_access
                 = [&, this](unsigned int const idx)
                 {
-                    val const indices[]
-                        = {
-                            ctx.builder.getInt32(0u),
-                            ctx.builder.getInt32(idx)
-                        };
-                    return ctx.builder.CreateLoad(
-                            llvm::GetElementPtrInst::Create(
-                                child_val,
-                                indices,
-                                "",
-                                ctx.builder.GetInsertBlock()
-                            )
+                    return check(
+                            access,
+                            ctx.builder.CreateLoad(
+                                ctx.builder.CreateStructGEP(child_val, idx)
+                            ),
+                            "allocate tuple literal"
                         );
                 };
 
