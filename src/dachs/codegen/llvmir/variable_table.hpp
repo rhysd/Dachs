@@ -21,7 +21,7 @@ namespace llvmir {
 namespace detail {
 
 template<class Map, class T>
-boost::optional<llvm::Value *> lookup_table(Map const& heystack, T const& needle)
+inline boost::optional<llvm::Value *> lookup_table(Map const& heystack, T const& needle)
 {
     auto const result = heystack.find(needle);
     if (result == std::end(heystack)) {
@@ -32,15 +32,20 @@ boost::optional<llvm::Value *> lookup_table(Map const& heystack, T const& needle
 }
 
 template<class Map, class T>
-bool exists_in_table(Map const& heystack, T const& needle)
+inline bool exists_in_table(Map const& heystack, T const& needle)
 {
     return heystack.find(needle) != std::end(heystack);
 }
 
 template<class T>
-bool is_aggregate(T const *const t)
+inline bool is_aggregate_ptr(T const *const t)
 {
-    return llvm::isa<llvm::StructType>(t) || llvm::isa<llvm::ArrayType>(t);
+    if (!llvm::isa<llvm::PointerType>(t)) {
+        return false;
+    }
+
+    auto *const elem_type = t->getPointerElementType();
+    return elem_type->isStructTy() || elem_type->isArrayTy();
 }
 
 } // namespace detail
@@ -67,6 +72,22 @@ class variable_table {
     // table_type global_table;
     // table_type constant_table; // Need?
 
+    template<class V1, class V2, class T>
+    llvm::CallInst *create_memcpy(V1 *const dest, V2 *const src, T *const src_type)
+    {
+        auto const alloc_size = ctx.data_layout->getTypeAllocSize(src_type);
+        auto const preferred_align = ctx.data_layout->getPrefTypeAlignment(src_type);
+        return ctx.builder.CreateMemCpy(dest, src, alloc_size, preferred_align);
+    }
+
+    template<class V1, class V2>
+    llvm::CallInst *create_memcpy(V1 *const dest, V2 *const src)
+    {
+        auto *const t = src->getType()->getPointerElementType();
+        assert(t);
+        return create_memcpy(dest, src, t);
+    }
+
 public:
 
     explicit variable_table(context &c) noexcept
@@ -84,8 +105,15 @@ public:
         }
 
         if (auto const maybe_aggregate_val = detail::lookup_table(alloca_aggregate_table, sym)) {
-            // TODO: Use memcpy
-            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+            auto *const aggregate_val = *maybe_aggregate_val;
+            auto *const aggregate_type = aggregate_val->getType()->getPointerElementType();
+            assert(aggregate_type);
+
+            auto *const dest = ctx.builder.CreateAlloca(aggregate_type);
+            if (!create_memcpy(dest, aggregate_val, aggregate_type)) {
+                return nullptr;
+            }
+            return dest;
         }
 
         return nullptr;
@@ -105,9 +133,10 @@ public:
         }
 
         if (auto const maybe_aggregate_val = detail::lookup_table(alloca_aggregate_table, sym)) {
-            auto const aggregate_val = *maybe_aggregate_val;
-            // TODO: Use memcpy
-            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+            if (!create_memcpy(v, *maybe_aggregate_val)) {
+                return nullptr;
+            }
+            return v;
         }
 
         return nullptr;
@@ -181,7 +210,7 @@ public:
     bool insert(symbol::var_symbol const& key, llvm::AllocaInst *const value) noexcept
     {
         assert(!detail::exists_in_table(register_table, key));
-        if (detail::is_aggregate(value->getType())) {
+        if (detail::is_aggregate_ptr(value->getType())) {
             return alloca_aggregate_table.emplace(key, value).second;
         } else {
             return alloca_table.emplace(key, value).second;
