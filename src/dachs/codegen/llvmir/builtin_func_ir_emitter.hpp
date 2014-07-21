@@ -62,7 +62,7 @@ public:
                 return llvm::Function::Create(
                         print_func_type,
                         llvm::Function::ExternalLinkage,
-                        "dachs_print_" + arg_type->name + "__",
+                        "__dachs_print_" + arg_type->name + "__",
                         module
                     );
             };
