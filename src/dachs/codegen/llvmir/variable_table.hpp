@@ -40,7 +40,7 @@ inline bool exists_in_table(Map const& heystack, T const& needle)
 template<class T>
 inline bool is_aggregate_ptr(T const *const t)
 {
-    if (!llvm::isa<llvm::PointerType>(t)) {
+    if (!t->isPointerTy()) {
         return false;
     }
 

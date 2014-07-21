@@ -344,7 +344,9 @@ public:
         if (!module) {
             error(p, "module");
         }
+
         module->setDataLayout(ctx.data_layout->getStringRepresentation());
+        module->setTargetTriple(ctx.triple.getTriple());
 
         builtin_func_emitter.set_module(module);
 
