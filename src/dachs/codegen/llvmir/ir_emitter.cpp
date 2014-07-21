@@ -251,6 +251,39 @@ class llvm_ir_emitter {
         return is_supported(lhs_builtin_type) && is_supported(rhs_builtin_type);
     }
 
+    val emit_index_ptr(ast::node::index_access const& access)
+    {
+        auto const child_type = type::type_of(access->child);
+        auto const child_val = emit(access->child);
+        auto const index_val = emit(access->index_expr);
+
+        if (auto const child_tuple_type = type::get<type::tuple_type>(child_type)) {
+
+            // Note:
+            // Do not emit index expression because it is a integer literal and it is
+            // processed in compile time
+            auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
+            if (!constant_index) {
+                return nullptr;
+            }
+
+            return ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue());
+        } else {
+            return nullptr;
+        }
+    }
+
+    template<class T>
+    inline bool is_aggregate_ptr(T const *const t) const noexcept
+    {
+        if (!t->isPointerTy()) {
+            return false;
+        }
+
+        auto *const elem_type = t->getPointerElementType();
+        return elem_type->isStructTy() || elem_type->isArrayTy();
+    }
+
 public:
 
     llvm_ir_emitter(std::string const& f, context &c)
@@ -587,40 +620,13 @@ public:
 
     val emit(ast::node::index_access const& access)
     {
-        auto const child_type = type::type_of(access->child);
-        auto child_val = emit(access->child);
-
-        if (auto const child_tuple_type = type::get<type::tuple_type>(child_type)) {
-
-            // Note:
-            // Do not emit index expression because it is a integer literal and it is
-            // processed in compile time
-            auto const primary_lit = get_as<ast::node::primary_literal>(access->index_expr);
-            assert(primary_lit);
-            auto const& literal = (*primary_lit)->value;
-
-            auto const emit_index_access
-                = [&, this](unsigned int const idx)
-                {
-                    return check(
-                            access,
-                            ctx.builder.CreateLoad(
-                                ctx.builder.CreateStructGEP(child_val, idx)
-                            ),
-                            "allocate tuple literal"
-                        );
-                };
-
-            if (auto const opt_idx = get_as<int>(literal)) {
-                return emit_index_access(static_cast<unsigned int>(*opt_idx));
-            } else if (auto const opt_idx = get_as<unsigned int>(literal)) {
-                return emit_index_access(*opt_idx);
-            } else {
-                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-            }
-        } else {
-            return nullptr;
-        }
+        return check(
+                access,
+                ctx.builder.CreateLoad(
+                    emit_index_ptr(access)
+                ),
+                "index access"
+            );
     }
 
     void emit(ast::node::while_stmt const& while_)
@@ -680,6 +686,16 @@ public:
                             // If the variable is immutable, do not copy rhs value
                             val->setName(sym->name);
                             var_table.insert(std::move(sym), val);
+                        } else if (is_aggregate_ptr(val->getType())) {
+                            auto *const new_obj = emit_alloca_from_sym(sym);
+                            auto *const new_obj_type = new_obj->getAllocatedType();
+
+                            ctx.builder.CreateMemCpy(
+                                new_obj,
+                                val,
+                                ctx.data_layout->getTypeAllocSize(new_obj_type),
+                                ctx.data_layout->getPrefTypeAlignment(new_obj_type)
+                            );
                         } else {
                             if (llvm::isa<llvm::AllocaInst>(val)) {
                                 val = check(init, ctx.builder.CreateLoad(val), "loading rhs");
@@ -749,26 +765,50 @@ public:
                     assert(!(*maybe_var_ref)->symbol.expired());
                     auto const lhs_sym = (*maybe_var_ref)->symbol.lock();
 
+                    val value_to_assign = nullptr;
+
                     if (assign->op == "=") {
-                        check(assign, var_table.emit_ir_to_store(lhs_sym, rhs_value), "storing rhs value");
+                        value_to_assign = rhs_value;
                     } else {
                         auto const bin_op = assign->op.substr(0, assign->op.size()-1);
                         // Load lhs value
                         // Process operators.(if compound operator, use binary_operator process)
-                        auto const lhs_value =
+                        value_to_assign =
                             tmp_builtin_bin_op_ir_emitter{
                                 ctx.builder,
                                 var_table.emit_ir_to_load(lhs_sym),
                                 rhs_value,
                                 bin_op
                             }.emit(type::type_of(lhs_expr));
-                        check(assign, var_table.emit_ir_to_store(lhs_sym, lhs_value), "storing rhs value in compound assignment '" + bin_op + '\'');
                     }
+
+                    check(assign, var_table.emit_ir_to_store(lhs_sym, value_to_assign), "storing rhs value");
                 } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs_expr)) {
-                    throw not_implemented_error{assign, __FILE__, __func__, __LINE__, "index access in assignment"};
+                    auto const& index_access = *maybe_index_access;
+                    auto const index_ptr_value = emit_index_ptr(index_access);
+
+                    val value_to_assign = nullptr;
+
+                    if (assign->op == "=") {
+                        value_to_assign = rhs_value;
+                    } else {
+                        auto const bin_op = assign->op.substr(0, assign->op.size()-1);
+                        // Load lhs value
+                        // Process operators.(if compound operator, use binary_operator process)
+                        value_to_assign =
+                            tmp_builtin_bin_op_ir_emitter{
+                                ctx.builder,
+                                ctx.builder.CreateLoad(index_ptr_value),
+                                rhs_value,
+                                bin_op
+                            }.emit(type::type_of(lhs_expr));
+                    }
+
+                    ctx.builder.CreateStore(value_to_assign, index_ptr_value);
                 } else {
                     DACHS_RAISE_INTERNAL_COMPILATION_ERROR
                 }
+
             }
             , assign->assignees, rhs_values
         );

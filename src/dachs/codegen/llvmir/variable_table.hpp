@@ -105,15 +105,11 @@ public:
         }
 
         if (auto const maybe_aggregate_val = detail::lookup_table(alloca_aggregate_table, sym)) {
-            auto *const aggregate_val = *maybe_aggregate_val;
-            auto *const aggregate_type = aggregate_val->getType()->getPointerElementType();
-            assert(aggregate_type);
-
-            auto *const dest = ctx.builder.CreateAlloca(aggregate_type);
-            if (!create_memcpy(dest, aggregate_val, aggregate_type)) {
-                return nullptr;
-            }
-            return dest;
+            // Note:
+            // Simply return a pointer to the aggregate.
+            // This means aggregates (tuple, array, class) are treated
+            // by reference.
+            return *maybe_aggregate_val;
         }
 
         return nullptr;
@@ -133,7 +129,7 @@ public:
         }
 
         if (auto const maybe_aggregate_val = detail::lookup_table(alloca_aggregate_table, sym)) {
-            if (!create_memcpy(v, *maybe_aggregate_val)) {
+            if (!create_memcpy(*maybe_aggregate_val, v)) {
                 return nullptr;
             }
             return v;
