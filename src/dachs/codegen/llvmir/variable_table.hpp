@@ -21,7 +21,7 @@ namespace llvmir {
 namespace detail {
 
 template<class Map, class T>
-inline boost::optional<llvm::Value *> lookup_table(Map const& heystack, T const& needle)
+inline boost::optional<typename Map::mapped_type> lookup_table(Map const& heystack, T const& needle)
 {
     auto const result = heystack.find(needle);
     if (result == std::end(heystack)) {
@@ -58,35 +58,20 @@ inline bool is_aggregate_ptr(T const *const t)
 // |
 // |- Alloca Value
 //    |
-//    |- Aggregate Value
+//    |- Aggregate Value (Struct and Array)
 //    |- Other Value
 
 class variable_table {
     using val = llvm::Value *;
     using table_type = std::unordered_map<symbol::var_symbol, val>;
+    using alloca_table_type = std::unordered_map<symbol::var_symbol, llvm::AllocaInst *>;
 
     context &ctx;
     table_type register_table;
-    table_type alloca_table;
-    table_type alloca_aggregate_table;
+    alloca_table_type alloca_table;
+    alloca_table_type alloca_aggregate_table;
     // table_type global_table;
     // table_type constant_table; // Need?
-
-    template<class V1, class V2, class T>
-    llvm::CallInst *create_memcpy(V1 *const dest, V2 *const src, T *const src_type)
-    {
-        auto const alloc_size = ctx.data_layout->getTypeAllocSize(src_type);
-        auto const preferred_align = ctx.data_layout->getPrefTypeAlignment(src_type);
-        return ctx.builder.CreateMemCpy(dest, src, alloc_size, preferred_align);
-    }
-
-    template<class V1, class V2>
-    llvm::CallInst *create_memcpy(V1 *const dest, V2 *const src)
-    {
-        auto *const t = src->getType()->getPointerElementType();
-        assert(t);
-        return create_memcpy(dest, src, t);
-    }
 
 public:
 
@@ -128,10 +113,16 @@ public:
             return ctx.builder.CreateStore(v, *maybe_alloca_val);
         }
 
-        if (auto const maybe_aggregate_val = detail::lookup_table(alloca_aggregate_table, sym)) {
-            if (!create_memcpy(*maybe_aggregate_val, v)) {
-                return nullptr;
-            }
+        if (auto const maybe_allocated_aggregate = detail::lookup_table(alloca_aggregate_table, sym)) {
+            auto const& allocated_aggregate = *maybe_allocated_aggregate;
+            auto *const t = allocated_aggregate->getAllocatedType();
+            ctx.builder.CreateMemCpy(
+                    allocated_aggregate,
+                    v,
+                    ctx.data_layout->getTypeAllocSize(t),
+                    ctx.data_layout->getPrefTypeAlignment(t)
+            );
+
             return v;
         }
 
