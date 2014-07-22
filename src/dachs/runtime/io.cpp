@@ -4,7 +4,7 @@
 extern "C" {
     void __dachs_put_float__(double const d)
     {
-        std::printf("%lf\n", d);
+        std::printf("%lg\n", d);
     }
 
     void __dachs_put_int__(int const i)
@@ -39,7 +39,7 @@ extern "C" {
 
     void __dachs_print_float__(double const d)
     {
-        std::printf("%lf", d);
+        std::printf("%lg", d);
     }
 
     void __dachs_print_int__(int const i)
