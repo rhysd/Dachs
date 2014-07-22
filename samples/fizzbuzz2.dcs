@@ -1,14 +1,13 @@
 func fizzbuzz(n)
     case
     when n % 15 == 0
-        print("fizzbuzz\n")
+        println("fizzbuzz")
     when n % 3 == 0
-        print("fizz\n")
+        println("fizz")
     when n % 5 == 0
-        print("buzz\n")
+        println("buzz")
     else
-        print(n)
-        print('\n')
+        println(n)
     end
 end
 

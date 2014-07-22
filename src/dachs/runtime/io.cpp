@@ -2,37 +2,37 @@
 #include <cstdio>
 
 extern "C" {
-    void __dachs_put_float__(double const d)
+    void __dachs_println_float__(double const d)
     {
         std::printf("%lg\n", d);
     }
 
-    void __dachs_put_int__(int const i)
+    void __dachs_println_int__(int const i)
     {
         std::printf("%d\n", i);
     }
 
-    void __dachs_put_uint__(unsigned int const u)
+    void __dachs_println_uint__(unsigned int const u)
     {
         std::printf("%u\n", u);
     }
 
-    void __dachs_put_char__(char const c)
+    void __dachs_println_char__(char const c)
     {
         std::printf("%c\n", c);
     }
 
-    void __dachs_put_string__(char const* const s)
+    void __dachs_println_string__(char const* const s)
     {
         std::printf("%s\n", s);
     }
 
-    void __dachs_put_symbol__(char const* const s)
+    void __dachs_println_symbol__(char const* const s)
     {
         std::printf("%s\n", s);
     }
 
-    void __dachs_put_bool__(bool const b)
+    void __dachs_println_bool__(bool const b)
     {
         std::printf("%s\n", b ? "true" : "false");
     }
