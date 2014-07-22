@@ -355,10 +355,11 @@ public:
 
     llvm::AllocaInst *emit(ast::node::tuple_literal const& tuple)
     {
+        auto helper = get_ir_helper(tuple);
         auto const the_type = type::get<type::tuple_type>(tuple->type);
         assert(the_type);
 
-        auto alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(*the_type));
+        auto *const alloca_inst = helper.create_alloca(type_emitter.emit(*the_type));
         auto const& elem_exprs = tuple->element_exprs;
         for (unsigned int idx = 0; idx < elem_exprs.size(); ++idx) {
             auto *const elem_val = emit(elem_exprs[idx]);
@@ -410,6 +411,7 @@ public:
 
     void emit(ast::node::parameter const& param)
     {
+        auto helper = get_ir_helper(param);
         assert(!param->param_symbol.expired());
 
         auto const param_sym = param->param_symbol.lock();
@@ -424,7 +426,7 @@ public:
             auto const inst
                 = check(
                     param,
-                    ctx.builder.CreateAlloca(type_emitter.emit(param_sym->type)),
+                    helper.create_alloca(type_emitter.emit(param_sym->type)),
                     "allocation for variable parameter"
                 );
 
@@ -650,6 +652,7 @@ public:
 
     void emit(ast::node::initialize_stmt const& init)
     {
+        auto helper = get_ir_helper(init);
         auto const initializee_size = init->var_decls.size();
         auto const initializer_size
             = init->maybe_rhs_exprs ?
@@ -665,7 +668,7 @@ public:
                 assert(t);
                 auto const inst = check(
                         init,
-                        ctx.builder.CreateAlloca(type_emitter.emit(t), nullptr/*array size*/, sym->name),
+                        helper.create_alloca(type_emitter.emit(t), nullptr/*array size*/, sym->name),
                         "variable allocation"
                     );
 

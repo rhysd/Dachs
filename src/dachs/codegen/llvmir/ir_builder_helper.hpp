@@ -140,7 +140,7 @@ public:
         return the_block;
     }
 
-    template<class String>
+    template<class String = char const* const>
     auto create_block(String const& name = "", bool const move_to_the_block = false) const
     {
         auto const the_block = check(llvm::BasicBlock::Create(context, name), "basic block");
@@ -148,6 +148,23 @@ public:
             builder.SetInsertPoint(the_block);
         }
         return the_block;
+    }
+
+    template<class TypeType, class String = char const* const>
+    llvm::AllocaInst *create_alloca(TypeType *const type, llvm::Value *const array_size = nullptr, String const& name = "")
+    {
+        // Note:
+        // Absorb the difference between value types and reference types
+        return check(
+            builder.CreateAlloca(
+                type->isPointerTy() ?
+                    type->getPointerElementType()
+                  : type
+                , array_size
+                , name
+            )
+            , "alloca instruction"
+        );
     }
 
 private:
