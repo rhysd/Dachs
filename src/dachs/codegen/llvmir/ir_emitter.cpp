@@ -740,13 +740,14 @@ public:
 
         auto const assignee_size = assign->assignees.size();
         auto const assigner_size = assign->rhs_exprs.size();
+        auto const is_compound_assign = assign->op != "=";
         assert(assignee_size > 0 && assigner_size > 0);
 
         if (assignee_size == assigner_size) {
             helper::each(
                     [&](auto const& lhs, auto const& rhs)
                     {
-                        if (!is_available_type_for_binary_expression(type::type_of(lhs), type::type_of(rhs))) {
+                        if (is_compound_assign && !is_available_type_for_binary_expression(type::type_of(lhs), type::type_of(rhs))) {
                             error(assign, "Binary expression now only supports float, int, bool and uint");
                         }
                         rhs_values.push_back(emit(rhs));
@@ -770,7 +771,7 @@ public:
 
                     val value_to_assign = nullptr;
 
-                    if (assign->op == "=") {
+                    if (!is_compound_assign) {
                         value_to_assign = rhs_value;
                     } else {
                         auto const bin_op = assign->op.substr(0, assign->op.size()-1);
