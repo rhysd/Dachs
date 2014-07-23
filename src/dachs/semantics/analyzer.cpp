@@ -578,7 +578,10 @@ public:
             }
             access->type = dict_type->value_type;
         } else {
-            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+            semantic_error(
+                access,
+                boost::format("'%1%' type value is not accessible by index.") % child_type.to_string()
+            );
         }
     }
 
@@ -1088,26 +1091,15 @@ public:
 
         // Check assignees' immutablity
         for (auto const& lhs : assign->assignees) {
-            if (auto const maybe_var_ref = get_as<ast::node::var_ref>(lhs)) {
-                // foo = ...
+            auto expr = lhs;
+            while (auto const maybe_index_access = get_as<ast::node::index_access>(expr)) {
+                expr = (*maybe_index_access)->child;
+            }
+
+            if (auto const maybe_var_ref = get_as<ast::node::var_ref>(expr)) {
                 auto const var_sym = (*maybe_var_ref)->symbol.lock();
                 if (var_sym->immutable) {
                     semantic_error(assign, boost::format("Can't assign to immutable variable '%1%'") % var_sym->name);
-                    return;
-                }
-            } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs)) {
-                auto const child = (*maybe_index_access)->child;
-                assert(has<type::array_type>(type_of(child)) || has<type::tuple_type>(type_of(child)));
-
-                // foo[idx] = ...
-                if (auto const maybe_var_ref = get_as<ast::node::var_ref>(child)) {
-                    auto const var_sym = (*maybe_var_ref)->symbol.lock();
-                    if (var_sym->immutable) {
-                        semantic_error(assign, boost::format("Can't assignment to immutable array or tuple '%1%'") % var_sym->name);
-                        return;
-                    }
-                } else {
-                    semantic_error(assign, "Lhs of assignment must be simple array/tuple index access like foo[idx] = ...");
                     return;
                 }
             } else {
