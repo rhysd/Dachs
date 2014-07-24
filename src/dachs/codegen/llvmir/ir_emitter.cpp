@@ -168,7 +168,7 @@ class llvm_ir_emitter {
     auto get_ir_helper(std::shared_ptr<Node> const& node) noexcept
         -> basic_ir_builder_helper<Node>
     {
-        return {node, ctx.builder, ctx.llvm_context};
+        return {node, ctx};
     }
 
     template<class... NodeTypes>
@@ -661,50 +661,21 @@ public:
         assert(initializee_size != 0);
         assert(initializer_size != 0);
 
-        auto const emit_alloca_from_sym
-            = [&](auto const& sym)
-            {
-                auto const t = sym->type;
-                assert(t);
-                auto const inst = check(
-                        init,
-                        helper.create_alloca(type_emitter.emit(t), nullptr/*array size*/, sym->name),
-                        "variable allocation"
-                    );
-
-                var_table.insert(std::move(sym), inst);
-
-                return inst;
-            };
-
         if (initializee_size == initializer_size) {
             helper::each(
                     [&, this](auto const& d, auto const& e)
                     {
                         assert(!d->symbol.expired());
 
-                        auto *val = emit(e);
+                        auto *const val = emit(e);
                         auto const sym = d->symbol.lock();
-                        if (!d->is_var) {
+                        if (d->is_var) {
+                            auto *const allocated = helper.alloc_and_deep_copy(val, sym->name);
+                            var_table.insert(std::move(sym), allocated);
+                        } else {
                             // If the variable is immutable, do not copy rhs value
                             val->setName(sym->name);
                             var_table.insert(std::move(sym), val);
-                        } else if (is_aggregate_ptr(val->getType())) {
-                            auto *const new_obj = emit_alloca_from_sym(sym);
-                            auto *const new_obj_type = new_obj->getAllocatedType();
-
-                            ctx.builder.CreateMemCpy(
-                                new_obj,
-                                val,
-                                ctx.data_layout->getTypeAllocSize(new_obj_type),
-                                ctx.data_layout->getPrefTypeAlignment(new_obj_type)
-                            );
-                        } else {
-                            if (llvm::isa<llvm::AllocaInst>(val)) {
-                                val = check(init, ctx.builder.CreateLoad(val), "loading rhs");
-                            }
-                            auto *const inst = emit_alloca_from_sym(sym);
-                            check(init, ctx.builder.CreateStore(val, inst), "storing to lhs");
                         }
                     }
                     , init->var_decls, *init->maybe_rhs_exprs
@@ -734,6 +705,7 @@ public:
     void emit(ast::node::assignment_stmt const& assign)
     {
         assert(assign->op.back() == '=');
+        auto helper = get_ir_helper(assign);
 
         // Load rhs value
         std::vector<val> rhs_values;
@@ -780,20 +752,28 @@ public:
                         value_to_assign =
                             tmp_builtin_bin_op_ir_emitter{
                                 ctx.builder,
-                                var_table.emit_ir_to_load(lhs_sym),
+                                var_table.emit_ir_to_load(lhs_sym), // XXX: This is ok because binary operators allow primitive types only.
                                 rhs_value,
                                 bin_op
                             }.emit(type::type_of(lhs_expr));
                     }
 
-                    check(assign, var_table.emit_ir_to_store(lhs_sym, value_to_assign), "storing rhs value");
+                    // Note:
+                    // lhs_value is the value to lhs symbol.
+                    // It is not a pointer when primitive, otherwise is a pointer.
+                    auto *const lhs_value = check(assign, var_table.lookup_value(lhs_sym), "lhs value lookup");
+                    if (auto *const lhs_alloca = llvm::dyn_cast<llvm::AllocaInst>(lhs_value)) {
+                        helper.create_deep_copy(value_to_assign, lhs_alloca);
+                    } else {
+                        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+                    }
                 } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs_expr)) {
                     auto const& index_access = *maybe_index_access;
-                    auto const index_ptr_value = emit_index_ptr(index_access);
+                    auto *const index_ptr_value = emit_index_ptr(index_access);
 
                     val value_to_assign = nullptr;
 
-                    if (assign->op == "=") {
+                    if (!is_compound_assign) {
                         value_to_assign = rhs_value;
                     } else {
                         auto const bin_op = assign->op.substr(0, assign->op.size()-1);

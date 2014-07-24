@@ -51,6 +51,9 @@ inline bool is_aggregate_ptr(T const *const t)
 } // namespace detail
 
 // Note:
+// This class will be needless because all of variables have reference semantics.
+//
+// Note:
 //
 // Value
 // |
