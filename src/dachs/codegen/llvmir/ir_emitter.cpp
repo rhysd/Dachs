@@ -353,14 +353,13 @@ public:
         return check(sym, ctx.builder.CreateGlobalStringPtr(sym->value.c_str()), "symbol constant");
     }
 
-    llvm::AllocaInst *emit(ast::node::tuple_literal const& tuple)
+    template<class Helper, class Expr>
+    llvm::AllocaInst *emit_tuple_constant(type::type const& t, std::vector<Expr> const& elem_exprs, Helper &&helper)
     {
-        auto helper = get_ir_helper(tuple);
-        auto const the_type = type::get<type::tuple_type>(tuple->type);
+        auto const the_type = type::get<type::tuple_type>(t);
         assert(the_type);
 
         auto *const alloca_inst = helper.create_alloca(type_emitter.emit(*the_type));
-        auto const& elem_exprs = tuple->element_exprs;
         for (unsigned int idx = 0; idx < elem_exprs.size(); ++idx) {
             auto *const elem_val = emit(elem_exprs[idx]);
             ctx.builder.CreateStore(
@@ -369,7 +368,16 @@ public:
                 );
         }
 
-        return check(tuple, alloca_inst, "tuple literal");
+        return alloca_inst;
+    }
+
+    llvm::AllocaInst *emit(ast::node::tuple_literal const& tuple)
+    {
+        return check(
+                tuple,
+                emit_tuple_constant(tuple->type, tuple->element_exprs, get_ir_helper(tuple)),
+                "tuple literal"
+            );
     }
 
     llvm::Module *emit(ast::node::inu const& p)
@@ -537,7 +545,13 @@ public:
             // Return statements with no expression in functions should returns unit
             ctx.builder.CreateRetVoid();
         } else {
-            throw not_implemented_error{return_, __FILE__, __func__, __LINE__, "returning multiple value"};
+            ctx.builder.CreateRet(
+                emit_tuple_constant(
+                    return_->ret_type,
+                    return_->ret_exprs,
+                    get_ir_helper(return_)
+                )
+            );
         }
     }
 
