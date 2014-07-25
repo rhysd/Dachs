@@ -78,6 +78,7 @@ end
 -  Code generation
   - [ ] LLVM IR code generation
   - [x] Executable generation
+  - [ ] Reference semantics
   - [ ] Test
 
 -  Misc
