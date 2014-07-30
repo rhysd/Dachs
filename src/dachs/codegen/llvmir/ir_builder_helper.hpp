@@ -215,10 +215,11 @@ public:
                 ctx.data_layout->getPrefTypeAlignment(aggregate_type)
             );
             if (auto *const struct_type = llvm::dyn_cast<llvm::StructType>(aggregate_type)) {
-                for (uint64_t const idx
-                    : irange(0u, struct_type->getNumElements())
-                    | filtered([&](auto const i){ return struct_type->getElementType(i)->isPointerTy(); })
-                ) {
+                for (uint64_t const idx : irange(0u, struct_type->getNumElements())) {
+                    if (!struct_type->getElementType(i)->isPointerTy()) {
+                        continue;
+                    }
+
                     auto *const ptr_to_elem = ctx.builder.CreateStructGEP(from, idx);
                     ctx.builder.CreateStore(
                             alloc_and_deep_copy(
