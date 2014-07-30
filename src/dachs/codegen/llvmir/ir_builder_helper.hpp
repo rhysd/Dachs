@@ -216,7 +216,7 @@ public:
             );
             if (auto *const struct_type = llvm::dyn_cast<llvm::StructType>(aggregate_type)) {
                 for (uint64_t const idx : irange(0u, struct_type->getNumElements())) {
-                    if (!struct_type->getElementType(i)->isPointerTy()) {
+                    if (!struct_type->getElementType(idx)->isPointerTy()) {
                         continue;
                     }
 
