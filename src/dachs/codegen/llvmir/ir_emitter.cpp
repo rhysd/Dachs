@@ -13,6 +13,7 @@
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/optional.hpp>
 #include <boost/algorithm/cxx11/any_of.hpp>
+#include <boost/range/irange.hpp>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Value.h>
@@ -675,22 +676,27 @@ public:
         assert(initializee_size != 0);
         assert(initializer_size != 0);
 
+        auto const initialize
+            = [&, this](auto const& decl, auto *const value)
+            {
+                assert(!decl->symbol.expired());
+
+                auto const sym = decl->symbol.lock();
+                if (decl->is_var) {
+                    auto *const allocated = helper.alloc_and_deep_copy(value, sym->name);
+                    var_table.insert(std::move(sym), allocated);
+                } else {
+                    // If the variable is immutable, do not copy rhs value
+                    value->setName(sym->name);
+                    var_table.insert(std::move(sym), value);
+                }
+            };
+
         if (initializee_size == initializer_size) {
             helper::each(
                     [&, this](auto const& d, auto const& e)
                     {
-                        assert(!d->symbol.expired());
-
-                        auto *const val = emit(e);
-                        auto const sym = d->symbol.lock();
-                        if (d->is_var) {
-                            auto *const allocated = helper.alloc_and_deep_copy(val, sym->name);
-                            var_table.insert(std::move(sym), allocated);
-                        } else {
-                            // If the variable is immutable, do not copy rhs value
-                            val->setName(sym->name);
-                            var_table.insert(std::move(sym), val);
-                        }
+                        initialize(d, emit(e));
                     }
                     , init->var_decls, *init->maybe_rhs_exprs
                 );
@@ -706,11 +712,17 @@ public:
             throw not_implemented_error{init, __FILE__, __func__, __LINE__, "multiple to one assignment"};
         } else if (initializer_size == 1) {
             assert(initializee_size > 1);
+            auto const& rhs_expr = (*init->maybe_rhs_exprs)[0];
+            auto *const rhs_value = emit(rhs_expr);
+            auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_value->getType()->getPointerElementType());
+            assert(rhs_struct_type);
 
-            // TODO:
-            // Get the rhs types, access the elements and store the values to the initializees
+            std::vector<val> rhs_values;
+            for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
+                rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
+            }
 
-            throw not_implemented_error{init, __FILE__, __func__, __LINE__, "one to multiple assignment"};
+            helper::each(initialize , init->var_decls, rhs_values);
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
