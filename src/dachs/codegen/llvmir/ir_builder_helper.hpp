@@ -200,6 +200,8 @@ public:
 
     void create_deep_copy(llvm::Value *const from, llvm::AllocaInst *const to)
     {
+        assert(from);
+        assert(to);
         auto *const t = from->getType();
 
         if (t->isPointerTy()) {

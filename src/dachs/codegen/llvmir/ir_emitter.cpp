@@ -360,7 +360,7 @@ public:
     llvm::AllocaInst *emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs, Helper &&helper)
     {
         auto *const alloca_inst = helper.create_alloca(type_emitter.emit(t));
-        for (auto const idx : boost::irange(0u, elem_exprs.size())) {
+        for (auto const idx : boost::irange(0ul, elem_exprs.size())) {
             auto *const elem_val = emit(elem_exprs[idx]);
             ctx.builder.CreateStore(
                     elem_val,
@@ -764,9 +764,18 @@ public:
                         rhs_values.push_back(emit(rhs));
                     }, assign->assignees, assign->rhs_exprs);
         } else if (assignee_size == 1) {
-            throw not_implemented_error{assign, __FILE__, __func__, __LINE__, "multiple to one assignment"};
+            throw not_implemented_error{assign, __FILE__, __func__, __LINE__, "multi to one assign"};
+            assert(assigner_size > 1);
+            rhs_values.push_back(emit_tuple_constant(assign->rhs_exprs, helper));
         } else if (assigner_size == 1) {
-            throw not_implemented_error{assign, __FILE__, __func__, __LINE__, "one to multiple assignment"};
+            assert(assignee_size > 1);
+            auto *const rhs_value = emit(assign->rhs_exprs[0]);
+            auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_value->getType()->getPointerElementType());
+            assert(rhs_struct_type);
+
+            for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
+                rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
+            }
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
