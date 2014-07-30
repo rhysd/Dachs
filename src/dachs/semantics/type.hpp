@@ -326,8 +326,9 @@ struct tuple_type final : public basic_type {
 
     tuple_type() = default;
 
-    explicit tuple_type(decltype(element_types) const& v) noexcept
-        : element_types(v)
+    template<class Range>
+    explicit tuple_type(Range const& r) noexcept
+        : element_types{r.begin(), r.end()}
     {}
 
     std::string to_string() const noexcept override

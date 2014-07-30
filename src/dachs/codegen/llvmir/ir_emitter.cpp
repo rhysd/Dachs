@@ -14,6 +14,7 @@
 #include <boost/optional.hpp>
 #include <boost/algorithm/cxx11/any_of.hpp>
 #include <boost/range/irange.hpp>
+#include <boost/range/adaptor/transformed.hpp>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Value.h>
@@ -83,6 +84,7 @@ namespace detail {
 
 using helper::variant::apply_lambda;
 using helper::variant::get_as;
+using boost::adaptors::transformed;
 
 class llvm_ir_emitter {
     using val = llvm::Value *;
@@ -355,13 +357,10 @@ public:
     }
 
     template<class Helper, class Expr>
-    llvm::AllocaInst *emit_tuple_constant(type::type const& t, std::vector<Expr> const& elem_exprs, Helper &&helper)
+    llvm::AllocaInst *emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs, Helper &&helper)
     {
-        auto const the_type = type::get<type::tuple_type>(t);
-        assert(the_type);
-
-        auto *const alloca_inst = helper.create_alloca(type_emitter.emit(*the_type));
-        for (unsigned int idx = 0; idx < elem_exprs.size(); ++idx) {
+        auto *const alloca_inst = helper.create_alloca(type_emitter.emit(t));
+        for (auto const idx : boost::irange(0u, elem_exprs.size())) {
             auto *const elem_val = emit(elem_exprs[idx]);
             ctx.builder.CreateStore(
                     elem_val,
@@ -372,11 +371,27 @@ public:
         return alloca_inst;
     }
 
+    template<class Helper, class Expr>
+    llvm::AllocaInst *emit_tuple_constant(std::vector<Expr> const& elem_exprs, Helper &&helper)
+    {
+        auto const the_type
+            = type::make<type::tuple_type>(
+                elem_exprs | transformed([](auto const& e){ return type::type_of(e); })
+            );
+
+        return emit_tuple_constant(the_type, elem_exprs, std::forward<Helper>(helper));
+    }
+
     llvm::AllocaInst *emit(ast::node::tuple_literal const& tuple)
     {
+        assert(type::has<type::tuple_type>(tuple->type));
         return check(
                 tuple,
-                emit_tuple_constant(tuple->type, tuple->element_exprs, get_ir_helper(tuple)),
+                emit_tuple_constant(
+                    *type::get<type::tuple_type>(tuple->type),
+                    tuple->element_exprs,
+                    get_ir_helper(tuple)
+                ),
                 "tuple literal"
             );
     }
@@ -546,9 +561,10 @@ public:
             // Return statements with no expression in functions should returns unit
             ctx.builder.CreateRetVoid();
         } else {
+            assert(type::has<type::tuple_type>(return_->ret_type));
             ctx.builder.CreateRet(
                 emit_tuple_constant(
-                    return_->ret_type,
+                    *type::get<type::tuple_type>(return_->ret_type),
                     return_->ret_exprs,
                     get_ir_helper(return_)
                 )
@@ -703,13 +719,10 @@ public:
         } else if (initializee_size == 1) {
             assert(initializer_size > 1);
 
-            // TODO:
-            // Get initializee's type (tuple) and emit IR
-            //  1. Allocate tuple
-            //  2. Assign rhs's values to fields of the tuple
-            //  3. Store the tuple value as lhs
+            auto *const allocated_rhs_tuple
+                = emit_tuple_constant(*init->maybe_rhs_exprs, helper);
 
-            throw not_implemented_error{init, __FILE__, __func__, __LINE__, "multiple to one assignment"};
+            initialize(init->var_decls[0], allocated_rhs_tuple);
         } else if (initializer_size == 1) {
             assert(initializee_size > 1);
             auto const& rhs_expr = (*init->maybe_rhs_exprs)[0];
