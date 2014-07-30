@@ -204,42 +204,22 @@ public:
         assert(to);
         auto *const t = from->getType();
 
-        if (t->isPointerTy()) {
-            ctx.builder.CreateStore(ctx.builder.CreateLoad(from), to);
-        } else {
-            ctx.builder.CreateStore(from, to);
-        }
-
-        assert(is_aggregate_ptr(t));
-
-        auto *const aggregate_type = t->getPointerElementType();
-        // Note:
-        // memcpy is shallow copy
-        ctx.builder.CreateMemCpy(
-            to,
-            from,
-            ctx.data_layout->getTypeAllocSize(aggregate_type),
-            ctx.data_layout->getPrefTypeAlignment(aggregate_type)
-        );
-        if (auto *const struct_type = llvm::dyn_cast<llvm::StructType>(aggregate_type)) {
-            for (uint64_t const idx
-                : irange(0u, struct_type->getNumElements())
-                | filtered([&](auto const i){ return struct_type->getElementType(i)->isPointerTy(); })
-            ) {
-                auto *const ptr_to_elem = ctx.builder.CreateStructGEP(from, idx);
-                ctx.builder.CreateStore(
-                        alloc_and_deep_copy(
-                            ctx.builder.CreateLoad(ptr_to_elem)
-                        )
-                        , ptr_to_elem
-                    );
-            }
-        } else if (auto *const array_type = llvm::dyn_cast<llvm::ArrayType>(aggregate_type)) {
-            auto *const elem_type = array_type->getArrayElementType();
-            if (elem_type->isPointerTy()) {
+        if (is_aggregate_ptr(t)) {
+            auto *const aggregate_type = t->getPointerElementType();
+            // Note:
+            // memcpy is shallow copy
+            ctx.builder.CreateMemCpy(
+                to,
+                from,
+                ctx.data_layout->getTypeAllocSize(aggregate_type),
+                ctx.data_layout->getPrefTypeAlignment(aggregate_type)
+            );
+            if (auto *const struct_type = llvm::dyn_cast<llvm::StructType>(aggregate_type)) {
                 for (uint64_t const idx
-                    : irange<uint64_t>(0u, array_type->getNumElements())) {
-                    auto *const ptr_to_elem = ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx);
+                    : irange(0u, struct_type->getNumElements())
+                    | filtered([&](auto const i){ return struct_type->getElementType(i)->isPointerTy(); })
+                ) {
+                    auto *const ptr_to_elem = ctx.builder.CreateStructGEP(from, idx);
                     ctx.builder.CreateStore(
                             alloc_and_deep_copy(
                                 ctx.builder.CreateLoad(ptr_to_elem)
@@ -247,9 +227,27 @@ public:
                             , ptr_to_elem
                         );
                 }
+            } else if (auto *const array_type = llvm::dyn_cast<llvm::ArrayType>(aggregate_type)) {
+                auto *const elem_type = array_type->getArrayElementType();
+                if (elem_type->isPointerTy()) {
+                    for (uint64_t const idx
+                        : irange((uint64_t)0u, array_type->getNumElements())) {
+                        auto *const ptr_to_elem = ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx);
+                        ctx.builder.CreateStore(
+                                alloc_and_deep_copy(
+                                    ctx.builder.CreateLoad(ptr_to_elem)
+                                )
+                                , ptr_to_elem
+                            );
+                    }
+                }
+            } else {
+                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
             }
+        } else if (t->isPointerTy()) {
+            ctx.builder.CreateStore(ctx.builder.CreateLoad(from), to);
         } else {
-            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+            ctx.builder.CreateStore(from, to);
         }
     }
 
