@@ -12,6 +12,7 @@
 #include <boost/range/algorithm/find.hpp>
 #include <boost/range/algorithm/find_if.hpp>
 #include <boost/range/iterator_range.hpp>
+#include <boost/range/irange.hpp>
 #include <boost/iterator/zip_iterator.hpp>
 
 namespace dachs {
@@ -116,6 +117,12 @@ struct are_same<T, U, R...>
         std::false_type
       >::type
 {};
+
+template<class I>
+auto indices(I const i) noexcept
+{
+    return boost::irange<I>(0, i);
+}
 
 } // namespace helper
 }  // namespace dachs

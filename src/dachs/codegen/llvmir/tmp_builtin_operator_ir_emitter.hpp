@@ -6,18 +6,30 @@
 #include <llvm/IR/Value.h>
 #include <llvm/IR/IRBuilder.h>
 
+#include <boost/range/irange.hpp>
+
 #include "dachs/semantics/type.hpp"
+#include "dachs/helper/util.hpp"
 
 namespace dachs {
 namespace codegen {
 namespace llvmir {
+
+using helper::indices;
 
 class tmp_builtin_bin_op_ir_emitter {
     llvm::IRBuilder<> &builder;
     llvm::Value *const lhs, *const rhs;
     std::string const& op;
 
-    using return_type = llvm::Value *;
+    using val = llvm::Value *;
+    using self_type = tmp_builtin_bin_op_ir_emitter;
+
+    template<class String>
+    bool is_relational(String const& op) const noexcept
+    {
+        return helper::any_of({"==", "!=", ">", "<", ">=", "<="}, op);
+    }
 
 public:
 
@@ -33,7 +45,7 @@ public:
         , op(op)
     {}
 
-    return_type emit(type::type const& t) noexcept
+    val emit(type::type const& t) noexcept
     {
         if (auto const bt = type::get<type::builtin_type>(t)) {
             return emit(*bt);
@@ -48,7 +60,7 @@ public:
         }
     }
 
-    return_type emit(type::builtin_type const& builtin) noexcept
+    val emit(type::builtin_type const& builtin) noexcept
     {
         bool const is_float = builtin->name == "float";
         bool const is_int = builtin->name == "int";
@@ -155,19 +167,42 @@ public:
         return nullptr;
     }
 
-    return_type emit(type::array_type const&) noexcept
+    val emit(type::array_type const&) noexcept
     {
         // TODO
         return nullptr;
     }
 
-    return_type emit(type::tuple_type const&) noexcept
+    val emit(type::tuple_type const& tuple) noexcept
     {
-        // TODO
+        assert(lhs->getType()->isPointerTy());
+        assert(rhs->getType()->isPointerTy());
+        auto const& elem_types = tuple->element_types;
+
+        if (!is_relational(op)) {
+            return nullptr;
+        }
+
+        if (op == "==" || op == "!=") {
+            for (auto const idx : indices(elem_types.size())) {
+                auto *const lhs_elem_val = builder.CreateStructGEP(lhs, idx);
+                auto *const rhs_elem_val = builder.CreateStructGEP(rhs, idx);
+                auto *const elem_compared_val = self_type{builder, lhs_elem_val, rhs_elem_val, op}.emit(elem_types[idx]);
+                if (!elem_compared_val) {
+                    return nullptr;
+                }
+
+                // TODO
+            }
+        } else if (op == ">" || op == "<") {
+            
+        } else {
+            
+        }
         return nullptr;
     }
 
-    return_type emit(type::range_type const&) noexcept
+    val emit(type::range_type const&) noexcept
     {
         // TODO
         return nullptr;
@@ -180,7 +215,7 @@ class tmp_builtin_unary_op_ir_emitter{
     llvm::Value *const value;
     std::string const& op;
 
-    using return_type = llvm::Value *;
+    using val = llvm::Value *;
 
 public:
 
@@ -194,7 +229,7 @@ public:
         , op(op)
     {}
 
-    return_type emit(type::builtin_type const& builtin)
+    val emit(type::builtin_type const& builtin)
     {
         bool const is_float = builtin->name == "float";
         bool const is_int = builtin->name == "int";

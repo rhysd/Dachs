@@ -360,7 +360,7 @@ public:
     llvm::AllocaInst *emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs, Helper &&helper)
     {
         auto *const alloca_inst = helper.create_alloca(type_emitter.emit(t));
-        for (auto const idx : boost::irange(0u, elem_exprs.size())) {
+        for (auto const idx : boost::irange<uint64_t>(0u, elem_exprs.size())) {
             auto *const elem_val = emit(elem_exprs[idx]);
             ctx.builder.CreateStore(
                     elem_val,
