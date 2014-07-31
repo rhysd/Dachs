@@ -764,7 +764,6 @@ public:
                         rhs_values.push_back(emit(rhs));
                     }, assign->assignees, assign->rhs_exprs);
         } else if (assignee_size == 1) {
-            throw not_implemented_error{assign, __FILE__, __func__, __LINE__, "multi to one assign"};
             assert(assigner_size > 1);
             rhs_values.push_back(emit_tuple_constant(assign->rhs_exprs, helper));
         } else if (assigner_size == 1) {
@@ -783,64 +782,37 @@ public:
         assert(assignee_size == rhs_values.size());
 
         helper::each(
-            [&, this](auto const& lhs_expr, auto const rhs_value)
+            [&, this](auto const& lhs_expr, auto *const rhs_value)
             {
+                val value_to_assign = rhs_value;
+                val lhs_value = nullptr;
+
                 if (auto const maybe_var_ref = get_as<ast::node::var_ref>(lhs_expr)) {
                     assert(!(*maybe_var_ref)->symbol.expired());
                     auto const lhs_sym = (*maybe_var_ref)->symbol.lock();
-
-                    val value_to_assign = nullptr;
-
-                    if (!is_compound_assign) {
-                        value_to_assign = rhs_value;
-                    } else {
-                        auto const bin_op = assign->op.substr(0, assign->op.size()-1);
-                        // Load lhs value
-                        // Process operators.(if compound operator, use binary_operator process)
-                        value_to_assign =
-                            tmp_builtin_bin_op_ir_emitter{
-                                ctx.builder,
-                                var_table.emit_ir_to_load(lhs_sym), // XXX: This is ok because binary operators allow primitive types only.
-                                rhs_value,
-                                bin_op
-                            }.emit(type::type_of(lhs_expr));
-                    }
-
-                    // Note:
-                    // lhs_value is the value to lhs symbol.
-                    // It is not a pointer when primitive, otherwise is a pointer.
-                    auto *const lhs_value = check(assign, var_table.lookup_value(lhs_sym), "lhs value lookup");
-                    if (lhs_value->getType()->isPointerTy()) {
-                        helper.create_deep_copy(value_to_assign, lhs_value);
-                    } else {
-                        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-                    }
+                    lhs_value = check(assign, var_table.lookup_value(lhs_sym), "lhs value lookup");
                 } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs_expr)) {
-                    auto const& index_access = *maybe_index_access;
-                    auto *const index_ptr_value = emit_index_ptr(index_access);
-
-                    val value_to_assign = nullptr;
-
-                    if (!is_compound_assign) {
-                        value_to_assign = rhs_value;
-                    } else {
-                        auto const bin_op = assign->op.substr(0, assign->op.size()-1);
-                        // Load lhs value
-                        // Process operators.(if compound operator, use binary_operator process)
-                        value_to_assign =
-                            tmp_builtin_bin_op_ir_emitter{
-                                ctx.builder,
-                                ctx.builder.CreateLoad(index_ptr_value),
-                                rhs_value,
-                                bin_op
-                            }.emit(type::type_of(lhs_expr));
-                    }
-
-                    ctx.builder.CreateStore(value_to_assign, index_ptr_value);
+                    lhs_value = emit_index_ptr(*maybe_index_access);
                 } else {
                     DACHS_RAISE_INTERNAL_COMPILATION_ERROR
                 }
 
+                assert(lhs_value);
+
+                if (is_compound_assign) {
+                    auto const bin_op = assign->op.substr(0, assign->op.size()-1);
+                    value_to_assign =
+                        tmp_builtin_bin_op_ir_emitter{
+                            ctx.builder,
+                            ctx.builder.CreateLoad(lhs_value),
+                            rhs_value,
+                            bin_op
+                        }.emit(type::type_of(lhs_expr));
+                }
+
+                assert(lhs_value->getType()->isPointerTy());
+
+                helper.create_deep_copy(value_to_assign, lhs_value);
             }
             , assign->assignees, rhs_values
         );
