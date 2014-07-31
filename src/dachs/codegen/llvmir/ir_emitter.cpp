@@ -360,7 +360,7 @@ public:
     llvm::AllocaInst *emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs, Helper &&helper)
     {
         auto *const alloca_inst = helper.create_alloca(type_emitter.emit(t));
-        for (auto const idx : boost::irange(0ul, elem_exprs.size())) {
+        for (auto const idx : boost::irange(0u, elem_exprs.size())) {
             auto *const elem_val = emit(elem_exprs[idx]);
             ctx.builder.CreateStore(
                     elem_val,
@@ -748,11 +748,32 @@ public:
 
         // Load rhs value
         std::vector<val> rhs_values;
+        std::vector<val> lhs_values;
+        std::vector<type::type> lhs_types;
 
         auto const assignee_size = assign->assignees.size();
         auto const assigner_size = assign->rhs_exprs.size();
         auto const is_compound_assign = assign->op != "=";
         assert(assignee_size > 0 && assigner_size > 0);
+
+
+        // Note:
+        // Get the pointer to lhs.
+        // Do not use emit() because emit() emits load instruction.
+        // Lhs of assignment should be the place to store and not to load.
+        auto const get_ptr_to_lhs =
+                [&, this](auto const& e)
+                {
+                    if (auto const maybe_var_ref = get_as<ast::node::var_ref>(e)) {
+                        assert(!(*maybe_var_ref)->symbol.expired());
+                        auto const lhs_sym = (*maybe_var_ref)->symbol.lock();
+                        return check(assign, var_table.lookup_value(lhs_sym), "lhs value lookup");
+                    } else if (auto const maybe_index_access = get_as<ast::node::index_access>(e)) {
+                        return emit_index_ptr(*maybe_index_access);
+                    } else {
+                        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+                    }
+                };
 
         if (assignee_size == assigner_size) {
             helper::each(
@@ -762,10 +783,24 @@ public:
                             error(assign, "Binary expression now only supports float, int, bool and uint");
                         }
                         rhs_values.push_back(emit(rhs));
+                        lhs_values.push_back(get_ptr_to_lhs(lhs));
+                        lhs_types.push_back(type::type_of(lhs));
                     }, assign->assignees, assign->rhs_exprs);
         } else if (assignee_size == 1) {
             assert(assigner_size > 1);
-            rhs_values.push_back(emit_tuple_constant(assign->rhs_exprs, helper));
+
+            for (auto const& e : assign->rhs_exprs) {
+                rhs_values.push_back(emit(e));
+            }
+            auto *const lhs_tuple_value = get_ptr_to_lhs(assign->assignees[0]);
+
+            for (auto const idx : boost::irange(0u, assign->rhs_exprs.size())) {
+                lhs_values.push_back(ctx.builder.CreateStructGEP(lhs_tuple_value, idx));
+            }
+
+            auto const lhs_type = type::type_of(assign->assignees[0]);
+            assert(type::has<type::tuple_type>(lhs_type));
+            lhs_types = (*type::get<type::tuple_type>(lhs_type))->element_types;
         } else if (assigner_size == 1) {
             assert(assignee_size > 1);
             auto *const rhs_value = emit(assign->rhs_exprs[0]);
@@ -775,27 +810,21 @@ public:
             for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
                 rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
             }
+
+            for (auto const& e : assign->assignees) {
+                lhs_values.push_back(get_ptr_to_lhs(e));
+                lhs_types.push_back(type::type_of(e));
+            }
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
 
-        assert(assignee_size == rhs_values.size());
+        assert(lhs_values.size() == rhs_values.size());
 
         helper::each(
-            [&, this](auto const& lhs_expr, auto *const rhs_value)
+            [&, this](auto *const lhs_value, auto const& lhs_type, auto *const rhs_value)
             {
                 val value_to_assign = rhs_value;
-                val lhs_value = nullptr;
-
-                if (auto const maybe_var_ref = get_as<ast::node::var_ref>(lhs_expr)) {
-                    assert(!(*maybe_var_ref)->symbol.expired());
-                    auto const lhs_sym = (*maybe_var_ref)->symbol.lock();
-                    lhs_value = check(assign, var_table.lookup_value(lhs_sym), "lhs value lookup");
-                } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs_expr)) {
-                    lhs_value = emit_index_ptr(*maybe_index_access);
-                } else {
-                    DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-                }
 
                 assert(lhs_value);
 
@@ -807,14 +836,14 @@ public:
                             ctx.builder.CreateLoad(lhs_value),
                             rhs_value,
                             bin_op
-                        }.emit(type::type_of(lhs_expr));
+                        }.emit(lhs_type);
                 }
 
                 assert(lhs_value->getType()->isPointerTy());
 
                 helper.create_deep_copy(value_to_assign, lhs_value);
             }
-            , assign->assignees, rhs_values
+            , lhs_values, lhs_types, rhs_values
         );
     }
 
