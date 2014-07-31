@@ -1137,14 +1137,8 @@ public:
                 auto const rhs_type = type_of(assign->rhs_exprs[0]);
                 check_types(assignee_type, rhs_type);
             } else {
-                auto const maybe_tuple_type = type::get<type::tuple_type>(assignee_type);
-                if (!maybe_tuple_type) {
-                    semantic_error(assign, boost::format("Assignee's type here must be tuple but actually '%1%'") % assignee_type.to_string());
-                    return;
-                }
-
-                check_type_seqs((*maybe_tuple_type)->element_types
-                              , assign->rhs_exprs | to_type_seq);
+                semantic_error(assign, "Assigning multiple values to lhs tuple value is not permitted.");
+                return;
             }
         } else {
             if (assign->rhs_exprs.size() == 1) {
