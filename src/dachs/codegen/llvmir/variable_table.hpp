@@ -52,7 +52,13 @@ inline bool is_aggregate_ptr(T const *const t)
 
 // Note:
 // This class will be needless because all of variables have reference semantics.
-//
+
+// Note:
+// This class has some tables for registers and allocation instructions.
+// However, a table for allocation instructions are wrong.
+// It should be for pointer type value because not only alloca instruction 
+// but also GEP is pointer type value.
+
 // Note:
 //
 // Value

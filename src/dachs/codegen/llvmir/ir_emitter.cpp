@@ -810,8 +810,8 @@ public:
                     // lhs_value is the value to lhs symbol.
                     // It is not a pointer when primitive, otherwise is a pointer.
                     auto *const lhs_value = check(assign, var_table.lookup_value(lhs_sym), "lhs value lookup");
-                    if (auto *const lhs_alloca = llvm::dyn_cast<llvm::AllocaInst>(lhs_value)) {
-                        helper.create_deep_copy(value_to_assign, lhs_alloca);
+                    if (lhs_value->getType()->isPointerTy()) {
+                        helper.create_deep_copy(value_to_assign, lhs_value);
                     } else {
                         DACHS_RAISE_INTERNAL_COMPILATION_ERROR
                     }

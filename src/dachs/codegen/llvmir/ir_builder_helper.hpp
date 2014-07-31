@@ -198,10 +198,12 @@ public:
         return allocated;
     }
 
-    void create_deep_copy(llvm::Value *const from, llvm::AllocaInst *const to)
+    template<class PtrTypeType>
+    void create_deep_copy(llvm::Value *const from, PtrTypeType *const to)
     {
         assert(from);
         assert(to);
+        assert(to->getType()->isPointerTy());
         auto *const t = from->getType();
 
         if (is_aggregate_ptr(t)) {
