@@ -63,7 +63,7 @@ public:
     val emit(type::builtin_type const& builtin) noexcept
     {
         bool const is_float = builtin->name == "float";
-        bool const is_int = builtin->name == "int";
+        bool const is_int = builtin->name == "int" || builtin->name == "bool" || builtin->name == "char";
         bool const is_uint = builtin->name == "uint";
 
         if (op == ">>") {
