@@ -124,6 +124,13 @@ auto indices(I const i) noexcept
     return boost::irange<I>(0, i);
 }
 
+template<class I1, class I2>
+auto indices(I1 const i1, I2 const i2) noexcept
+{
+    assert(i1 <= i2);
+    return boost::irange<I1>(i1, static_cast<I1>(i2));
+}
+
 } // namespace helper
 }  // namespace dachs
 

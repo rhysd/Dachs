@@ -8,6 +8,7 @@
 
 #include <boost/range/irange.hpp>
 
+#include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/helper/util.hpp"
 
@@ -18,7 +19,7 @@ namespace llvmir {
 using helper::indices;
 
 class tmp_builtin_bin_op_ir_emitter {
-    llvm::IRBuilder<> &builder;
+    context& ctx;
     llvm::Value *const lhs, *const rhs;
     std::string const& op;
 
@@ -34,12 +35,12 @@ class tmp_builtin_bin_op_ir_emitter {
 public:
 
     tmp_builtin_bin_op_ir_emitter(
-                llvm::IRBuilder<> &b,
+                context &c,
                 llvm::Value *const l,
                 llvm::Value *const r,
                 std::string const& op
             ) noexcept
-        : builder(b)
+        : ctx(c)
         , lhs(l)
         , rhs(r)
         , op(op)
@@ -67,100 +68,100 @@ public:
         bool const is_uint = builtin->name == "uint";
 
         if (op == ">>") {
-            return builder.CreateAShr(lhs, rhs, "shrtmp");
+            return ctx.builder.CreateAShr(lhs, rhs, "shrtmp");
         } else if (op == "<<") {
-            return builder.CreateShl(lhs, rhs, "shltmp");
+            return ctx.builder.CreateShl(lhs, rhs, "shltmp");
         } else if (op == "*") {
             if (is_int || is_uint) {
-                return builder.CreateMul(lhs, rhs, "multmp");
+                return ctx.builder.CreateMul(lhs, rhs, "multmp");
             } else if (is_float) {
-                return builder.CreateFMul(lhs, rhs, "fmultmp");
+                return ctx.builder.CreateFMul(lhs, rhs, "fmultmp");
             }
         } else if (op == "/") {
             if (is_int) {
-                return builder.CreateSDiv(lhs, rhs, "sdivtmp");
+                return ctx.builder.CreateSDiv(lhs, rhs, "sdivtmp");
             } else if (is_uint) {
-                return builder.CreateUDiv(lhs, rhs, "udivtmp");
+                return ctx.builder.CreateUDiv(lhs, rhs, "udivtmp");
             } else if (is_float) {
-                return builder.CreateFDiv(lhs, rhs, "fdivtmp");
+                return ctx.builder.CreateFDiv(lhs, rhs, "fdivtmp");
             }
         } else if (op == "%") {
             if (is_int) {
-                return builder.CreateSRem(lhs, rhs, "sremtmp");
+                return ctx.builder.CreateSRem(lhs, rhs, "sremtmp");
             } else if (is_uint) {
-                return builder.CreateURem(lhs, rhs, "uremtmp");
+                return ctx.builder.CreateURem(lhs, rhs, "uremtmp");
             } else if (is_float) {
-                return builder.CreateFRem(lhs, rhs, "fremtmp");
+                return ctx.builder.CreateFRem(lhs, rhs, "fremtmp");
             }
         } else if (op == "+") {
             if (is_int || is_uint) {
-                return builder.CreateAdd(lhs, rhs, "addtmp");
+                return ctx.builder.CreateAdd(lhs, rhs, "addtmp");
             } else if (is_float) {
-                return builder.CreateFAdd(lhs, rhs, "faddtmp");
+                return ctx.builder.CreateFAdd(lhs, rhs, "faddtmp");
             }
         } else if (op == "-") {
             if (is_int || is_uint) {
-                return builder.CreateSub(lhs, rhs, "subtmp");
+                return ctx.builder.CreateSub(lhs, rhs, "subtmp");
             } else if (is_float) {
-                return builder.CreateFSub(lhs, rhs, "fsubtmp");
+                return ctx.builder.CreateFSub(lhs, rhs, "fsubtmp");
             }
         } else if (op == "&") {
-            return builder.CreateAnd(lhs, rhs, "andtmp");
+            return ctx.builder.CreateAnd(lhs, rhs, "andtmp");
         } else if (op == "^") {
-            return builder.CreateXor(lhs, rhs, "xortmp");
+            return ctx.builder.CreateXor(lhs, rhs, "xortmp");
         } else if (op == "|") {
-            return builder.CreateOr(lhs, rhs, "ortmp");
+            return ctx.builder.CreateOr(lhs, rhs, "ortmp");
         } else if (op == "<") {
             if (is_int) {
-                return builder.CreateICmpSLT(lhs, rhs, "icmpslttmp");
+                return ctx.builder.CreateICmpSLT(lhs, rhs, "icmpslttmp");
             } else if (is_uint) {
-                return builder.CreateICmpULT(lhs, rhs, "icmpulttmp");
+                return ctx.builder.CreateICmpULT(lhs, rhs, "icmpulttmp");
             } else if (is_float) {
-                return builder.CreateFCmpULT(lhs, rhs, "fcmpulttmp");
+                return ctx.builder.CreateFCmpULT(lhs, rhs, "fcmpulttmp");
             }
         } else if (op == ">") {
             if (is_int) {
-                return builder.CreateICmpSGT(lhs, rhs, "icmpsgttmp");
+                return ctx.builder.CreateICmpSGT(lhs, rhs, "icmpsgttmp");
             } else if (is_uint) {
-                return builder.CreateICmpUGT(lhs, rhs, "icmpugttmp");
+                return ctx.builder.CreateICmpUGT(lhs, rhs, "icmpugttmp");
             } else if (is_float) {
-                return builder.CreateFCmpUGT(lhs, rhs, "fcmpugttmp");
+                return ctx.builder.CreateFCmpUGT(lhs, rhs, "fcmpugttmp");
             }
         } else if (op == "<=") {
             if (is_int) {
-                return builder.CreateICmpSLE(lhs, rhs, "icmpsletmp");
+                return ctx.builder.CreateICmpSLE(lhs, rhs, "icmpsletmp");
             } else if (is_uint) {
-                return builder.CreateICmpULE(lhs, rhs, "icmpuletmp");
+                return ctx.builder.CreateICmpULE(lhs, rhs, "icmpuletmp");
             } else if (is_float) {
-                return builder.CreateFCmpULE(lhs, rhs, "fcmpuletmp");
+                return ctx.builder.CreateFCmpULE(lhs, rhs, "fcmpuletmp");
             }
         } else if (op == ">=") {
             if (is_int) {
-                return builder.CreateICmpSGE(lhs, rhs, "icmpsgetmp");
+                return ctx.builder.CreateICmpSGE(lhs, rhs, "icmpsgetmp");
             } else if (is_uint) {
-                return builder.CreateICmpUGE(lhs, rhs, "icmpugetmp");
+                return ctx.builder.CreateICmpUGE(lhs, rhs, "icmpugetmp");
             } else if (is_float) {
-                return builder.CreateFCmpUGE(lhs, rhs, "fcmpugetmp");
+                return ctx.builder.CreateFCmpUGE(lhs, rhs, "fcmpugetmp");
             }
         } else if (op == "==") {
             if (is_int || is_uint) {
-                return builder.CreateICmpEQ(lhs, rhs, "icmpeqtmp");
+                return ctx.builder.CreateICmpEQ(lhs, rhs, "icmpeqtmp");
             } else if (is_float) {
-                return builder.CreateFCmpUEQ(lhs, rhs, "fcmpeqtmp");
+                return ctx.builder.CreateFCmpUEQ(lhs, rhs, "fcmpeqtmp");
             }
         } else if (op == "!=") {
             if (is_int || is_uint) {
-                return builder.CreateICmpNE(lhs, rhs, "icmpnetmp");
+                return ctx.builder.CreateICmpNE(lhs, rhs, "icmpnetmp");
             } else if (is_float) {
-                return builder.CreateFCmpUNE(lhs, rhs, "fcmpnetmp");
+                return ctx.builder.CreateFCmpUNE(lhs, rhs, "fcmpnetmp");
             }
         } else if (op == "&&") {
             if (!is_float) {
-                return builder.CreateAnd(lhs, rhs, "andltmp");
+                return ctx.builder.CreateAnd(lhs, rhs, "andltmp");
             }
         } else if (op == "||") {
             if (!is_float) {
-                return builder.CreateOr(lhs, rhs, "orltmp");
+                return ctx.builder.CreateOr(lhs, rhs, "orltmp");
             }
         }
 
@@ -183,23 +184,52 @@ public:
             return nullptr;
         }
 
+        auto const emit_elem_compare
+            = [&](auto const idx, auto const& o)
+            {
+                auto *const lhs_elem_val = ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(lhs, idx));
+                auto *const rhs_elem_val = ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs, idx));
+                return self_type{ctx, lhs_elem_val, rhs_elem_val, o}.emit(elem_types[idx]);
+            };
+
         if (op == "==" || op == "!=") {
-            for (auto const idx : indices(elem_types.size())) {
-                auto *const lhs_elem_val = builder.CreateStructGEP(lhs, idx);
-                auto *const rhs_elem_val = builder.CreateStructGEP(rhs, idx);
-                auto *const elem_compared_val = self_type{builder, lhs_elem_val, rhs_elem_val, op}.emit(elem_types[idx]);
-                if (!elem_compared_val) {
+            val folding_value = emit_elem_compare(0u, op);
+            for (auto const idx : indices(1u, elem_types.size())) {
+                auto *const next_elem_val = emit_elem_compare(idx, op);
+                if (!folding_value || !next_elem_val) {
                     return nullptr;
                 }
-
-                // TODO
+                folding_value = self_type{ctx, folding_value, next_elem_val, "&&"}.emit(type::get_builtin_type("bool", type::no_opt));
             }
-        } else if (op == ">" || op == "<") {
-            
+
+            return folding_value;
         } else {
-            
+            // Note:
+            // '<=' is '== or <'
+            std::string const ineq_op = {op[0]}; // '<=' to '<'
+            val folding_value = emit_elem_compare(0u, ineq_op);
+
+            for (auto const idx : indices(1u, elem_types.size())) {
+                auto *const next_elem_val = emit_elem_compare(idx, ineq_op);
+                if (!folding_value || !next_elem_val) {
+                    return nullptr;
+                }
+                folding_value = self_type{ctx, folding_value, next_elem_val, "||"}.emit(type::get_builtin_type("bool", type::no_opt));
+            }
+
+            bool const includes_equal = op == "<=" || op == ">=";
+            if (includes_equal) {
+                folding_value =
+                    self_type{
+                        ctx,
+                        self_type{ctx, lhs, rhs, "=="}.emit(tuple),
+                        folding_value,
+                        "||"
+                    }.emit(type::get_builtin_type("bool", type::no_opt));
+            }
+
+            return folding_value;
         }
-        return nullptr;
     }
 
     val emit(type::range_type const&) noexcept
@@ -211,7 +241,7 @@ public:
 
 // TODO
 class tmp_builtin_unary_op_ir_emitter{
-    llvm::IRBuilder<> &builder;
+    context &ctx;
     llvm::Value *const value;
     std::string const& op;
 
@@ -220,11 +250,11 @@ class tmp_builtin_unary_op_ir_emitter{
 public:
 
     tmp_builtin_unary_op_ir_emitter(
-                llvm::IRBuilder<> &b,
+                context &c,
                 llvm::Value *const v,
                 std::string const& op
             )
-        : builder(b)
+        : ctx(c)
         , value(v)
         , op(op)
     {}
@@ -239,13 +269,13 @@ public:
             return value;
         } else if (op == "-") {
             if (is_int) {
-                return builder.CreateNeg(value, "negtmp");
+                return ctx.builder.CreateNeg(value, "negtmp");
             } else if (is_float) {
-                return builder.CreateFNeg(value, "fnegtmp");
+                return ctx.builder.CreateFNeg(value, "fnegtmp");
             }
         } else if (op == "~" || op == "!") {
             if (!is_float) {
-                return builder.CreateNot(value, "nottmp");
+                return ctx.builder.CreateNot(value, "nottmp");
             }
         }
 

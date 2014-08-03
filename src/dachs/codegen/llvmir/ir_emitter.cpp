@@ -243,6 +243,13 @@ class llvm_ir_emitter {
 
     bool is_available_type_for_binary_expression(type::type const& lhs, type::type const& rhs) const noexcept
     {
+        if (type::has<type::tuple_type>(lhs) && type::has<type::tuple_type>(rhs)) {
+            // XXX:
+            // Too adhoc.
+            // Additional checking is in code generation
+            return true;
+        }
+
         if (!lhs.is_builtin() || !rhs.is_builtin()) {
             return false;
         }
@@ -619,7 +626,7 @@ public:
 
         return check(
             unary,
-            tmp_builtin_unary_op_ir_emitter{ctx.builder, emit(unary->expr), unary->op}.emit(builtin),
+            tmp_builtin_unary_op_ir_emitter{ctx, emit(unary->expr), unary->op}.emit(builtin),
             boost::format("unary operator '%1%' (operand's type is '%2%')")
                 % unary->op
                 % builtin->to_string()
@@ -632,13 +639,13 @@ public:
         auto const rhs_type = type::type_of(bin_expr->rhs);
 
         if (!is_available_type_for_binary_expression(lhs_type, rhs_type)) {
-            error(bin_expr, "Binary expression now only supports float, int, bool and uint");
+            error(bin_expr, "Binary expression now only supports only some builtin types");
         }
 
         return check(
             bin_expr,
-            tmp_builtin_bin_op_ir_emitter{ctx.builder, emit(bin_expr->lhs), emit(bin_expr->rhs), bin_expr->op}.emit(lhs_type),
-            boost::format("binary operator '%1%' (rhs type is '%2%', lhs type is '%3%')")
+            tmp_builtin_bin_op_ir_emitter{ctx, emit(bin_expr->lhs), emit(bin_expr->rhs), bin_expr->op}.emit(lhs_type),
+            boost::format("binary operator '%1%' (lhs type is '%2%', rhs type is '%3%')")
                 % bin_expr->op
                 % type::to_string(lhs_type)
                 % type::to_string(rhs_type)
@@ -798,13 +805,20 @@ public:
 
                 if (is_compound_assign) {
                     auto const bin_op = assign->op.substr(0, assign->op.size()-1);
+                    auto const lhs_type = type::type_of(lhs_expr);
                     value_to_assign =
-                        tmp_builtin_bin_op_ir_emitter{
-                            ctx.builder,
-                            ctx.builder.CreateLoad(lhs_value),
-                            rhs_value,
-                            bin_op
-                        }.emit(type::type_of(lhs_expr));
+                        check(
+                            assign,
+                            tmp_builtin_bin_op_ir_emitter{
+                                ctx,
+                                ctx.builder.CreateLoad(lhs_value),
+                                rhs_value,
+                                bin_op
+                            }.emit(lhs_type),
+                            boost::format("binary expression (operator is '%1%', operand type is '%2%')")
+                                % bin_op
+                                % type::to_string(lhs_type)
+                        );
                 }
 
                 assert(lhs_value->getType()->isPointerTy());
@@ -885,7 +899,7 @@ public:
                     = check(
                         switch_,
                         tmp_builtin_bin_op_ir_emitter{
-                            ctx.builder,
+                            ctx,
                             target_val,
                             emit(cmp_expr),
                             "=="
