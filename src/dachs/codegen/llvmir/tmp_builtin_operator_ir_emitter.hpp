@@ -18,6 +18,49 @@ namespace llvmir {
 
 using helper::indices;
 
+class tmp_builtin_unary_op_ir_emitter{
+    context &ctx;
+    llvm::Value *const value;
+    std::string const& op;
+
+    using val = llvm::Value *;
+
+public:
+
+    tmp_builtin_unary_op_ir_emitter(
+                context &c,
+                llvm::Value *const v,
+                std::string const& op
+            )
+        : ctx(c)
+        , value(v)
+        , op(op)
+    {}
+
+    val emit(type::builtin_type const& builtin)
+    {
+        bool const is_float = builtin->name == "float";
+        bool const is_int = builtin->name == "int" || builtin->name == "bool" || builtin->name == "char";
+
+        if (op == "+") {
+            // Note: Do nothing.
+            return value;
+        } else if (op == "-") {
+            if (is_int) {
+                return ctx.builder.CreateNeg(value, "negtmp");
+            } else if (is_float) {
+                return ctx.builder.CreateFNeg(value, "fnegtmp");
+            }
+        } else if (op == "~" || op == "!") {
+            if (!is_float) {
+                return ctx.builder.CreateNot(value, "nottmp");
+            }
+        }
+
+        return nullptr;
+    }
+};
+
 class tmp_builtin_bin_op_ir_emitter {
     context& ctx;
     llvm::Value *const lhs, *const rhs;
@@ -185,17 +228,17 @@ public:
         }
 
         auto const emit_elem_compare
-            = [&](auto const idx, auto const& o)
+            = [&](auto const idx)
             {
                 auto *const lhs_elem_val = ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(lhs, idx));
                 auto *const rhs_elem_val = ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs, idx));
-                return self_type{ctx, lhs_elem_val, rhs_elem_val, o}.emit(elem_types[idx]);
+                return self_type{ctx, lhs_elem_val, rhs_elem_val, op}.emit(elem_types[idx]);
             };
 
         if (op == "==" || op == "!=") {
-            val folding_value = emit_elem_compare(0u, op);
+            val folding_value = emit_elem_compare(0u);
             for (auto const idx : indices(1u, elem_types.size())) {
-                auto *const next_elem_val = emit_elem_compare(idx, op);
+                auto *const next_elem_val = emit_elem_compare(idx);
                 if (!folding_value || !next_elem_val) {
                     return nullptr;
                 }
@@ -203,82 +246,35 @@ public:
             }
 
             return folding_value;
-        } else {
-            // Note:
-            // '<=' is '== or <'
-            std::string const ineq_op = {op[0]}; // '<=' to '<'
-            val folding_value = emit_elem_compare(0u, ineq_op);
-
+        } if (op == "<" || op == ">") {
+            val folding_value = emit_elem_compare(0u);
             for (auto const idx : indices(1u, elem_types.size())) {
-                auto *const next_elem_val = emit_elem_compare(idx, ineq_op);
+                auto *const next_elem_val = emit_elem_compare(idx);
                 if (!folding_value || !next_elem_val) {
                     return nullptr;
                 }
                 folding_value = self_type{ctx, folding_value, next_elem_val, "||"}.emit(type::get_builtin_type("bool", type::no_opt));
             }
 
-            bool const includes_equal = op == "<=" || op == ">=";
-            if (includes_equal) {
-                folding_value =
-                    self_type{
-                        ctx,
-                        self_type{ctx, lhs, rhs, "=="}.emit(tuple),
-                        folding_value,
-                        "||"
-                    }.emit(type::get_builtin_type("bool", type::no_opt));
+            return folding_value;
+        } else {
+            // When >= or <=
+
+            // Note:
+            // 'a >= b' is '!(a < b)'
+            std::string const inverse_op = op == ">=" ? "<" : ">";
+            val const inverse_val = self_type{ctx, lhs, rhs, inverse_op}.emit(tuple);
+            if (!inverse_val) {
+                return nullptr;
             }
 
-            return folding_value;
+            return tmp_builtin_unary_op_ir_emitter{ctx, inverse_val, "!"}.emit(type::get_builtin_type("bool", type::no_opt));
         }
     }
 
     val emit(type::range_type const&) noexcept
     {
         // TODO
-        return nullptr;
-    }
-};
-
-// TODO
-class tmp_builtin_unary_op_ir_emitter{
-    context &ctx;
-    llvm::Value *const value;
-    std::string const& op;
-
-    using val = llvm::Value *;
-
-public:
-
-    tmp_builtin_unary_op_ir_emitter(
-                context &c,
-                llvm::Value *const v,
-                std::string const& op
-            )
-        : ctx(c)
-        , value(v)
-        , op(op)
-    {}
-
-    val emit(type::builtin_type const& builtin)
-    {
-        bool const is_float = builtin->name == "float";
-        bool const is_int = builtin->name == "int";
-
-        if (op == "+") {
-            // Note: Do nothing.
-            return value;
-        } else if (op == "-") {
-            if (is_int) {
-                return ctx.builder.CreateNeg(value, "negtmp");
-            } else if (is_float) {
-                return ctx.builder.CreateFNeg(value, "fnegtmp");
-            }
-        } else if (op == "~" || op == "!") {
-            if (!is_float) {
-                return ctx.builder.CreateNot(value, "nottmp");
-            }
-        }
-
         return nullptr;
     }
 };
