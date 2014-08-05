@@ -1100,6 +1100,11 @@ BOOST_AUTO_TEST_CASE(variable_decl)
     }
 
     CHECK_PARSE_THROW("func main var a := b, end");
+    CHECK_PARSE_THROW("func main var a,b : int end")
+    CHECK_PARSE_THROW("func main var a, : int b end")
+    CHECK_PARSE_THROW("func main var a : int, b end")
+    CHECK_PARSE_THROW("func main var a : int, b : int end")
+    CHECK_PARSE_THROW("func main a : int, var b : int end")
 }
 
 BOOST_AUTO_TEST_CASE(return_statement)
