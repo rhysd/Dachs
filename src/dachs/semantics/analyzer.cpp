@@ -340,6 +340,10 @@ public:
         auto const visit_decl =
             [this, &decl](auto &scope)
             {
+                if (decl->name == "_") {
+                    return true;
+                }
+
                 auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
                 decl->symbol = new_var;
 
@@ -987,24 +991,6 @@ public:
     {
         assert(init->var_decls.size() > 0);
 
-        auto const substitute_type =
-            [this, &init](auto const& symbol, auto const& t)
-            {
-                if (symbol->type) {
-                    if (symbol->type != t) {
-                        semantic_error(
-                                init,
-                                boost::format("Types mismatch on substituting '%1%'\nNote: Type of '%1%' is '%2%' but rhs type is '%3%'")
-                                    % symbol->name
-                                    % symbol->type.to_string()
-                                    % type::to_string(t)
-                            );
-                    }
-                } else {
-                    symbol->type = t;
-                }
-            };
-
         recursive_walker();
 
         if (!init->maybe_rhs_exprs) {
@@ -1027,22 +1013,45 @@ public:
         }
 
         for (auto const& v : init->var_decls) {
-            if (v->symbol.expired()) {
+            if (v->name != "_" && v->symbol.expired()) {
                 return;
             }
         }
 
+        auto const substitute_type =
+            [this, &init](auto const& decl, auto const& t)
+            {
+                if (decl->name == "_" && decl->symbol.expired()) {
+                    return;
+                }
+                auto const symbol = decl->symbol.lock();
+
+                if (symbol->type) {
+                    if (symbol->type != t) {
+                        semantic_error(
+                                init,
+                                boost::format("Types mismatch on substituting '%1%'\nNote: Type of '%1%' is '%2%' but rhs type is '%3%'")
+                                    % symbol->name
+                                    % symbol->type.to_string()
+                                    % type::to_string(t)
+                            );
+                    }
+                } else {
+                    symbol->type = t;
+                }
+            };
+
         if (init->var_decls.size() == 1) {
-            auto const& var_sym = init->var_decls[0]->symbol.lock();
+            auto const& decl = init->var_decls[0];
             if (rhs_exprs.size() == 1) {
-                substitute_type(var_sym, type_of(rhs_exprs[0]));
+                substitute_type(decl, type_of(rhs_exprs[0]));
             } else {
                 auto const rhs_type = type::make<type::tuple_type>();
                 rhs_type->element_types.reserve(rhs_exprs.size());
                 for (auto const& e : rhs_exprs) {
                     rhs_type->element_types.push_back(type_of(e));
                 }
-                substitute_type(var_sym, rhs_type);
+                substitute_type(decl, rhs_type);
             }
         } else {
             if (rhs_exprs.size() == 1) {
@@ -1059,7 +1068,7 @@ public:
                 }
 
                 helper::each([&](auto const& elem_t, auto const& decl)
-                                { substitute_type(decl->symbol.lock(), elem_t); }
+                                { substitute_type(decl, elem_t); }
                             , rhs_type->element_types
                             , init->var_decls);
             } else {
@@ -1069,7 +1078,7 @@ public:
                 }
 
                 helper::each([&](auto const& lhs, auto const& rhs)
-                                { substitute_type(lhs->symbol.lock(), type_of(rhs)); }
+                                { substitute_type(lhs, type_of(rhs)); }
                             , init->var_decls
                             , rhs_exprs);
             }

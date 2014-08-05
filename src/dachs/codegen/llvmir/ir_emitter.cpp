@@ -713,6 +713,10 @@ public:
         auto const initialize
             = [&, this](auto const& decl, auto *const value)
             {
+                if (decl->name == "_" && decl->symbol.expired()) {
+                    return;
+                }
+
                 assert(!decl->symbol.expired());
 
                 auto const sym = decl->symbol.lock();
