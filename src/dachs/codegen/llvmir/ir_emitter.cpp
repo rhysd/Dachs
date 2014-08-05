@@ -690,11 +690,22 @@ public:
 
     void emit(ast::node::initialize_stmt const& init)
     {
+        if (!init->maybe_rhs_exprs) {
+            // Variable declaration without definition is not initialized
+            for (auto const& d : init->var_decls) {
+                auto const sym = d->symbol.lock();
+                assert(d->maybe_type);
+                auto const type_ir = emit_type_ir(sym->type, ctx.llvm_context);
+                auto *const allocated = ctx.builder.CreateAlloca(type_ir, nullptr, sym->name);
+                var_table.insert(std::move(sym), allocated);
+            }
+            return;
+        }
+
         auto helper = get_ir_helper(init);
+        auto const& rhs_exprs = *init->maybe_rhs_exprs;
         auto const initializee_size = init->var_decls.size();
-        auto const initializer_size
-            = init->maybe_rhs_exprs ?
-                init->maybe_rhs_exprs->size() : 0;
+        auto const initializer_size = rhs_exprs.size();
 
         assert(initializee_size != 0);
         assert(initializer_size != 0);
@@ -721,18 +732,18 @@ public:
                     {
                         initialize(d, emit(e));
                     }
-                    , init->var_decls, *init->maybe_rhs_exprs
+                    , init->var_decls, rhs_exprs
                 );
         } else if (initializee_size == 1) {
             assert(initializer_size > 1);
 
             auto *const allocated_rhs_tuple
-                = emit_tuple_constant(*init->maybe_rhs_exprs, helper);
+                = emit_tuple_constant(rhs_exprs, helper);
 
             initialize(init->var_decls[0], allocated_rhs_tuple);
         } else if (initializer_size == 1) {
             assert(initializee_size > 1);
-            auto const& rhs_expr = (*init->maybe_rhs_exprs)[0];
+            auto const& rhs_expr = (rhs_exprs)[0];
             auto *const rhs_value = emit(rhs_expr);
             auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_value->getType()->getPointerElementType());
             assert(rhs_struct_type);

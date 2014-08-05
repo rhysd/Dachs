@@ -690,14 +690,34 @@ public:
                 _val = make_node_ptr<ast::node::variable_decl>(_1, _2, _3)
             ];
 
+        variable_decl_without_init
+            = (
+                DACHS_KWD_STRICT(lit("var"))
+                >> variable_name >> -qi::eol >> ':' >> -qi::eol >> qualified_type
+            ) [
+                _val = make_node_ptr<ast::node::variable_decl>(true, _1, _2)
+            ];
+
+
         initialize_stmt
             = (
-                variable_decl % comma >> trailing_comma
-                >> ":=" >>
-                -qi::eol >> typed_expr % comma /* Note: Disallow trailing comma in here because unexpected line continuation suffers */
-            ) [
-                _val = make_node_ptr<ast::node::initialize_stmt>(_1, _2)
-            ];
+                (
+                    variable_decl % comma
+                    >> trailing_comma >> ":=" >>
+                        -qi::eol >> typed_expr % comma
+                    // Note:
+                    // Disallow trailing comma in here because unexpected line continuation suffers
+                ) [
+                    _val = make_node_ptr<ast::node::initialize_stmt>(_1, _2)
+                ]
+            ) |
+            (
+                (
+                    variable_decl_without_init % comma
+                ) [
+                    _val = make_node_ptr<ast::node::initialize_stmt>(_1)
+                ]
+            );
 
         if_then_stmt_block
             = (
@@ -926,6 +946,7 @@ public:
             , for_stmt
             , while_stmt
             , variable_decl
+            , variable_decl_without_init
             , initialize_stmt
             , assignment_stmt
             , postfix_if_return_stmt
@@ -1013,6 +1034,7 @@ public:
         for_stmt.name("for statement");
         while_stmt.name("while statement");
         variable_decl.name("variable declaration");
+        variable_decl_without_init.name("variable declaration without initialization");
         initialize_stmt.name("initialize statement");
         assignment_stmt.name("assignment statement");
         postfix_if_stmt.name("prefix if statement");
@@ -1073,7 +1095,7 @@ private:
     rule<unsigned int()> uinteger_literal;
     rule<bool()> boolean_literal;
     rule<std::string()> string_literal;
-    rule<ast::node::variable_decl()> constant_decl;
+    rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
     rule<ast::node::initialize_stmt()> constant_definition;
 
     rule<ast::node::any_expr()>

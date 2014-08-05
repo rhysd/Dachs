@@ -583,7 +583,7 @@ struct initialize_stmt final : public statement {
     boost::optional<std::vector<node::any_expr>> maybe_rhs_exprs;
 
     initialize_stmt(decltype(var_decls) const& vars,
-                    decltype(maybe_rhs_exprs) const& rhss) noexcept
+                    decltype(maybe_rhs_exprs) const& rhss = boost::none) noexcept
         : statement(), var_decls(vars), maybe_rhs_exprs(rhss)
     {}
 

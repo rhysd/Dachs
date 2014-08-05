@@ -1070,6 +1070,21 @@ BOOST_AUTO_TEST_CASE(variable_decl)
                 int := 42
 
             var_aaa # Corner case
+
+            # Without initialization
+            var a : int
+            var a : char, var b : int
+            var a : char,
+            var b : int
+            var a : char
+            , var b : int
+            var a : char
+            , var b : int,
+            var c : string
+            var b
+                : int
+            var b :
+                int
         end
         )"));
 
