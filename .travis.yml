@@ -7,11 +7,10 @@ matrix:
     allow_failures:
         - env: CLANG_VERSION="3.5" CMAKE_OPTS="-DDACHS_LLVM_CONFIG=/usr/bin/llvm-config-3.5 -DDACHS_USE_LLVM_SHARED_LIB=1"
 script:
-    - sudo apt-get -qq install "clang-${CLANG_VERSION}"
     - uname -a
-    - /usr/bin/clang++ -v
+    - /usr/bin/clang++-${CLANG_VERSION} -v
     - cmake --version
-    - cmake . -DCMAKE_CXX_COMPILER=/usr/bin/clang++ $CMAKE_OPTS -DCMAKE_BUILD_TYPE=Release
+    - cmake . $CMAKE_OPTS -DCMAKE_BUILD_TYPE=Release
     - make VERBOSE=1 && (make test || (cat Testing/Temporary/LastTestsFailed.log && cat Testing/Temporary/LastTest.log && false))
 before_install:
     - sudo sh -c "echo 'deb http://llvm.org/apt/precise/ llvm-toolchain-precise main' >> /etc/apt/sources.list"
@@ -22,6 +21,6 @@ before_install:
     - sudo add-apt-repository --yes ppa:george-edison55/cmake-precise
 install:
     - sudo apt-get -qq update
-    - sudo apt-get -qq install g++-4.8 libboost1.55-all-dev cmake llvm-${CLANG_VERSION} llvm-${CLANG_VERSION}-dev libllvm-${CLANG_VERSION} libclang-${CLANG_VERSION}-dev
+    - sudo apt-get -qq install g++-4.8 libboost1.55-all-dev cmake llvm-${CLANG_VERSION}-dev clang-${CLANG_VERSION}
 git:
     submodules: false
