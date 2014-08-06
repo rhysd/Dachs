@@ -1556,7 +1556,7 @@ BOOST_AUTO_TEST_CASE(postfix_if)
 BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)
 {
     dachs::syntax::parser p;
-    for (auto const& d : {"assets/comprehensive", "assets/samples"}) {
+    for (auto const& d : {DACHS_ROOT_DIR "/test/assets/comprehensive", DACHS_ROOT_DIR "/test/assets/samples"}) {
         check_all_cases_in_directory(d, [&p](fs::path const& path){
                     std::cout << "testing " << path.c_str() << std::endl;
                     auto ast = p.parse(
@@ -1570,12 +1570,12 @@ BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)
 
 BOOST_AUTO_TEST_CASE(comprehensive_cases)
 {
-    check_no_throw_in_all_cases_in_directory("assets/comprehensive");
+    check_no_throw_in_all_cases_in_directory(DACHS_ROOT_DIR "/test/assets/comprehensive");
 }
 
 BOOST_AUTO_TEST_CASE(samples)
 {
-    check_no_throw_in_all_cases_in_directory("assets/samples");
+    check_no_throw_in_all_cases_in_directory(DACHS_ROOT_DIR "/test/assets/samples");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
