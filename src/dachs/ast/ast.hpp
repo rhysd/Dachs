@@ -298,10 +298,16 @@ struct dict_literal final : public expression {
 struct var_ref final : public expression {
     std::string name;
     dachs::symbol::weak_var_symbol symbol;
+    bool is_lhs_of_assignment = false;
 
     explicit var_ref(std::string const& n) noexcept
         : expression(), name(n)
     {}
+
+    bool is_ignored_var() const noexcept
+    {
+        return name == "_" && symbol.expired();
+    }
 
     std::string to_string() const noexcept override
     {

@@ -91,6 +91,27 @@ struct recursive_function_return_type_resolver {
     }
 };
 
+struct var_ref_marker_for_lhs_of_assign {
+    // Mark as lhs of assignment
+    template<class W>
+    void visit(ast::node::var_ref const& ref, W const&) const
+    {
+        ref->is_lhs_of_assignment = true;
+    }
+
+    // Do not mark var ref in index access
+    template<class W>
+    void visit(ast::node::index_access const&, W const&) const
+    {}
+
+    // Otherwise, simply visit the node
+    template<class N, class W>
+    void visit(N const&, W const& w)
+    {
+        w();
+    }
+};
+
 // Walk to resolve symbol references
 class symbol_analyzer {
 
@@ -385,6 +406,13 @@ public:
     template<class Walker>
     void visit(ast::node::var_ref const& var, Walker const& recursive_walker)
     {
+        assert(var->name != "");
+
+        if (var->is_lhs_of_assignment && var->name == "_") {
+            assert(var->symbol.expired());
+            return;
+        }
+
         auto name = var->name;
         if (name.back() == '!') {
             name.pop_back();
@@ -1088,17 +1116,22 @@ public:
     template<class Walker>
     void visit(ast::node::assignment_stmt const& assign, Walker const& recursive_walker)
     {
+        ast::walk_topdown(assign->assignees, var_ref_marker_for_lhs_of_assign{});
+
         recursive_walker();
 
-        for (auto const& es : {assign->assignees, assign->rhs_exprs}) {
-            for (auto const& e : es) {
-                if (!type_of(e)) {
-                    return;
-                }
+        // Note:
+        // Do not check assignees' types because of '_' variable
+
+        for (auto const& e : assign->rhs_exprs) {
+            if (!type_of(e)) {
+                return;
             }
         }
 
         // Check assignees' immutablity
+        // TODO:
+        // Use walker
         for (auto const& lhs : assign->assignees) {
             auto expr = lhs;
             while (auto const maybe_index_access = get_as<ast::node::index_access>(expr)) {
@@ -1106,7 +1139,18 @@ public:
             }
 
             if (auto const maybe_var_ref = get_as<ast::node::var_ref>(expr)) {
-                auto const var_sym = (*maybe_var_ref)->symbol.lock();
+                auto const& var_ref = *maybe_var_ref;
+                if (var_ref->is_ignored_var()) {
+                    continue;
+                } else if (!var_ref->type) {
+                    // Note:
+                    // Error must occurs
+                    return;
+                }
+
+                assert(!var_ref->symbol.expired());
+
+                auto const var_sym = var_ref->symbol.lock();
                 if (var_sym->immutable) {
                     semantic_error(assign, boost::format("Can't assign to immutable variable '%1%'") % var_sym->name);
                     return;
@@ -1120,6 +1164,12 @@ public:
         auto const check_types =
             [this, &assign](auto const& t1, auto const& t2)
             {
+                if (!t1) {
+                    // Note:
+                    // When lhs is '_' variable
+                    return;
+                }
+
                 if (t1 != t2) {
                     semantic_error(
                             assign,
