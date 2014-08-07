@@ -697,6 +697,12 @@ public:
                 assert(d->maybe_type);
                 auto const type_ir = emit_type_ir(sym->type, ctx.llvm_context);
                 auto *const allocated = ctx.builder.CreateAlloca(type_ir, nullptr, sym->name);
+                ctx.builder.CreateMemSet(
+                        allocated,
+                        ctx.builder.getInt8(0u),
+                        ctx.data_layout->getTypeAllocSize(type_ir),
+                        ctx.data_layout->getPrefTypeAlignment(type_ir)
+                    );
                 var_table.insert(std::move(sym), allocated);
             }
             return;
@@ -807,13 +813,8 @@ public:
                 val lhs_value = nullptr;
 
                 if (auto const maybe_var_ref = get_as<ast::node::var_ref>(lhs_expr)) {
-                    auto const& var_ref = *maybe_var_ref;
-                    if (var_ref->is_ignored_var()) {
-                        return;
-                    }
-
-                    assert(!var_ref->symbol.expired());
-                    auto const lhs_sym = var_ref->symbol.lock();
+                    assert(!(*maybe_var_ref)->symbol.expired());
+                    auto const lhs_sym = (*maybe_var_ref)->symbol.lock();
                     lhs_value = check(assign, var_table.lookup_value(lhs_sym), "lhs value lookup");
                 } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs_expr)) {
                     lhs_value = emit_index_ptr(*maybe_index_access);
