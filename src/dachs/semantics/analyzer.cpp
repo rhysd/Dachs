@@ -94,14 +94,14 @@ struct recursive_function_return_type_resolver {
 struct var_ref_marker_for_lhs_of_assign {
     // Mark as lhs of assignment
     template<class W>
-    void visit(ast::node::var_ref const& ref, W const&) const
+    void visit(ast::node::var_ref const& ref, W const&)
     {
         ref->is_lhs_of_assignment = true;
     }
 
     // Do not mark var ref in index access
     template<class W>
-    void visit(ast::node::index_access const&, W const&) const
+    void visit(ast::node::index_access const&, W const&)
     {}
 
     // Otherwise, simply visit the node

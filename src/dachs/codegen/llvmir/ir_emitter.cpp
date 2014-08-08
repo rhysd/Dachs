@@ -813,7 +813,14 @@ public:
                 val lhs_value = nullptr;
 
                 if (auto const maybe_var_ref = get_as<ast::node::var_ref>(lhs_expr)) {
-                    assert(!(*maybe_var_ref)->symbol.expired());
+                    auto const& var_ref = *maybe_var_ref;
+                    if (var_ref->is_ignored_var() && var_ref->symbol.expired()) {
+                        // Note:
+                        // Ignore '_' variable
+                        return;
+                    }
+
+                    assert(!var_ref->symbol.expired());
                     auto const lhs_sym = (*maybe_var_ref)->symbol.lock();
                     lhs_value = check(assign, var_table.lookup_value(lhs_sym), "lhs value lookup");
                 } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs_expr)) {

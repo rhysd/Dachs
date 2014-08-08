@@ -48,6 +48,6 @@ guard :shell do
   end
 
   watch /CMakeLists.txt/ do |m|
-    system "cmake ."
+    system "cmake .."
   end
 end
