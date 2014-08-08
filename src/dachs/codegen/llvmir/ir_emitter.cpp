@@ -13,6 +13,7 @@
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/optional.hpp>
 #include <boost/algorithm/cxx11/any_of.hpp>
+#include <boost/algorithm/cxx11/all_of.hpp>
 #include <boost/range/irange.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 
@@ -85,6 +86,7 @@ namespace detail {
 using helper::variant::apply_lambda;
 using helper::variant::get_as;
 using boost::adaptors::transformed;
+using boost::algorithm::all_of;
 
 class llvm_ir_emitter {
     using val = llvm::Value *;
@@ -261,28 +263,6 @@ class llvm_ir_emitter {
         return is_supported(lhs_builtin_type) && is_supported(rhs_builtin_type);
     }
 
-    val emit_index_ptr(ast::node::index_access const& access)
-    {
-        auto const child_type = type::type_of(access->child);
-        auto const child_val = emit(access->child);
-        auto const index_val = emit(access->index_expr);
-
-        if (auto const child_tuple_type = type::get<type::tuple_type>(child_type)) {
-
-            // Note:
-            // Do not emit index expression because it is a integer literal and it is
-            // processed in compile time
-            auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
-            if (!constant_index) {
-                return nullptr;
-            }
-
-            return ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue());
-        } else {
-            return nullptr;
-        }
-    }
-
     template<class T>
     inline bool is_aggregate_ptr(T const *const t) const noexcept
     {
@@ -364,22 +344,39 @@ public:
     }
 
     template<class Helper, class Expr>
-    llvm::AllocaInst *emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs, Helper &&helper)
+    val emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs, Helper &&helper)
     {
-        auto *const alloca_inst = helper.create_alloca(type_emitter.emit(t));
-        for (auto const idx : boost::irange<uint64_t>(0u, elem_exprs.size())) {
-            auto *const elem_val = emit(elem_exprs[idx]);
-            ctx.builder.CreateStore(
-                    elem_val,
-                    ctx.builder.CreateStructGEP(alloca_inst, idx)
-                );
+        std::vector<val> elem_values;
+        elem_values.reserve(elem_exprs.size());
+        for (auto const& e : elem_exprs) {
+            elem_values.push_back(emit(e));
         }
 
-        return alloca_inst;
+        if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
+            std::vector<llvm::Constant *> elem_consts;
+            for (auto const v : elem_values) {
+                auto *const constant = llvm::dyn_cast<llvm::Constant>(v);
+                assert(constant);
+                elem_consts.push_back(constant);
+            }
+
+            return llvm::ConstantStruct::getAnon(ctx.llvm_context, elem_consts);
+        } else {
+            auto *const alloca_inst = helper.create_alloca(type_emitter.emit(t));
+            for (auto const idx : boost::irange<uint64_t>(0u, elem_exprs.size())) {
+                auto *const elem_val = emit(elem_exprs[idx]);
+                ctx.builder.CreateStore(
+                        elem_val,
+                        ctx.builder.CreateStructGEP(alloca_inst, idx)
+                    );
+            }
+
+            return alloca_inst;
+        }
     }
 
     template<class Helper, class Expr>
-    llvm::AllocaInst *emit_tuple_constant(std::vector<Expr> const& elem_exprs, Helper &&helper)
+    val emit_tuple_constant(std::vector<Expr> const& elem_exprs, Helper &&helper)
     {
         auto const the_type
             = type::make<type::tuple_type>(
@@ -389,7 +386,7 @@ public:
         return emit_tuple_constant(the_type, elem_exprs, std::forward<Helper>(helper));
     }
 
-    llvm::AllocaInst *emit(ast::node::tuple_literal const& tuple)
+    val emit(ast::node::tuple_literal const& tuple)
     {
         assert(type::has<type::tuple_type>(tuple->type));
         return check(
@@ -660,13 +657,31 @@ public:
 
     val emit(ast::node::index_access const& access)
     {
-        return check(
-                access,
-                ctx.builder.CreateLoad(
-                    emit_index_ptr(access)
-                ),
-                "index access"
-            );
+        auto const child_type = type::type_of(access->child);
+        auto const child_val = emit(access->child);
+        auto const index_val = emit(access->index_expr);
+
+        if (auto const child_tuple_type = type::get<type::tuple_type>(child_type)) {
+
+            // Note:
+            // Do not emit index expression because it is a integer literal and it is
+            // processed in compile time
+            auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
+            if (!constant_index) {
+                error(access, "Index is not a constant.");
+            }
+
+            if (llvm::isa<llvm::Constant>(child_val)) {
+                return check(access, ctx.builder.CreateExtractValue(child_val, constant_index->getZExtValue()), "index access (constant)");
+            } else {
+                // Note:
+                // It's not a constant. It should be pointer to allocated value
+                return check(access, ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue())), "index access (non constant)");
+            }
+
+        } else {
+            error(access, "Not a tuple value");
+        }
     }
 
     void emit(ast::node::while_stmt const& while_)
@@ -747,10 +762,10 @@ public:
         } else if (initializee_size == 1) {
             assert(initializer_size > 1);
 
-            auto *const allocated_rhs_tuple
+            auto *const rhs_tuple_value
                 = emit_tuple_constant(rhs_exprs, helper);
 
-            initialize(init->var_decls[0], allocated_rhs_tuple);
+            initialize(init->var_decls[0], rhs_tuple_value);
         } else if (initializer_size == 1) {
             assert(initializee_size > 1);
             auto const& rhs_expr = (rhs_exprs)[0];
@@ -821,10 +836,9 @@ public:
                     }
 
                     assert(!var_ref->symbol.expired());
-                    auto const lhs_sym = (*maybe_var_ref)->symbol.lock();
-                    lhs_value = check(assign, var_table.lookup_value(lhs_sym), "lhs value lookup");
+                    lhs_value = emit(var_ref);
                 } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs_expr)) {
-                    lhs_value = emit_index_ptr(*maybe_index_access);
+                    lhs_value = emit(*maybe_index_access);
                 } else {
                     DACHS_RAISE_INTERNAL_COMPILATION_ERROR
                 }
@@ -839,7 +853,7 @@ public:
                             assign,
                             tmp_builtin_bin_op_ir_emitter{
                                 ctx,
-                                ctx.builder.CreateLoad(lhs_value),
+                                lhs_value,
                                 rhs_value,
                                 bin_op
                             }.emit(lhs_type),
