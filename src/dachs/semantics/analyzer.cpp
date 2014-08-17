@@ -1023,7 +1023,10 @@ public:
 
         if (!init->maybe_rhs_exprs) {
             for (auto const& v : init->var_decls) {
-                assert(!v->symbol.expired());
+                if (v->symbol.expired()) {
+                    // When it fails to define the variable
+                    return;
+                }
                 if (!v->symbol.lock()->type) {
                     semantic_error(init, boost::format("Type of '%1%' can't be deduced") % v->name);
                 }
