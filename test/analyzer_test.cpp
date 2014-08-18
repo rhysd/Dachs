@@ -62,6 +62,15 @@ BOOST_AUTO_TEST_CASE(symbol_duplication_ok)
             func baz3(_)
                 _ := 42
             end
+
+            # Below is OK because the variable just shadows the parameter.
+            func foo(a)
+                a := 1
+            end
+
+            func foo(a)
+                var a : int
+            end
         )");
 }
 
@@ -121,26 +130,6 @@ BOOST_AUTO_TEST_CASE(local_variable_duplication_error)
     CHECK_THROW_SEMANTIC_ERROR(R"(
             # local variables
             func foo(a, a)
-            end
-
-            func main
-            end
-        )");
-
-    CHECK_THROW_SEMANTIC_ERROR(R"(
-            # local variables
-            func foo(a)
-                a := 1
-            end
-
-            func main
-            end
-        )");
-
-    CHECK_THROW_SEMANTIC_ERROR(R"(
-            # local variables
-            func foo(a)
-                var a : int
             end
 
             func main
