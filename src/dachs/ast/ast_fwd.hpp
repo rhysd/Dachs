@@ -95,14 +95,25 @@ struct inu;
 
 namespace traits {
 
-template<class T>
-struct is_node : std::is_base_of<node_type::base, typename std::remove_cv<T>::type> {};
+namespace detail {
+
+template<class T, class U>
+struct is_base_or_itself
+    : std::integral_constant<
+        bool,
+        std::is_base_of<T, typename std::remove_cv<U>::type>::value ||
+        std::is_same<T, typename std::remove_cv<U>::type>::value
+    > {};
+} // namespace detail
 
 template<class T>
-struct is_expression : std::is_base_of<node_type::expression, typename std::remove_cv<T>::type> {};
+struct is_node : detail::is_base_or_itself<node_type::base, T> {};
 
 template<class T>
-struct is_statement : std::is_base_of<node_type::statement, typename std::remove_cv<T>::type> {};
+struct is_expression : detail::is_base_or_itself<node_type::expression, T> {};
+
+template<class T>
+struct is_statement : detail::is_base_or_itself<node_type::statement, T> {};
 
 } // namespace traits
 

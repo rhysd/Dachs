@@ -6,7 +6,9 @@
 #include <type_traits>
 #include <cstddef>
 #include <boost/variant/variant.hpp>
+#include <boost/format.hpp>
 
+#include "dachs/warning.hpp"
 #include "dachs/semantics/scope_fwd.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/symbol.hpp"
@@ -96,6 +98,25 @@ struct basic_scope {
                     return s.lock()->resolve_var(name);
                 }, enclosing_scope);
     }
+
+    void check_shadowing_variable(symbol::var_symbol new_var) const
+    {
+        auto const maybe_shadowing_var = apply_lambda(
+                [&new_var](auto const& s)
+                    -> boost::optional<symbol::var_symbol>
+                {
+                    return s.lock()->resolve_var(new_var->name);
+                }, enclosing_scope);
+
+        if (maybe_shadowing_var) {
+            auto const the_node = new_var->ast_node.get_shared();
+            auto const prev_node = (*maybe_shadowing_var)->ast_node.get_shared();
+            output_warning(the_node, boost::format(
+                            "Shadowing variable '%1%'. It shadows a variable at line:%2%, col:%3%"
+                        ) % new_var->name % prev_node->line % prev_node->col
+                    );
+        }
+    }
 };
 
 struct global_scope final : public basic_scope {
@@ -164,6 +185,7 @@ struct local_scope final : public basic_scope {
 
     bool define_variable(symbol::var_symbol const& new_var) noexcept
     {
+        check_shadowing_variable(new_var);
         return define_symbol(local_vars, new_var);
     }
 
@@ -176,7 +198,6 @@ struct local_scope final : public basic_scope {
     }
 };
 
-// TODO: I should make proc_scope? It depends on return type structure.
 struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     scope::local_scope body;
     std::vector<symbol::var_symbol> params;
@@ -190,6 +211,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
 
     bool define_param(symbol::var_symbol const& new_var) noexcept
     {
+        check_shadowing_variable(new_var);
         return define_symbol(params, new_var);
     }
 
