@@ -109,7 +109,18 @@ public:
     template<class Walker>
     void visit(ast::node::parameter const& param, Walker const& recursive_walker)
     {
-        auto new_param_sym = symbol::make<symbol::var_symbol>(param, param->name, !param->is_var);
+        // Note:
+        // When the param's name is "_", it means unused.
+        // Identical number (address of 'param') is used instead of "_".
+        // This is because "_" variable should be ignored by symbol resolution and duplication check
+        // XXX:
+        // This process should be replaced by improving resolve_func(), define_variable() and define_param()
+        auto new_param_sym =
+            symbol::make<symbol::var_symbol>(
+                param,
+                param->name == "_" ? std::to_string(reinterpret_cast<size_t>(param.get())) : param->name,
+                !param->is_var
+            );
         param->param_symbol = new_param_sym;
 
         if (param->param_type) {

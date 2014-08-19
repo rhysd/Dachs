@@ -193,21 +193,6 @@ class symbol_analyzer {
         return std::make_pair(instantiated_func_def, instantiated_func_scope);
     }
 
-    void visit_func_parameter(ast::node::parameter const& param, scope::func_scope const& scope)
-    {
-        // Type is already set in forward_symbol_analyzer
-        assert(param->type);
-
-        auto new_param = symbol::make<symbol::var_symbol>(param, param->name, !param->is_var);
-        new_param->type = param->type;
-        param->param_symbol = new_param;
-
-        if (!scope->define_param(new_param)) {
-            failed++;
-            return;
-        }
-    }
-
 public:
 
     size_t failed = 0u;

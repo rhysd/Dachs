@@ -439,6 +439,10 @@ public:
 
     void emit(ast::node::parameter const& param)
     {
+        if (param->name == "_") {
+            return;
+        }
+
         auto helper = get_ir_helper(param);
         assert(!param->param_symbol.expired());
 
