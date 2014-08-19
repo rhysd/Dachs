@@ -64,11 +64,11 @@ BOOST_AUTO_TEST_CASE(symbol_duplication_ok)
             end
 
             # Below is OK because the variable just shadows the parameter.
-            func foo(a)
+            func qux(a)
                 a := 1
             end
 
-            func foo(a)
+            func qux2(a)
                 var a : int
             end
         )");
