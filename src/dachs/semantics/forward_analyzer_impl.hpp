@@ -111,11 +111,12 @@ public:
     {
         // Note:
         // When the param's name is "_", it means unused.
-        // Identical number (address of 'param') is used instead of "_".
-        // This is because "_" variable should be ignored by symbol resolution and duplication check
-        // XXX:
-        // This process should be replaced by improving resolve_func(), define_variable() and define_param()
-        auto new_param_sym =
+        // Unique number (the address of 'param') is used instead of "_" as its name.
+        // This is because "_" variable should be ignored by symbol resolution and
+        // duplication check; it means that duplication of "_" must be permitted.
+        // Defining the symbol is not skipped because of overload resolution. Parameters
+        // must have its symbol and type for overloading the function.
+        auto const new_param_sym =
             symbol::make<symbol::var_symbol>(
                 param,
                 param->name == "_" ? std::to_string(reinterpret_cast<size_t>(param.get())) : param->name,
