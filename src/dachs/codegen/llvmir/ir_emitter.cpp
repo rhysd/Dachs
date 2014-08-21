@@ -840,14 +840,29 @@ public:
                     }
 
                     assert(!var_ref->symbol.expired());
-                    lhs_value = emit(var_ref);
+                    lhs_value = var_table.lookup_value(var_ref->symbol.lock());
                 } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs_expr)) {
-                    lhs_value = emit(*maybe_index_access);
+                    // XXX:
+                    // Too adhoc.  It should be resolved by solving #2.
+                    auto const& access = *maybe_index_access;
+                    auto const child_val = emit(access->child);
+                    auto const index_val = emit(access->index_expr);
+                    if (auto const child_tuple_type = type::get<type::tuple_type>(type::type_of(access->child))) {
+                        auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
+                        if (!constant_index) {
+                            error(access, "Index is not a constant.");
+                        }
+                        lhs_value = ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue());
+                    // } else if (array) {
+                    } else {
+                        error(access, "Not a tuple value (in assignment statement)");
+                    }
                 } else {
                     DACHS_RAISE_INTERNAL_COMPILATION_ERROR
                 }
 
                 assert(lhs_value);
+                assert(lhs_value->getType()->isPointerTy());
 
                 if (is_compound_assign) {
                     auto const bin_op = assign->op.substr(0, assign->op.size()-1);
@@ -857,7 +872,7 @@ public:
                             assign,
                             tmp_builtin_bin_op_ir_emitter{
                                 ctx,
-                                lhs_value,
+                                ctx.builder.CreateLoad(lhs_value),
                                 rhs_value,
                                 bin_op
                             }.emit(lhs_type),
@@ -866,8 +881,6 @@ public:
                                 % type::to_string(lhs_type)
                         );
                 }
-
-                assert(lhs_value->getType()->isPointerTy());
 
                 helper.create_deep_copy(value_to_assign, lhs_value);
             }
