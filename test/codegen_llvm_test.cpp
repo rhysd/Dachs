@@ -1,0 +1,325 @@
+#define BOOST_TEST_MODULE LLVMCodegenTest
+#define BOOST_DYN_LINK
+#define BOOST_TEST_MAIN
+
+#include "dachs/ast/ast.hpp"
+#include "dachs/parser/parser.hpp"
+#include "dachs/semantics/scope.hpp"
+#include "dachs/semantics/semantic_analysis.hpp"
+#include "dachs/codegen/llvmir/ir_emitter.hpp"
+#include "dachs/exception.hpp"
+
+#include <string>
+
+#include <boost/test/included/unit_test.hpp>
+
+static dachs::syntax::parser p;
+
+#define CHECK_NO_THROW_CODEGEN_ERROR(...) do { \
+            auto t = p.parse((__VA_ARGS__), "test_file"); \
+            auto s = dachs::semantics::analyze_semantics(t); \
+            dachs::codegen::llvmir::context c; \
+            dachs::codegen::llvmir::emit_llvm_ir(t, s, c); \
+        } while (false);
+
+BOOST_AUTO_TEST_SUITE(codegen_llvm)
+
+BOOST_AUTO_TEST_CASE(function)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo
+        end
+
+        func foo2(a)
+        end
+
+        func foo3(a, b)
+        end
+
+        func foo4(a : int) : int
+            return a + 42
+        end
+
+        func foo5(a)
+            return a
+        end
+
+        func main
+            foo()
+            foo2(42)
+            foo2('a')
+            foo3(42, 'a')
+            foo3(3.14, 42)
+            foo5(foo4(foo5(13)))
+            backward_ref_func()
+        end
+
+        func bar
+        end
+
+        func backward_ref_func
+            bar()
+            baz()
+        end
+
+        func baz
+        end
+        )");
+}
+
+BOOST_AUTO_TEST_CASE(variable)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            a := 42
+            b := 'a'
+            c := "aaa"
+            d := 3.14
+            e := true
+            f := 42u
+            var va := a
+            var vb := b
+            var vc := c
+            var vd := d
+            var ve := e
+            var vf := f
+
+            va = 42
+            vb = 'a'
+            vc = "aaa"
+            vd = 3.14
+            ve = true
+            vf = 42u
+
+            var a2 : int
+            var b2 : char
+            var c2 : string
+            var d2 : float
+            var e2 : bool
+            var f2 : uint
+
+            a3, b3 := 42, 'a'
+            var c3, d3 := 'a', "aaa"
+            e3, var f3 := true, 42u
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(print)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            print(42)
+            print(3.14)
+            print('a')
+            print("aaa")
+            print(true)
+            print(42u)
+            println(42)
+            println(3.14)
+            println('a')
+            println("aaa")
+            println(true)
+            println(42u)
+
+            a := 42
+            b := 'a'
+            c := "aaa"
+            d := 3.14
+            e := true
+            f := 42u
+            var va := a
+            var vb := b
+            var vc := c
+            var vd := d
+            var ve := e
+            var vf := f
+
+            print(a)
+            print(b)
+            print(c)
+            print(d)
+            print(e)
+            print(f)
+            print(va)
+            print(vb)
+            print(vc)
+            print(vd)
+            print(ve)
+            print(vf)
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(tuple)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            t := (1, 'a', true)
+            var t2 := (1, 'a', true)
+            var t3 : (int, char, bool)
+
+            a := 42
+            b := 'a'
+            t4 := (a, b, true)
+            var t5 := (a, b, true)
+
+            t6 := foo2()
+            var t7 := foo3()
+
+            a2, var b2, c := t6
+            var a3, b3, var c3 := foo()
+
+            t2 = t
+            t3 = t
+            t7 = t
+
+            t[0]
+            t[1]
+            t[2]
+
+            bar(t)
+            bar(t2)
+            bar(t[0])
+            bar(t2[1])
+
+            t8 := (t2[0], t3[1], t7[2])
+            var t9 := (t2[0], t3[1], t7[2])
+            t9 = (t2[0], t3[1], t7[2])
+
+            t9[0] = -42
+            t9[1] = 'b'
+            t9[2] = false
+
+            t10 := ((1, 'a'), true)
+            var t11 := ((1, 'a'), true)
+            var t12 : ((int, char), bool)
+
+            t13 := ((a, b), false)
+            var t14 := ((a, b), false)
+
+            t11 = t10
+            t12 = t10
+
+            t10[0][0]
+            t10[0][1]
+            bar(t10[0][0])
+            bar(t10[0][1])
+
+            p := t10[0][0]
+            q := t10[0][1]
+            t11[0][0] = 3
+            t11[0][1]
+        end
+
+        func foo()
+            return 1, 'a', "bbb"
+        end
+
+        func foo2()
+            t := (1, 'a', false)
+            return t
+        end
+
+        func foo3()
+            var t := (1, 'c', false)
+            return t
+        end
+
+        func bar(a)
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(some_samples)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            print("Hello, Dachs!\n")
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func fib(n)
+            case n
+            when 0, 1
+                return 1
+            else
+                return fib(n-1) + fib(n-2)
+            end
+        end
+
+        func main()
+            print(fib(10))
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func abs(n : float) : float
+            return (if n > 0.0 then n else -n)
+        end
+
+        func sqrt(x : float) : float
+            var z := x
+            var p := 0.0
+            for abs(p-z) > 0.00001
+                p, z = z, z-(z*z-x)/(2.0*z)
+            end
+            return z
+        end
+
+        func main
+            print(sqrt(10.0))
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func abs(n)
+            return (if n > 0.0 then n else -n)
+        end
+
+        func sqrt'(p, z, x)
+            return z if abs(p-z) < 0.00001
+            return sqrt'(z, z-(z*z-x)/(2.0*z), x)
+        end
+
+        func sqrt(x)
+            return sqrt'(0.0, x, x)
+        end
+
+        func main
+            print(sqrt(10.0))
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main()
+            print(fib(10))
+        end
+
+        func fib(n)
+            if n <= 1
+                return 1
+            else
+                return fib(n-1) + fib(n-2)
+            end
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func fib(n)
+            case n
+            when 0, 1
+                return 1
+            else
+                return fib(n-1) + fib(n-2)
+            end
+        end
+
+        func main()
+            print(fib(10))
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_SUITE_END()

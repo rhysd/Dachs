@@ -363,7 +363,7 @@ public:
             return llvm::ConstantStruct::getAnon(ctx.llvm_context, elem_consts);
         } else {
             auto *const alloca_inst = helper.create_alloca(type_emitter.emit(t));
-            for (auto const idx : boost::irange<uint64_t>(0u, elem_exprs.size())) {
+            for (auto const idx : helper::indices(elem_exprs.size())) {
                 auto *const elem_val = emit(elem_exprs[idx]);
                 ctx.builder.CreateStore(
                         elem_val,
