@@ -231,6 +231,131 @@ BOOST_AUTO_TEST_CASE(tuple)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(binary_expression)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(a)
+        end
+
+        func main
+            foo(1 + 1)
+            foo(1 - 1)
+            foo(1 * 1)
+            foo(1 / 1)
+            foo(1 % 1)
+            foo(1 < 1)
+            foo(1 > 1)
+            foo(1 & 1)
+            foo(1 ^ 1)
+            foo(1 | 1)
+            foo(1 <= 1)
+            foo(1 >= 1)
+            foo(1 == 1)
+            foo(1 != 1)
+            foo(1 >> 1)
+            foo(1 << 1)
+            foo(true && true)
+            foo(true || true)
+
+            a := 42
+            b := 53
+            c := true
+            d := false
+            var p := 42
+            var q := 53
+            var r := true
+            var s := false
+
+            foo(a + b)
+            foo(a - b)
+            foo(a * b)
+            foo(a / b)
+            foo(a % b)
+            foo(a < b)
+            foo(a > b)
+            foo(a & b)
+            foo(a ^ b)
+            foo(a | b)
+            foo(a <= b)
+            foo(a >= b)
+            foo(a == b)
+            foo(a != b)
+            foo(a >> b)
+            foo(a << b)
+            foo(c && d)
+            foo(c || d)
+
+            foo(p + q)
+            foo(p - q)
+            foo(p * q)
+            foo(p / q)
+            foo(p % q)
+            foo(p < q)
+            foo(p > q)
+            foo(p & q)
+            foo(p ^ q)
+            foo(p | q)
+            foo(p <= q)
+            foo(p >= q)
+            foo(p == q)
+            foo(p != q)
+            foo(p >> q)
+            foo(p << q)
+            foo(r && s)
+            foo(r || s)
+
+            foo(a + a * a - a / a % a & a ^ a | a >> a << a)
+            foo(a + (a * (a - a) / a) % a & a ^ a | (a >> a) << a)
+
+            foo(p + p * p - p / p % p & p ^ p | p >> p << p)
+            foo(p + (p * (p - p) / p) % p & p ^ p | (p >> p) << p)
+
+            foo(1 < 3 || a > 5 && 6 == q || 8 != 9 || r)
+            foo(1 < 3 || (b > 5) && (p == 7) || 8 != 9 || c)
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(unary_expression)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(a)
+        end
+
+        func main
+            foo(-42)
+            foo(+42)
+            foo(~42)
+            foo(!true)
+            foo(-+~42)
+            foo(!!true)
+            foo(-~-~-~-~-~-~-~-~42)
+            foo(!!!!!!!!!!!!!!!!!!true)
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(if_expr)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(a)
+        end
+
+        func main
+            (if true then 42 else 24)
+            foo(if true then 3.14 else 4.12)
+            (if true then
+                42
+            else
+                24)
+            var if := true
+            (if true then 42
+             else 24)
+            (if if then if else if) # 'if' is a contextual keyword
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(some_samples)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
