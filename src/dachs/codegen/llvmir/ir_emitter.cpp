@@ -263,15 +263,19 @@ class llvm_ir_emitter {
         return is_supported(lhs_builtin_type) && is_supported(rhs_builtin_type);
     }
 
+    // Note:
+    // get_operand() strips pointer if needed.
+    // Operation instructions and call operation requires a value as operand.
+    // The value must be loaded by load instruction if the value is allocated pointer
+    // by alloca instruction or GEP pointing to the element of tuple or array.
     template<class T>
-    inline bool is_aggregate_ptr(T const *const t) const noexcept
+    val get_operand(T *const value) const
     {
-        if (!t->isPointerTy()) {
-            return false;
+        if (value->getType()->isPointerTy() && !llvm::isa<llvm::Constant>(value)) {
+            return ctx.builder.CreateLoad(value);
+        } else {
+            return value;
         }
-
-        auto *const elem_type = t->getPointerElementType();
-        return elem_type->isStructTy() || elem_type->isArrayTy();
     }
 
 public:
@@ -526,7 +530,7 @@ public:
         auto *const end_block = helper.create_block("if.end");
 
         // IR for if-then clause
-        val cond_val = emit(if_->condition);
+        val cond_val = get_operand(emit(if_->condition));
         if (if_->kind == ast::symbol::if_kind::unless) {
             cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_stmt_unless"), "unless statement");
         }
@@ -585,7 +589,7 @@ public:
         std::vector<val> args;
         args.reserve(invocation->args.size());
         for (auto const& a : invocation->args) {
-            args.push_back(emit(a));
+            args.push_back(get_operand(emit(a)));
         }
 
         assert(!invocation->func_symbol.expired());
@@ -627,7 +631,7 @@ public:
 
         return check(
             unary,
-            tmp_builtin_unary_op_ir_emitter{ctx, emit(unary->expr), unary->op}.emit(builtin),
+            tmp_builtin_unary_op_ir_emitter{ctx, get_operand(emit(unary->expr)), unary->op}.emit(builtin),
             boost::format("unary operator '%1%' (operand's type is '%2%')")
                 % unary->op
                 % builtin->to_string()
@@ -645,7 +649,7 @@ public:
 
         return check(
             bin_expr,
-            tmp_builtin_bin_op_ir_emitter{ctx, emit(bin_expr->lhs), emit(bin_expr->rhs), bin_expr->op}.emit(lhs_type),
+            tmp_builtin_bin_op_ir_emitter{ctx, get_operand(emit(bin_expr->lhs)), get_operand(emit(bin_expr->rhs)), bin_expr->op}.emit(lhs_type),
             boost::format("binary operator '%1%' (lhs type is '%2%', rhs type is '%3%')")
                 % bin_expr->op
                 % type::to_string(lhs_type)
@@ -656,7 +660,7 @@ public:
     val emit(ast::node::var_ref const& var)
     {
         assert(!var->symbol.expired());
-        return check(var, var_table.emit_ir_to_load(var->symbol.lock()), "loading variable");
+        return check(var, var_table.lookup_value(var->symbol.lock()), "loading variable");
     }
 
     val emit(ast::node::index_access const& access)
@@ -680,7 +684,7 @@ public:
             } else {
                 // Note:
                 // It's not a constant. It should be pointer to allocated value
-                return check(access, ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue())), "index access (non constant)");
+                return check(access, ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue()), "index access (non constant)");
             }
 
         } else {
@@ -699,7 +703,7 @@ public:
         // Loop header
         helper.create_br(cond_block);
         val cond_val = emit(while_->condition);
-        helper.create_cond_br(cond_val, body_block, exit_block);
+        helper.create_cond_br(get_operand(cond_val), body_block, exit_block);
 
         // Loop body
         auto const auto_popper = push_loop(cond_block);
@@ -895,7 +899,7 @@ public:
 
         llvm::BasicBlock *else_block;
         for (auto const& when_stmts : case_->when_stmts_list) {
-            auto *const cond_val = emit(when_stmts.first);
+            auto *const cond_val = get_operand(emit(when_stmts.first));
             auto *const when_block = helper.create_block_for_parent("case.when");
             else_block = helper.create_block_for_parent("case.else");
 
@@ -936,7 +940,7 @@ public:
         auto helper = get_ir_helper(switch_);
         auto *const end_block = helper.create_block("switch.end");
 
-        auto *const target_val = emit(switch_->target_expr);
+        auto *const target_val = get_operand(emit(switch_->target_expr));
         auto const target_type = type::type_of(switch_->target_expr);
 
         // Emit when clause
@@ -954,13 +958,13 @@ public:
                     error(switch_, "Case statement condition now only supports some builtin types");
                 }
 
-                auto *const cond_val 
+                auto *const cond_val
                     = check(
                         switch_,
                         tmp_builtin_bin_op_ir_emitter{
                             ctx,
                             target_val,
-                            emit(cmp_expr),
+                            get_operand(emit(cmp_expr)),
                             "=="
                         }.emit(target_type),
                         "condition in switch statement"
@@ -996,7 +1000,7 @@ public:
         auto *const else_block = helper.create_block_for_parent("expr.if.else");
         auto *const merge_block = helper.create_block_for_parent("expr.if.merge");
 
-        val cond_val = emit(if_->condition_expr);
+        val cond_val = get_operand(emit(if_->condition_expr));
         if (if_->kind == ast::symbol::if_kind::unless) {
             cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_expr_unless"), "unless expression");
         }
@@ -1021,7 +1025,7 @@ public:
         auto *const then_block = helper.create_block_for_parent("postfixif.then");
         auto *const end_block = helper.create_block_for_parent("postfixif.end");
 
-        val cond_val = emit(postfix_if->condition);
+        val cond_val = get_operand(emit(postfix_if->condition));
         if (postfix_if->kind == ast::symbol::if_kind::unless) {
             cond_val = check(postfix_if, ctx.builder.CreateNot(cond_val, "postfix_if_unless"), "unless expression");
         }
@@ -1033,7 +1037,7 @@ public:
 
     val emit(ast::node::cast_expr const& cast)
     {
-        auto *const child_val = emit(cast->child);
+        auto *const child_val = get_operand(emit(cast->child));
         auto const child_type = type::type_of(cast->child);
         if (cast->type == child_type) {
             return child_val;

@@ -94,9 +94,7 @@ public:
         }
 
         return check(
-            llvm::PointerType::getUnqual(
-                llvm::StructType::get(context, element_type_irs)
-            )
+            llvm::StructType::get(context, element_type_irs)
             , "tuple type"
         );
     }

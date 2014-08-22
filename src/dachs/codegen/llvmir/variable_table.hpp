@@ -88,27 +88,6 @@ public:
         : ctx(c)
     {}
 
-    val emit_ir_to_load(symbol::var_symbol const& sym) noexcept
-    {
-        if (auto const maybe_reg_val = detail::lookup_table(register_table, sym)) {
-            return *maybe_reg_val;
-        }
-
-        if (auto const maybe_alloca_val = detail::lookup_table(alloca_table, sym)) {
-            return ctx.builder.CreateLoad(*maybe_alloca_val, sym->name);
-        }
-
-        if (auto const maybe_aggregate_val = detail::lookup_table(alloca_aggregate_table, sym)) {
-            // Note:
-            // Simply return a pointer to the aggregate.
-            // This means aggregates (tuple, array, class) are treated
-            // by reference.
-            return *maybe_aggregate_val;
-        }
-
-        return nullptr;
-    }
-
     template<class Value>
     val emit_ir_to_store(symbol::var_symbol const& sym, Value const v) noexcept
     {
