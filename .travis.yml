@@ -12,7 +12,7 @@ script:
     - mkdir -p build && cd build
     - cmake --version
     - cmake .. $CMAKE_OPTS -DCMAKE_BUILD_TYPE=Release
-    - make VERBOSE=1 && (make test || (cat Testing/Temporary/LastTestsFailed.log && cat Testing/Temporary/LastTest.log && false))
+    - make VERBOSE=1 && (make test || (cat Testing/Temporary/LastTestsFailed.log && ../test/output_error.sh && false))
 before_install:
     - sudo sh -c "echo 'deb http://llvm.org/apt/precise/ llvm-toolchain-precise main' >> /etc/apt/sources.list"
     - sudo sh -c "echo 'deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.4 main' >> /etc/apt/sources.list"
