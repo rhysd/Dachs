@@ -271,7 +271,9 @@ class llvm_ir_emitter {
     template<class T>
     val get_operand(T *const value) const
     {
-        if (value->getType()->isPointerTy() && !llvm::isa<llvm::Constant>(value)) {
+        // XXX:
+        // This condition is too ad hoc.
+        if (llvm::isa<llvm::AllocaInst>(value) || llvm::isa<llvm::GetElementPtrInst>(value)) {
             return ctx.builder.CreateLoad(value);
         } else {
             return value;
@@ -567,7 +569,7 @@ public:
         }
 
         if (return_->ret_exprs.size() == 1) {
-            ctx.builder.CreateRet(emit(return_->ret_exprs[0]));
+            ctx.builder.CreateRet(get_operand(emit(return_->ret_exprs[0])));
         } else if (return_->ret_exprs.empty()) {
             // TODO:
             // Return statements with no expression in functions should returns unit
@@ -575,10 +577,12 @@ public:
         } else {
             assert(type::has<type::tuple_type>(return_->ret_type));
             ctx.builder.CreateRet(
-                emit_tuple_constant(
-                    *type::get<type::tuple_type>(return_->ret_type),
-                    return_->ret_exprs,
-                    get_ir_helper(return_)
+                get_operand(
+                    emit_tuple_constant(
+                        *type::get<type::tuple_type>(return_->ret_type),
+                        return_->ret_exprs,
+                        get_ir_helper(return_)
+                    )
                 )
             );
         }
