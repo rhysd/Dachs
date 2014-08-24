@@ -370,7 +370,7 @@ public:
         } else {
             auto *const alloca_inst = helper.create_alloca(type_emitter.emit(t));
             for (auto const idx : helper::indices(elem_exprs.size())) {
-                auto *const elem_val = emit(elem_exprs[idx]);
+                auto *const elem_val = get_operand(emit(elem_exprs[idx]));
                 ctx.builder.CreateStore(
                         elem_val,
                         ctx.builder.CreateStructGEP(alloca_inst, idx)
@@ -790,7 +790,7 @@ public:
             // If the rhs type is a pointer, it means that rhs is allocated value
             // and I should use GEP to get the element of it.
 
-            if (rhs_type->isPointerTy() /*XXX*/) {
+            if (llvm::isa<llvm::ConstantStruct>(rhs_value)) {
                 auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_type->getPointerElementType());
                 assert(rhs_struct_type);
                 for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
@@ -1031,8 +1031,8 @@ public:
         helper.terminate_with_br(merge_block, merge_block);
 
         auto *const phi = ctx.builder.CreatePHI(type_emitter.emit(if_->type), 2, "expr.if.tmp");
-        phi->addIncoming(then_val, then_block);
-        phi->addIncoming(else_val, else_block);
+        phi->addIncoming(get_operand(then_val), then_block);
+        phi->addIncoming(get_operand(else_val), else_block);
         return phi;
     }
 
