@@ -782,12 +782,26 @@ public:
             assert(initializee_size > 1);
             auto const& rhs_expr = (rhs_exprs)[0];
             auto *const rhs_value = emit(rhs_expr);
-            auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_value->getType()->getPointerElementType());
-            assert(rhs_struct_type);
+            auto *const rhs_type = rhs_value->getType();
 
             std::vector<val> rhs_values;
-            for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
-                rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
+
+            // Note:
+            // If the rhs type is a pointer, it means that rhs is allocated value
+            // and I should use GEP to get the element of it.
+
+            if (rhs_type->isPointerTy() /*XXX*/) {
+                auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_type->getPointerElementType());
+                assert(rhs_struct_type);
+                for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
+                    rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
+                }
+            } else {
+                auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_type);
+                assert(rhs_struct_type);
+                for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
+                    rhs_values.push_back(ctx.builder.CreateExtractValue(rhs_value, idx));
+                }
             }
 
             helper::each(initialize , init->var_decls, rhs_values);
