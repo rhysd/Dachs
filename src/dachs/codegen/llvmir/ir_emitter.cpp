@@ -349,8 +349,8 @@ public:
         return check(sym, ctx.builder.CreateGlobalStringPtr(sym->value.c_str()), "symbol constant");
     }
 
-    template<class Helper, class Expr>
-    val emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs, Helper &&helper)
+    template<class Expr>
+    val emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs)
     {
         std::vector<val> elem_values;
         elem_values.reserve(elem_exprs.size());
@@ -368,7 +368,9 @@ public:
 
             return llvm::ConstantStruct::getAnon(ctx.llvm_context, elem_consts);
         } else {
-            auto *const alloca_inst = helper.create_alloca(type_emitter.emit(t));
+            auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(t));
+            // TODO:
+            // Should use memcpy intrinsic function.
             for (auto const idx : helper::indices(elem_exprs.size())) {
                 auto *const elem_val = get_operand(emit(elem_exprs[idx]));
                 ctx.builder.CreateStore(
@@ -381,15 +383,15 @@ public:
         }
     }
 
-    template<class Helper, class Expr>
-    val emit_tuple_constant(std::vector<Expr> const& elem_exprs, Helper &&helper)
+    template<class Expr>
+    val emit_tuple_constant(std::vector<Expr> const& elem_exprs)
     {
         auto const the_type
             = type::make<type::tuple_type>(
                 elem_exprs | transformed([](auto const& e){ return type::type_of(e); })
             );
 
-        return emit_tuple_constant(the_type, elem_exprs, std::forward<Helper>(helper));
+        return emit_tuple_constant(the_type, elem_exprs);
     }
 
     val emit(ast::node::tuple_literal const& tuple)
@@ -399,8 +401,7 @@ public:
                 tuple,
                 emit_tuple_constant(
                     *type::get<type::tuple_type>(tuple->type),
-                    tuple->element_exprs,
-                    get_ir_helper(tuple)
+                    tuple->element_exprs
                 ),
                 "tuple literal"
             );
@@ -464,9 +465,11 @@ public:
             auto const inst
                 = check(
                     param,
-                    helper.create_alloca(type_emitter.emit(param_sym->type)),
+                    helper.create_alloca(register_val),
                     "allocation for variable parameter"
                 );
+
+            assert(type_emitter.emit(param_sym->type) == register_val->getType());
 
             auto const result = var_table.insert(param_sym, inst);
             assert(result);
@@ -580,8 +583,7 @@ public:
                 get_operand(
                     emit_tuple_constant(
                         *type::get<type::tuple_type>(return_->ret_type),
-                        return_->ret_exprs,
-                        get_ir_helper(return_)
+                        return_->ret_exprs
                     )
                 )
             );
@@ -775,7 +777,7 @@ public:
             assert(initializer_size > 1);
 
             auto *const rhs_tuple_value
-                = emit_tuple_constant(rhs_exprs, helper);
+                = emit_tuple_constant(rhs_exprs);
 
             initialize(init->var_decls[0], rhs_tuple_value);
         } else if (initializer_size == 1) {

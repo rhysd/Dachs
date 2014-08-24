@@ -168,14 +168,15 @@ public:
         return the_block;
     }
 
-    template<class TypeType, class String = char const* const>
-    llvm::AllocaInst *create_alloca(TypeType *const type, llvm::Value *const array_size = nullptr, String const& name = "")
+    template<class FromValue, class String = char const* const>
+    llvm::AllocaInst *create_alloca(FromValue *const from, llvm::Value *const array_size = nullptr, String const& name = "")
     {
+        auto *const type = from->getType();
         // Note:
         // Absorb the difference between value types and reference types
         return check(
             ctx.builder.CreateAlloca(
-                type->isPointerTy() ?
+                llvm::isa<llvm::AllocaInst>(from) || llvm::isa<llvm::GetElementPtrInst>(from) ?
                     type->getPointerElementType()
                   : type
                 , array_size
@@ -190,7 +191,7 @@ public:
     {
         auto *const allocated
             = check(
-                create_alloca(from->getType(), nullptr/*TODO*/, name)
+                create_alloca(from, nullptr/*TODO*/, name)
                 , "alloc and deep copy"
             );
 
@@ -247,7 +248,7 @@ public:
             } else {
                 DACHS_RAISE_INTERNAL_COMPILATION_ERROR
             }
-        } else if (t->isPointerTy()) {
+        } else if (llvm::isa<llvm::AllocaInst>(from) || llvm::isa<llvm::GetElementPtrInst>(from)) {
             ctx.builder.CreateStore(ctx.builder.CreateLoad(from), to);
         } else {
             ctx.builder.CreateStore(from, to);
