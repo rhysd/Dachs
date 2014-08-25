@@ -1038,6 +1038,13 @@ public:
         return phi;
     }
 
+    val emit(ast::node::typed_expr const& typed)
+    {
+        auto *const the_value = emit(typed->child_expr);
+        assert(type_emitter.emit(typed->specified_type) == the_value->getType());
+        return the_value;
+    }
+
     void emit(ast::node::postfix_if_stmt const& postfix_if)
     {
         auto helper = get_ir_helper(postfix_if);
