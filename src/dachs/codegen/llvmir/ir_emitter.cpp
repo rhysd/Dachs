@@ -1042,9 +1042,7 @@ public:
 
     val emit(ast::node::typed_expr const& typed)
     {
-        auto *const the_value = emit(typed->child_expr);
-        assert(type_emitter.emit(typed->specified_type) == the_value->getType());
-        return the_value;
+        return emit(typed->child_expr);
     }
 
     void emit(ast::node::postfix_if_stmt const& postfix_if)
