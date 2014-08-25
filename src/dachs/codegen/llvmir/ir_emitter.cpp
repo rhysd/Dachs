@@ -121,12 +121,14 @@ class llvm_ir_emitter {
     }
 
     template<class Node>
+    [[noreturn]]
     void error(Node const& n, boost::format const& msg) const
     {
         error(n, msg.str());
     }
 
     template<class Node, class String>
+    [[noreturn]]
     void error(Node const& n, String const& msg) const
     {
         // TODO:
@@ -675,7 +677,7 @@ public:
         auto const child_val = emit(access->child);
         auto const index_val = emit(access->index_expr);
 
-        if (auto const child_tuple_type = type::get<type::tuple_type>(child_type)) {
+        if (type::has<type::tuple_type>(child_type)) {
 
             // Note:
             // Do not emit index expression because it is a integer literal and it is
@@ -685,13 +687,13 @@ public:
                 error(access, "Index is not a constant.");
             }
 
-            if (llvm::isa<llvm::Constant>(child_val)) {
-                return check(access, ctx.builder.CreateExtractValue(child_val, constant_index->getZExtValue()), "index access (constant)");
-            } else {
-                // Note:
-                // It's not a constant. It should be pointer to allocated value
-                return check(access, ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue()), "index access (non constant)");
-            }
+            return check(
+                    access,
+                    llvm::isa<llvm::ConstantStruct>(child_val) ?
+                        ctx.builder.CreateExtractValue(child_val, constant_index->getZExtValue()) :
+                        ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue()),
+                    "index access"
+                );
 
         } else {
             error(access, "Not a tuple value");
