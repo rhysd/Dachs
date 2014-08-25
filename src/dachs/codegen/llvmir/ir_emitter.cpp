@@ -1026,15 +1026,15 @@ public:
         }
         helper.create_cond_br(cond_val, then_block, else_block);
 
-        auto *const then_val = emit(if_->then_expr);
+        auto *const then_val = get_operand(emit(if_->then_expr));
         helper.terminate_with_br(merge_block, else_block);
 
-        auto *const else_val = emit(if_->else_expr);
+        auto *const else_val = get_operand(emit(if_->else_expr));
         helper.terminate_with_br(merge_block, merge_block);
 
         auto *const phi = ctx.builder.CreatePHI(type_emitter.emit(if_->type), 2, "expr.if.tmp");
-        phi->addIncoming(get_operand(then_val), then_block);
-        phi->addIncoming(get_operand(else_val), else_block);
+        phi->addIncoming(then_val, then_block);
+        phi->addIncoming(else_val, else_block);
         return phi;
     }
 
