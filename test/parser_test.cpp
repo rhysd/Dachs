@@ -741,6 +741,8 @@ BOOST_AUTO_TEST_CASE(type)
             expr : (T(int)?, U(int)?)
             expr : {T(int)? => U(int)?}?
 
+            (expr : int) + (expr : int)
+
             # Keyword corner cases
             expr : prochuga
         end

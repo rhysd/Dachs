@@ -44,6 +44,13 @@ BOOST_AUTO_TEST_CASE(function)
             return a
         end
 
+        func foo6(var a, var b : float, var c)
+            a += 42
+            b += 42.0
+            c = true
+            return a, b, c
+        end
+
         func main
             foo()
             foo2(42)
@@ -51,6 +58,9 @@ BOOST_AUTO_TEST_CASE(function)
             foo3(42, 'a')
             foo3(3.14, 42)
             foo5(foo4(foo5(13)))
+            i := 42
+            var b := false
+            var t := foo6(i, 3.14, b)
             backward_ref_func()
         end
 
@@ -83,6 +93,12 @@ BOOST_AUTO_TEST_CASE(variable)
             var vd := d
             var ve := e
             var vf := f
+            var vva := va
+            var vvb := vb
+            var vvc := vc
+            var vvd := vd
+            var vve := ve
+            var vvf := vf
 
             va = 42
             vb = 'a'
@@ -331,6 +347,18 @@ BOOST_AUTO_TEST_CASE(unary_expression)
             foo(!!true)
             foo(-~-~-~-~-~-~-~-~42)
             foo(!!!!!!!!!!!!!!!!!!true)
+
+            var i := 42
+            var b := true
+
+            foo(-i)
+            foo(+i)
+            foo(~i)
+            foo(!b)
+            foo(-+~i)
+            foo(!!b)
+            foo(-~-~-~-~-~-~-~-~i)
+            foo(!!!!!!!!!!!!!!!!!!b)
         end
     )");
 }
@@ -352,6 +380,267 @@ BOOST_AUTO_TEST_CASE(if_expr)
             (if true then 42
              else 24)
             (if if then if else if) # 'if' is a contextual keyword
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(typed_expr)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            var i : int := 42 : int
+            i2 := 42 : int
+            var j := (i : int) + (i2 : int)
+
+            # issue 4
+            # (j : int) += i : int
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(cast_expr)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            d := 3.14
+            var d2 := 3.14
+
+            i := d as int
+            i2 := d2 as int
+            i3 := 3.14 as int
+            var i4 := d as int
+            var i5 := d2 as int
+            var i6 := 3.14 as int
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(return_statement)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo
+            return
+        end
+
+        func foo2
+        end
+
+        func foo3
+            return 42
+        end
+
+        func foo4
+            var i := 42
+            return i
+        end
+
+        func foo5
+            var i := 42
+            return i, true
+        end
+
+        func foo6
+            return 42, true
+        end
+
+        func main
+            foo()
+            foo2()
+            var i1 := foo3()
+            var i2 := foo4()
+            var t := foo5()
+            var t2 := foo6()
+            var i3, var b1 := foo5()
+            var i4, var b2 := foo6()
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(if_statement)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func pred
+            return true
+        end
+
+        func dummy_pred(b)
+            return true if b
+            return false unless b
+            return true
+        end
+
+        func dummy2
+            return if true
+            return unless false
+        end
+
+        func dummy3
+            return (if true then 42 else -42)
+        end
+
+        func main
+
+            if true
+                println("hoge")
+            end
+
+            if pred()
+                println("huga")
+            else
+                i := 42
+            end
+
+            if false
+                i := 42
+                var j := 42
+            elseif pred()
+                println(42)
+            end
+
+            if false
+                i := 42
+                var j := 42
+            elseif pred()
+                println(42)
+            else
+                var b := false
+                println(b)
+            end
+
+            print(42) if false
+            print(42) if pred()
+            var i := 42
+            i += 42 if dummy_pred(true)
+
+            unless true
+                println("hoge")
+            end
+
+            unless pred()
+                println("huga")
+            else
+                i := 42
+            end
+
+            unless false
+                i := 42
+                var j := 42
+            elseif pred()
+                println(42)
+            end
+
+            unless false
+                i := 42
+                var j := 42
+            elseif pred()
+                println(42)
+            else
+                var b := false
+                println(b)
+            end
+
+            print(42) unless false
+            print(42) unless pred()
+            i += 42 unless dummy_pred(true)
+
+            dummy2()
+            dummy3()
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(switch_statement)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func dummy(a)
+            println(a)
+        end
+
+        func main
+            i := 42
+            case i
+            when 42
+                println(i)
+            when 0
+            when 0, 1, 2
+                i + 42
+            end
+
+            case i
+            when 42
+                println(i)
+            when 0
+                dummy(i + 42)
+            else
+                ;
+            end
+
+            var j := i
+            case j
+            when 42
+                println(j)
+            when 0
+                j + 42
+            end
+
+            case j
+            when 42
+                println(j)
+            when 0, 1, 2
+                dummy(j + 42)
+            else
+                ;
+            end
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(case_statement)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func dummy(a)
+            println(a)
+        end
+
+        func main
+            var a := 32
+
+            case
+            when true
+                println("aaa")
+            when a == 1
+                ;
+            when a == -32
+                dummy(a + 32)
+            else
+                a : int
+            end
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(while_statement)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func dummy(a)
+            println(a)
+        end
+
+        func main
+            var a := 32
+
+            for false
+            end
+
+            for true
+                dummy(a)
+            end
+
+            var i := 0
+            for i < 10
+                i += 1
+                println(i)
+            end
         end
     )");
 }
