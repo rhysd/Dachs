@@ -8,6 +8,7 @@
 #include <cassert>
 
 #include <boost/variant/variant.hpp>
+#include <boost/variant/apply_visitor.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/algorithm/equal.hpp>
 #include <boost/algorithm/string/join.hpp>
@@ -164,7 +165,7 @@ public:
 
     bool empty() const noexcept
     {
-        return apply_lambda([](auto const& t){ return !bool(t); }, value);
+        return helper::variant::apply_lambda([](auto const& t){ return !bool(t); }, value);
     }
 
     operator bool() const noexcept
@@ -174,7 +175,7 @@ public:
 
     std::string to_string() const noexcept
     {
-        return apply_lambda([](auto const& t) -> std::string { return t ? t->to_string() : "UNKNOWN"; }, value);
+        return helper::variant::apply_lambda([](auto const& t) -> std::string { return t ? t->to_string() : "UNKNOWN"; }, value);
     }
 
     // Note: This may ruin the private data member. Be careful.
@@ -196,6 +197,19 @@ public:
     bool is_builtin() const noexcept
     {
         return helper::variant::has<type::builtin_type>(value);
+    }
+
+    template<class Visitor>
+    typename Visitor::result_type apply_visitor(Visitor const& visitor) const
+    {
+        return boost::apply_visitor(visitor, value);
+    }
+
+    template<class Lambda>
+    auto apply_lambda(Lambda const& lambda) const
+        -> decltype(apply_lambda(lambda, value))
+    {
+        return helper::variant::apply_lambda(lambda, value);
     }
 
     template<class String>

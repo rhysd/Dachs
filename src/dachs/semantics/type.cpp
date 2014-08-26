@@ -44,7 +44,7 @@ builtin_type get_builtin_type(char const* const name, no_opt_t) noexcept
         }
     }
 
-    std::abort();
+    DACHS_RAISE_INTERNAL_COMPILATION_ERROR
 }
 
 tuple_type const& get_unit_type() noexcept
@@ -66,7 +66,7 @@ bool any_type::is_builtin(String const& name) const noexcept
 
 bool any_type::operator==(any_type const& rhs) const noexcept
 {
-    return apply_lambda(
+    return helper::variant::apply_lambda(
             [](auto const& l, auto const& r)
             {
                 if (!l || !r) {

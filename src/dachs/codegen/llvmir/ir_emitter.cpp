@@ -1138,7 +1138,7 @@ public:
     template<class T>
     val emit(std::shared_ptr<T> const& node)
     {
-        throw not_implemented_error{node, __FILE__, __func__, __LINE__, node->to_string()};
+        throw not_implemented_error{node, __FILE__, __func__, __LINE__, "In LLVM code generation: " + node->to_string()};
     }
 };
 

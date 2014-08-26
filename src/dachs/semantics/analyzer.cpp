@@ -22,6 +22,7 @@
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/error.hpp"
+#include "dachs/semantics/tmp_member_checker.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/util.hpp"
@@ -822,9 +823,19 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::member_access const& member, Walker const& /*unused*/)
+    void visit(ast::node::member_access const& member, Walker const& recursive_walker)
     {
-        throw not_implemented_error{member, __FILE__, __func__, __LINE__, "member access"};
+        recursive_walker();
+
+        auto const checked = check_member_var(member);
+        if (auto const& error_msg = get_as<std::string>(checked)) {
+            output_semantic_error(member, *error_msg);
+            return;
+        }
+
+        auto const& t = get_as<type::type>(checked);
+        assert(t);
+        member->type = *t;
     }
 
     template<class Walker>
