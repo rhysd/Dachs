@@ -2,9 +2,12 @@
 #define      DACHS_CODEGEN_LLVMIR_TMP_MEMBER_IR_EMITTER_HPP_INCLUDED
 
 #include <string>
+#include <cstdint>
 
 #include <boost/variant/static_visitor.hpp>
 #include <llvm/IR/Value.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/LLVMContext.h>
 
 #include "dachs/semantics/type.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
@@ -27,17 +30,21 @@ class tmp_member_ir_emitter {
             : name(n), value(v), ctx(c)
         {}
 
+        val emit_tuple_access(std::uint64_t const i)
+        {
+            return llvm::isa<llvm::ConstantStruct>(value) ?
+                       ctx.builder.CreateExtractValue(value, i) :
+                       ctx.builder.CreateStructGEP(value, i);
+        }
+
         val operator()(type::tuple_type const& t)
         {
-            auto *const ty = value->getType();
-            assert(ty->isPointerTy());
-            assert(ty->getPointerElementType()->isStructTy());
             if (name == "size") {
                 return ctx.builder.getInt64(t->element_types.size());
             } else if (name == "first") {
-                return ctx.builder.CreateStructGEP(value, 0u);
+                return emit_tuple_access(0u);
             } else if (name == "second") {
-                return ctx.builder.CreateStructGEP(value, 1u);
+                return emit_tuple_access(1u);
             } else {
                 return nullptr;
             }
