@@ -205,6 +205,12 @@ public:
         return boost::apply_visitor(visitor, value);
     }
 
+    template<class Visitor>
+    typename Visitor::result_type apply_visitor(Visitor &&visitor)
+    {
+        return boost::apply_visitor(visitor, value);
+    }
+
     template<class Lambda>
     auto apply_lambda(Lambda const& lambda) const
         -> decltype(apply_lambda(lambda, value))

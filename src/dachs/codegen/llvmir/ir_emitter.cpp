@@ -31,6 +31,7 @@
 #include "dachs/codegen/llvmir/builtin_func_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/variable_table.hpp"
 #include "dachs/codegen/llvmir/ir_builder_helper.hpp"
+#include "dachs/codegen/llvmir/tmp_member_ir_emitter.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -99,6 +100,7 @@ class llvm_ir_emitter {
     std::string const& file;
     std::stack<llvm::BasicBlock *> loop_stack; // Loop stack for continue and break statements
     type_ir_emitter type_emitter;
+    tmp_member_ir_emitter member_emitter;
 
     auto push_loop(llvm::BasicBlock *loop_value)
     {
@@ -290,6 +292,7 @@ public:
         , builtin_func_emitter(ctx.llvm_context)
         , file(f)
         , type_emitter(ctx.llvm_context)
+        , member_emitter(ctx)
     {}
 
     val emit(ast::node::primary_literal const& pl)
@@ -698,6 +701,22 @@ public:
         } else {
             error(access, "Not a tuple value");
         }
+    }
+
+    val emit(ast::node::member_access const& member)
+    {
+        // Note:
+        // Do not use get_operand() because GEP is emitted
+        // in member_emitter internally.
+        return check(
+                member,
+                member_emitter.emit_var(
+                    emit(member->child),
+                    member->member_name,
+                    type::type_of(member->child)
+                ),
+                "member access"
+            );
     }
 
     void emit(ast::node::while_stmt const& while_)
