@@ -1,0 +1,32 @@
+func main
+    t := ('a', 'b')
+    var t2 := ('p', 'q')
+    p(swap(t))
+    p(swap(t2))
+    t3 := swap(t)
+    t4 := swap(t2)
+    var t5 := swap(t)
+    var t6 := swap(t2)
+    p(swap(t3))
+    p(swap(t4))
+    p(swap(t5))
+    p(swap(t6))
+
+    a, b := t
+    c, d := t2
+
+    p((a, b))
+    p((c, d))
+end
+
+func swap(t)
+    return t.second, t.first
+end
+
+func p(t)
+    print('(')
+    print(t[0])
+    print(',')
+    print(t[1])
+    println(')')
+end

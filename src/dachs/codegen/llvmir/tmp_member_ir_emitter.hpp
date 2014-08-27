@@ -32,7 +32,10 @@ class tmp_member_ir_emitter {
 
         val emit_tuple_access(std::uint64_t const i)
         {
-            return llvm::isa<llvm::ConstantStruct>(value) ?
+            auto *const t = value->getType();
+            assert(t->isStructTy() || (t->isPointerTy() && t->getPointerElementType()->isStructTy()));
+
+            return t->isStructTy() ?
                        ctx.builder.CreateExtractValue(value, i) :
                        ctx.builder.CreateStructGEP(value, i);
         }

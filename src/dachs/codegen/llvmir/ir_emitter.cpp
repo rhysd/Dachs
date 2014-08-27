@@ -690,9 +690,12 @@ public:
                 error(access, "Index is not a constant.");
             }
 
+            auto *const t = child_val->getType();
+            assert(t->isStructTy() || (t->isPointerTy() && t->getPointerElementType()->isStructTy()));
+
             return check(
                     access,
-                    llvm::isa<llvm::ConstantStruct>(child_val) ?
+                    t->isStructTy() ?
                         ctx.builder.CreateExtractValue(child_val, constant_index->getZExtValue()) :
                         ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue()),
                     "index access"
@@ -813,17 +816,19 @@ public:
             // If the rhs type is a pointer, it means that rhs is allocated value
             // and I should use GEP to get the element of it.
 
-            if (llvm::isa<llvm::ConstantStruct>(rhs_value)) {
-                auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_type->getPointerElementType());
-                assert(rhs_struct_type);
-                for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
-                    rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
-                }
-            } else {
+            assert(rhs_type->isStructTy() || (rhs_type->isPointerTy() && rhs_type->getPointerElementType()->isStructTy()));
+
+            if (rhs_type->isStructTy()) {
                 auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_type);
                 assert(rhs_struct_type);
                 for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
                     rhs_values.push_back(ctx.builder.CreateExtractValue(rhs_value, idx));
+                }
+            } else {
+                auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_type->getPointerElementType());
+                assert(rhs_struct_type);
+                for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
+                    rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
                 }
             }
 
