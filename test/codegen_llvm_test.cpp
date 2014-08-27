@@ -226,6 +226,18 @@ BOOST_AUTO_TEST_CASE(tuple)
             q := t10[0][1]
             t11[0][0] = 3
             t11[0][1]
+
+            # Members
+            var t := (('a', 'b'), true)
+            println(t.size)
+            println(t[0].size)
+            println(t[0].first)
+            println(t[0].second)
+            t2 := (('a', 'b'), true)
+            println(t2.size)
+            println(t2[0].size)
+            println(t2[0].first)
+            println(t2[0].second)
         end
 
         func foo()
