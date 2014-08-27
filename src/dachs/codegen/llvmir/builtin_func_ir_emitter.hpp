@@ -94,7 +94,7 @@ public:
 
     llvm::Function *emit_println_func(type::builtin_type const& arg_type)
     {
-        return emit_builtin_func_prototype(print_func_table, "__dachs_println_", arg_type);
+        return emit_builtin_func_prototype(println_func_table, "__dachs_println_", arg_type);
     }
 
     llvm::Function *emit(std::string const& name, std::vector<type::type> const& arg_types)
