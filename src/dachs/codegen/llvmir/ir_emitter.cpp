@@ -284,6 +284,12 @@ class llvm_ir_emitter {
         }
     }
 
+    template<class T>
+    val emit_operand(T const& t) const
+    {
+        return get_operand(emit(t));
+    }
+
 public:
 
     llvm_ir_emitter(std::string const& f, context &c)
@@ -354,8 +360,8 @@ public:
         return check(sym, ctx.builder.CreateGlobalStringPtr(sym->value.c_str()), "symbol constant");
     }
 
-    template<class Expr>
-    val emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs)
+    template<class AggregateType, class Expression, class ConstantEmitter>
+    val emit_aggregate_constant(AggregateType const& t, std::vector<Expression> const& elem_exprs, ConstantEmitter const& constant_emitter)
     {
         std::vector<val> elem_values;
         elem_values.reserve(elem_exprs.size());
@@ -371,21 +377,30 @@ public:
                 elem_consts.push_back(constant);
             }
 
-            return llvm::ConstantStruct::getAnon(ctx.llvm_context, elem_consts);
+            return constant_emitter(elem_consts);
         } else {
             auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(t));
             // TODO:
-            // Should use memcpy intrinsic function.
+            // Should use create_deep_copy()
             for (auto const idx : helper::indices(elem_exprs.size())) {
                 auto *const elem_val = get_operand(emit(elem_exprs[idx]));
                 ctx.builder.CreateStore(
                         elem_val,
+                        // Note:
+                        // CreateStructGEP is also available for array value because
+                        // it is equivalent to CreateConstInBoundsGEP2_32(v, 0u, i).
                         ctx.builder.CreateStructGEP(alloca_inst, idx)
                     );
             }
 
             return alloca_inst;
         }
+    }
+
+    template<class Expr>
+    val emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs)
+    {
+        return emit_aggregate_constant(t, elem_exprs, [this](auto const& a){ return llvm::ConstantStruct::getAnon(ctx.llvm_context, a); });
     }
 
     template<class Expr>
@@ -399,6 +414,19 @@ public:
         return emit_tuple_constant(the_type, elem_exprs);
     }
 
+    template<class Expr>
+    val emit_array_constant(type::array_type const& t, std::vector<Expr> const& elem_exprs)
+    {
+        return emit_aggregate_constant(
+                t,
+                elem_exprs,
+                [&, this](auto const& e)
+                {
+                    return llvm::ConstantArray::get(type_emitter.emit(t, elem_exprs.size()), e);
+                }
+            );
+    }
+
     val emit(ast::node::tuple_literal const& tuple)
     {
         assert(type::has<type::tuple_type>(tuple->type));
@@ -409,6 +437,19 @@ public:
                     tuple->element_exprs
                 ),
                 "tuple literal"
+            );
+    }
+
+    val emit(ast::node::array_literal const& array)
+    {
+        assert(type::has<type::array_type>(array->type));
+        return check(
+                array,
+                emit_array_constant(
+                    *type::get<type::array_type>(array->type),
+                    array->element_exprs
+                ),
+                "array literal"
             );
     }
 
@@ -893,7 +934,7 @@ public:
                     lhs_value = var_table.lookup_value(var_ref->symbol.lock());
                 } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs_expr)) {
                     // XXX:
-                    // Too adhoc.  It should be resolved by solving #2.
+                    // Too ad hoc.  It should be resolved by solving #2.
                     auto const& access = *maybe_index_access;
                     auto const child_val = emit(access->child);
                     auto const index_val = emit(access->index_expr);
