@@ -228,16 +228,16 @@ BOOST_AUTO_TEST_CASE(tuple)
             t11[0][1]
 
             # Members
-            var t := (('a', 'b'), true)
-            println(t.size)
-            println(t[0].size)
-            println(t[0].first)
-            println(t[0].second)
-            t2 := (('a', 'b'), true)
-            println(t2.size)
-            println(t2[0].size)
-            println(t2[0].first)
-            println(t2[0].second)
+            var t15 := (('a', 'b'), true)
+            println(t15.size)
+            println(t15[0].size)
+            println(t15[0].first)
+            println(t15[0].second)
+            t16 := (('a', 'b'), true)
+            println(t16.size)
+            println(t16[0].size)
+            println(t16[0].first)
+            println(t16[0].second)
         end
 
         func foo()
