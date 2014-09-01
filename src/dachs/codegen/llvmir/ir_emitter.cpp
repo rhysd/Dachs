@@ -91,6 +91,7 @@ using boost::algorithm::all_of;
 
 class llvm_ir_emitter {
     using val = llvm::Value *;
+    using self = llvm_ir_emitter;
 
     llvm::Module *module = nullptr;
     context &ctx;
@@ -267,6 +268,63 @@ class llvm_ir_emitter {
         return is_supported(lhs_builtin_type) && is_supported(rhs_builtin_type);
     }
 
+    template<class IREmitter>
+    struct lhs_of_assign_emitter {
+
+        IREmitter &emitter;
+
+        explicit lhs_of_assign_emitter(IREmitter &e)
+            : emitter(e)
+        {}
+
+        val emit(ast::node::var_ref const& ref)
+        {
+            if (ref->is_ignored_var() && ref->symbol.expired()) {
+                // Note:
+                // Ignore '_' variable
+                return nullptr;
+            }
+
+            assert(!ref->symbol.expired());
+            return emitter.var_table.lookup_value(ref->symbol.lock());
+        }
+
+        val emit(ast::node::index_access const& access)
+        {
+            // XXX:
+            // Too ad hoc.  It should be resolved by solving #2.
+            auto const child_val = emitter.emit(access->child);
+            auto const index_val = emitter.emit(access->index_expr);
+            if (auto const child_tuple_type = type::get<type::tuple_type>(type::type_of(access->child))) {
+                auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
+                if (!constant_index) {
+                    emitter.error(access, "Index is not a constant.");
+                }
+                return emitter.ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue());
+            // } else if (array) {
+            } else {
+                emitter.error(access, "Not a tuple value (in assignment statement)");
+            }
+        }
+
+        template<class... Args>
+        val emit(boost::variant<Args...> const& v)
+        {
+            return apply_lambda([this](auto const& n){ return emit(n); }, v);
+        }
+
+        val emit(ast::node::typed_expr const& typed)
+        {
+            return emit(typed->child_expr);
+        }
+
+        template<class T>
+        val emit(T const&)
+        {
+            return nullptr;
+        }
+    };
+
     // Note:
     // get_operand() strips pointer if needed.
     // Operation instructions and call operation requires a value as operand.
@@ -282,12 +340,6 @@ class llvm_ir_emitter {
         } else {
             return value;
         }
-    }
-
-    template<class T>
-    val emit_operand(T const& t) const
-    {
-        return get_operand(emit(t));
     }
 
 public:
@@ -916,43 +968,18 @@ public:
 
         assert(assignee_size == rhs_values.size());
 
-        helper::each(
+        auto const assignment_emitter =
             [&, this](auto const& lhs_expr, auto *const rhs_value)
             {
                 val value_to_assign = rhs_value;
-                val lhs_value = nullptr;
 
-                if (auto const maybe_var_ref = get_as<ast::node::var_ref>(lhs_expr)) {
-                    auto const& var_ref = *maybe_var_ref;
-                    if (var_ref->is_ignored_var() && var_ref->symbol.expired()) {
-                        // Note:
-                        // Ignore '_' variable
-                        return;
-                    }
+                auto *const lhs_value =
+                    lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
 
-                    assert(!var_ref->symbol.expired());
-                    lhs_value = var_table.lookup_value(var_ref->symbol.lock());
-                } else if (auto const maybe_index_access = get_as<ast::node::index_access>(lhs_expr)) {
-                    // XXX:
-                    // Too ad hoc.  It should be resolved by solving #2.
-                    auto const& access = *maybe_index_access;
-                    auto const child_val = emit(access->child);
-                    auto const index_val = emit(access->index_expr);
-                    if (auto const child_tuple_type = type::get<type::tuple_type>(type::type_of(access->child))) {
-                        auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
-                        if (!constant_index) {
-                            error(access, "Index is not a constant.");
-                        }
-                        lhs_value = ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue());
-                    // } else if (array) {
-                    } else {
-                        error(access, "Not a tuple value (in assignment statement)");
-                    }
-                } else {
+                if (!lhs_value) {
                     DACHS_RAISE_INTERNAL_COMPILATION_ERROR
                 }
 
-                assert(lhs_value);
                 assert(lhs_value->getType()->isPointerTy());
 
                 if (is_compound_assign) {
@@ -974,9 +1001,9 @@ public:
                 }
 
                 helper.create_deep_copy(value_to_assign, lhs_value);
-            }
-            , assign->assignees, rhs_values
-        );
+            };
+
+        helper::each(assignment_emitter, assign->assignees, rhs_values);
     }
 
     void emit(ast::node::case_stmt const& case_)

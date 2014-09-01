@@ -113,6 +113,36 @@ struct var_ref_marker_for_lhs_of_assign {
     }
 };
 
+struct var_ref_getter_for_lhs_of_assign {
+
+    template<class... Args>
+    ast::node::var_ref visit(boost::variant<Args...> const& v)
+    {
+        return apply_lambda([this](auto const& n){ return visit(n); }, v);
+    }
+
+    ast::node::var_ref visit(ast::node::var_ref const& ref)
+    {
+        return ref;
+    }
+
+    ast::node::var_ref visit(ast::node::index_access const& access)
+    {
+        return visit(access->child);
+    }
+
+    ast::node::var_ref visit(ast::node::typed_expr const& typed)
+    {
+        return visit(typed->child_expr);
+    }
+
+    template<class T>
+    ast::node::var_ref visit(T const&)
+    {
+        return nullptr;
+    }
+};
+
 // Walk to resolve symbol references
 class symbol_analyzer {
 
@@ -1132,30 +1162,26 @@ public:
         // TODO:
         // Use walker
         for (auto const& lhs : assign->assignees) {
-            auto expr = lhs;
-            while (auto const maybe_index_access = get_as<ast::node::index_access>(expr)) {
-                expr = (*maybe_index_access)->child;
+
+            auto const the_var_ref = var_ref_getter_for_lhs_of_assign{}.visit(lhs);
+            if (!the_var_ref) {
+                semantic_error(assign, "Lhs of assignment must be variable access, index access or member access.");
+                return;
             }
 
-            if (auto const maybe_var_ref = get_as<ast::node::var_ref>(expr)) {
-                auto const& var_ref = *maybe_var_ref;
-                if (var_ref->is_ignored_var()) {
-                    continue;
-                } else if (!var_ref->type) {
-                    // Note:
-                    // Error must occurs
-                    return;
-                }
+            if (the_var_ref->is_ignored_var()) {
+                continue;
+            } else if (!the_var_ref->type) {
+                // Note:
+                // Error must occurs
+                return;
+            }
 
-                assert(!var_ref->symbol.expired());
+            assert(!the_var_ref->symbol.expired());
 
-                auto const var_sym = var_ref->symbol.lock();
-                if (var_sym->immutable) {
-                    semantic_error(assign, boost::format("Can't assign to immutable variable '%1%'") % var_sym->name);
-                    return;
-                }
-            } else {
-                semantic_error(assign, "Lhs of assignment must be variable access, index access or member access.");
+            auto const var_sym = the_var_ref->symbol.lock();
+            if (var_sym->immutable) {
+                semantic_error(assign, boost::format("Can't assign to immutable variable '%1%'") % var_sym->name);
                 return;
             }
         }
