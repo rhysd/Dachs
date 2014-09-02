@@ -973,6 +973,18 @@ BOOST_AUTO_TEST_CASE(assignment_expr)
             bbb = 42,
                   31
             aaa, bbb = do_something()
+            a : int = 42
+            b : char = 'a'
+            c : string = "aaa"
+            d : float = 3.14
+            e : bool = true
+            f : uint = 42u
+            t : (int, char, bool) = t
+            t : (int, char, bool) = t
+            t : (int, char, bool) = t
+            (t : (int, char, bool))[0] = -42
+            (t : (int, char, bool))[1] = 'b'
+            (t : (int, char, bool))[2] = false
         end
         )"));
 }

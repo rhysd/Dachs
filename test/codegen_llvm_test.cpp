@@ -107,6 +107,13 @@ BOOST_AUTO_TEST_CASE(variable)
             ve = true
             vf = 42u
 
+            va : int = 42
+            vb : char = 'a'
+            vc : string = "aaa"
+            vd : float = 3.14
+            ve : bool = true
+            vf : uint = 42u
+
             var a2 : int
             var b2 : char
             var c2 : string
@@ -190,6 +197,10 @@ BOOST_AUTO_TEST_CASE(tuple)
             t3 = t
             t7 = t
 
+            t2 : (int, char, bool) = t
+            t3 : (int, char, bool) = t
+            t7 : (int, char, bool) = t
+
             t[0]
             t[1]
             t[2]
@@ -206,6 +217,14 @@ BOOST_AUTO_TEST_CASE(tuple)
             t9[0] = -42
             t9[1] = 'b'
             t9[2] = false
+
+            t9[0] : int = -42
+            t9[1] : char = 'b'
+            t9[2] : bool = false
+
+            (t9 : (int, char, bool))[0] = -42
+            (t9 : (int, char, bool))[1] = 'b'
+            (t9 : (int, char, bool))[2] = false
 
             t10 := ((1, 'a'), true)
             var t11 := ((1, 'a'), true)
@@ -293,6 +312,16 @@ BOOST_AUTO_TEST_CASE(binary_expression)
             var q := 53
             var r := true
             var s := false
+
+            p += 42
+            p -= 42
+            p *= 42
+            p /= 42
+            p %= 42
+            p &= 42
+            p |= 42
+            p <<= 4
+            p >>= 4
 
             foo(a + b)
             foo(a - b)
