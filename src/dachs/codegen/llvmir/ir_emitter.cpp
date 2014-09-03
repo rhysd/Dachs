@@ -432,8 +432,6 @@ public:
             return constant_emitter(elem_consts);
         } else {
             auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(t));
-            // TODO:
-            // Should use create_deep_copy()
             for (auto const idx : helper::indices(elem_exprs.size())) {
                 auto *const elem_val = get_operand(emit(elem_exprs[idx]));
                 ctx.builder.CreateStore(
@@ -770,32 +768,58 @@ public:
     val emit(ast::node::index_access const& access)
     {
         auto const child_type = type::type_of(access->child);
-        auto const child_val = emit(access->child);
-        auto const index_val = emit(access->index_expr);
+        auto *const child_val = emit(access->child);
+        auto *const index_val = get_operand(emit(access->index_expr));
+        auto *const t = child_val->getType();
+        auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
+
+        auto const with_check
+            = [&, this](auto *const v)
+            {
+                return check(access, v, "index access");
+            };
 
         if (type::has<type::tuple_type>(child_type)) {
 
             // Note:
             // Do not emit index expression because it is a integer literal and it is
             // processed in compile time
-            auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
             if (!constant_index) {
                 error(access, "Index is not a constant.");
             }
 
-            auto *const t = child_val->getType();
             assert(t->isStructTy() || (t->isPointerTy() && t->getPointerElementType()->isStructTy()));
 
-            return check(
-                    access,
+            return with_check(
                     t->isStructTy() ?
                         ctx.builder.CreateExtractValue(child_val, constant_index->getZExtValue()) :
-                        ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue()),
-                    "index access"
+                        ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue())
                 );
 
+        } else if (type::has<type::array_type>(child_type)) {
+            assert(index_val->getType()->isIntegerTy());
+            bool child_is_constant = llvm::isa<llvm::Constant>(child_val);
+            if (constant_index && child_is_constant) {
+                return with_check(ctx.builder.CreateExtractValue(child_val, constant_index->getZExtValue()));
+            } else {
+                assert(child_is_constant || child_val->getType()->isPointerTy());
+                return with_check(
+                        ctx.builder.CreateInBoundsGEP(
+                            child_is_constant ?
+                                get_ir_helper(access).alloc_and_deep_copy(child_val) :
+                                child_val,
+                            (val [2]){
+                                ctx.builder.getInt32(0u),
+                                index_val->getType()->isIntegerTy(32u) ?
+                                    index_val :
+                                    ctx.builder.CreateIntCast(index_val, ctx.builder.getInt32Ty(), true)
+                            }
+                        )
+                    );
+            }
+
         } else {
-            error(access, "Not a tuple value");
+            error(access, "Not a tuple or array value");
         }
     }
 
