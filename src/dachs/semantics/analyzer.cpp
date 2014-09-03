@@ -508,7 +508,7 @@ public:
                 semantic_error(arr_lit, boost::format("All types of array elements must be '%1%'") % arg0_type.to_string());
                 return;
             }
-            arr_lit->type = type::make<type::array_type>(arg0_type);
+            arr_lit->type = type::make<type::array_type>(arg0_type, arr_lit->element_exprs.size());
         }
     }
 
@@ -577,9 +577,13 @@ public:
 
         if (auto const maybe_array_type = type::get<type::array_type>(child_type)) {
             auto const& array_type = *maybe_array_type;
-            if (array_type->element_type != type::get_builtin_type("int", type::no_opt)
-                && array_type->element_type != type::get_builtin_type("uint", type::no_opt)) {
-                semantic_error(access, boost::format("Index of array must be int or uint but actually '%1%'") % array_type->element_type.to_string());
+            if (index_type != type::get_builtin_type("int", type::no_opt)
+                && index_type != type::get_builtin_type("uint", type::no_opt)) {
+                semantic_error(
+                        access,
+                        boost::format("Index of array must be int or uint but actually '%1%'")
+                            % array_type->element_type.to_string()
+                    );
                 return;
             }
             access->type = array_type->element_type;

@@ -472,7 +472,9 @@ public:
                 elem_exprs,
                 [&, this](auto const& e)
                 {
-                    return llvm::ConstantArray::get(type_emitter.emit(t, elem_exprs.size()), e);
+                    auto *const ty = llvm::dyn_cast<llvm::ArrayType>(type_emitter.emit(t));
+                    assert(ty);
+                    return llvm::ConstantArray::get(ty, e);
                 }
             );
     }

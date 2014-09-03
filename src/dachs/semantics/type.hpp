@@ -567,6 +567,7 @@ struct range_type final : public basic_type {
 
 struct array_type final : public basic_type {
     type::any_type element_type;
+    boost::optional<size_t> size = boost::none;
 
     array_type() = default;
 
@@ -575,15 +576,24 @@ struct array_type final : public basic_type {
         : element_type(e)
     {}
 
+    template<class Elem>
+    array_type(Elem const& e, size_t const s) noexcept
+        : element_type(e), size(s)
+    {}
+
     std::string to_string() const noexcept override
     {
         return '['
             + element_type.to_string()
-            + ']';
+            + ']'
+            + (size ? " (" + std::to_string(*size) + ')' : "");
     }
 
     bool operator==(array_type const& rhs) const noexcept
     {
+        // Note:
+        // Do not consider size because different sized arrays are not
+        // different type.
         return element_type == rhs.element_type;
     }
 
