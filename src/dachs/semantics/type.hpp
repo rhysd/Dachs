@@ -234,6 +234,14 @@ inline bool has(any_type const& t)
     return helper::variant::has<T>(t.value);
 }
 
+// Note:
+// When the argument of has() is not any_type
+template<class T, class U>
+inline constexpr bool has(U const&)
+{
+    return std::is_same<T, U>::value;
+}
+
 template<class T>
 inline boost::optional<T const&> get(any_type const& t)
 {
