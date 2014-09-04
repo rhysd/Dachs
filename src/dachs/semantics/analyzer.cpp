@@ -576,17 +576,16 @@ public:
         // Resolve operator [] function and get the return type of it.
 
         if (auto const maybe_array_type = type::get<type::array_type>(child_type)) {
-            auto const& array_type = *maybe_array_type;
             if (index_type != type::get_builtin_type("int", type::no_opt)
                 && index_type != type::get_builtin_type("uint", type::no_opt)) {
                 semantic_error(
                         access,
                         boost::format("Index of array must be int or uint but actually '%1%'")
-                            % array_type->element_type.to_string()
+                            % index_type.to_string()
                     );
                 return;
             }
-            access->type = array_type->element_type;
+            access->type = (*maybe_array_type)->element_type;
         } else if (auto const maybe_tuple_type = type::get<type::tuple_type>(child_type)) {
             auto const& tuple_type = *maybe_tuple_type;
 
@@ -600,7 +599,11 @@ public:
             }
 
             auto const& literal = (*maybe_primary_literal)->value;
-            auto const out_of_bounds = [this, &access](auto const i){ semantic_error(access, boost::format("Index access is out of bounds\nNote: Index is %1%") % i); };
+            auto const out_of_bounds
+                = [this, &access](auto const i)
+                {
+                    semantic_error(access, boost::format("Index access is out of bounds\nNote: Index is %1%") % i);
+                };
             if (auto const maybe_int_lit = get_as<int>(literal)) {
                 auto const idx = *maybe_int_lit;
                 if (idx < 0 || static_cast<unsigned int>(idx) >= tuple_type->element_types.size()) {
