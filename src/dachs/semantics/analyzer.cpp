@@ -576,13 +576,12 @@ public:
         // Resolve operator [] function and get the return type of it.
 
         if (auto const maybe_array_type = type::get<type::array_type>(child_type)) {
-            auto const& array_type = *maybe_array_type;
-            if (array_type->element_type != type::get_builtin_type("int", type::no_opt)
-                && array_type->element_type != type::get_builtin_type("uint", type::no_opt)) {
-                semantic_error(access, boost::format("Index of array must be int or uint but actually '%1%'") % array_type->element_type.to_string());
+            if (index_type != type::get_builtin_type("int", type::no_opt)
+                && index_type != type::get_builtin_type("uint", type::no_opt)) {
+                semantic_error(access, boost::format("Index of array must be int or uint but actually '%1%'") % index_type.to_string());
                 return;
             }
-            access->type = array_type->element_type;
+            access->type = (*maybe_array_type)->element_type;
         } else if (auto const maybe_tuple_type = type::get<type::tuple_type>(child_type)) {
             auto const& tuple_type = *maybe_tuple_type;
 
