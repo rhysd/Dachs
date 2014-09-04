@@ -412,8 +412,8 @@ public:
         return check(sym, ctx.builder.CreateGlobalStringPtr(sym->value.c_str()), "symbol constant");
     }
 
-    template<class AggregateType, class Expression, class ConstantEmitter>
-    val emit_aggregate_constant(AggregateType const& t, std::vector<Expression> const& elem_exprs, ConstantEmitter const& constant_emitter)
+    template<class Expr>
+    val emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs)
     {
         std::vector<val> elem_values;
         elem_values.reserve(elem_exprs.size());
@@ -429,7 +429,7 @@ public:
                 elem_consts.push_back(constant);
             }
 
-            return constant_emitter(elem_consts);
+            return llvm::ConstantStruct::getAnon(ctx.llvm_context, elem_consts);
         } else {
             auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(t));
             for (auto const idx : helper::indices(elem_exprs.size())) {
@@ -448,12 +448,6 @@ public:
     }
 
     template<class Expr>
-    val emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs)
-    {
-        return emit_aggregate_constant(t, elem_exprs, [this](auto const& a){ return llvm::ConstantStruct::getAnon(ctx.llvm_context, a); });
-    }
-
-    template<class Expr>
     val emit_tuple_constant(std::vector<Expr> const& elem_exprs)
     {
         auto const the_type
@@ -464,19 +458,77 @@ public:
         return emit_tuple_constant(the_type, elem_exprs);
     }
 
+    template<class T>
+    bool has_different_length_array_elements(T const& elem_exprs) const
+    {
+        if (elem_exprs.empty()) {
+            return false;
+        }
+
+        if (!all_of(elem_exprs, [](auto const& e) -> bool { return type::has<type::array_type>(type::type_of(e)); })) {
+            return false;
+        }
+
+        auto const s = (*type::get<type::array_type>(type::type_of(elem_exprs[0])))->size;
+        if (!s) {
+            return false;
+        }
+
+        // Note:
+        // Size of any of element arrays is different.
+        // e.g.
+        //  [ [1, 2], [1], [1, 2] ] # 2nd element's length is 1
+        for (auto const& e : elem_exprs) {
+            auto const t = *type::get<type::array_type>(type::type_of(e));
+            if (t->size != s) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     template<class Expr>
     val emit_array_constant(type::array_type const& t, std::vector<Expr> const& elem_exprs)
     {
-        return emit_aggregate_constant(
-                t,
-                elem_exprs,
-                [&, this](auto const& e)
-                {
-                    auto *const ty = llvm::dyn_cast<llvm::ArrayType>(type_emitter.emit(t));
-                    assert(ty);
-                    return llvm::ConstantArray::get(ty, e);
-                }
-            );
+
+        // XXX:
+        // Workaround!
+        if (has_different_length_array_elements(elem_exprs)) {
+            // TODO
+            return nullptr;
+        }
+
+        std::vector<val> elem_values;
+        elem_values.reserve(elem_exprs.size());
+        for (auto const& e : elem_exprs) {
+            elem_values.push_back(emit(e));
+        }
+
+        if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
+            std::vector<llvm::Constant *> elem_consts;
+            for (auto const v : elem_values) {
+                auto *const constant = llvm::dyn_cast<llvm::Constant>(v);
+                assert(constant);
+                elem_consts.push_back(constant);
+            }
+
+            return llvm::ConstantArray::get(llvm::dyn_cast<llvm::ArrayType>(type_emitter.emit(t)), elem_consts);
+        } else {
+            auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(t));
+            for (auto const idx : helper::indices(elem_exprs.size())) {
+                auto *const elem_val = get_operand(emit(elem_exprs[idx]));
+                ctx.builder.CreateStore(
+                        elem_val,
+                        // Note:
+                        // CreateStructGEP is also available for array value because
+                        // it is equivalent to CreateConstInBoundsGEP2_32(v, 0u, i).
+                        ctx.builder.CreateStructGEP(alloca_inst, idx)
+                    );
+            }
+
+            return alloca_inst;
+        }
     }
 
     val emit(ast::node::tuple_literal const& tuple)
