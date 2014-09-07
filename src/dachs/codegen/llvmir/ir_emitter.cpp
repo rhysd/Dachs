@@ -453,11 +453,6 @@ public:
         return emit_tuple_constant(the_type, elem_exprs);
     }
 
-    template<class Exprs>
-    llvm::AllocaInst alloc_array(val const ty, Exprs const& elem_exprs)
-    {
-    }
-
     template<class T>
     bool has_different_length_array_elements(type::array_type const& arr_type, T const& elem_exprs) const
     {
@@ -495,47 +490,63 @@ public:
         return false;
     }
 
+    template<class Exprs>
+    llvm::AllocaInst *emit_array_constant_workaround(type::array_type const& t, Exprs const& elem_exprs)
+    {
+        assert(type::has<type::array_type>(t->element_type));
+
+        // Type missmatch! element must be pointer type, not array
+        auto *const alloca_inst = ctx.builder.CreateAlloca(llvm::ArrayType::get(type_emitter.emit_variable_array(*type::get<type::array_type>(t->element_type)), *t->size));
+        for (auto const idx : helper::indices(elem_exprs.size())) {
+            val elem_val = nullptr;
+            auto const& e = elem_exprs[idx];
+            auto const elem_t = *type::get<type::array_type>(type::type_of(e));
+
+            if (elem_t->size) {
+                elem_val = emit(e);
+                if (!elem_val->getType()->isPointerTy() && llvm::isa<llvm::Constant>(elem_val)) {
+                    // TODO: use global constant
+                    elem_val = ctx.builder.CreateConstInBoundsGEP2_32(
+                            ctx.builder.CreateStore(
+                                elem_val,
+                                ctx.builder.CreateAlloca(elem_val->getType())
+                            ),
+                            0u,
+                            0u
+                        );
+                } else {
+                    assert(elem_val->getType()->isPointerTy());
+                    elem_val = ctx.builder.CreateConstInBoundsGEP2_32(elem_val, 0u, 0u);
+                }
+            } else {
+                // Note:
+                // Size of the array is not specified.  It means a variable-length array.
+                elem_val = llvm::dyn_cast<llvm::GetElementPtrInst>(emit(e))->getPointerOperand();
+                assert(llvm::isa<llvm::AllocaInst>(elem_val));
+                assert(llvm::dyn_cast<llvm::AllocaInst>(elem_val)->isArrayAllocation());
+            }
+
+            assert(elem_val);
+            assert(elem_val->getType()->isPointerTy());
+
+            ctx.builder.CreateStore(
+                    elem_val,
+                    ctx.builder.CreateStructGEP(alloca_inst, idx)
+                );
+        }
+
+        return alloca_inst;
+    }
+
     template<class Expr>
     val emit_array_constant(type::array_type const& t, std::vector<Expr> const& elem_exprs)
     {
-
         auto *const ty = type_emitter.emit(t);
 
         // XXX:
         // Workaround!
         if (has_different_length_array_elements(t, elem_exprs)) {
-            auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(t));
-            for (auto const idx : helper::indices(elem_exprs.size())) {
-                val elem_val = nullptr;
-                auto const& e = elem_exprs[idx];
-                auto const elem_ty = *type::get<type::array_type>(type::type_of(e));
-
-                // TODO: WIP
-
-                if (elem_ty->size) {
-                    size_t const size = *elem_ty->size;
-                    // Emit e and if the result is constant, allocate it and getelementptr.
-                    // Otherwise, emit getelementptr directly
-                } else {
-                    // Note:
-                    // Size of the array is not specified.  It means a variable-length array.
-                    elem_val = llvm::dyn_cast<llvm::GetElementPtrInst>(emit(e))->getPointerOperand();
-                    assert(llvm::isa<llvm::AllocaInst>(elem_val));
-                    assert(llvm::dyn_cast<llvm::AllocaInst>(elem_val)->isArrayAllocation());
-                }
-
-                assert(elem_val);
-
-                ctx.builder.CreateStore(
-                        get_operand(elem_val),
-                        // Note:
-                        // CreateStructGEP is also available for array value because
-                        // it is equivalent to CreateConstInBoundsGEP2_32(v, 0u, i).
-                        ctx.builder.CreateStructGEP(alloca_inst, idx)
-                    );
-            }
-
-            return alloca_inst;
+            return emit_array_constant_workaround(t, elem_exprs);
         }
 
         std::vector<val> elem_values;
