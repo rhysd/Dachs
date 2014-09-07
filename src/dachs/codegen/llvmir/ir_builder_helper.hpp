@@ -199,6 +199,27 @@ public:
         return allocated;
     }
 
+    bool is_allocated_workaround_array(llvm::Value *const ptr) const
+    {
+        if (!ptr->getType()->isPointerTy()) {
+            return false;
+        }
+
+        auto *const gep = llvm::dyn_cast<llvm::GetElementPtrInst>(ptr);
+        if (!gep) {
+            return false;
+        }
+
+        auto *const operand = gep->getPointerOperand();
+        if (!llvm::isa<llvm::AllocaInst>(operand)) {
+            return false;
+        }
+
+        // XXX:
+        // I can't judge it is allocated in emit_array_constant_workaround() or not in some cases.
+        return operand->getType()->getPointerElementType()->isArrayTy();
+    }
+
     template<class PtrTypeType>
     void create_deep_copy(llvm::Value *const from, PtrTypeType *const to)
     {
@@ -220,6 +241,8 @@ public:
             if (auto *const struct_type = llvm::dyn_cast<llvm::StructType>(aggregate_type)) {
                 for (uint64_t const idx : irange(0u, struct_type->getNumElements())) {
                     if (!struct_type->getElementType(idx)->isPointerTy()) {
+                        // Note:
+                        // If element type is not pointer, it is already copied by memcpy()
                         continue;
                     }
 
@@ -231,30 +254,41 @@ public:
                             , ptr_to_elem
                         );
                 }
+
             } else if (auto *const array_type = llvm::dyn_cast<llvm::ArrayType>(aggregate_type)) {
                 auto *const elem_type = array_type->getArrayElementType();
+
+                // Note:
+                // If element type is dynamically allocated value, it is pointer and should be copied recursively
+                // Note:
+                // If element is pointer to pointer, it is the pointer to array which is allocated in emit_array_constant_workaround()
                 if (elem_type->isPointerTy()) {
-                    for (uint64_t const idx
-                        : irange((uint64_t)0u, array_type->getNumElements())) {
+                    for (uint64_t const idx : irange(uint64_t{0u}, array_type->getNumElements())) {
                         auto *const ptr_to_elem = ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx);
-                        ctx.builder.CreateStore(
-                                alloc_and_deep_copy(
-                                    ctx.builder.CreateLoad(ptr_to_elem)
-                                )
-                                , ptr_to_elem
-                            );
+                        if (!is_allocated_workaround_array(ptr_to_elem)) {
+                            ctx.builder.CreateStore(
+                                    alloc_and_deep_copy(
+                                        ctx.builder.CreateLoad(ptr_to_elem)
+                                    ),
+                                    ptr_to_elem
+                                );
+                        } else {
+                            // TODO!
+                        }
                     }
                 }
+
             } else {
                 DACHS_RAISE_INTERNAL_COMPILATION_ERROR
             }
+
         } else if (llvm::isa<llvm::AllocaInst>(from) || llvm::isa<llvm::GetElementPtrInst>(from)) {
             ctx.builder.CreateStore(ctx.builder.CreateLoad(from), to);
+
         } else {
             ctx.builder.CreateStore(from, to);
         }
     }
-
 };
 
 } // namespace llvmir

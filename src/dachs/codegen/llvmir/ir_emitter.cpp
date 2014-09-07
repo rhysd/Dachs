@@ -498,39 +498,33 @@ public:
         // Type missmatch! element must be pointer type, not array
         auto *const alloca_inst = ctx.builder.CreateAlloca(llvm::ArrayType::get(type_emitter.emit_variable_array(*type::get<type::array_type>(t->element_type)), *t->size));
         for (auto const idx : helper::indices(elem_exprs.size())) {
-            val elem_val = nullptr;
+            val elem_gep = nullptr;
             auto const& e = elem_exprs[idx];
             auto const elem_t = *type::get<type::array_type>(type::type_of(e));
 
             if (elem_t->size) {
-                elem_val = emit(e);
+                auto *const elem_val = emit(e);
                 if (!elem_val->getType()->isPointerTy() && llvm::isa<llvm::Constant>(elem_val)) {
-                    // TODO: use global constant
-                    elem_val = ctx.builder.CreateConstInBoundsGEP2_32(
-                            ctx.builder.CreateStore(
-                                elem_val,
-                                ctx.builder.CreateAlloca(elem_val->getType())
-                            ),
-                            0u,
-                            0u
-                        );
+                    auto *const elem_alloca = ctx.builder.CreateAlloca(elem_val->getType());
+                    ctx.builder.CreateStore(elem_val, elem_alloca);
+                    elem_gep = ctx.builder.CreateConstInBoundsGEP2_32(elem_alloca, 0u, 0u);
                 } else {
                     assert(elem_val->getType()->isPointerTy());
-                    elem_val = ctx.builder.CreateConstInBoundsGEP2_32(elem_val, 0u, 0u);
+                    elem_gep = ctx.builder.CreateConstInBoundsGEP2_32(elem_val, 0u, 0u);
                 }
             } else {
                 // Note:
-                // Size of the array is not specified.  It means a variable-length array.
-                elem_val = llvm::dyn_cast<llvm::GetElementPtrInst>(emit(e))->getPointerOperand();
-                assert(llvm::isa<llvm::AllocaInst>(elem_val));
-                assert(llvm::dyn_cast<llvm::AllocaInst>(elem_val)->isArrayAllocation());
+                // Size of array is not specified.  It means a variable-length array.
+                elem_gep = llvm::dyn_cast<llvm::GetElementPtrInst>(emit(e))->getPointerOperand();
+                assert(llvm::isa<llvm::AllocaInst>(elem_gep));
+                assert(llvm::dyn_cast<llvm::AllocaInst>(elem_gep)->isArrayAllocation());
             }
 
-            assert(elem_val);
-            assert(elem_val->getType()->isPointerTy());
+            assert(elem_gep);
+            assert(elem_gep->getType()->isPointerTy());
 
             ctx.builder.CreateStore(
-                    elem_val,
+                    elem_gep,
                     ctx.builder.CreateStructGEP(alloca_inst, idx)
                 );
         }
