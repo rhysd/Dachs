@@ -453,95 +453,10 @@ public:
         return emit_tuple_constant(the_type, elem_exprs);
     }
 
-    template<class T>
-    bool has_different_length_array_elements(type::array_type const& arr_type, T const& elem_exprs) const
-    {
-        if (elem_exprs.empty()) {
-            return false;
-        }
-
-        // Note:
-        // Element type of array type is determined with the type of first element of the array
-        auto const elem_type = type::get<type::array_type>(arr_type->element_type);
-
-        if (!elem_type) {
-            return false;
-        }
-
-        auto const s = (*type::get<type::array_type>(type::type_of(elem_exprs[0])))->size;
-        if (!s) {
-            return false;
-        }
-
-        // Note:
-        // Size of any of element arrays is different.
-        // e.g.
-        //  [ [1, 2], [1], [1, 2] ] # 2nd element's length is 1
-        for (auto const& e : elem_exprs) {
-            auto const t = *type::get<type::array_type>(type::type_of(e));
-            if (!t) {
-                continue;
-            }
-            if (t->size != s) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    template<class Exprs>
-    llvm::AllocaInst *emit_array_constant_workaround(type::array_type const& t, Exprs const& elem_exprs)
-    {
-        assert(type::has<type::array_type>(t->element_type));
-
-        // Type missmatch! element must be pointer type, not array
-        auto *const alloca_inst = ctx.builder.CreateAlloca(llvm::ArrayType::get(type_emitter.emit_variable_array(*type::get<type::array_type>(t->element_type)), *t->size));
-        for (auto const idx : helper::indices(elem_exprs.size())) {
-            val elem_gep = nullptr;
-            auto const& e = elem_exprs[idx];
-            auto const elem_t = *type::get<type::array_type>(type::type_of(e));
-
-            if (elem_t->size) {
-                auto *const elem_val = emit(e);
-                if (!elem_val->getType()->isPointerTy() && llvm::isa<llvm::Constant>(elem_val)) {
-                    auto *const elem_alloca = ctx.builder.CreateAlloca(elem_val->getType());
-                    ctx.builder.CreateStore(elem_val, elem_alloca);
-                    elem_gep = ctx.builder.CreateConstInBoundsGEP2_32(elem_alloca, 0u, 0u);
-                } else {
-                    assert(elem_val->getType()->isPointerTy());
-                    elem_gep = ctx.builder.CreateConstInBoundsGEP2_32(elem_val, 0u, 0u);
-                }
-            } else {
-                // Note:
-                // Size of array is not specified.  It means a variable-length array.
-                elem_gep = llvm::dyn_cast<llvm::GetElementPtrInst>(emit(e))->getPointerOperand();
-                assert(llvm::isa<llvm::AllocaInst>(elem_gep));
-                assert(llvm::dyn_cast<llvm::AllocaInst>(elem_gep)->isArrayAllocation());
-            }
-
-            assert(elem_gep);
-            assert(elem_gep->getType()->isPointerTy());
-
-            ctx.builder.CreateStore(
-                    elem_gep,
-                    ctx.builder.CreateStructGEP(alloca_inst, idx)
-                );
-        }
-
-        return alloca_inst;
-    }
-
     template<class Expr>
     val emit_array_constant(type::array_type const& t, std::vector<Expr> const& elem_exprs)
     {
         auto *const ty = type_emitter.emit(t);
-
-        // XXX:
-        // Workaround!
-        if (has_different_length_array_elements(t, elem_exprs)) {
-            return emit_array_constant_workaround(t, elem_exprs);
-        }
 
         std::vector<val> elem_values;
         elem_values.reserve(elem_exprs.size());

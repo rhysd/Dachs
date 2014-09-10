@@ -8,6 +8,7 @@
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
 #include <boost/algorithm/cxx11/all_of.hpp>
+#include <boost/algorithm/cxx11/any_of.hpp>
 #include <boost/range/algorithm/transform.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 
@@ -36,7 +37,6 @@ using std::size_t;
 using helper::variant::get_as;
 using helper::variant::has;
 using helper::variant::apply_lambda;
-using helper::any_of;
 using boost::adaptors::transformed;
 
 struct return_types_gatherer {
@@ -259,7 +259,7 @@ public:
             ast::make_walker(resolver).walk(func_);
             if (resolver.result.empty()) {
                 semantic_error(func, boost::format("Can't deduce return type of function '%1%' from return statement") % func->name);
-            } else if (!boost::algorithm::all_of(resolver.result, [&](auto const& t){ return resolver.result[0] == t; })) {
+            } else if (boost::algorithm::any_of(resolver.result, [&](auto const& t){ return resolver.result[0] != t; })) {
                 std::string note = "";
                 for (auto const& t : resolver.result) {
                     note += '\'' + t.to_string() + "' ";
@@ -320,9 +320,9 @@ public:
                 }
             }
 
-            if (!boost::algorithm::all_of(
+            if (boost::algorithm::any_of(
                         gatherer.result_types,
-                        [&](auto const& t){ return gatherer.result_types[0] == t; })) {
+                        [&](auto const& t){ return gatherer.result_types[0] != t; })) {
                 semantic_error(
                         func,
                         boost::format("Mismatch among the result types of return statements in function '%1%'")
@@ -501,13 +501,38 @@ public:
             }
         } else {
             auto arg0_type = type_of(arr_lit->element_exprs[0]);
-            if (!boost::algorithm::all_of(
+            if (boost::algorithm::any_of(
                     arr_lit->element_exprs,
-                    [&](auto const& e){ return arg0_type == type_of(e); })
+                    [&](auto const& e){ return arg0_type != type_of(e); })
                 ) {
                 semantic_error(arr_lit, boost::format("All types of array elements must be '%1%'") % arg0_type.to_string());
                 return;
             }
+
+            if (auto const& arg0_arr_type = type::get<type::array_type>(arg0_type)) {
+                if (boost::algorithm::all_of(
+                        arr_lit->element_exprs,
+                        [](auto const& e) -> bool { return *(*type::get<type::array_type>(type_of(e)))->size; }
+                    )) {
+                    auto const arg0_size = *(*arg0_arr_type)->size;
+                    if (boost::algorithm::any_of(
+                            arr_lit->element_exprs,
+                            [arg0_size](auto const& e){ return *(*type::get<type::array_type>(type_of(e)))->size != arg0_size; }
+                        )) {
+                        semantic_error(arr_lit, "All array elements in an array must be the same length");
+                        return;
+                    }
+                } else if (boost::algorithm::any_of(
+                        arr_lit->element_exprs,
+                        [](auto const& e) -> bool { return *(*type::get<type::array_type>(type_of(e)))->size; }
+                    )) {
+                    // Note:
+                    // Some elements' types don't have its length and at least one element's type has its length
+                    semantic_error(arr_lit, "Some array elements have fixed length and others don't have");
+                    return;
+                }
+            }
+
             arr_lit->type = type::make<type::array_type>(arg0_type, arr_lit->element_exprs.size());
         }
     }
@@ -539,14 +564,14 @@ public:
         } else {
             auto key_type_elem0 = type_of(dict_lit->value[0].first);
             auto value_type_elem0 = type_of(dict_lit->value[0].second);
-            if (!boost::algorithm::all_of(
+            if (boost::algorithm::any_of(
                     dict_lit->value,
                     [&](auto const& v)
                     {
                         // TODO:
                         // More comrehensive error message
-                        return type_of(v.first) == key_type_elem0
-                            && type_of(v.second) == value_type_elem0;
+                        return type_of(v.first) != key_type_elem0
+                            || type_of(v.second) != value_type_elem0;
                     })
                 ) {
                 semantic_error(dict_lit,
@@ -669,7 +694,7 @@ public:
 
         // TODO:
         // Find operator function and get the result type of it
-        if (any_of({"==", "!=", ">", "<", ">=", "<="}, bin_expr->op)) {
+        if (helper::any_of({"==", "!=", ">", "<", ">=", "<="}, bin_expr->op)) {
             bin_expr->type = type::get_builtin_type("bool", type::no_opt);
         } else if (bin_expr->op == "&&" || bin_expr->op == "||") {
             if (lhs_type != type::get_builtin_type("bool", type::no_opt)) {

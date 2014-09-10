@@ -105,18 +105,12 @@ public:
         return llvm::ArrayType::get(emit(a->element_type), *a->size);
     }
 
-    llvm::PointerType *emit_variable_array(type::array_type const& a)
-    {
-        return llvm::PointerType::getUnqual(emit(a->element_type));
-    }
-
     llvm::Type *emit(type::array_type const& a)
     {
         if (a->size) {
             return emit_fixed_array(a);
         } else {
             throw not_implemented_error{__FILE__, __func__, __LINE__, "variable array type LLVM IR generation"};
-            return emit_variable_array(a);
         }
     }
 
