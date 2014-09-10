@@ -278,6 +278,109 @@ BOOST_AUTO_TEST_CASE(tuple)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(array)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            a := [1, 2, 3]
+            var a2 := [1, 2, 3]
+
+            p := -1
+            q := -2
+            a4 := [p, q, -3]
+            var a5 := [p, q, -3]
+
+            a6 := foo()
+            var a7 := foo2()
+            a8 := foo2()
+            var a9 := foo()
+
+            a2 = a
+            a5 = a
+            a7 = a
+
+            a2 = a2
+            a5 = a2
+            a7 = a2
+
+            a[0]
+            a[1]
+            a[2]
+
+            a2[0]
+            a2[1]
+            a2[2]
+
+            var i := 2
+            a[i]
+            a2[i]
+
+            bar(a) # Error here (It seems that array parameter is not constant.)
+            bar(a2)
+            bar2(a)
+            bar2(a2)
+
+            a10     := [a2[0], a5[1], a7[2]]
+            var a11 := [a2[0], a5[1], a7[2]]
+            a2       = [a2[0], a5[1], a7[2]]
+
+            a2[0] = -42
+            a2[1] = a[0]
+            a2[2] = a2[0]
+
+            a12 := [[1], [2], [3]]
+            var a13 := [[1], [2], [3]]
+
+            a12[2][0]
+            a13[2][0]
+
+            a13[2][0] = 45
+            a13[2][0] = a12[0][0]
+            a13[2][0] = a13[0][0]
+
+            s := a12[1][0]
+            var t := a13[1][0]
+            u := a13[1][0]
+            var v := a12[1][0]
+
+            bar(a12[0])
+            bar(a13[0])
+            bar2(a12[0])
+            bar2(a13[0])
+
+            baz(a12)
+            baz(a13)
+            baz2(a12)
+            baz2(a13)
+        end
+
+        func foo()
+            return [1, 2, 3]
+        end
+
+        func foo2()
+            var a := [1, 2, 3]
+            return a
+        end
+
+        func bar(a)
+            return a[0] + a[1]
+        end
+
+        func bar2(var a)
+            return a[0] + a[1]
+        end
+
+        func baz(a)
+            return a[0][0] + a[1][0]
+        end
+
+        func baz2(var a)
+            return a[0][0] + a[1][0]
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(binary_expression)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
