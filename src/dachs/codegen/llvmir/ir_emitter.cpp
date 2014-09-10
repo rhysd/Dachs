@@ -291,17 +291,23 @@ class llvm_ir_emitter {
 
         val emit(ast::node::index_access const& access)
         {
-            // XXX:
-            // Too ad hoc.  It should be resolved by solving #2.
             auto const child_val = emitter.emit(access->child);
             auto const index_val = emitter.emit(access->index_expr);
-            if (auto const child_tuple_type = type::get<type::tuple_type>(type::type_of(access->child))) {
+            auto const child_type = type::type_of(access->child);
+            if (type::has<type::tuple_type>(child_type)) {
                 auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
                 if (!constant_index) {
                     emitter.error(access, "Index is not a constant.");
                 }
                 return emitter.ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue());
-            // } else if (array) {
+            } else if (type::has<type::array_type>(child_type)) {
+                return emitter.ctx.builder.CreateInBoundsGEP(
+                        child_val,
+                        (val [2]){
+                            emitter.ctx.builder.getInt64(0u),
+                            index_val
+                        }
+                    );
             } else {
                 emitter.error(access, "Not a tuple value (in assignment statement)");
             }
@@ -810,7 +816,7 @@ public:
 
         } else if (type::has<type::array_type>(child_type)) {
             assert(index_val->getType()->isIntegerTy());
-            bool child_is_constant = llvm::isa<llvm::Constant>(child_val);
+            bool const child_is_constant = llvm::isa<llvm::Constant>(child_val);
             if (constant_index && child_is_constant) {
                 return with_check(ctx.builder.CreateExtractValue(child_val, constant_index->getZExtValue()));
             } else {
