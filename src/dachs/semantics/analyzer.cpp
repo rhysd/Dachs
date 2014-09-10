@@ -495,46 +495,49 @@ public:
     {
         recursive_walker();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
-        if (arr_lit->element_exprs.empty()) {
-            if (!arr_lit->type) {
-                semantic_error(arr_lit, "Empty array must be typed by ':'");
-            }
-        } else {
-            auto arg0_type = type_of(arr_lit->element_exprs[0]);
-            if (boost::algorithm::any_of(
-                    arr_lit->element_exprs,
-                    [&](auto const& e){ return arg0_type != type_of(e); })
-                ) {
-                semantic_error(arr_lit, boost::format("All types of array elements must be '%1%'") % arg0_type.to_string());
-                return;
-            }
+        if (arr_lit->element_exprs.empty() && !arr_lit->type) {
+            semantic_error(arr_lit, "Empty array must be typed by ':'");
+            return;
+        }
 
-            if (auto const& arg0_arr_type = type::get<type::array_type>(arg0_type)) {
-                if (boost::algorithm::all_of(
+        auto arg0_type = type_of(arr_lit->element_exprs[0]);
+        if (boost::algorithm::any_of(
+                arr_lit->element_exprs,
+                [&](auto const& e){ return arg0_type != type_of(e); })
+            ) {
+            semantic_error(arr_lit, boost::format("All types of array elements must be '%1%'") % arg0_type.to_string());
+            return;
+        }
+
+        if (auto const& arg0_arr_type = type::get<type::array_type>(arg0_type)) {
+            auto const knows_size =
+                [](auto const& e) -> bool { return *(*type::get<type::array_type>(type_of(e)))->size; };
+
+            if (boost::algorithm::all_of(
+                    arr_lit->element_exprs,
+                    knows_size
+                )) {
+                auto const arg0_size = *(*arg0_arr_type)->size;
+                if (boost::algorithm::any_of(
                         arr_lit->element_exprs,
-                        [](auto const& e) -> bool { return *(*type::get<type::array_type>(type_of(e)))->size; }
+                        [arg0_size](auto const& e){ return *(*type::get<type::array_type>(type_of(e)))->size != arg0_size; }
                     )) {
-                    auto const arg0_size = *(*arg0_arr_type)->size;
-                    if (boost::algorithm::any_of(
-                            arr_lit->element_exprs,
-                            [arg0_size](auto const& e){ return *(*type::get<type::array_type>(type_of(e)))->size != arg0_size; }
-                        )) {
-                        semantic_error(arr_lit, "All array elements in an array must be the same length");
-                        return;
-                    }
-                } else if (boost::algorithm::any_of(
-                        arr_lit->element_exprs,
-                        [](auto const& e) -> bool { return *(*type::get<type::array_type>(type_of(e)))->size; }
-                    )) {
-                    // Note:
-                    // Some elements' types don't have its length and at least one element's type has its length
-                    semantic_error(arr_lit, "Some array elements have fixed length and others don't have");
+                    semantic_error(arr_lit, "All array elements in an array must be the same length");
                     return;
                 }
-            }
 
-            arr_lit->type = type::make<type::array_type>(arg0_type, arr_lit->element_exprs.size());
+            } else if (boost::algorithm::any_of(
+                    arr_lit->element_exprs,
+                    knows_size
+                )) {
+                // Note:
+                // Some elements' types don't have its length and at least one element's type has its length
+                semantic_error(arr_lit, "Some array elements have fixed length and others don't have");
+                return;
+            }
         }
+
+        arr_lit->type = type::make<type::array_type>(arg0_type, arr_lit->element_exprs.size());
     }
 
     template<class Walker>
@@ -557,31 +560,31 @@ public:
     {
         recursive_walker();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
-        if (dict_lit->value.empty()) {
-            if (!dict_lit->type) {
-                semantic_error(dict_lit, "Empty dictionary must be typed by ':'");
-            }
-        } else {
-            auto key_type_elem0 = type_of(dict_lit->value[0].first);
-            auto value_type_elem0 = type_of(dict_lit->value[0].second);
-            if (boost::algorithm::any_of(
-                    dict_lit->value,
-                    [&](auto const& v)
-                    {
-                        // TODO:
-                        // More comrehensive error message
-                        return type_of(v.first) != key_type_elem0
-                            || type_of(v.second) != value_type_elem0;
-                    })
-                ) {
-                semantic_error(dict_lit,
-                               boost::format("Type of keys or values mismatches\nNote: Key type is '%1%' and value type is '%2%'")
-                               % key_type_elem0.to_string()
-                               % value_type_elem0.to_string());
-                return;
-            }
-            dict_lit->type = type::make<type::dict_type>(key_type_elem0, value_type_elem0);
+        if (dict_lit->value.empty() && !dict_lit->type) {
+            semantic_error(dict_lit, "Empty dictionary must be typed by ':'");
+            return;
         }
+
+        auto key_type_elem0 = type_of(dict_lit->value[0].first);
+        auto value_type_elem0 = type_of(dict_lit->value[0].second);
+
+        if (boost::algorithm::any_of(
+                dict_lit->value,
+                [&](auto const& v)
+                {
+                    return type_of(v.first) != key_type_elem0 || type_of(v.second) != value_type_elem0;
+                })
+            ) {
+            semantic_error(
+                    dict_lit,
+                    boost::format("Type of keys or values mismatches\nNote: Key type is '%1%' and value type is '%2%'")
+                    % key_type_elem0.to_string()
+                    % value_type_elem0.to_string()
+                );
+            return;
+        }
+
+        dict_lit->type = type::make<type::dict_type>(key_type_elem0, value_type_elem0);
     }
 
     template<class Walker>
@@ -784,7 +787,7 @@ public:
             return;
         }
 
-        if (!type::has<type::func_ref_type>(var_sym->type)) {
+        if (!type::is_a<type::func_ref_type>(var_sym->type)) {
             semantic_error(invocation
                          , boost::format("'%1%' is not a function or function reference\nNote: Type of %1% is %2%")
                             % var_sym->name

@@ -41,43 +41,6 @@
 #include "dachs/helper/colorizer.hpp"
 #include "dachs/helper/each.hpp"
 
-/*
- * Note:
- * When code generator is too big to manage one class,
- * separate visitors to each nodes to individual classes.
- * I think they are specialization of class template
- *
- * template<class T>
- * class code_generator : code_generator_base; // If need default implementation, implement it as this primary class
- *
- * template<>
- * class code_generator<ast::node::inu> : code_generator_base { ... };
- *
- * template<>
- * class code_generator<ast::node::function_definition> : code_generator_base { ... };
- *
- * ...
- *
- *
- * These specialized class template visitors can be separated to individual transform units.
- *
- * class codegen_walker {
- *     context ctx;
- *     llvm::IRBuilder<> builder;
- *
- * public:
- *
- *     template<class T, class W>
- *     void visit(std::shared_ptr<T> const& n, W const& walker)
- *     {
- *         code_generator<T> generator{n, ctx, builder};
- *         generator.emit_before();
- *         walker();
- *         generator.emit_after();
- *     }
- * };
- */
-
 namespace dachs {
 namespace codegen {
 namespace llvmir {
@@ -250,7 +213,7 @@ class llvm_ir_emitter {
 
     bool is_available_type_for_binary_expression(type::type const& lhs, type::type const& rhs) const noexcept
     {
-        if (type::has<type::tuple_type>(lhs) && type::has<type::tuple_type>(rhs)) {
+        if (type::is_a<type::tuple_type>(lhs) && type::is_a<type::tuple_type>(rhs)) {
             // XXX:
             // Too adhoc.
             // Additional checking is in code generation
@@ -294,13 +257,13 @@ class llvm_ir_emitter {
             auto const child_val = emitter.emit(access->child);
             auto const index_val = emitter.emit(access->index_expr);
             auto const child_type = type::type_of(access->child);
-            if (type::has<type::tuple_type>(child_type)) {
+            if (type::is_a<type::tuple_type>(child_type)) {
                 auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
                 if (!constant_index) {
                     emitter.error(access, "Index is not a constant.");
                 }
                 return emitter.ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue());
-            } else if (type::has<type::array_type>(child_type)) {
+            } else if (type::is_a<type::array_type>(child_type)) {
                 return emitter.ctx.builder.CreateInBoundsGEP(
                         child_val,
                         (val [2]){
@@ -497,7 +460,7 @@ public:
 
     val emit(ast::node::tuple_literal const& tuple)
     {
-        assert(type::has<type::tuple_type>(tuple->type));
+        assert(type::is_a<type::tuple_type>(tuple->type));
         return check(
                 tuple,
                 emit_tuple_constant(
@@ -510,7 +473,7 @@ public:
 
     val emit(ast::node::array_literal const& array)
     {
-        assert(type::has<type::array_type>(array->type));
+        assert(type::is_a<type::array_type>(array->type));
         return check(
                 array,
                 emit_array_constant(
@@ -692,7 +655,7 @@ public:
             // Return statements with no expression in functions should returns unit
             ctx.builder.CreateRetVoid();
         } else {
-            assert(type::has<type::tuple_type>(return_->ret_type));
+            assert(type::is_a<type::tuple_type>(return_->ret_type));
             ctx.builder.CreateRet(
                 get_operand(
                     emit_tuple_constant(
@@ -797,7 +760,7 @@ public:
                 return check(access, v, "index access");
             };
 
-        if (type::has<type::tuple_type>(child_type)) {
+        if (type::is_a<type::tuple_type>(child_type)) {
 
             // Note:
             // Do not emit index expression because it is a integer literal and it is
@@ -814,7 +777,7 @@ public:
                         ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue())
                 );
 
-        } else if (type::has<type::array_type>(child_type)) {
+        } else if (type::is_a<type::array_type>(child_type)) {
             assert(index_val->getType()->isIntegerTy());
             bool const child_is_constant = llvm::isa<llvm::Constant>(child_val);
             if (constant_index && child_is_constant) {

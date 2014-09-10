@@ -222,14 +222,14 @@ public:
     bool is_builtin(String const& name) const noexcept;
 
     template<class T>
-    friend bool has(any_type const&);
+    friend bool is_a(any_type const&);
 
     template<class T>
     friend boost::optional<T const&> get(any_type const&);
 };
 
 template<class T>
-inline bool has(any_type const& t)
+inline bool is_a(any_type const& t)
 {
     return helper::variant::has<T>(t.value);
 }
@@ -237,7 +237,7 @@ inline bool has(any_type const& t)
 // Note:
 // When the argument of has() is not any_type
 template<class T, class U>
-inline constexpr bool has(U const&)
+inline constexpr bool is_a(U const&)
 {
     return std::is_same<T, U>::value;
 }

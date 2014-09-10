@@ -39,7 +39,7 @@ std::size_t get_overloaded_function_score(FuncScope const& func, ArgTypes const&
             [](auto const& arg_type, auto const& param)
             {
                 assert(arg_type);
-                if (type::has<type::template_type>(param->type)) {
+                if (type::is_a<type::template_type>(param->type)) {
                     // Function parameter is template.  It matches any types.
                     return 1u;
                 }
