@@ -55,8 +55,25 @@ class tmp_member_ir_emitter {
             }
         }
 
-        val operator()(type::array_type const&)
+        val operator()(type::array_type const& t)
         {
+            if (name == "size") {
+                if (t->size) {
+                    return ctx.builder.getInt64(*t->size);
+                } else {
+                    auto *ty = value->getType();
+                    if (ty->isPointerTy()) {
+                        ty = ty->getPointerElementType();
+                    }
+
+                    if (!llvm::isa<llvm::ArrayType>(ty)) {
+                        return nullptr;
+                    }
+
+                    return ctx.builder.getInt64(ty->getArrayNumElements());
+                }
+            }
+
             return nullptr;
         }
 

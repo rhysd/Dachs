@@ -52,6 +52,9 @@ struct member_variable_checker : boost::static_visitor<boost::variant<type::type
 
     result_type operator()(type::array_type const& ) const
     {
+        if (member_name == "size") {
+            return builtin_type("uint");
+        }
         return '\'' + member_name + "' is not a member of array";
     }
 

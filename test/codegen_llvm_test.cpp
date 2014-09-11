@@ -315,7 +315,7 @@ BOOST_AUTO_TEST_CASE(array)
             a[i]
             a2[i]
 
-            bar(a) # Error here (It seems that array parameter is not constant.)
+            bar(a)
             bar(a2)
             bar2(a)
             bar2(a2)
@@ -328,8 +328,8 @@ BOOST_AUTO_TEST_CASE(array)
             a2[1] = a[0]
             a2[2] = a2[0]
 
-            a12 := [[1], [2], [3]]
-            var a13 := [[1], [2], [3]]
+            a12 := [[1, -1], [2, -2], [3, -3]]
+            var a13 := [[1, 1], [2, -2], [3, -3]]
 
             a12[2][0]
             a13[2][0]
@@ -352,6 +352,10 @@ BOOST_AUTO_TEST_CASE(array)
             baz(a13)
             baz2(a12)
             baz2(a13)
+
+            # Members
+            a.size
+            a2.size
         end
 
         func foo()
