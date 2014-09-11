@@ -750,7 +750,7 @@ public:
         auto const child_type = type::type_of(access->child);
         auto *const child_val = emit(access->child);
         auto *const index_val = get_operand(emit(access->index_expr));
-        auto *const t = child_val->getType();
+        auto *const ty = child_val->getType();
         auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
 
         auto const with_check
@@ -768,26 +768,25 @@ public:
                 error(access, "Index is not a constant.");
             }
 
-            assert(t->isStructTy() || (t->isPointerTy() && t->getPointerElementType()->isStructTy()));
+            assert(ty->isStructTy() || (ty->isPointerTy() && ty->getPointerElementType()->isStructTy()));
 
             return with_check(
-                    t->isStructTy() ?
+                    ty->isStructTy() ?
                         ctx.builder.CreateExtractValue(child_val, constant_index->getZExtValue()) :
                         ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue())
                 );
 
         } else if (type::is_a<type::array_type>(child_type)) {
             assert(index_val->getType()->isIntegerTy());
-            bool const child_is_constant = llvm::isa<llvm::Constant>(child_val);
-            if (constant_index && child_is_constant) {
+
+            if (constant_index && !ty->isPointerTy()) {
                 return with_check(ctx.builder.CreateExtractValue(child_val, constant_index->getZExtValue()));
             } else {
-                assert(child_is_constant || child_val->getType()->isPointerTy());
                 return with_check(
                         ctx.builder.CreateInBoundsGEP(
-                            child_is_constant ?
-                                get_ir_helper(access).alloc_and_deep_copy(child_val) :
-                                child_val,
+                            ty->isPointerTy() ?
+                                child_val :
+                                get_ir_helper(access).alloc_and_deep_copy(child_val),
                             (val [2]){
                                 ctx.builder.getInt32(0u),
                                 index_val->getType()->isIntegerTy(32u) ?
