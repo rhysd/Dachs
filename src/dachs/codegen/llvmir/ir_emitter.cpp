@@ -533,25 +533,24 @@ public:
         auto const param_sym = param->param_symbol.lock();
         if (!param_sym->immutable) {
             // Note:
-            // The parameter is already registered as register value for variable table in func_prototype()
+            // The parameter is already registered as register value for variable table in emit_func_prototype()
             // So at first we delete the value and re-register it as allocated value
             auto const register_val = var_table.lookup_register_value(param_sym);
             assert(register_val);
             var_table.erase_register_value(param_sym);
 
+            assert(type_emitter.emit(param_sym->type) == register_val->getType());
+
             auto const inst
                 = check(
                     param,
-                    helper.create_alloca(register_val),
+                    helper.alloc_and_deep_copy(register_val, param_sym->name),
                     "allocation for variable parameter"
                 );
-
-            assert(type_emitter.emit(param_sym->type) == register_val->getType());
 
             auto const result = var_table.insert(param_sym, inst);
             assert(result);
             (void) result;
-            check(param, ctx.builder.CreateStore(register_val, inst), "storing variable parameter");
         }
 
     }
