@@ -776,11 +776,17 @@ public:
                         ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue())
                 );
 
-        } else if (type::is_a<type::array_type>(child_type)) {
+        } else if (auto const maybe_array_type = type::get<type::array_type>(child_type)) {
             assert(index_val->getType()->isIntegerTy());
 
             if (constant_index && !ty->isPointerTy()) {
-                return with_check(ctx.builder.CreateExtractValue(child_val, constant_index->getZExtValue()));
+                auto const idx = constant_index->getZExtValue();
+                assert(ty->isArrayType());
+                auto const size = ty->getArrayNumElements();
+                if (idx >= size) {
+                    error(access, boost::format("Array index is out of bounds (size:%1%, index:%2%)") % size % idx);
+                }
+                return with_check(ctx.builder.CreateExtractValue(child_val, idx));
             } else {
                 return with_check(
                         ctx.builder.CreateInBoundsGEP(
