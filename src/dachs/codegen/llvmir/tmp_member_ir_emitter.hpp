@@ -48,6 +48,8 @@ class tmp_member_ir_emitter {
                 return emit_tuple_access(0u);
             } else if (name == "second") {
                 return emit_tuple_access(1u);
+            } else if (name == "last") {
+                return emit_tuple_access(t->element_types.size() - 1);
             } else {
                 return nullptr;
             }

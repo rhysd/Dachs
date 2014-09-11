@@ -35,7 +35,7 @@ struct member_variable_checker : boost::static_visitor<boost::variant<type::type
     {
         if (member_name == "size") {
             return builtin_type("uint");
-        } else if (member_name == "first") {
+        } else if (member_name == "first" || member_name == "last") {
             if (tuple->element_types.empty()) {
                 return "index out of bounds for tuple '()'";
             }
@@ -66,11 +66,6 @@ inline auto check_member_var(ast::node::member_access const& member)
 {
     return type::type_of(member->child).apply_visitor(member_variable_checker{member->member_name});
 }
-
-// inline bool check_member_func_invocation()
-// {
-//    
-// }
 
 } // namespace detail
 } // namespace semantics

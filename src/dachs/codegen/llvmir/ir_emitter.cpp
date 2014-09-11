@@ -781,7 +781,7 @@ public:
 
             if (constant_index && !ty->isPointerTy()) {
                 auto const idx = constant_index->getZExtValue();
-                assert(ty->isArrayType());
+                assert(ty->isArrayTy());
                 auto const size = ty->getArrayNumElements();
                 if (idx >= size) {
                     error(access, boost::format("Array index is out of bounds (size:%1%, index:%2%)") % size % idx);
