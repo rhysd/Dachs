@@ -843,6 +843,84 @@ public:
         helper.terminate_with_br(cond_block, exit_block);
     }
 
+    void emit(ast::node::for_stmt const& for_)
+    {
+        auto helper = get_ir_helper(for_);
+
+        // Note:
+        // Now array is only supported
+
+        val range_val = emit(for_->range_expr);
+        if (!range_val->getType()->isPointerTy()) {
+            if (auto *const a = llvm::dyn_cast<llvm::ConstantArray>(range_val)) {
+                range_val = new llvm::GlobalVariable(*module, a->getType(), true, llvm::GlobalVariable::PrivateLinkage, a);
+            } else {
+                range_val = helper.alloc_and_deep_copy(range_val);
+            }
+        }
+
+        assert(range_val->getType()->isPointerTy());
+        assert(range_val->getType()->getPointerElementType()->isArrayTy());
+
+        auto *const range_size_val = ctx.builder.getInt32(range_val->getType()->getPointerElementType()->getArrayNumElements());
+        auto *const counter_val = ctx.builder.CreateAlloca(ctx.builder.getInt32Ty(), nullptr, "for.i");
+        ctx.builder.CreateStore(ctx.builder.getInt32(0u), counter_val);
+
+        if (for_->iter_vars.size() != 1u) {
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        }
+
+        auto const& param = for_->iter_vars[0];
+        auto const sym = param->param_symbol;
+        auto const iter_t = type_emitter.emit(param->type);
+        auto *const allocated =
+            param->is_var ? ctx.builder.CreateAlloca(iter_t, nullptr, param->name) : nullptr;
+
+        // Note:
+        // Do not emit parameter by emit(ast::node::parameter const&)
+
+        auto *const header_block = helper.create_block_for_parent("for.header");
+        auto *const body_block = helper.create_block_for_parent("for.body");
+        auto *const footer_block = helper.create_block_for_parent("for.footer");
+
+        helper.create_br(header_block);
+
+        auto *const loaded_counter_val = ctx.builder.CreateLoad(counter_val, "for.i.loaded");
+        helper.create_cond_br(
+                ctx.builder.CreateICmpULT(loaded_counter_val, range_size_val),
+                body_block,
+                footer_block
+            );
+
+        // TODO:
+        // Make for's variable definition as assignment statement?
+
+        if (param->name != "_" || !sym.expired()) {
+            auto *const elem_ptr_val =
+                ctx.builder.CreateInBoundsGEP(
+                    range_val,
+                    (val [2]){
+                        ctx.builder.getInt32(0u),
+                        loaded_counter_val
+                    },
+                    param->name
+                );
+
+            if (allocated) {
+                helper.create_deep_copy(elem_ptr_val, allocated);
+                var_table.insert(sym.lock(), allocated);
+            } else {
+                var_table.insert(sym.lock(), elem_ptr_val);
+                elem_ptr_val->setName(param->name);
+            }
+        }
+
+        emit(for_->body_stmts);
+
+        ctx.builder.CreateStore(ctx.builder.CreateAdd(loaded_counter_val, ctx.builder.getInt32(1u)), counter_val);
+        helper.create_br(header_block, footer_block);
+    }
+
     void emit(ast::node::initialize_stmt const& init)
     {
         if (!init->maybe_rhs_exprs) {
