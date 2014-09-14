@@ -767,6 +767,64 @@ BOOST_AUTO_TEST_CASE(case_statement)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(for_statement)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func make_arr
+            return ['a', 'b', 'c']
+        end
+
+        func make_arr2
+            var a := ['a', 'b', 'c']
+            return a
+        end
+
+        func main
+            for i in [1, 2, 3, 4, 5]
+                print(i)
+            end
+
+            a := [1, 2, 3, 4, 5]
+            for i in a
+                print(i)
+            end
+
+            var a2 := [1, 2, 3, 4, 5]
+            for i in a2
+                print(i)
+            end
+
+            for i in make_arr()
+                print(i)
+            end
+
+            for i in make_arr2()
+                print(i)
+            end
+
+            for var i in [1, 2, 3, 4, 5]
+                print(i)
+            end
+
+            for var i in a
+                print(i)
+            end
+
+            for var i in a2
+                print(i)
+            end
+
+            for var i in make_arr()
+                print(i)
+            end
+
+            for var i in make_arr2()
+                print(i)
+            end
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(while_statement)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
