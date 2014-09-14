@@ -38,6 +38,10 @@ class walker {
     template<class... Args>
     auto walker_for(Args &... children)
     {
+        // Note:
+        // It is no need to deal with below conditional branch on compile time
+        // because I can expect optimization.
+        // c.f. https://gist.github.com/rhysd/09962fbf6d86a94c7b7e
         return [&, this](auto &... args){
             if (sizeof...(args) == 0) {
                 walk_all(children...);
