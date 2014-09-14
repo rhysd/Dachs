@@ -25,6 +25,28 @@ class walker {
 
     Visitor &visitor;
 
+    void walk_all()
+    {}
+
+    template<class Head, class... Tail>
+    void walk_all(Head &h, Tail &... t)
+    {
+        walk(h);
+        walk_all(t...);
+    }
+
+    template<class... Args>
+    auto walker_for(Args &... children)
+    {
+        return [&, this](auto &... args){
+            if (sizeof...(args) == 0) {
+                walk_all(children...);
+            } else {
+                walk_all(args...);
+            }
+        };
+    }
+
 public:
 
     explicit walker(Visitor &v) noexcept
@@ -33,264 +55,251 @@ public:
 
     void walk(node::array_literal &al)
     {
-        visitor.visit(al, [&]{
-            walk(al->element_exprs);
-        });
+        visitor.visit(al, walker_for(
+            al->element_exprs
+        ));
     }
 
     void walk(node::tuple_literal &tl)
     {
-        visitor.visit(tl, [&]{
-            walk(tl->element_exprs);
-        });
+        visitor.visit(tl, walker_for(
+            tl->element_exprs
+        ));
     }
 
     void walk(node::dict_literal &dl)
     {
-        visitor.visit(dl, [&]{
-            for (auto &p : dl->value) {
-                walk(p);
-            }
-        });
+        visitor.visit(dl, walker_for(
+            dl->value
+        ));
     }
 
     void walk(node::parameter &p)
     {
-        visitor.visit(p, [&]{
-            walk(p->param_type);
-        });
+        visitor.visit(p, walker_for(
+            p->param_type
+        ));
     }
 
     void walk(node::func_invocation &fc)
     {
-        visitor.visit(fc, [&]{
-            walk(fc->child);
-            walk(fc->args);
-        });
+        visitor.visit(fc, walker_for(
+            fc->child,
+            fc->args
+        ));
     }
 
     void walk(node::object_construct &oc)
     {
-        visitor.visit(oc, [&]{
-            walk(oc->obj_type);
-            walk(oc->args);
-        });
+        visitor.visit(oc, walker_for(
+            oc->obj_type,
+            oc->args
+        ));
     }
 
     void walk(node::index_access &ia)
     {
-        visitor.visit(ia, [&]{
-            walk(ia->child);
-            walk(ia->index_expr);
-        });
+        visitor.visit(ia, walker_for(
+            ia->child,
+            ia->index_expr
+        ));
     }
 
     void walk(node::member_access &ma)
     {
-        visitor.visit(ma, [&]{
-            walk(ma->child);
-        });
+        visitor.visit(ma, walker_for(
+            ma->child
+        ));
     }
 
     void walk(node::unary_expr &ue)
     {
-        visitor.visit(ue, [&]{
-            walk(ue->expr);
-        });
+        visitor.visit(ue, walker_for(
+            ue->expr
+        ));
     }
 
     void walk(node::primary_type &tt)
     {
-        visitor.visit(tt, [&]{
-            walk(tt->instantiated_templates);
-        });
+        visitor.visit(tt, walker_for(
+            tt->instantiated_templates
+        ));
     }
 
     void walk(node::array_type &at)
     {
-        visitor.visit(at, [&]{
-            walk(at->elem_type);
-        });
+        visitor.visit(at, walker_for(
+            at->elem_type
+        ));
     }
 
     void walk(node::dict_type &dt)
     {
-        visitor.visit(dt, [&]{
-            walk(dt->key_type);
-            walk(dt->value_type);
-        });
+        visitor.visit(dt, walker_for(
+            dt->key_type,
+            dt->value_type
+        ));
     }
 
     void walk(node::tuple_type &tt)
     {
-        visitor.visit(tt, [&]{
-            walk(tt->arg_types);
-        });
+        visitor.visit(tt, walker_for(
+            tt->arg_types
+        ));
     }
 
     void walk(node::func_type &ft)
     {
-        visitor.visit(ft, [&]{
-            walk(ft->arg_types);
-            walk(ft->ret_type);
-        });
+        visitor.visit(ft, walker_for(
+            ft->arg_types,
+            ft->ret_type
+        ));
     }
 
     void walk(node::qualified_type &qt)
     {
-        visitor.visit(qt, [&]{
-            walk(qt->type);
-        });
+        visitor.visit(qt, walker_for(
+            qt->type
+        ));
     }
 
     void walk(node::cast_expr &ce)
     {
-        visitor.visit(ce, [&]{
-            walk(ce->child);
-            walk(ce->casted_type);
-        });
+        visitor.visit(ce, walker_for(
+            ce->child,
+            ce->casted_type
+        ));
     }
 
     void walk(node::binary_expr &be)
     {
-        visitor.visit(be, [&]{
-            walk(be->rhs);
-            walk(be->lhs);
-        });
+        visitor.visit(be, walker_for(
+            be->rhs,
+            be->lhs
+        ));
     }
 
     void walk(node::if_expr &ie)
     {
-        visitor.visit(ie, [&]{
-            walk(ie->condition_expr);
-            walk(ie->then_expr);
-            walk(ie->else_expr);
-        });
+        visitor.visit(ie, walker_for(
+            ie->condition_expr,
+            ie->then_expr,
+            ie->else_expr
+        ));
     }
 
     void walk(node::typed_expr &te)
     {
-        visitor.visit(te, [&]{
-            walk(te->child_expr);
-            walk(te->specified_type);
-        });
+        visitor.visit(te, walker_for(
+            te->child_expr,
+            te->specified_type
+        ));
     }
 
     void walk(node::variable_decl &vd)
     {
-        visitor.visit(vd, [&]{
-            walk(vd->maybe_type);
-        });
+        visitor.visit(vd, walker_for(
+            vd->maybe_type
+        ));
     }
 
     void walk(node::initialize_stmt &is)
     {
-        visitor.visit(is, [&]{
-            walk(is->var_decls);
-            if (is->maybe_rhs_exprs) {
-                walk(*(is->maybe_rhs_exprs));
-            }
-        });
+        visitor.visit(is, walker_for(
+            is->var_decls,
+            is->maybe_rhs_exprs
+        ));
     }
 
     void walk(node::assignment_stmt &as)
     {
-        visitor.visit(as, [&]{
-            walk(as->assignees);
-            walk(as->rhs_exprs);
-        });
+        visitor.visit(as, walker_for(
+            as->assignees,
+            as->rhs_exprs
+        ));
     }
 
     void walk(node::if_stmt &is)
     {
-        visitor.visit(is, [&]{
-            walk(is->condition);
-            walk(is->then_stmts);
-            for (auto &p : is->elseif_stmts_list) {
-                walk(p);
-            }
-            walk(is->maybe_else_stmts);
-        });
+        visitor.visit(is, walker_for(
+            is->condition,
+            is->then_stmts,
+            is->elseif_stmts_list,
+            is->maybe_else_stmts
+        ));
     }
 
     void walk(node::return_stmt &rs)
     {
-        visitor.visit(rs, [&]{
-            walk(rs->ret_exprs);
-        });
+        visitor.visit(rs, walker_for(
+            rs->ret_exprs
+        ));
     }
 
     void walk(node::case_stmt &cs)
     {
-        visitor.visit(cs, [&]{
-            for (auto &p : cs->when_stmts_list) {
-                walk(p);
-            }
-            walk(cs->maybe_else_stmts);
-        });
+        visitor.visit(cs, walker_for(
+            cs->when_stmts_list,
+            cs->maybe_else_stmts
+        ));
     }
 
     void walk(node::switch_stmt &ss)
     {
-        visitor.visit(ss, [&]{
-            walk(ss->target_expr);
-            for (auto &p : ss->when_stmts_list) {
-                walk(p.first);
-                walk(p.second);
-            }
-            walk(ss->maybe_else_stmts);
-        });
+        visitor.visit(ss, walker_for(
+            ss->target_expr,
+            ss->when_stmts_list,
+            ss->maybe_else_stmts
+        ));
     }
 
     void walk(node::for_stmt &fs)
     {
-        visitor.visit(fs, [&]{
-            walk(fs->iter_vars);
-            walk(fs->range_expr);
-            walk(fs->body_stmts);
-        });
+        visitor.visit(fs, walker_for(
+            fs->iter_vars,
+            fs->range_expr,
+            fs->body_stmts
+        ));
     }
 
     void walk(node::while_stmt &ws)
     {
-        visitor.visit(ws, [&]{
-            walk(ws->condition);
-            walk(ws->body_stmts);
-        });
+        visitor.visit(ws, walker_for(
+            ws->condition,
+            ws->body_stmts
+        ));
     }
 
     void walk(node::postfix_if_stmt &pif)
     {
-        visitor.visit(pif, [&]{
-            walk(pif->body);
-            walk(pif->condition);
-        });
+        visitor.visit(pif, walker_for(
+            pif->body,
+            pif->condition
+        ));
     }
 
     void walk(node::statement_block &sb)
     {
-        visitor.visit(sb, [&]{
-            walk(sb->value);
-        });
+        visitor.visit(sb, walker_for(
+            sb->value
+        ));
     }
 
     void walk(node::function_definition &fd)
     {
-        visitor.visit(fd, [&]{
-            for (auto &p : fd->params) {
-                walk(p);
-            }
-            walk(fd->return_type);
-            walk(fd->body);
-            walk(fd->ensure_body);
-        });
+        visitor.visit(fd, walker_for(
+            fd->params,
+            fd->return_type,
+            fd->body,
+            fd->ensure_body
+        ));
     }
 
     void walk(node::inu &p)
     {
-        visitor.visit(p, [&]{
-            walk(p->definitions);
-        });
+        visitor.visit(p, walker_for(
+            p->definitions
+        ));
     }
 
     template<class... Nodes>
