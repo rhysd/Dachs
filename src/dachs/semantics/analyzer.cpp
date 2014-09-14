@@ -939,8 +939,7 @@ public:
     template<class Walker>
     void visit(ast::node::for_stmt const& for_, Walker const& recursive_walker)
     {
-        auto for__ = for_; // Copy for lvalue reference
-        recursive_walker(for__->iter_vars, for__->range_expr);
+        recursive_walker(for_->iter_vars, for_->range_expr);
 
         auto const range_t = type_of(for_->range_expr);
         if (!range_t) {
@@ -1006,7 +1005,7 @@ public:
             semantic_error(for_, boost::format("Range to iterate in for statement must be range, array or dictionary but actually '%1%'") % range_t.to_string());
         }
 
-        recursive_walker(for__->body_stmts);
+        recursive_walker(for_->body_stmts);
     }
 
     void check_condition_expr(ast::node::any_expr const& expr)
