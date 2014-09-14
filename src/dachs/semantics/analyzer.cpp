@@ -939,7 +939,8 @@ public:
     template<class Walker>
     void visit(ast::node::for_stmt const& for_, Walker const& recursive_walker)
     {
-        recursive_walker();
+        auto for__ = for_; // Copy for lvalue reference
+        recursive_walker(for__->iter_vars, for__->range_expr);
 
         auto const range_t = type_of(for_->range_expr);
         if (!range_t) {
@@ -961,6 +962,7 @@ public:
                     }
                 } else {
                     param->type = t;
+                    assert(!param->param_symbol.expired());
                     param->param_symbol.lock()->type = t;
                 }
             };
@@ -978,9 +980,10 @@ public:
                     helper::each([&](auto &p, auto const& e){ substitute_param_type(p, e); }
                                 , for_->iter_vars
                                 , elem_tuple_type->element_types);
+
                 } else {
                     if (for_->iter_vars.size() != 1) {
-                        semantic_error(for_, "Number of a variable here in 'for' statement must be 1");
+                        semantic_error(for_, "Number of variable here in 'for' statement must be 1");
                         return;
                     }
                     substitute_param_type(for_->iter_vars[0], elem_type);
@@ -1002,6 +1005,8 @@ public:
         } else {
             semantic_error(for_, boost::format("Range to iterate in for statement must be range, array or dictionary but actually '%1%'") % range_t.to_string());
         }
+
+        recursive_walker(for__->body_stmts);
     }
 
     void check_condition_expr(ast::node::any_expr const& expr)

@@ -106,8 +106,7 @@ public:
         with_new_scope(std::move(new_func), recursive_walker);
     }
 
-    template<class Walker>
-    void visit(ast::node::parameter const& param, Walker const& recursive_walker)
+    auto get_param_sym(ast::node::parameter const& param)
     {
         // Note:
         // When the param's name is "_", it means unused.
@@ -135,7 +134,16 @@ public:
             new_param_sym->type = param->type;
         }
 
+        return new_param_sym;
+    }
+
+    template<class Walker>
+    void visit(ast::node::parameter const& param, Walker const& recursive_walker)
+    {
         if (auto maybe_func = get_as<scope::func_scope>(current_scope)) {
+
+            auto const new_param_sym = get_param_sym(param);
+
             if (!param->param_type) {
                 param->type = type::make<type::template_type>(param);
                 new_param_sym->type = param->type;
@@ -144,18 +152,39 @@ public:
                 failed++;
                 return;
             }
+
         } else if (auto maybe_local = get_as<scope::local_scope>(current_scope)) {
-            // When for statement
-            auto& local = *maybe_local;
-            if (!local->define_variable(new_param_sym)) {
-                failed++;
-                return;
-            }
+            // Note:
+            // Enter here when the param is a variable to iterate in 'for' statement
+
+            // XXX:
+            // Do nothing
+            // Symbol is defined in analyzer::visit(ast::node::for_stmt) for 'for' statement.
+            // This is because it requires a range of for to get a type of variable to iterate.
+
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
 
         recursive_walker();
+    }
+
+    template<class Walker>
+    void visit(ast::node::for_stmt const& for_, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        assert(!for_->body_stmts->scope.expired());
+        auto const child_scope = for_->body_stmts->scope.lock();
+
+        for (auto const& i : for_->iter_vars) {
+            assert(i->param_symbol.expired());
+            auto const sym = get_param_sym(i);
+            if (!child_scope->define_variable(sym)) {
+                failed++;
+                return;
+            }
+        }
     }
 
     // TODO: class scopes and member function scopes
