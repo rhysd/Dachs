@@ -385,6 +385,31 @@ BOOST_AUTO_TEST_CASE(array)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(object_construction)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            a := [char]{4u}
+            var b := [float]{4u}
+            c := [float]{4u, 3.14}
+            var d := [char]{4u, 'd'}
+            var s := [string]{4u, "aaa"}
+
+            var e := [uint]{32u}
+
+            var i := 0u
+            for i < e.size
+                e[i] = i
+                i += 1u
+            end
+
+            for i2 in e
+                println(i2)
+            end
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(binary_expression)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
