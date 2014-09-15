@@ -32,6 +32,7 @@
 #include "dachs/codegen/llvmir/variable_table.hpp"
 #include "dachs/codegen/llvmir/ir_builder_helper.hpp"
 #include "dachs/codegen/llvmir/tmp_member_ir_emitter.hpp"
+#include "dachs/codegen/llvmir/tmp_constructor_ir_emitter.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -65,6 +66,7 @@ class llvm_ir_emitter {
     std::stack<llvm::BasicBlock *> loop_stack; // Loop stack for continue and break statements
     type_ir_emitter type_emitter;
     tmp_member_ir_emitter member_emitter;
+    tmp_constructor_ir_emitter ctor_emitter;
 
     auto push_loop(llvm::BasicBlock *loop_value)
     {
@@ -320,6 +322,7 @@ public:
         , file(f)
         , type_emitter(ctx.llvm_context)
         , member_emitter(ctx)
+        , ctor_emitter(ctx)
     {}
 
     val emit(ast::node::primary_literal const& pl)
@@ -425,8 +428,6 @@ public:
     template<class Expr>
     val emit_array_constant(type::array_type const& t, std::vector<Expr> const& elem_exprs)
     {
-        auto *const ty = type_emitter.emit(t);
-
         std::vector<val> elem_values;
         elem_values.reserve(elem_exprs.size());
         for (auto const& e : elem_exprs) {
@@ -441,9 +442,9 @@ public:
                 elem_consts.push_back(constant);
             }
 
-            return llvm::ConstantArray::get(llvm::dyn_cast<llvm::ArrayType>(ty), elem_consts);
+            return llvm::ConstantArray::get(type_emitter.emit_fixed_array(t), elem_consts);
         } else {
-            auto *const alloca_inst = ctx.builder.CreateAlloca(ty);
+            auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(t));
             for (auto const idx : helper::indices(elem_exprs.size())) {
                 ctx.builder.CreateStore(
                         get_operand(emit(elem_exprs[idx])),
@@ -1312,6 +1313,15 @@ public:
 
         cast_error();
         return nullptr; // Note: Required to avoid compiler warning.
+    }
+
+    val emit(ast::node::object_construct const& obj)
+    {
+        std::vector<val> arg_vals;
+        for (auto const& e : obj->args) {
+            arg_vals.push_back(get_operand(emit(e)));
+        }
+        return check(obj, ctor_emitter.emit(obj->type, arg_vals), "object construction");
     }
 
     template<class T>

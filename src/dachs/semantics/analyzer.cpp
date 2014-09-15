@@ -24,6 +24,7 @@
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/error.hpp"
 #include "dachs/semantics/tmp_member_checker.hpp"
+#include "dachs/semantics/tmp_constructor_checker.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/util.hpp"
@@ -904,10 +905,13 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::object_construct const& obj, Walker const& /*unused*/)
+    void visit(ast::node::object_construct const& obj, Walker const& recursive_walker)
     {
+        recursive_walker();
         obj->type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, obj->obj_type);
-        throw not_implemented_error{obj, __FILE__, __func__, __LINE__, "object construction"};
+        if (auto const err = detail::ctor_checker{}(obj->type, obj->args)) {
+            semantic_error(obj, *err);
+        }
     }
 
     template<class Walker>
