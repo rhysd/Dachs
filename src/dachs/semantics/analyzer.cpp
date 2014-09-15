@@ -225,6 +225,18 @@ class symbol_analyzer {
         return std::make_pair(instantiated_func_def, instantiated_func_scope);
     }
 
+    type::type calculate_from_type_nodes(ast::node::any_type const& n) noexcept
+    {
+        auto const ret = boost::apply_visitor(
+                type_calculator_from_type_nodes{current_scope},
+                n
+            );
+        if (!ret) {
+            apply_lambda([this](auto const& t){ semantic_error(t, "Invalid type '" + t->to_string() + '\''); }, n);
+        }
+        return ret;
+    }
+
 public:
 
     size_t failed = 0u;
@@ -388,10 +400,7 @@ public:
                 // Set type if the type of variable is specified
                 if (decl->maybe_type) {
                     new_var->type
-                        = boost::apply_visitor(
-                            type_calculator_from_type_nodes{current_scope},
-                            *(decl->maybe_type)
-                        );
+                        = calculate_from_type_nodes(*decl->maybe_type);
                 }
 
                 if (!scope->define_variable(new_var)) {
@@ -861,10 +870,7 @@ public:
     template<class Walker>
     void visit(ast::node::typed_expr const& typed, Walker const& recursive_walker)
     {
-        typed->type = boost::apply_visitor(
-                            type_calculator_from_type_nodes{current_scope},
-                            typed->specified_type
-                        );
+        typed->type = calculate_from_type_nodes(typed->specified_type);
 
         recursive_walker();
 
@@ -882,7 +888,7 @@ public:
     void visit(ast::node::cast_expr const& casted, Walker const& recursive_walker)
     {
         recursive_walker();
-        casted->type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, casted->casted_type);
+        casted->type = calculate_from_type_nodes(casted->casted_type);
 
         // TODO:
         // Find cast function and get its result type
@@ -907,7 +913,7 @@ public:
     template<class Walker>
     void visit(ast::node::object_construct const& obj, Walker const& recursive_walker)
     {
-        obj->type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, obj->obj_type);
+        obj->type = calculate_from_type_nodes(obj->obj_type);
         if (!obj->type) {
             semantic_error(obj, "Invalid type for object construction");
             return;
