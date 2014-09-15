@@ -257,7 +257,7 @@ class llvm_ir_emitter {
         val emit(ast::node::index_access const& access)
         {
             auto const child_val = emitter.emit(access->child);
-            auto const index_val = emitter.emit(access->index_expr);
+            auto const index_val = emitter.get_operand(emitter.emit(access->index_expr));
             auto const child_type = type::type_of(access->child);
             if (type::is_a<type::tuple_type>(child_type)) {
                 auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
@@ -266,6 +266,7 @@ class llvm_ir_emitter {
                 }
                 return emitter.ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue());
             } else if (type::is_a<type::array_type>(child_type)) {
+                assert(!index_val->getType()->isPointerTy());
                 return emitter.ctx.builder.CreateInBoundsGEP(
                         child_val,
                         (val [2]){
