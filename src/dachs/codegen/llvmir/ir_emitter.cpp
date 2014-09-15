@@ -297,6 +297,18 @@ class llvm_ir_emitter {
         }
     };
 
+public:
+
+    llvm_ir_emitter(std::string const& f, context &c)
+        : ctx(c)
+        , var_table(ctx)
+        , builtin_func_emitter(ctx.llvm_context)
+        , file(f)
+        , type_emitter(ctx.llvm_context)
+        , member_emitter(ctx)
+        , ctor_emitter(ctx)
+    {}
+
     // Note:
     // get_operand() strips pointer if needed.
     // Operation instructions and call operation requires a value as operand.
@@ -313,18 +325,6 @@ class llvm_ir_emitter {
             return value;
         }
     }
-
-public:
-
-    llvm_ir_emitter(std::string const& f, context &c)
-        : ctx(c)
-        , var_table(ctx)
-        , builtin_func_emitter(ctx.llvm_context)
-        , file(f)
-        , type_emitter(ctx.llvm_context)
-        , member_emitter(ctx)
-        , ctor_emitter(ctx)
-    {}
 
     val emit(ast::node::primary_literal const& pl)
     {
