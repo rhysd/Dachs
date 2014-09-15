@@ -907,8 +907,13 @@ public:
     template<class Walker>
     void visit(ast::node::object_construct const& obj, Walker const& recursive_walker)
     {
-        recursive_walker();
         obj->type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, obj->obj_type);
+        if (!obj->type) {
+            semantic_error(obj, "Invalid type for object construction");
+            return;
+        }
+
+        recursive_walker();
         if (auto const err = detail::ctor_checker{}(obj->type, obj->args)) {
             semantic_error(obj, *err);
         }

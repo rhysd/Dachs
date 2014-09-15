@@ -38,6 +38,7 @@
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/exception.hpp"
+#include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/colorizer.hpp"
 #include "dachs/helper/each.hpp"
@@ -1322,6 +1323,7 @@ public:
         for (auto const& e : obj->args) {
             arg_vals.push_back(get_operand(emit(e)));
         }
+
         return check(obj, ctor_emitter.emit(obj->type, arg_vals), "object construction");
     }
 

@@ -57,8 +57,10 @@ public:
             return *builtin;
         } else {
             auto const c = boost::apply_visitor(class_resolver{t->template_name}, current_scope);
-            // TODO: Deal with exception
-            assert(c && "This assertion is temporary");
+            if (!c) {
+                return {};
+            }
+
             auto const ret = type::make<type::class_type>(t->template_name, *c);
             for (auto const& instantiated : t->instantiated_templates) {
                 ret->holder_types.push_back(apply_recursively(instantiated));
