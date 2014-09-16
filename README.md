@@ -53,42 +53,27 @@ end
 
 ## Progress Report
 
--  Parser
-  - [x] Literals
-  - [x] Expressions
-  - [x] Statements
-  - [x] Functions
-  - [x] Operator functions
-  - [ ] Class
-  - [ ] Lambda
-  - [ ] Block
-  - [ ] Variadic arguments
-  - [ ] Module
-  - [x] Test
-
--  Sematic analysis
-  - [x] Scope tree
-  - [x] Symbol tables
-  - [x] Overload resolution
-  - [x] Simple return type and variable type deduction
-  - [ ] Type inference
-  - [x] Semantic checks
-  - [ ] Test
-
--  Code generation
-  - [ ] LLVM IR code generation
-  - [x] Executable generation
-  - [ ] Reference semantics
-  - [ ] Test
-
--  Misc
-  - [x] CMakeLists.txt
-  - [x] Travis-CI
-  - [ ] Option parsing
-  - [ ] Allocator customization
-  - [ ] Exception safety
-  - [ ] Parallel processing
-  - [ ] Introduce [OvenToBoost](https://github.com/faithandbrave/OvenToBoost)
+- [x] Literals
+- [x] Expressions
+- [x] Statements
+- [x] Functions
+- [x] Operator functions
+- [x] Overload resolution
+- [x] Simple return type and variable type deduction
+- [ ] Class
+- [ ] Lambda
+- [ ] Block
+- [ ] Variadic arguments
+- [ ] Module
+- [x] Semantic checks
+- [x] LLVM IR code generation
+- [x] Executable generation
+- [x] Test
+- [x] CMakeLists.txt
+- [x] Travis-CI
+- [ ] Option parser
+- [ ] Allocator customization
+- [ ] Introduce [OvenToBoost](https://github.com/faithandbrave/OvenToBoost)
 
 This software is disributed under [The MIT License](http://opensource.org/licenses/MIT) if not specified in a source file.
 
