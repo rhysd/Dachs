@@ -12,17 +12,15 @@ func print_density(d)
 end
 
 func mandel_converge'(real, imag, iters, creal, cimag)
-    if iters > 255.0 || real*real + imag*imag >= 4.0
-        return iters
-    else
-        return mandel_converge'(
-            real*real - imag*imag + creal,
-            2.0*real*imag + cimag,
-            iters+1.0,
-            creal,
-            cimag
-        )
-    end
+    return iters if iters > 255.0 || real*real + imag*imag >= 4.0
+
+    return mandel_converge'(
+        real*real - imag*imag + creal,
+        2.0*real*imag + cimag,
+        iters+1.0,
+        creal,
+        cimag
+    )
 end
 
 func mandel_converge(real, imag)
