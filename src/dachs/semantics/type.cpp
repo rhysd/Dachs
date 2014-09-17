@@ -82,7 +82,7 @@ bool any_type::operator==(any_type const& rhs) const noexcept
 
 namespace type_node {
 
-bool func_ref_type::operator==(func_ref_type const& rhs) const noexcept
+bool generic_func_type::operator==(generic_func_type const& rhs) const noexcept
 {
     if (!ref && !rhs.ref) {
         return true;
@@ -95,7 +95,7 @@ bool func_ref_type::operator==(func_ref_type const& rhs) const noexcept
     return false;
 }
 
-std::string func_ref_type::to_string() const noexcept
+std::string generic_func_type::to_string() const noexcept
 {
     return "<funcref" + (ref ? ':' + ref->lock()->to_string() + '>' : ">");
 }

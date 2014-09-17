@@ -83,7 +83,7 @@ public:
         assert(maybe_global_scope);
         auto& global_scope = *maybe_global_scope;
         auto new_func = scope::make<scope::func_scope>(func_def, global_scope, func_def->name);
-        new_func->type = type::make<type::func_ref_type>(scope::weak_func_scope{new_func});
+        new_func->type = type::make<type::generic_func_type>(scope::weak_func_scope{new_func});
         func_def->scope = new_func;
 
         if (func_def->kind == ast::symbol::func_kind::proc && func_def->return_type) {

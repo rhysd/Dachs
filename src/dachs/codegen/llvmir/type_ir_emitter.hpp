@@ -124,7 +124,7 @@ public:
         throw not_implemented_error{__FILE__, __func__, __LINE__, "procedure type LLVM IR generation"};
     }
 
-    llvm::Type *emit(type::func_ref_type const&)
+    llvm::Type *emit(type::generic_func_type const&)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "function reference type LLVM IR generation"};
     }

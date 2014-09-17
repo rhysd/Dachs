@@ -31,7 +31,7 @@ struct class_type;
 struct tuple_type;
 struct func_type;
 struct proc_type;
-struct func_ref_type;
+struct generic_func_type;
 struct dict_type;
 struct array_type;
 struct range_type;
@@ -48,7 +48,7 @@ DACHS_DEFINE_TYPE(class_type);
 DACHS_DEFINE_TYPE(tuple_type);
 DACHS_DEFINE_TYPE(func_type);
 DACHS_DEFINE_TYPE(proc_type);
-DACHS_DEFINE_TYPE(func_ref_type);
+DACHS_DEFINE_TYPE(generic_func_type);
 DACHS_DEFINE_TYPE(dict_type);
 DACHS_DEFINE_TYPE(array_type);
 DACHS_DEFINE_TYPE(range_type);
@@ -92,7 +92,7 @@ class any_type {
                     , tuple_type
                     , func_type
                     , proc_type
-                    , func_ref_type
+                    , generic_func_type
                     , dict_type
                     , array_type
                     , range_type
@@ -467,29 +467,29 @@ struct proc_type final : public basic_type {
     }
 };
 
-struct func_ref_type : public basic_type {
+struct generic_func_type : public basic_type {
     boost::optional<scope::weak_func_scope> ref = boost::none;
 
     template<class FuncScope>
-    explicit func_ref_type(FuncScope const& r)
+    explicit generic_func_type(FuncScope const& r)
         : ref(r)
     {}
 
-    func_ref_type() = default;
+    generic_func_type() = default;
 
-    bool operator==(func_ref_type const&) const noexcept;
+    bool operator==(generic_func_type const&) const noexcept;
 
     template<class T>
     bool operator==(T const&) const noexcept
     {
-        static_assert(is_type<T>::value, "func_ref_type::operator==(): rhs is not a type.");
+        static_assert(is_type<T>::value, "generic_func_type::operator==(): rhs is not a type.");
         return false;
     }
 
     template<class T>
     bool operator!=(T const& rhs) const noexcept
     {
-        static_assert(is_type<T>::value, "func_ref_type::operator!=(): rhs is not a type.");
+        static_assert(is_type<T>::value, "generic_func_type::operator!=(): rhs is not a type.");
         return !(*this == rhs);
     }
 

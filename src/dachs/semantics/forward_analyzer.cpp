@@ -22,7 +22,7 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
             print_func->define_param(std::move(p));
             scope_root->define_function(print_func);
             auto func_var_sym = symbol::make<symbol::var_symbol>(a.root, "print", true, true);
-            func_var_sym->type = type::make<type::func_ref_type>(print_func);
+            func_var_sym->type = type::make<type::generic_func_type>(print_func);
             scope_root->define_global_function_constant(std::move(func_var_sym));
         }
 
@@ -37,7 +37,7 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
             println_func->define_param(std::move(p));
             scope_root->define_function(println_func);
             auto func_var_sym = symbol::make<symbol::var_symbol>(a.root, "println", true, true);
-            func_var_sym->type = type::make<type::func_ref_type>(println_func);
+            func_var_sym->type = type::make<type::generic_func_type>(println_func);
             scope_root->define_global_function_constant(std::move(func_var_sym));
         }
 

@@ -797,7 +797,7 @@ public:
             return;
         }
 
-        if (!type::is_a<type::func_ref_type>(var_sym->type)) {
+        if (!type::is_a<type::generic_func_type>(var_sym->type)) {
             semantic_error(invocation
                          , boost::format("'%1%' is not a function or function reference\nNote: Type of %1% is %2%")
                             % var_sym->name
