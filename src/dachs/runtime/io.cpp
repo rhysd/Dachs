@@ -1,5 +1,6 @@
 #include <string>
 #include <cstdio>
+#include <cstdint>
 
 extern "C" {
     void __dachs_println_float__(double const d)
@@ -7,14 +8,14 @@ extern "C" {
         std::printf("%lg\n", d);
     }
 
-    void __dachs_println_int__(int const i)
+    void __dachs_println_int__(std::int64_t const i)
     {
-        std::printf("%d\n", i);
+        std::printf("%lld\n", i);
     }
 
-    void __dachs_println_uint__(unsigned int const u)
+    void __dachs_println_uint__(std::uint64_t const u)
     {
-        std::printf("%u\n", u);
+        std::printf("%llu\n", u);
     }
 
     void __dachs_println_char__(char const c)
@@ -42,14 +43,14 @@ extern "C" {
         std::printf("%lg", d);
     }
 
-    void __dachs_print_int__(int const i)
+    void __dachs_print_int__(std::int64_t const i)
     {
-        std::printf("%d", i);
+        std::printf("%lld", i);
     }
 
-    void __dachs_print_uint__(unsigned int const u)
+    void __dachs_print_uint__(std::uint64_t const u)
     {
-        std::printf("%u", u);
+        std::printf("%llu", u);
     }
 
     void __dachs_print_char__(char const c)
