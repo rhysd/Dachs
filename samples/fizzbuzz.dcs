@@ -1,9 +1,9 @@
 func fizzbuzz(n)
     case
-    when n % 15 == 0 then return "fizzbuzz"
-    when n % 3 == 0  then return "fizz"
-    when n % 5 == 0  then return "buzz"
-    else                  return n as string
+    when n % 15 == 0 then ret "fizzbuzz"
+    when n % 3 == 0  then ret "fizz"
+    when n % 5 == 0  then ret "buzz"
+    else                  ret n as string
     end
 end
 

@@ -33,9 +33,9 @@ func main
         42
     end
 
-    return 1
+    ret 1
 
-    return 1, 2
+    ret 1, 2
 
     aaa!()
     bbb?()

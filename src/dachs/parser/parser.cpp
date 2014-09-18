@@ -750,7 +750,7 @@ public:
 
         return_stmt
             = (
-                DACHS_KWD("return") >> -(typed_expr % comma)
+                DACHS_KWD("ret") >> -(typed_expr % comma)
             ) [
                 _val = make_node_ptr<ast::node::return_stmt>(as_vector(_1))
             ];
@@ -814,7 +814,7 @@ public:
 
         postfix_if_return_stmt
             = (
-                DACHS_KWD("return") >> -((typed_expr - DACHS_KWD(if_kind)) % comma)
+                DACHS_KWD("ret") >> -((typed_expr - DACHS_KWD(if_kind)) % comma)
             ) [
                 _val = make_node_ptr<ast::node::return_stmt>(as_vector(_1))
             ];

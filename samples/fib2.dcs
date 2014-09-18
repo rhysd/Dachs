@@ -1,9 +1,9 @@
 func fib(n)
     case n
     when 0, 1
-        return 1
+        ret 1
     else
-        return fib(n-1) + fib(n-2)
+        ret fib(n-1) + fib(n-2)
     end
 end
 

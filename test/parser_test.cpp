@@ -214,11 +214,11 @@ BOOST_AUTO_TEST_CASE(function)
         end
 
         func is_true?(b)
-            return b
+            ret b
         end
 
         func shinchoku_arimasu?(b)
-            return false
+            ret false
         end
 
         # Operators
@@ -749,8 +749,8 @@ BOOST_AUTO_TEST_CASE(type)
         )"));
 
     CHECK_PARSE_THROW("func main; expr : proc() : int end # one element tuple is not allowed");
-    CHECK_PARSE_THROW("func main; expr : proc() : int end # must not have return type");
-    CHECK_PARSE_THROW("func main; expr : func() end # must have return type");
+    CHECK_PARSE_THROW("func main; expr : proc() : int end # must not have ret type");
+    CHECK_PARSE_THROW("func main; expr : func() end # must have ret type");
     CHECK_PARSE_THROW("func main; expr : T() end");
     CHECK_PARSE_THROW("func main; expr : [T](int) end");
     CHECK_PARSE_THROW("func main; expr : (T)(int) end");
@@ -1125,13 +1125,13 @@ BOOST_AUTO_TEST_CASE(return_statement)
 {
     BOOST_CHECK_NO_THROW(parse_and_validate(R"(
         func main
-            return
-            return 42
-            return 42, 'a', "bbb"
-            return 42,
+            ret
+            ret 42
+            ret 42, 'a', "bbb"
+            ret 42,
                    'a',
                    "bbb"
-            return 42
+            ret 42
                  , 'a'
                  , "bbb"
 
@@ -1551,7 +1551,7 @@ BOOST_AUTO_TEST_CASE(postfix_if)
     BOOST_CHECK_NO_THROW(parse_and_validate(R"(
         func main
             42 if true
-            return if true
+            ret if true
 
             var v := 42
             v = 1 + 2 if true
@@ -1559,10 +1559,10 @@ BOOST_AUTO_TEST_CASE(postfix_if)
         end
         )"));
 
-    // Parser parses 'return if true' as postfix if statement and rest as an error
+    // Parser parses 'ret if true' as postfix if statement and rest as an error
     CHECK_PARSE_THROW(R"(
         func main
-            return if true then 42 else -42
+            ret if true then 42 else -42
         end
         )");
 }

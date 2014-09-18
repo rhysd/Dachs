@@ -20,7 +20,7 @@ func main
 end
 
 func swap(t)
-    return t.second, t.first
+    ret t.second, t.first
 end
 
 func p(t)

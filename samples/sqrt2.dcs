@@ -1,14 +1,14 @@
 func abs(n)
-    return (if n > 0.0 then n else -n)
+    ret (if n > 0.0 then n else -n)
 end
 
 func sqrt'(p, z, x)
-    return z if abs(p-z) < 0.00001
-    return sqrt'(z, z-(z*z-x)/(2.0*z), x)
+    ret z if abs(p-z) < 0.00001
+    ret sqrt'(z, z-(z*z-x)/(2.0*z), x)
 end
 
 func sqrt(x)
-    return sqrt'(0.0, x, x)
+    ret sqrt'(0.0, x, x)
 end
 
 func main

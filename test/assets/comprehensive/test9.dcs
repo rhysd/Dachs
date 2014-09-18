@@ -18,5 +18,5 @@ func huga
 end
 
 func poyo
-    return 42 if true
+    ret 42 if true
 end

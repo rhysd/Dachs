@@ -1,9 +1,9 @@
 func main(args)
-    return hoge()
+    ret hoge()
 end
 
 func aaa
-    return 42, 55 : float, [1, 2, 3] : [int]
+    ret 42, 55 : float, [1, 2, 3] : [int]
 end
 
 func assign

@@ -1,5 +1,5 @@
 func abs(n : float) : float
-    return (if n > 0.0 then n else -n)
+    ret (if n > 0.0 then n else -n)
 end
 
 func sqrt(x : float) : float
@@ -8,7 +8,7 @@ func sqrt(x : float) : float
     for abs(p-z) > 0.00001
         p, z = z, z-(z*z-x)/(2.0*z)
     end
-    return z
+    ret z
 end
 
 func main

@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_CASE(symbol_duplication_ok)
             end
 
             func foo? : bool
-                return true
+                ret true
             end
 
             proc bar

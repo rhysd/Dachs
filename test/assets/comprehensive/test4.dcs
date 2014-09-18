@@ -2,7 +2,7 @@ func main()
     case a
     when 13
         print("hoge")
-        return
+        ret
     when 15
         arr[3].do_something()
     else
@@ -12,7 +12,7 @@ func main()
     case
     when a == 13
         print("hoge")
-        return 1, 2, 3
+        ret 1, 2, 3
     when a == 15
         arr[3].do_something()
     else

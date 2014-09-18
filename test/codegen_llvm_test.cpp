@@ -37,18 +37,18 @@ BOOST_AUTO_TEST_CASE(function)
         end
 
         func foo4(a : int) : int
-            return a + 42
+            ret a + 42
         end
 
         func foo5(a)
-            return a
+            ret a
         end
 
         func foo6(var a, var b : float, var c)
             a += 42
             b += 42.0
             c = true
-            return a, b, c
+            ret a, b, c
         end
 
         func main
@@ -260,17 +260,17 @@ BOOST_AUTO_TEST_CASE(tuple)
         end
 
         func foo()
-            return 1, 'a', "bbb"
+            ret 1, 'a', "bbb"
         end
 
         func foo2()
             t := (1, 'a', false)
-            return t
+            ret t
         end
 
         func foo3()
             var t := (1, 'c', false)
-            return t
+            ret t
         end
 
         func bar(a)
@@ -359,28 +359,28 @@ BOOST_AUTO_TEST_CASE(array)
         end
 
         func foo()
-            return [1, 2, 3]
+            ret [1, 2, 3]
         end
 
         func foo2()
             var a := [1, 2, 3]
-            return a
+            ret a
         end
 
         func bar(a)
-            return a[0] + a[1]
+            ret a[0] + a[1]
         end
 
         func bar2(var a)
-            return a[0] + a[1]
+            ret a[0] + a[1]
         end
 
         func baz(a)
-            return a[0][0] + a[1][0]
+            ret a[0][0] + a[1][0]
         end
 
         func baz2(var a)
-            return a[0][0] + a[1][0]
+            ret a[0][0] + a[1][0]
         end
     )");
 }
@@ -592,28 +592,28 @@ BOOST_AUTO_TEST_CASE(return_statement)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func foo
-            return
+            ret
         end
 
         func foo2
         end
 
         func foo3
-            return 42
+            ret 42
         end
 
         func foo4
             var i := 42
-            return i
+            ret i
         end
 
         func foo5
             var i := 42
-            return i, true
+            ret i, true
         end
 
         func foo6
-            return 42, true
+            ret 42, true
         end
 
         func main
@@ -633,22 +633,22 @@ BOOST_AUTO_TEST_CASE(if_statement)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func pred
-            return true
+            ret true
         end
 
         func dummy_pred(b)
-            return true if b
-            return false unless b
-            return true
+            ret true if b
+            ret false unless b
+            ret true
         end
 
         func dummy2
-            return if true
-            return unless false
+            ret if true
+            ret unless false
         end
 
         func dummy3
-            return (if true then 42 else -42)
+            ret (if true then 42 else -42)
         end
 
         func main
@@ -796,12 +796,12 @@ BOOST_AUTO_TEST_CASE(for_statement)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func make_arr
-            return ['a', 'b', 'c']
+            ret ['a', 'b', 'c']
         end
 
         func make_arr2
             var a := ['a', 'b', 'c']
-            return a
+            ret a
         end
 
         func main
@@ -888,9 +888,9 @@ BOOST_AUTO_TEST_CASE(some_samples)
         func fib(n)
             case n
             when 0, 1
-                return 1
+                ret 1
             else
-                return fib(n-1) + fib(n-2)
+                ret fib(n-1) + fib(n-2)
             end
         end
 
@@ -901,7 +901,7 @@ BOOST_AUTO_TEST_CASE(some_samples)
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func abs(n : float) : float
-            return (if n > 0.0 then n else -n)
+            ret (if n > 0.0 then n else -n)
         end
 
         func sqrt(x : float) : float
@@ -910,7 +910,7 @@ BOOST_AUTO_TEST_CASE(some_samples)
             for abs(p-z) > 0.00001
                 p, z = z, z-(z*z-x)/(2.0*z)
             end
-            return z
+            ret z
         end
 
         func main
@@ -920,16 +920,16 @@ BOOST_AUTO_TEST_CASE(some_samples)
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func abs(n)
-            return (if n > 0.0 then n else -n)
+            ret (if n > 0.0 then n else -n)
         end
 
         func sqrt'(p, z, x)
-            return z if abs(p-z) < 0.00001
-            return sqrt'(z, z-(z*z-x)/(2.0*z), x)
+            ret z if abs(p-z) < 0.00001
+            ret sqrt'(z, z-(z*z-x)/(2.0*z), x)
         end
 
         func sqrt(x)
-            return sqrt'(0.0, x, x)
+            ret sqrt'(0.0, x, x)
         end
 
         func main
@@ -944,9 +944,9 @@ BOOST_AUTO_TEST_CASE(some_samples)
 
         func fib(n)
             if n <= 1
-                return 1
+                ret 1
             else
-                return fib(n-1) + fib(n-2)
+                ret fib(n-1) + fib(n-2)
             end
         end
     )");
@@ -955,9 +955,9 @@ BOOST_AUTO_TEST_CASE(some_samples)
         func fib(n)
             case n
             when 0, 1
-                return 1
+                ret 1
             else
-                return fib(n-1) + fib(n-2)
+                ret fib(n-1) + fib(n-2)
             end
         end
 
