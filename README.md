@@ -14,16 +14,16 @@ Goals :dog2:
 <pre>
 <i># Type of parameter and returned value can be inferred</i>
 <b>func</b> abs(n)
-    <b>return</b> (<b>if</b> n > 0.0 <b>then</b> n <b>else</b> -n)
+    <b>ret</b> (<b>if</b> n > 0.0 <b>then</b> n <b>else</b> -n)
 <b>end</b>
 
 <i># Parameters and variables are defined as immutable value by default</i>
 <b>func</b> sqrt(x)
-    <b>var</b> z, p := x, 0.0   <i># but 'var' is available to declare a mutable variable</i>
+    <b>var</b> z, <b>var</b>p := x, 0.0   <i># but 'var' is available to declare a mutable variable</i>
     <b>for</b> abs(p-z) > 0.00001
         p, z = z, z-(z*z-x)/(2*z)
     <b>end</b>
-    <b>return</b> z
+    <b>ret</b> z
 <b>end</b>
 
 <b>func</b> main
@@ -34,7 +34,7 @@ Goals :dog2:
 <!--
 # Type of parameter and returned value can be inferred
 func abs(n)
-    return (if n > 0.0 then n else -n)
+    ret (if n > 0.0 then n else -n)
 end
 
 # Parameters and variables are defined as immutable value by default
@@ -43,7 +43,7 @@ func sqrt(x)
     for abs(p-z) > 0.00001
         p, z = z, z-(z*z-x)/(2*z)
     end
-    return z
+    ret z
 end
 
 func main
