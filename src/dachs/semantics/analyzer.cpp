@@ -797,7 +797,10 @@ public:
             return;
         }
 
-        if (!type::is_a<type::generic_func_type>(var_sym->type)) {
+        // TODO:
+        // Do not use var_ref, use type_of(child) simply
+        auto const maybe_func_type = type::get<type::generic_func_type>(var_sym->type);
+        if (!maybe_func_type) {
             semantic_error(invocation
                          , boost::format("'%1%' is not a function or function reference\nNote: Type of %1% is %2%")
                             % var_sym->name
@@ -805,6 +808,13 @@ public:
                         );
             return;
         }
+        auto const& func_type = *maybe_func_type;
+
+        if (!func_type->ref) {
+            semantic_error(invocation, func_type->to_string() + " is an invalid function reference");
+            return;
+        }
+        assert(!func_type->ref->expired());
 
         std::vector<type::type> arg_types;
         arg_types.reserve(invocation->args.size());
@@ -817,11 +827,14 @@ public:
             }
         }
 
+        // Note:
+        // generic_func_type::ref is not available because it is not updated
+        // even if overload functions are resolved.
         auto maybe_func =
             apply_lambda(
                     [&](auto const& s)
                     {
-                        return s->resolve_func(var_sym->name, arg_types);
+                        return s->resolve_func(func_type->ref->lock()->name, arg_types);
                     }, current_scope
                 );
 
@@ -849,6 +862,9 @@ public:
             std::tie(func_def, func) = instantiate_function_from_template(func_def, arg_types, global);
 
             assert(!global->ast_root.expired());
+
+            // Update its function type with resolved function
+            func_type->ref = func;
         }
 
         if (!func_def->ret_type) {
