@@ -452,6 +452,7 @@ public:
 
         var->symbol = *maybe_var_symbol;
         var->type = (*maybe_var_symbol)->type;
+
         recursive_walker();
     }
 
@@ -792,23 +793,22 @@ public:
 
         recursive_walker();
 
-        auto const var_sym = (*maybe_var_ref)->symbol.lock();
-        if (!var_sym->type) {
+        auto const child_type = type::type_of(invocation->child);
+        if (!child_type) {
             return;
         }
 
-        // TODO:
-        // Do not use var_ref, use type_of(child) simply
-        auto const maybe_func_type = type::get<type::generic_func_type>(var_sym->type);
+        auto const maybe_func_type = type::get<type::generic_func_type>(child_type);
         if (!maybe_func_type) {
-            semantic_error(invocation
-                         , boost::format("'%1%' is not a function or function reference\nNote: Type of %1% is %2%")
-                            % var_sym->name
-                            % var_sym->type.to_string()
-                        );
+            semantic_error(
+                    invocation,
+                    "Only function type can be called\nNote: the type '" + child_type.to_string() + "' is not a function"
+                );
             return;
         }
+
         auto const& func_type = *maybe_func_type;
+        auto const& func_name = func_type->ref->lock()->name;
 
         if (!func_type->ref) {
             semantic_error(invocation, func_type->to_string() + " is an invalid function reference");
@@ -834,12 +834,12 @@ public:
             apply_lambda(
                     [&](auto const& s)
                     {
-                        return s->resolve_func(func_type->ref->lock()->name, arg_types);
+                        return s->resolve_func(func_name, arg_types);
                     }, current_scope
                 );
 
         if (!maybe_func) {
-            semantic_error(invocation, boost::format("Function '%1%' is not found") % var_sym->name);
+            semantic_error(invocation, boost::format("Function '%1%' is not found") % func_name);
             return;
         }
 
@@ -848,7 +848,6 @@ public:
         if (func->is_builtin) {
             assert(func->ret_type);
             invocation->type = *func->ret_type;
-            invocation->func_symbol = func;
             return;
         }
 
@@ -864,7 +863,6 @@ public:
             assert(!global->ast_root.expired());
 
             // Update its function type with resolved function
-            func_type->ref = func;
         }
 
         if (!func_def->ret_type) {
@@ -880,7 +878,7 @@ public:
             semantic_error(invocation, boost::format("Cannot deduce the return type of function '%1%'") % func->to_string());
         }
 
-        invocation->func_symbol = func;
+        func_type->ref = func;
     }
 
     template<class Walker>

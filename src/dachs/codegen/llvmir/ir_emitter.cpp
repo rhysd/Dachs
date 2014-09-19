@@ -669,6 +669,27 @@ public:
         }
     }
 
+    template<class Exprs>
+    llvm::Function *get_callee_for_invocation(scope::func_scope const& scope, Exprs const& args)
+    {
+        if (scope->is_builtin) {
+            // Note:
+            // scope->params is not available because builtin funcitons remains as function templates
+            std::vector<type::type> param_types;
+            param_types.reserve(args.size());
+            for (auto const& e : args) {
+                param_types.push_back(type::type_of(e));
+            }
+
+            return builtin_func_emitter.emit(scope->name, param_types);
+        }
+
+        // TODO
+        // Monad invocation
+
+        return module->getFunction(scope->to_string());
+    }
+
     val emit(ast::node::func_invocation const& invocation)
     {
         std::vector<val> args;
@@ -677,27 +698,23 @@ public:
             args.push_back(get_operand(emit(a)));
         }
 
-        assert(!invocation->func_symbol.expired());
-        auto scope = invocation->func_symbol.lock();
-        if (scope->is_builtin) {
-            // Note:
-            // scope->params is not available because builtin funcitons remains as function templates
-            std::vector<type::type> param_types;
-            param_types.reserve(invocation->args.size());
-            for (auto const& e : invocation->args) {
-                param_types.push_back(type::type_of(e));
-            }
-
-            auto callee = check(invocation, builtin_func_emitter.emit(scope->name, param_types), boost::format("builtin function '%1%'") % scope->name);
-            return ctx.builder.CreateCall(callee, args);
+        auto const child_t = type::type_of(invocation->child);
+        if (auto const maybe_generic = type::get<type::generic_func_type>(child_t)) {
+            auto const scope = (*maybe_generic)->ref->lock();
+            return ctx.builder.CreateCall(
+                    check(
+                        invocation,
+                        get_callee_for_invocation(scope, invocation->args),
+                        boost::format("function invocation for generic function type value '%1%'") % scope->name
+                    ),
+                    args
+                );
+        } else if (auto const maybe_func = type::get<type::func_type>(child_t)) {
+            // TODO:
+            // Emit child value and get the function to invoke
         }
 
-        auto *const callee = module->getFunction(scope->to_string());
-
-        // TODO
-        // Monad invocation
-
-        return ctx.builder.CreateCall(callee, args);
+        error(invocation, "Invalid function invocation");
     }
 
     val emit(ast::node::unary_expr const& unary)

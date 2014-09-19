@@ -336,7 +336,6 @@ struct parameter final : public base {
 struct func_invocation final : public expression {
     node::any_expr child;
     std::vector<node::any_expr> args;
-    scope::weak_func_scope func_symbol;
     bool is_monad_invocation = false;
 
     func_invocation(node::any_expr const& c, std::vector<node::any_expr> const& args) noexcept
