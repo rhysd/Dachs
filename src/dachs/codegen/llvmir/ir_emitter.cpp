@@ -669,27 +669,6 @@ public:
         }
     }
 
-    template<class Exprs>
-    llvm::Function *get_callee_for_invocation(scope::func_scope const& scope, Exprs const& args)
-    {
-        if (scope->is_builtin) {
-            // Note:
-            // scope->params is not available because builtin funcitons remains as function templates
-            std::vector<type::type> param_types;
-            param_types.reserve(args.size());
-            for (auto const& e : args) {
-                param_types.push_back(type::type_of(e));
-            }
-
-            return builtin_func_emitter.emit(scope->name, param_types);
-        }
-
-        // TODO
-        // Monad invocation
-
-        return module->getFunction(scope->to_string());
-    }
-
     val emit(ast::node::func_invocation const& invocation)
     {
         std::vector<val> args;
@@ -698,23 +677,35 @@ public:
             args.push_back(get_operand(emit(a)));
         }
 
-        auto const child_t = type::type_of(invocation->child);
-        if (auto const maybe_generic = type::get<type::generic_func_type>(child_t)) {
-            auto const scope = (*maybe_generic)->ref->lock();
+        auto const generic = type::get<type::generic_func_type>(type::type_of(invocation->child));
+        if (generic && (*generic)->ref->lock()->is_template()) {
+            std::vector<type::type> param_types;
+            param_types.reserve(invocation->args.size());
+            for (auto const& e : invocation->args) {
+                param_types.push_back(type::type_of(e));
+            }
+
+            auto const scope = (*generic)->ref->lock();
+            auto *const func_val = builtin_func_emitter.emit(scope->name, param_types);
+            if (!func_val) {
+                error(invocation, "Invalid builtin generic function");
+            }
+
             return ctx.builder.CreateCall(
-                    check(
-                        invocation,
-                        get_callee_for_invocation(scope, invocation->args),
-                        boost::format("function invocation for generic function type value '%1%'") % scope->name
-                    ),
+                    func_val,
                     args
                 );
-        } else if (auto const maybe_func = type::get<type::func_type>(child_t)) {
-            // TODO:
-            // Emit child value and get the function to invoke
-        }
+        } else {
+            auto *const func_val = llvm::dyn_cast<llvm::Function>(emit(invocation->child));
+            if (!func_val) {
+                error(invocation, "Invalid function");
+            }
 
-        error(invocation, "Invalid function invocation");
+            return ctx.builder.CreateCall(
+                    func_val,
+                    args
+                );
+        }
     }
 
     val emit(ast::node::unary_expr const& unary)
@@ -761,8 +752,40 @@ public:
 
     val emit(ast::node::var_ref const& var)
     {
-        assert(!var->symbol.expired());
-        return check(var, var_table.lookup_value(var->symbol.lock()), "loading variable");
+        if (auto const generic_func_t = type::get<type::generic_func_type>(var->type)) {
+            auto const scope = (*generic_func_t)->ref->lock();
+
+            if (scope->is_template()) {
+                // XXX:
+                // It seems internal compilation error now
+                error(var, boost::format("'%1%' is unresolved overloaded function '%2%'") % var->name % scope->to_string());
+            }
+
+            if (scope->is_builtin) {
+                std::vector<type::type> param_types;
+                param_types.reserve(scope->params.size());
+                for (auto const& v : scope->params) {
+                    param_types.push_back(v->type);
+                }
+
+                return check(
+                        var,
+                        builtin_func_emitter.emit(scope->name, param_types),
+                        boost::format("builtin function '%1%' can't be emit") % scope->to_string()
+                    );
+            }
+
+            return check(
+                    var,
+                    module->getFunction(scope->to_string()),
+                    boost::format("generic function variable '%1%' for '%2%'") % scope->to_string() % var->type.to_string()
+                );
+        } else {
+            // Note:
+            // When the variable is not for functio
+            assert(!var->symbol.expired());
+            return check(var, var_table.lookup_value(var->symbol.lock()), "loading variable");
+        }
     }
 
     val emit(ast::node::index_access const& access)
