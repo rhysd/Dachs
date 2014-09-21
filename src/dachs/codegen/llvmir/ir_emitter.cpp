@@ -669,6 +669,24 @@ public:
         }
     }
 
+    template<class Expr, class Exprs>
+    val emit_callee(Expr const& child, Exprs const& args)
+    {
+        auto const generic = type::get<type::generic_func_type>(type::type_of(child));
+        if (generic && (*generic)->ref->lock()->is_template()) {
+            std::vector<type::type> param_types;
+            param_types.reserve(args.size());
+            for (auto const& e : args) {
+                param_types.push_back(type::type_of(e));
+            }
+
+            auto const scope = (*generic)->ref->lock();
+            return builtin_func_emitter.emit(scope->name, param_types);
+        } else {
+            return llvm::dyn_cast<llvm::Function>(emit(child));
+        }
+    }
+
     val emit(ast::node::func_invocation const& invocation)
     {
         std::vector<val> args;
@@ -677,35 +695,10 @@ public:
             args.push_back(get_operand(emit(a)));
         }
 
-        auto const generic = type::get<type::generic_func_type>(type::type_of(invocation->child));
-        if (generic && (*generic)->ref->lock()->is_template()) {
-            std::vector<type::type> param_types;
-            param_types.reserve(invocation->args.size());
-            for (auto const& e : invocation->args) {
-                param_types.push_back(type::type_of(e));
-            }
-
-            auto const scope = (*generic)->ref->lock();
-            auto *const func_val = builtin_func_emitter.emit(scope->name, param_types);
-            if (!func_val) {
-                error(invocation, "Invalid builtin generic function");
-            }
-
-            return ctx.builder.CreateCall(
-                    func_val,
-                    args
-                );
-        } else {
-            auto *const func_val = llvm::dyn_cast<llvm::Function>(emit(invocation->child));
-            if (!func_val) {
-                error(invocation, "Invalid function");
-            }
-
-            return ctx.builder.CreateCall(
-                    func_val,
-                    args
-                );
-        }
+        return ctx.builder.CreateCall(
+                emit_callee(invocation->child, invocation->args),
+                args
+            );
     }
 
     val emit(ast::node::unary_expr const& unary)
