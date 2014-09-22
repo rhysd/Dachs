@@ -451,7 +451,15 @@ public:
         }
 
         var->symbol = *maybe_var_symbol;
-        var->type = (*maybe_var_symbol)->type;
+        if (auto const g = type::get<type::generic_func_type>(var->symbol->type)) {
+            // XXX:
+            // Too ad hoc!
+            // Allocate new type object not to affect the original type object
+            // even if the new type object is modified.
+            var->type = type::make<type::generic_func_type>((*g)->ref);
+        } else {
+            var->type = (*maybe_var_symbol)->type;
+        }
 
         recursive_walker();
     }
@@ -781,16 +789,6 @@ public:
     template<class Walker>
     void visit(ast::node::func_invocation const& invocation, Walker const& recursive_walker)
     {
-        auto maybe_var_ref = get_as<ast::node::var_ref>(invocation->child);
-        if (!maybe_var_ref) {
-            throw not_implemented_error{invocation, __FILE__, __func__, __LINE__, "function variable invocation"};
-        }
-
-        if ((*maybe_var_ref)->name.back() == '!') {
-            invocation->is_monad_invocation = true;
-            throw not_implemented_error{invocation, __FILE__, __func__, __LINE__, "function invocation with monad"};
-        }
-
         recursive_walker();
 
         auto const child_type = type::type_of(invocation->child);
@@ -809,6 +807,11 @@ public:
 
         auto const& func_type = *maybe_func_type;
         auto const& func_name = func_type->ref->lock()->name;
+
+        if (func_name.back() == '!') {
+            invocation->is_monad_invocation = true;
+            throw not_implemented_error{invocation, __FILE__, __func__, __LINE__, "function invocation with monad"};
+        }
 
         if (!func_type->ref) {
             semantic_error(invocation, func_type->to_string() + " is an invalid function reference");
@@ -854,6 +857,7 @@ public:
         auto func_def = func->get_ast_node();
 
         if (func->is_template()) {
+            assert(func_type->ref->lock()->is_template());
             // Note:
             // No need to use apply_lambda for func->enclosing_scope
             // because enclosing_scope of func_scope is always global_scope.

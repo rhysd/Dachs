@@ -670,20 +670,24 @@ public:
     }
 
     template<class Expr, class Exprs>
-    llvm::Function *emit_callee(Expr const& child, Exprs const& args)
+    val emit_callee(Expr const& child, Exprs const& args)
     {
         auto const generic = type::get<type::generic_func_type>(type::type_of(child));
-        if (generic && (*generic)->ref->lock()->is_template()) {
+        if (!generic) {
+            return nullptr;
+        }
+
+        auto const scope = (*generic)->ref->lock();
+        if (scope->is_builtin) {
             std::vector<type::type> param_types;
             param_types.reserve(args.size());
             for (auto const& e : args) {
                 param_types.push_back(type::type_of(e));
             }
 
-            auto const scope = (*generic)->ref->lock();
             return builtin_func_emitter.emit(scope->name, param_types);
         } else {
-            return llvm::dyn_cast<llvm::Function>(emit(child));
+            return get_operand(emit(child));
         }
     }
 
@@ -699,7 +703,7 @@ public:
                 check(
                     invocation,
                     emit_callee(invocation->child, invocation->args),
-                    "Invalid function to invoke"
+                    "invalid function to invoke"
                 ),
                 args
             );
@@ -749,6 +753,12 @@ public:
 
     val emit(ast::node::var_ref const& var)
     {
+        assert(!var->symbol.expired());
+        auto *const looked_up = var_table.lookup_value(var->symbol.lock());
+        if (looked_up) {
+            return looked_up;
+        }
+
         if (auto const generic_func_t = type::get<type::generic_func_type>(var->type)) {
 
             // TODO:
@@ -783,10 +793,7 @@ public:
                     boost::format("generic function variable '%1%' for '%2%'") % scope->to_string() % var->type.to_string()
                 );
         } else {
-            // Note:
-            // When the variable is not for functio
-            assert(!var->symbol.expired());
-            return check(var, var_table.lookup_value(var->symbol.lock()), "loading variable");
+            error(var, boost::format("Invalid variable reference '%1%'. Its type is '%2%'") % var->name % var->type);
         }
     }
 
@@ -1009,7 +1016,6 @@ public:
                     var_table.insert(std::move(sym), allocated);
                 } else {
                     // If the variable is immutable, do not copy rhs value
-                    value->setName(sym->name);
                     var_table.insert(std::move(sym), value);
                 }
             };
