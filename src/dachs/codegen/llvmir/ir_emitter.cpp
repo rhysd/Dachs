@@ -670,7 +670,7 @@ public:
     }
 
     template<class Expr, class Exprs>
-    val emit_callee(Expr const& child, Exprs const& args)
+    llvm::Function *emit_callee(Expr const& child, Exprs const& args)
     {
         auto const generic = type::get<type::generic_func_type>(type::type_of(child));
         if (generic && (*generic)->ref->lock()->is_template()) {
@@ -696,7 +696,11 @@ public:
         }
 
         return ctx.builder.CreateCall(
-                emit_callee(invocation->child, invocation->args),
+                check(
+                    invocation,
+                    emit_callee(invocation->child, invocation->args),
+                    "Invalid function to invoke"
+                ),
                 args
             );
     }
@@ -746,6 +750,11 @@ public:
     val emit(ast::node::var_ref const& var)
     {
         if (auto const generic_func_t = type::get<type::generic_func_type>(var->type)) {
+
+            // TODO:
+            // Remove this clause.
+            // Store global function constants on emitting ast::node::inu 
+
             auto const scope = (*generic_func_t)->ref->lock();
 
             if (scope->is_template()) {
