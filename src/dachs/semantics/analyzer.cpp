@@ -450,15 +450,16 @@ public:
             return;
         }
 
-        var->symbol = *maybe_var_symbol;
-        if (auto const g = type::get<type::generic_func_type>(var->symbol->type)) {
+        auto const& sym = *maybe_var_symbol;
+        var->symbol = sym;
+        if (auto const g = type::get<type::generic_func_type>(sym->type)) {
             // XXX:
             // Too ad hoc!
             // Allocate new type object not to affect the original type object
             // even if the new type object is modified.
             var->type = type::make<type::generic_func_type>((*g)->ref);
         } else {
-            var->type = (*maybe_var_symbol)->type;
+            var->type = sym->type;
         }
 
         recursive_walker();
