@@ -210,12 +210,14 @@ class any_node {
 
 public:
 
+    explicit any_node(std::nullptr_t) noexcept
+        : node{}
+    {}
+
     template<class Ptr>
     explicit any_node(Ptr const& p) noexcept
         : node{p}
-    {
-        assert(!node.expired());
-    }
+    {}
 
     any_node() noexcept
         : node{}
@@ -226,17 +228,19 @@ public:
         return node.expired();
     }
 
+    void set_node(std::nullptr_t) noexcept
+    {
+        node = decltype(node){};
+    }
+
     template<class Ptr>
     void set_node(Ptr const& n) noexcept
     {
-        assert(node.expired());
         node = n;
-        assert(!node.expired());
     }
 
     decltype(node) get_weak() const noexcept
     {
-        assert(!node.expired());
         return node;
     }
 
