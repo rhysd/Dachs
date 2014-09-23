@@ -889,15 +889,17 @@ public:
     template<class Walker>
     void visit(ast::node::typed_expr const& typed, Walker const& recursive_walker)
     {
-        typed->type = calculate_from_type_nodes(typed->specified_type);
+        auto const calculated_type = calculate_from_type_nodes(typed->specified_type);
 
         recursive_walker();
 
         auto const actual_type = type_of(typed->child_expr);
-        if (actual_type != typed->type) {
+        if (actual_type != calculated_type) {
             semantic_error(typed, boost::format("Type mismatch.  Specified '%1%' but actually typed to '%2%'") % typed->type % actual_type);
             return;
         }
+
+        typed->type = actual_type;
 
         // TODO:
         // Use another visitor to set type and check types. Do not use recursive_walker().
