@@ -7,6 +7,7 @@
 #include <llvm/IR/DerivedTypes.h>
 
 #include "dachs/semantics/type.hpp"
+#include "dachs/semantics/scope.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
@@ -124,9 +125,23 @@ public:
         throw not_implemented_error{__FILE__, __func__, __LINE__, "procedure type LLVM IR generation"};
     }
 
-    llvm::Type *emit(type::generic_func_type const&)
+    llvm::Type *emit(type::generic_func_type const& t)
     {
-        throw not_implemented_error{__FILE__, __func__, __LINE__, "function reference type LLVM IR generation"};
+        if (!t->ref) {
+            return nullptr;
+        }
+
+        assert(!t->ref->expired());
+        auto const scope = t->ref->lock();
+
+        assert(!scope->is_template());
+        assert(scope->ret_type);
+        auto *const ret_ty = emit(*scope->ret_type);
+        std::vector<llvm::Type *> arg_tys;
+        for (auto const& p : scope->params) {
+            arg_tys.push_back(emit(p->type));
+        }
+        return llvm::FunctionType::get(ret_ty, arg_tys, /*variadic*/ false);
     }
 
     llvm::Type *emit(type::dict_type const&)
