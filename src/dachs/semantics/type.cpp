@@ -89,7 +89,7 @@ bool generic_func_type::operator==(generic_func_type const& rhs) const noexcept
     }
 
     if (ref && rhs.ref) {
-        return ref->lock()->name == rhs.ref->lock()->name;
+        return *ref->lock() == *rhs.ref->lock();
     }
 
     return false;
