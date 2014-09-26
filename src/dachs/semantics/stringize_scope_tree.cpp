@@ -6,6 +6,7 @@
 #include <boost/range/empty.hpp>
 
 #include "dachs/semantics/stringize_scope_tree.hpp"
+#include "dachs/helper/colorizer.hpp"
 
 namespace dachs {
 namespace scope {
@@ -16,6 +17,8 @@ using boost::adaptors::transformed;
 using std::size_t;
 
 class scope_tree_stringizer {
+
+    helper::colorizer<std::string> c;
 
     std::string indent(size_t const i) const
     {
@@ -41,7 +44,7 @@ class scope_tree_stringizer {
         if (boost::empty(symbols)) {
             return "";
         }
-        return boost::accumulate(symbols | transformed([this, i, &prefix](auto const& s){ return indent(i) + prefix + s->name + (s->type ? ": " + s->type.to_string() : ""); }),
+        return boost::accumulate(symbols | transformed([this, i, &prefix](auto const& s){ return indent(i) + c.yellow(prefix) + s->name + (s->type ? ": " + c.cyan(s->type.to_string()) : ""); }),
                           std::string{},
                           [](auto const& acc, auto const& item){
                               return acc + '\n' + item;
@@ -50,34 +53,38 @@ class scope_tree_stringizer {
 
 public:
 
+    explicit scope_tree_stringizer(bool const colorful)
+        : c(colorful)
+    {}
+
     std::string visit(local_scope const& l, size_t const i) const
     {
-        return indent(i) + "LOCAL_SCOPE"
-            + visit_symbols(l->local_vars, i+1, "DEF: ")
+        return indent(i) + c.green("LOCAL_SCOPE")
+            + visit_symbols(l->local_vars, i+1, "SYMBOL: ")
             + visit_scopes(l->children, i+1);
     }
 
     std::string visit(func_scope const& f, size_t const i) const
     {
-        return indent(i) + "FUNCTION_SCOPE: " + f->to_string()
-            + visit_symbols(f->params, i+1, "DEF: ")
+        return indent(i) + c.green("FUNCTION_SCOPE: ") + f->to_string()
+            + visit_symbols(f->params, i+1, "SYMBOL: ")
             + '\n' + visit(f->body, i+1);
     }
 
     std::string visit(global_scope const& g, size_t const i) const
     {
-        return indent(i) + "GLOBAL_SCOPE"
-            + visit_symbols(g->const_symbols, i+1, "DEF: ")
+        return indent(i) + c.green("GLOBAL_SCOPE")
+            + visit_symbols(g->const_symbols, i+1, "SYMBOL: ")
             + visit_scopes(g->functions, i+1)
             + visit_scopes(g->classes, i+1);
     }
 
-    std::string visit(class_scope const& c, size_t const i) const
+    std::string visit(class_scope const& cl, size_t const i) const
     {
-        return indent(i) + "CLASS_SCOPE: " + c->name
-            + visit_symbols(c->member_var_symbols, i+1, "DEF: ")
-            + visit_scopes(c->member_func_scopes, i+1)
-            + visit_scopes(c->inherited_class_scopes, i+1);
+        return indent(i) + c.green("CLASS_SCOPE: ") + cl->name
+            + visit_symbols(cl->member_var_symbols, i+1, "SYMBOL: ")
+            + visit_scopes(cl->member_func_scopes, i+1)
+            + visit_scopes(cl->inherited_class_scopes, i+1);
     }
 };
 
@@ -85,7 +92,7 @@ public:
 
 std::string stringize_scope_tree(scope_tree const& tree)
 {
-    return detail::scope_tree_stringizer{}.visit(tree.root, 0);
+    return detail::scope_tree_stringizer{true}.visit(tree.root, 0);
 }
 
 } // namespace scope
