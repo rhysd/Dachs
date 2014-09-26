@@ -65,8 +65,12 @@ struct member_variable_checker : boost::static_visitor<boost::variant<type::type
     }
 };
 
-inline auto check_member_var(ast::node::member_access const& member)
+member_variable_checker::result_type
+check_member_var(ast::node::member_access const& member)
 {
+    if (member->member_name == "__type") {
+        return type::get_builtin_type("string", type::no_opt);
+    }
     return type::type_of(member->child).apply_visitor(member_variable_checker{member->member_name});
 }
 

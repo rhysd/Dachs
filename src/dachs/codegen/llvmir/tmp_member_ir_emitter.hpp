@@ -92,6 +92,10 @@ public:
 
     val emit_var(val const child_value, std::string const& member_name, type::type &&child_type)
     {
+        if (member_name == "__type") {
+            return ctx.builder.CreateGlobalStringPtr(child_type.to_string().c_str());
+        }
+
         return child_type.apply_visitor(type_visit_emitter{member_name, child_value, ctx});
     }
 };
