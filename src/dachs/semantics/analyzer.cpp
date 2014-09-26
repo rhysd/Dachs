@@ -883,7 +883,10 @@ public:
             semantic_error(invocation, boost::format("Cannot deduce the return type of function '%1%'") % func->to_string());
         }
 
-        func_type->ref = func;
+        // Note:
+        // Deeply copy a new scope to the original scope in generic function type
+        // to propagate what the instantiated function is.
+        *func_type->ref->lock() = *func;
     }
 
     template<class Walker>

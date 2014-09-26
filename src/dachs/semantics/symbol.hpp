@@ -19,7 +19,7 @@ struct basic_symbol {
     std::string name;
     type::type type;
     ast::node::any_node ast_node;
-    bool const is_builtin;
+    bool is_builtin;
 
     explicit basic_symbol(std::string const& s, bool const is_builtin = false) noexcept
         : name(s), type{}, ast_node{}, is_builtin(is_builtin)
@@ -42,6 +42,8 @@ struct basic_symbol {
 
     virtual ~basic_symbol() noexcept
     {}
+
+    basic_symbol &operator=(basic_symbol const&) = default;
 };
 
 struct var_symbol final : public basic_symbol {

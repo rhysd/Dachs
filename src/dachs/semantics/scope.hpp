@@ -240,6 +240,8 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
                         }, enclosing_scope);
     }
 
+    func_scope &operator=(func_scope const& rhs) = default;
+
     // Compare with rhs considering overloading
     bool operator==(func_scope const& rhs) const noexcept;
 
