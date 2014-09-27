@@ -19,7 +19,14 @@ static dachs::syntax::parser p;
             auto t = p.parse((__VA_ARGS__), "test_file"); \
             auto s = dachs::semantics::analyze_semantics(t); \
             dachs::codegen::llvmir::context c; \
-            dachs::codegen::llvmir::emit_llvm_ir(t, s, c); \
+            BOOST_CHECK_NO_THROW(dachs::codegen::llvmir::emit_llvm_ir(t, s, c)); \
+        } while (false);
+
+#define CHECK_THROW_CODEGEN_ERROR(...) do { \
+            auto t = p.parse((__VA_ARGS__), "test_file"); \
+            auto s = dachs::semantics::analyze_semantics(t); \
+            dachs::codegen::llvmir::context c; \
+            BOOST_CHECK_THROW(dachs::codegen::llvmir::emit_llvm_ir(t, s, c), dachs::code_generation_error); \
         } while (false);
 
 BOOST_AUTO_TEST_SUITE(codegen_llvm)
@@ -905,6 +912,11 @@ BOOST_AUTO_TEST_CASE(function_variable)
             higher_order_foo(gf, 'a')
             higher_order_foo(gf2, "aaa")
 
+        end
+    )");
+
+    CHECK_THROW_CODEGEN_ERROR(R"(
+        func main
             bf := println
             var bf2 := println
             bf("aaa")

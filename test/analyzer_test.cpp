@@ -137,6 +137,21 @@ BOOST_AUTO_TEST_CASE(local_variable_duplication_error)
         )");
 }
 
+BOOST_AUTO_TEST_CASE(function_variable)
+{
+    // This error is temporary until class is implemeneted.
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+            func foo(i)
+            end
+
+            func main
+                f := foo
+                f(42)
+                f(3.14)
+            end
+        )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
