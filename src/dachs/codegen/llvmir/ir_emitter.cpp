@@ -178,10 +178,12 @@ class llvm_ir_emitter {
         auto const scope = func_def->scope.lock();
 
         for (auto const& param_sym : scope->params) {
-            param_type_irs.push_back(type_emitter.emit(param_sym->type));
+            auto *const t = type_emitter.emit(param_sym->type);
+            assert(t);
+            param_type_irs.push_back(t);
         }
 
-        auto func_type_ir = llvm::FunctionType::get(
+        auto *const func_type_ir = llvm::FunctionType::get(
                 type_emitter.emit(*func_def->ret_type),
                 param_type_irs,
                 false // Non-variadic
@@ -191,7 +193,7 @@ class llvm_ir_emitter {
 
         // Note:
         // Use to_string() instead of mangling.
-        auto func_ir = llvm::Function::Create(
+        auto *const func_ir = llvm::Function::Create(
                 func_type_ir,
                 llvm::Function::ExternalLinkage,
                 // Note:

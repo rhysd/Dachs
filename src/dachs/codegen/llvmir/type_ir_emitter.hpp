@@ -141,7 +141,7 @@ public:
         for (auto const& p : scope->params) {
             arg_tys.push_back(emit(p->type));
         }
-        return llvm::FunctionType::get(ret_ty, arg_tys, /*variadic*/ false);
+        return llvm::PointerType::getUnqual(llvm::FunctionType::get(ret_ty, arg_tys, /*variadic*/ false));
     }
 
     llvm::Type *emit(type::dict_type const&)
