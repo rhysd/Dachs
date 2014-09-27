@@ -828,18 +828,20 @@ public:
         }
 
         auto const& func_type = *maybe_func_type;
-        auto const& func_name = func_type->ref->lock()->name;
-
-        if (func_name.back() == '!') {
-            invocation->is_monad_invocation = true;
-            throw not_implemented_error{invocation, __FILE__, __func__, __LINE__, "function invocation with monad"};
-        }
 
         if (!func_type->ref) {
             semantic_error(invocation, func_type->to_string() + " is an invalid function reference");
             return;
         }
         assert(!func_type->ref->expired());
+
+        auto const scope = func_type->ref->lock();
+        auto const& func_name = scope->name;
+
+        if (func_name.back() == '!') {
+            invocation->is_monad_invocation = true;
+            throw not_implemented_error{invocation, __FILE__, __func__, __LINE__, "function invocation with monad"};
+        }
 
         std::vector<type::type> arg_types;
         arg_types.reserve(invocation->args.size());
@@ -879,7 +881,11 @@ public:
         auto func_def = func->get_ast_node();
 
         if (func->is_template()) {
-            assert(func_type->ref->lock()->is_template());
+            if (!scope->is_template()) {
+                semantic_error(invocation, boost::format("Function '%1%' is already instantiated as '%2' in other place. (This is temporary ristriction untill class is implemented.)") % func->to_string() % scope->to_string());
+                return;
+            }
+
             // Note:
             // No need to use apply_lambda for func->enclosing_scope
             // because enclosing_scope of func_scope is always global_scope.
