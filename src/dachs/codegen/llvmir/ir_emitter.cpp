@@ -705,7 +705,7 @@ public:
                 check(
                     invocation,
                     emit_callee(invocation->child, invocation->args),
-                    "invalid function to invoke"
+                    "invalid function to invoke (Did you use a function variable for built-in function?)"
                 ),
                 args
             );

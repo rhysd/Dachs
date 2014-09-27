@@ -453,19 +453,19 @@ public:
         auto const& sym = *maybe_var_symbol;
         var->symbol = sym;
 
-        auto const should_copy_deeply = [](auto const& node) -> bool
+        auto const should_copy_deeply = [](auto const& s) -> bool
         {
-            if (node.empty()) {
+            if (s->is_builtin) {
                 // Note:
                 // If built-in
-                return false;
+                return true;
             }
 
             // TODO:
             // If the function is not a template, deep copy is not needed
 
-            return ast::node::is_a<ast::node::function_definition>(node);
-        }(sym->ast_node);
+            return ast::node::is_a<ast::node::function_definition>(s->ast_node);
+        }(sym);
 
         if (should_copy_deeply) {
             auto const g = type::get<type::generic_func_type>(sym->type);
