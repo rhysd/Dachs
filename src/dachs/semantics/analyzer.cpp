@@ -882,7 +882,7 @@ public:
 
         if (func->is_template()) {
             if (!scope->is_template()) {
-                semantic_error(invocation, boost::format("Function '%1%' is already instantiated as '%2' in other place. (This is temporary ristriction untill class is implemented.)") % func->to_string() % scope->to_string());
+                semantic_error(invocation, boost::format("Function '%1%' is already instantiated as '%2%' in other place. (This is temporary ristriction untill class is implemented.)") % func->to_string() % scope->to_string());
                 return;
             }
 
