@@ -876,6 +876,43 @@ BOOST_AUTO_TEST_CASE(while_statement)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(function_variable)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(i : int)
+        end
+
+        func generic_foo(i)
+        end
+
+        func higher_order_foo(f, a)
+            f(a)
+        end
+
+        func main
+            f := foo
+            var f2 := foo
+            f(42)
+            f2(42)
+
+            gf := generic_foo
+            var gf2 := generic_foo
+            gf('a')
+            gf2("aaa")
+
+            higher_order_foo(f, 42)
+            higher_order_foo(f2, 42)
+            higher_order_foo(gf, 'a')
+            higher_order_foo(gf2, "aaa")
+
+            bf := println
+            var bf2 := println
+            bf("aaa")
+            bf2(42u)
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(some_samples)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
