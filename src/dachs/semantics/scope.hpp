@@ -209,6 +209,8 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         , basic_symbol(n, s, is_builtin)
     {}
 
+    func_scope(func_scope const&) = default;
+
     bool define_param(symbol::var_symbol const& new_var) noexcept
     {
         check_shadowing_variable(new_var);

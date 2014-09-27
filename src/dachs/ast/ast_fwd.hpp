@@ -252,7 +252,9 @@ public:
 
     bool is_root() const noexcept
     {
-        assert(!node.expired());
+        if (node.expired()) {
+            return false;
+        }
         return bool{std::dynamic_pointer_cast<node::inu>(node.lock())};
     }
 
@@ -263,13 +265,22 @@ template<class NodePtr>
 inline boost::optional<NodePtr> get_shared_as(any_node const& node) noexcept
 {
     using Node = typename NodePtr::element_type;
-    static_assert(traits::is_node<Node>::value, "any_node::get_shared_as(): T is not AST node.");
+    static_assert(traits::is_node<Node>::value, "ast::node::get_shared_as(): Not an AST node.");
+
     auto const shared = std::dynamic_pointer_cast<Node>(node.get_shared());
     if (shared) {
         return {shared};
     } else {
         return boost::none;
     }
+}
+
+template<class NodePtr>
+inline bool is_a(any_node const& node) noexcept
+{
+    using Node = typename NodePtr::element_type;
+    static_assert(traits::is_node<Node>::value, "ast::node::is_a(): Not an AST node.");
+    return {dynamic_cast<Node *>(node.get_shared().get())};
 }
 
 } // namespace node

@@ -444,7 +444,7 @@ public:
             name.pop_back();
         }
 
-        auto maybe_var_symbol = boost::apply_visitor(scope::var_symbol_resolver{name}, current_scope);
+        auto const maybe_var_symbol = boost::apply_visitor(scope::var_symbol_resolver{name}, current_scope);
         if (!maybe_var_symbol) {
             semantic_error(var, boost::format("Symbol '%1%' is not found") % name);
             return;
@@ -452,11 +452,32 @@ public:
 
         auto const& sym = *maybe_var_symbol;
         var->symbol = sym;
-        if (auto const g = type::get<type::generic_func_type>(sym->type)) {
+
+        auto const should_copy_deeply = [](auto const& node) -> bool
+        {
+            if (node.empty()) {
+                // Note:
+                // If built-in
+                return false;
+            }
+
+            // TODO:
+            // If the function is not a template, deep copy is not needed
+
+            return ast::node::is_a<ast::node::function_definition>(node);
+        }(sym->ast_node);
+
+        if (should_copy_deeply) {
+            auto const g = type::get<type::generic_func_type>(sym->type);
+            assert(g);
+            assert((*g)->ref);
+            assert(!(*g)->ref->expired());
+
             // XXX:
             // Too ad hoc!
             // Allocate new type object not to affect the original type object
-            // even if the new type object is modified.
+            // when the new type object is modified.
+
             var->type = type::make<type::generic_func_type>((*g)->ref);
         } else {
             var->type = sym->type;
@@ -866,8 +887,6 @@ public:
             std::tie(func_def, func) = instantiate_function_from_template(func_def, arg_types, global);
 
             assert(!global->ast_root.expired());
-
-            // Update its function type with resolved function
         }
 
         if (!func_def->ret_type) {
@@ -884,9 +903,8 @@ public:
         }
 
         // Note:
-        // Deeply copy a new scope to the original scope in generic function type
-        // to propagate what the instantiated function is.
-        *func_type->ref->lock() = *func;
+        // Update its function type with resolved function
+        func_type->ref = func;
     }
 
     template<class Walker>
