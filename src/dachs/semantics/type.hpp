@@ -602,7 +602,7 @@ struct array_type final : public basic_type {
         // Note:
         // Do not consider size because different sized arrays are not
         // different type.
-        return element_type == rhs.element_type;
+        return element_type == rhs.element_type && size == rhs.size;
     }
 
     template<class T>
