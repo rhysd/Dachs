@@ -920,7 +920,7 @@ BOOST_AUTO_TEST_CASE(function_variable)
 
             # undetermined generic function variable
             unused := generic_foo
-            var unused := generic_foo
+            var unused2 := generic_foo
         end
     )");
 }
