@@ -1014,6 +1014,30 @@ BOOST_AUTO_TEST_CASE(some_samples)
             print(fib(10))
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func map(var a, p)
+            var i := 0u
+            for i < a.size
+                a[i] = p(a[i])
+                i += 1u
+            end
+
+            ret a
+        end
+
+        func square(x)
+            ret x * x
+        end
+
+        func main
+            a := [1, 2, 3, 4, 5]
+            a2 := map(a, square)
+            for e in a2
+                println(e)
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
