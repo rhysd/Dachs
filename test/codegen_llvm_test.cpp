@@ -912,15 +912,15 @@ BOOST_AUTO_TEST_CASE(function_variable)
             higher_order_foo(gf, 'a')
             higher_order_foo(gf2, "aaa")
 
-        end
-    )");
-
-    CHECK_THROW_CODEGEN_ERROR(R"(
-        func main
+            # built-in function
             bf := println
             var bf2 := println
             bf("aaa")
             bf2(42u)
+
+            # undetermined generic function variable
+            unused := generic_foo
+            var unused := generic_foo
         end
     )");
 }
@@ -1034,6 +1034,12 @@ BOOST_AUTO_TEST_CASE(some_samples)
             a := [1, 2, 3, 4, 5]
             a2 := map(a, square)
             for e in a2
+                println(e)
+            end
+
+            var a3 := [1.1, 2.2, 3.3, 4.4, 5.5]
+            var a4 := map(a3, square)
+            for e in a4
                 println(e)
             end
         end

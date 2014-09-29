@@ -125,23 +125,9 @@ public:
         throw not_implemented_error{__FILE__, __func__, __LINE__, "procedure type LLVM IR generation"};
     }
 
-    llvm::Type *emit(type::generic_func_type const& t)
+    llvm::StructType *emit(type::generic_func_type const&)
     {
-        if (!t->ref) {
-            return nullptr;
-        }
-
-        assert(!t->ref->expired());
-        auto const scope = t->ref->lock();
-
-        assert(!scope->is_template());
-        assert(scope->ret_type);
-        auto *const ret_ty = emit(*scope->ret_type);
-        std::vector<llvm::Type *> arg_tys;
-        for (auto const& p : scope->params) {
-            arg_tys.push_back(emit(p->type));
-        }
-        return llvm::PointerType::getUnqual(llvm::FunctionType::get(ret_ty, arg_tys, /*variadic*/ false));
+        return llvm::StructType::get(context, {});
     }
 
     llvm::Type *emit(type::dict_type const&)

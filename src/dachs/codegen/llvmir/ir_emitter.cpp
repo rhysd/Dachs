@@ -671,8 +671,8 @@ public:
         }
     }
 
-    template<class Expr, class Exprs>
-    val emit_callee(Expr const& child, Exprs const& args)
+    template<class Node, class Expr, class Exprs>
+    val emit_callee(Node const& n, Expr const& child, Exprs const& args)
     {
         auto const generic = type::get<type::generic_func_type>(type::type_of(child));
         if (!generic) {
@@ -680,17 +680,32 @@ public:
         }
 
         auto const scope = (*generic)->ref->lock();
+
         if (scope->is_builtin) {
             std::vector<type::type> param_types;
-            param_types.reserve(args.size());
+            param_types.reserve(scope->params.size());
             for (auto const& e : args) {
                 param_types.push_back(type::type_of(e));
             }
 
-            return builtin_func_emitter.emit(scope->name, param_types);
-        } else {
-            return get_operand(emit(child));
+            return check(
+                    n,
+                    builtin_func_emitter.emit(scope->name, param_types),
+                    boost::format("builtin function '%1%' can't be emit") % scope->to_string()
+                );
         }
+
+        if (scope->is_template()) {
+            // XXX:
+            // It seems internal compilation error now
+            error(n, boost::format("'%1%' is unresolved overloaded function '%2%'") % scope->name % scope->to_string());
+        }
+
+        return check(
+                n,
+                module->getFunction(scope->to_string()),
+                boost::format("generic function variable '%1%' for '%2%'") % scope->to_string() % type::type_of(child).to_string()
+            );
     }
 
     val emit(ast::node::func_invocation const& invocation)
@@ -701,14 +716,14 @@ public:
             args.push_back(get_operand(emit(a)));
         }
 
-        return ctx.builder.CreateCall(
-                check(
+        return check(
                     invocation,
-                    emit_callee(invocation->child, invocation->args),
-                    "invalid function to invoke (Did you use a function variable for built-in function?)"
-                ),
-                args
-            );
+                    ctx.builder.CreateCall(
+                        emit_callee(invocation, invocation->child, invocation->args),
+                        args
+                    ),
+                    "invalid function call"
+                );
     }
 
     val emit(ast::node::unary_expr const& unary)
@@ -761,39 +776,8 @@ public:
             return looked_up;
         }
 
-        if (auto const generic_func_t = type::get<type::generic_func_type>(var->type)) {
-
-            // TODO:
-            // Remove this clause.
-            // Store global function constants on emitting ast::node::inu 
-
-            auto const scope = (*generic_func_t)->ref->lock();
-
-            if (scope->is_template()) {
-                // XXX:
-                // It seems internal compilation error now
-                error(var, boost::format("'%1%' is unresolved overloaded function '%2%'") % var->name % scope->to_string());
-            }
-
-            if (scope->is_builtin) {
-                std::vector<type::type> param_types;
-                param_types.reserve(scope->params.size());
-                for (auto const& v : scope->params) {
-                    param_types.push_back(v->type);
-                }
-
-                return check(
-                        var,
-                        builtin_func_emitter.emit(scope->name, param_types),
-                        boost::format("builtin function '%1%' can't be emit") % scope->to_string()
-                    );
-            }
-
-            return check(
-                    var,
-                    module->getFunction(scope->to_string()),
-                    boost::format("generic function variable '%1%' for '%2%'") % scope->to_string() % var->type.to_string()
-                );
+        if (auto const g = type::get<type::generic_func_type>(var->type)) {
+            return llvm::ConstantStruct::get(type_emitter.emit(*g), {});
         } else {
             error(var, boost::format("Invalid variable reference '%1%'. Its type is '%2%'") % var->name % var->type);
         }
