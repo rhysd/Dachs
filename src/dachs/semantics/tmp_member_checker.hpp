@@ -66,12 +66,12 @@ struct member_variable_checker : boost::static_visitor<boost::variant<type::type
 };
 
 member_variable_checker::result_type
-check_member_var(ast::node::member_access const& member)
+check_member_var(ast::node::ufcs_invocation const& ufcs)
 {
-    if (member->member_name == "__type") {
+    if (ufcs->member_name == "__type") {
         return type::get_builtin_type("string", type::no_opt);
     }
-    return type::type_of(member->child).apply_visitor(member_variable_checker{member->member_name});
+    return type::type_of(ufcs->child).apply_visitor(member_variable_checker{ufcs->member_name});
 }
 
 } // namespace detail

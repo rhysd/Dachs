@@ -376,17 +376,17 @@ struct index_access final : public expression {
     }
 };
 
-struct member_access final : public expression {
+struct ufcs_invocation final : public expression {
     node::any_expr child;
     std::string member_name;
 
-    explicit member_access(node::any_expr const& c, std::string const& member_name) noexcept
+    explicit ufcs_invocation(node::any_expr const& c, std::string const& member_name) noexcept
         : expression(), child(c), member_name(member_name)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "MEMBER_ACCESS: " + member_name;
+        return "UFCS_INVOCATION: " + member_name;
     }
 };
 

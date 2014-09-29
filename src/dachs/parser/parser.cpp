@@ -384,7 +384,7 @@ public:
         postfix_expr
             =
                 primary_expr[_val = _1] >> *(
-                      (-qi::eol >> '.' >> -qi::eol >> called_function_name)[_val = make_node_ptr<ast::node::member_access>(_val, _1)]
+                      (-qi::eol >> '.' >> -qi::eol >> called_function_name)[_val = make_node_ptr<ast::node::ufcs_invocation>(_val, _1)]
                     | ('[' >> -qi::eol >> typed_expr >> -qi::eol >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]
                     | ('(' >> -qi::eol >> -(typed_expr % comma) >> trailing_comma >> ')')[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1))]
                 )

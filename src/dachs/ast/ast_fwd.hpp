@@ -65,7 +65,7 @@ struct parameter;
 struct func_invocation;
 struct object_construct;
 struct index_access;
-struct member_access;
+struct ufcs_invocation;
 struct unary_expr;
 struct binary_expr;
 struct primary_type;
@@ -131,7 +131,7 @@ DACHS_DEFINE_NODE_PTR(parameter);
 DACHS_DEFINE_NODE_PTR(func_invocation);
 DACHS_DEFINE_NODE_PTR(object_construct);
 DACHS_DEFINE_NODE_PTR(index_access);
-DACHS_DEFINE_NODE_PTR(member_access);
+DACHS_DEFINE_NODE_PTR(ufcs_invocation);
 DACHS_DEFINE_NODE_PTR(unary_expr);
 DACHS_DEFINE_NODE_PTR(binary_expr);
 DACHS_DEFINE_NODE_PTR(cast_expr);
@@ -165,7 +165,7 @@ using any_expr =
                   , array_literal
                   , dict_literal
                   , tuple_literal
-                  , member_access
+                  , ufcs_invocation
                   , index_access
                   , func_invocation
                   , object_construct

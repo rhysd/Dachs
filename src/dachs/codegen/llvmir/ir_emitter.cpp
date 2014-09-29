@@ -846,17 +846,17 @@ public:
         }
     }
 
-    val emit(ast::node::member_access const& member)
+    val emit(ast::node::ufcs_invocation const& ufcs)
     {
         // Note:
         // Do not use get_operand() because GEP is emitted
         // in member_emitter internally.
         return check(
-                member,
+                ufcs,
                 member_emitter.emit_var(
-                    emit(member->child),
-                    member->member_name,
-                    type::type_of(member->child)
+                    emit(ufcs->child),
+                    ufcs->member_name,
+                    type::type_of(ufcs->child)
                 ),
                 "member access"
             );

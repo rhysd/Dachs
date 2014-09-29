@@ -189,10 +189,10 @@ public:
             + '\n' + visit(ia->index_expr, indent+lead, "   ");
     }
 
-    String visit(node::member_access const& ma, String const& indent, char const* const lead) const noexcept
+    String visit(node::ufcs_invocation const& ui, String const& indent, char const* const lead) const noexcept
     {
-        return prefix_of(ma, indent)
-            + '\n' + visit(ma->child, indent+lead, "   ");
+        return prefix_of(ui, indent)
+            + '\n' + visit(ui->child, indent+lead, "   ");
     }
 
     String visit(node::func_invocation const& fc, String const& indent, char const* const lead) const noexcept

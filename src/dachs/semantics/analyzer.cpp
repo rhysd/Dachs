@@ -943,19 +943,19 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::member_access const& member, Walker const& recursive_walker)
+    void visit(ast::node::ufcs_invocation const& ufcs, Walker const& recursive_walker)
     {
         recursive_walker();
 
-        auto const checked = check_member_var(member);
+        auto const checked = check_member_var(ufcs);
         if (auto const& error_msg = get_as<std::string>(checked)) {
-            output_semantic_error(member, *error_msg);
+            output_semantic_error(ufcs, *error_msg);
             return;
         }
 
         auto const& t = get_as<type::type>(checked);
         assert(t);
-        member->type = *t;
+        ufcs->type = *t;
     }
 
     template<class Walker>

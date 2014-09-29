@@ -113,9 +113,9 @@ public:
         return copy_node<node::index_access>(ia, copy(ia->child), copy(ia->index_expr));
     }
 
-    auto copy(node::member_access const& ma) const
+    auto copy(node::ufcs_invocation const& ui) const
     {
-        return copy_node<node::member_access>(ma, copy(ma->child), ma->member_name);
+        return copy_node<node::ufcs_invocation>(ui, copy(ui->child), ui->member_name);
     }
 
     auto copy(node::unary_expr const& ue) const

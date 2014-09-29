@@ -109,10 +109,10 @@ public:
         ));
     }
 
-    void walk(node::member_access &ma)
+    void walk(node::ufcs_invocation &ui)
     {
-        visitor.visit(ma, walker_for(
-            ma->child
+        visitor.visit(ui, walker_for(
+            ui->child
         ));
     }
 
