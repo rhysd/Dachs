@@ -603,9 +603,19 @@ BOOST_AUTO_TEST_CASE(postfix_expr)
             foo()
             foo(a)
 
+            aaa.bbb.ccc
+            aaa().bbb.ccc
+            aaa.bbb().ccc
+            aaa.bbb.ccc()
+
             foo.bar(args)[3]
             foo[3].bar.baz(args)
             foo(hoge).bar[42]
+
+            foo.awesome_member_func()
+            foo.awesome_member_func(a, b)
+            foo.awesome_member_func a
+            foo.awesome_member_func a, b
         end
         )"));
 

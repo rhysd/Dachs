@@ -671,16 +671,9 @@ public:
         }
     }
 
-    template<class Node, class Expr, class Exprs>
-    val emit_callee(Node const& n, Expr const& child, Exprs const& args)
+    template<class Node, class Scope, class Exprs>
+    val emit_callee(Node const& n, Scope const& scope, Exprs const& args)
     {
-        auto const generic = type::get<type::generic_func_type>(type::type_of(child));
-        if (!generic) {
-            return nullptr;
-        }
-
-        auto const scope = (*generic)->ref->lock();
-
         if (scope->is_builtin) {
             std::vector<type::type> param_types;
             param_types.reserve(scope->params.size());
@@ -704,7 +697,7 @@ public:
         return check(
                 n,
                 module->getFunction(scope->to_string()),
-                boost::format("generic function variable '%1%' for '%2%'") % scope->to_string() % type::type_of(child).to_string()
+                boost::format("generic function variable '%1%' for '%2%'") % scope->to_string() % scope->type.to_string()
             );
     }
 
@@ -716,10 +709,19 @@ public:
             args.push_back(get_operand(emit(a)));
         }
 
+        auto const child_type = type::type_of(invocation->child);
+        auto const generic = type::get<type::generic_func_type>(child_type);
+        if (!generic) {
+            // TODO:
+            // Deal with func_type
+            error(invocation, boost::format("calls '%1%' type variable which is not callable") % child_type.to_string());
+        }
+        assert(!invocation->callee_scope.expired());
+
         return check(
                     invocation,
                     ctx.builder.CreateCall(
-                        emit_callee(invocation, invocation->child, invocation->args),
+                        emit_callee(invocation, invocation->callee_scope.lock(), invocation->args),
                         args
                     ),
                     "invalid function call"
@@ -848,18 +850,33 @@ public:
 
     val emit(ast::node::ufcs_invocation const& ufcs)
     {
-        // Note:
-        // Do not use get_operand() because GEP is emitted
-        // in member_emitter internally.
-        return check(
-                ufcs,
-                member_emitter.emit_var(
-                    emit(ufcs->child),
-                    ufcs->member_name,
-                    type::type_of(ufcs->child)
-                ),
-                "member access"
-            );
+        if (ufcs->callee_scope.expired()) {
+            // Note:
+            // When the data member access
+
+            // Note:
+            // Do not use get_operand() because GEP is emitted
+            // in member_emitter internally.
+            return check(
+                    ufcs,
+                    member_emitter.emit_var(
+                        emit(ufcs->child),
+                        ufcs->member_name,
+                        type::type_of(ufcs->child)
+                    ),
+                    "data member access"
+                );
+        } else {
+            // Scope is not expired. It means the UFCS invoke a funciton
+            return check(
+                        ufcs,
+                        ctx.builder.CreateCall(
+                            emit_callee(ufcs, ufcs->callee_scope.lock(), std::vector<ast::node::any_expr>{{ufcs->child}}),
+                            std::vector<val>{get_operand(emit(ufcs->child))}
+                        ),
+                        "UFCS function invocation"
+                    );
+        }
     }
 
     void emit(ast::node::while_stmt const& while_)

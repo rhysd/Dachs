@@ -921,6 +921,60 @@ BOOST_AUTO_TEST_CASE(function_variable)
             # undetermined generic function variable
             unused := generic_foo
             var unused2 := generic_foo
+
+            # call generic function with overload resolution
+            gf3 := generic_foo
+            gf3(42)
+            gf3(3.14)
+
+            var gf4 := generic_foo
+            gf4(42)
+            gf4(3.14)
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(ufcs)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(i : int)
+            ret i
+        end
+
+        func bar(i)
+            ret i
+        end
+
+        func baz(i, j)
+            ret j
+        end
+
+        func main
+            var i := 42
+
+            42.foo
+            i.foo
+            42.foo()
+            i.foo()
+            42.bar
+            i.bar
+            42.bar()
+            i.bar()
+
+            3.14.bar
+            3.14.bar()
+
+            42.baz(3)
+            42.baz(3.14)
+            i.baz(3)
+            i.baz(3.14)
+
+            42.foo.bar
+            42.foo.bar()
+            42.foo().bar
+            42.foo().bar()
+            42.foo.baz(3.14)
+            42.foo().baz(3.14)
         end
     )");
 }

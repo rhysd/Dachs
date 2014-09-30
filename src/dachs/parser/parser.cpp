@@ -381,10 +381,17 @@ public:
                 | '(' >> -qi::eol >> typed_expr >> -qi::eol >> ')'
             );
 
+        // primary.name(...)
+        // primary.name ...
+        // primary.name
+        // primary[...]
+        // primary(...)
         postfix_expr
             =
                 primary_expr[_val = _1] >> *(
-                      (-qi::eol >> '.' >> -qi::eol >> called_function_name)[_val = make_node_ptr<ast::node::ufcs_invocation>(_val, _1)]
+                      (-qi::eol >> '.' >> -qi::eol >> var_ref >> '(' >> -(typed_expr % comma) >> trailing_comma >> ')')[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, as_vector(_2))]
+                    | (-qi::eol >> '.' >> -qi::eol >> var_ref >> typed_expr % comma)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2)]
+                    | (-qi::eol >> '.' >> -qi::eol >> called_function_name)[_val = make_node_ptr<ast::node::ufcs_invocation>(_val, _1)]
                     | ('[' >> -qi::eol >> typed_expr >> -qi::eol >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]
                     | ('(' >> -qi::eol >> -(typed_expr % comma) >> trailing_comma >> ')')[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1))]
                 )

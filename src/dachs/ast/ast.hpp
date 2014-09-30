@@ -337,10 +337,17 @@ struct func_invocation final : public expression {
     node::any_expr child;
     std::vector<node::any_expr> args;
     bool is_monad_invocation = false;
+    scope::weak_func_scope callee_scope;
 
     func_invocation(node::any_expr const& c, std::vector<node::any_expr> const& args) noexcept
         : expression(), child(c), args(args)
     {}
+
+    func_invocation(node::any_expr const& c, node::any_expr const& head, std::vector<node::any_expr> const& tail) noexcept
+        : expression(), child(c), args({head})
+    {
+        args.insert(args.end(), tail.begin(), tail.end());
+    }
 
     std::string to_string() const noexcept override
     {
@@ -379,6 +386,7 @@ struct index_access final : public expression {
 struct ufcs_invocation final : public expression {
     node::any_expr child;
     std::string member_name;
+    scope::weak_func_scope callee_scope;
 
     explicit ufcs_invocation(node::any_expr const& c, std::string const& member_name) noexcept
         : expression(), child(c), member_name(member_name)

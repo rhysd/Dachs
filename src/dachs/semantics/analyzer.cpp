@@ -804,9 +804,69 @@ public:
         if_->type = then_type;
     }
 
+    template<class Node, class ArgTypes>
+    boost::optional<std::string> visit_invocation(Node const& node, std::string const& func_name, ArgTypes const& arg_types)
+    {
+        if (func_name.back() == '!') {
+            throw not_implemented_error{node, __FILE__, __func__, __LINE__, "function invocation with monad"};
+        }
+
+        // Note:
+        // generic_func_type::ref is not available because it is not updated
+        // even if overload functions are resolved.
+        auto maybe_func =
+            apply_lambda(
+                    [&](auto const& s)
+                    {
+                        return s->resolve_func(func_name, arg_types);
+                    }, current_scope
+                );
+
+        if (!maybe_func) {
+            return (boost::format("Function '%1%' is not found") % func_name).str();
+        }
+
+        auto func = *maybe_func;
+
+        if (func->is_builtin) {
+            assert(func->ret_type);
+            node->type = *func->ret_type;
+            node->callee_scope = func;
+            return boost::none;
+        }
+
+        auto func_def = func->get_ast_node();
+
+        if (func->is_template()) {
+            // Note:
+            // No need to use apply_lambda for func->enclosing_scope
+            // because enclosing_scope of func_scope is always global_scope.
+
+            std::tie(func_def, func) = instantiate_function_from_template(func_def, arg_types, global /*XXX*/);
+
+            assert(!global->ast_root.expired());
+        }
+
+        if (!func_def->ret_type) {
+            auto saved_current_scope = current_scope;
+            current_scope = global; // enclosing scope of function scope is always global scope
+            ast::walk_topdown(func_def, *this);
+            current_scope = std::move(saved_current_scope);
+        }
+
+        if (!func->ret_type) {
+            return (boost::format("Cannot deduce the return type of function '%1%'") % func->to_string()).str();
+        }
+
+        node->type = *func->ret_type;
+        node->callee_scope = func;
+
+        return boost::none;
+    }
+
     // TODO:
     // If return type of function is not determined, interrupt current parsing and parse the
-    // function at first.  Add the function list which are already visited and check it at
+    // function at first.  Add the function to the list which are already visited and check it at
     // function_definition node
     template<class Walker>
     void visit(ast::node::func_invocation const& invocation, Walker const& recursive_walker)
@@ -830,18 +890,13 @@ public:
         auto const& func_type = *maybe_func_type;
 
         if (!func_type->ref) {
-            semantic_error(invocation, func_type->to_string() + " is an invalid function reference");
+            semantic_error(
+                    invocation,
+                    func_type->to_string() + " is an invalid function reference"
+                );
             return;
         }
         assert(!func_type->ref->expired());
-
-        auto const scope = func_type->ref->lock();
-        auto const& func_name = scope->name;
-
-        if (func_name.back() == '!') {
-            invocation->is_monad_invocation = true;
-            throw not_implemented_error{invocation, __FILE__, __func__, __LINE__, "function invocation with monad"};
-        }
 
         std::vector<type::type> arg_types;
         arg_types.reserve(invocation->args.size());
@@ -854,63 +909,10 @@ public:
             }
         }
 
-        // Note:
-        // generic_func_type::ref is not available because it is not updated
-        // even if overload functions are resolved.
-        auto maybe_func =
-            apply_lambda(
-                    [&](auto const& s)
-                    {
-                        return s->resolve_func(func_name, arg_types);
-                    }, current_scope
-                );
-
-        if (!maybe_func) {
-            semantic_error(invocation, boost::format("Function '%1%' is not found") % func_name);
-            return;
+        auto const error = visit_invocation(invocation, func_type->ref->lock()->name, arg_types);
+        if (error) {
+            semantic_error(invocation, *error);
         }
-
-        auto func = *maybe_func;
-
-        if (func->is_builtin) {
-            assert(func->ret_type);
-            invocation->type = *func->ret_type;
-            return;
-        }
-
-        auto func_def = func->get_ast_node();
-
-        if (func->is_template()) {
-            if (!scope->is_template()) {
-                semantic_error(invocation, boost::format("Function '%1%' is already instantiated as '%2%' in other place. (This is temporary ristriction untill class is implemented.)") % func->to_string() % scope->to_string());
-                return;
-            }
-
-            // Note:
-            // No need to use apply_lambda for func->enclosing_scope
-            // because enclosing_scope of func_scope is always global_scope.
-
-            std::tie(func_def, func) = instantiate_function_from_template(func_def, arg_types, global);
-
-            assert(!global->ast_root.expired());
-        }
-
-        if (!func_def->ret_type) {
-            auto saved_current_scope = current_scope;
-            current_scope = global; // enclosing scope of function scope is always global scope
-            ast::walk_topdown(func_def, *this);
-            current_scope = std::move(saved_current_scope);
-        }
-
-        if (auto maybe_ret_type = func_def->ret_type) {
-            invocation->type = *maybe_ret_type;
-        } else {
-            semantic_error(invocation, boost::format("Cannot deduce the return type of function '%1%'") % func->to_string());
-        }
-
-        // Note:
-        // Update its function type with resolved function
-        func_type->ref = func;
     }
 
     template<class Walker>
@@ -947,9 +949,27 @@ public:
     {
         recursive_walker();
 
+        // TODO:
+        // Check data member 'ufcs->member_name' of 'ufcs->child'.
+        // This should be implemented after class is implemented.
+
+        // Note:
+        // a.foo means foo(a)
+        auto const child_type = type::type_of(ufcs->child);
+        if (!child_type) {
+            return;
+        }
+
+        auto const error = visit_invocation(ufcs, ufcs->member_name, std::vector<type::type>{{child_type}});
+        if (!error) {
+            return;
+        }
+
+        // TODO:
+        // check_member_var() should be removed and built-in functions should be implemented for them
         auto const checked = check_member_var(ufcs);
         if (auto const& error_msg = get_as<std::string>(checked)) {
-            output_semantic_error(ufcs, *error_msg);
+            semantic_error(ufcs, *error_msg);
             return;
         }
 
