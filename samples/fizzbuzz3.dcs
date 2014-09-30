@@ -1,0 +1,23 @@
+func print_fb(i)
+    case
+    when i % 15 == 0
+        "fizzbuzz".println
+    when i %  3 == 0
+        "fizz".println
+    when i %  5 == 0
+        "buzz".println
+    else
+        i.println
+    end
+end
+
+func step_to(var first, last, p)
+    for first <= last
+        p(first)
+        first += 1
+    end
+end
+
+func main
+    1.step_to 100, print_fb
+end
