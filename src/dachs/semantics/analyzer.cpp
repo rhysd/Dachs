@@ -949,11 +949,31 @@ public:
     {
         recursive_walker();
 
-        // TODO:
         // Check data member 'ufcs->member_name' of 'ufcs->child'.
-        // This should be implemented after class is implemented.
+        // Now, built-in data member is only available.
+        auto const checked = check_member_var(ufcs);
+        if (auto const error = get_as<std::string>(checked)) {
+            semantic_error(ufcs, *error);
+            return;
+        } else {
+            // Note:
+            // When no semantic error occurs.
+            auto const t = get_as<type::type>(checked);
+            assert(t);
+            if (*t) {
+                ufcs->type = *t;
+                return;
+            }
+        }
+
+        // TODO:
+        // Data member access has higher priority than function call.
+        // When it is data member access and also function call is available,
+        // the function call is shadowed by data member access.  Warning may
+        // be required.
 
         // Note:
+        // Check function call
         // a.foo means foo(a)
         auto const child_type = type::type_of(ufcs->child);
         if (!child_type) {
@@ -961,21 +981,9 @@ public:
         }
 
         auto const error = visit_invocation(ufcs, ufcs->member_name, std::vector<type::type>{{child_type}});
-        if (!error) {
-            return;
+        if (error) {
+            semantic_error(ufcs, *error);
         }
-
-        // TODO:
-        // check_member_var() should be removed and built-in functions should be implemented for them
-        auto const checked = check_member_var(ufcs);
-        if (auto const& error_msg = get_as<std::string>(checked)) {
-            semantic_error(ufcs, *error_msg);
-            return;
-        }
-
-        auto const& t = get_as<type::type>(checked);
-        assert(t);
-        ufcs->type = *t;
     }
 
     template<class Walker>

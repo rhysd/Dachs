@@ -852,7 +852,8 @@ public:
     {
         if (ufcs->callee_scope.expired()) {
             // Note:
-            // When the data member access
+            // When the data member access.
+            // Now, built-in data member is only available.
 
             // Note:
             // Do not use get_operand() because GEP is emitted

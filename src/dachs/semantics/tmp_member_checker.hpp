@@ -47,7 +47,7 @@ struct member_variable_checker : boost::static_visitor<boost::variant<type::type
             return tuple->element_types[1];
         }
 
-        return '\'' + member_name + "' is not a member of tuple";
+        return type::type{};
     }
 
     result_type operator()(type::array_type const& ) const
@@ -55,13 +55,13 @@ struct member_variable_checker : boost::static_visitor<boost::variant<type::type
         if (member_name == "size") {
             return builtin_type("uint");
         }
-        return '\'' + member_name + "' is not a member of array";
+        return type::type{};
     }
 
     template<class T>
-    result_type operator()(T const& t) const
+    result_type operator()(T const&) const
     {
-        return '\'' + member_name + "' is not a member of " + t->to_string();
+        return type::type{};
     }
 };
 
