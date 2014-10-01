@@ -53,14 +53,15 @@ end
 
 ## Progress Report
 
-- [x] Literals
-- [x] Expressions
-- [x] Statements
+- [x] Basic literals
+- [x] Basic expressions
+- [x] Basic statements
 - [x] Functions
 - [ ] Operator functions
 - [x] Overload resolution
 - [x] Simple return type and variable type deduction
 - [ ] Type inference
+- [x] UFCS
 - [ ] Class
 - [ ] Lambda
 - [ ] Block
