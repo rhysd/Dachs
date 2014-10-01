@@ -19,7 +19,7 @@ Goals :dog2:
 
 <i># Parameters and variables are defined as immutable value by default</i>
 <b>func</b> sqrt(x)
-    <b>var</b> z, <b>var</b>p := x, 0.0   <i># but 'var' is available to declare a mutable variable</i>
+    <b>var</b> z, <b>var</b> p := x, 0.0   <i># but 'var' is available to declare a mutable variable</i>
     <b>for</b> abs(p-z) > 0.00001
         p, z = z, z-(z*z-x)/(2*z)
     <b>end</b>
@@ -57,9 +57,10 @@ end
 - [x] Expressions
 - [x] Statements
 - [x] Functions
-- [x] Operator functions
+- [ ] Operator functions
 - [x] Overload resolution
 - [x] Simple return type and variable type deduction
+- [ ] Type inference
 - [ ] Class
 - [ ] Lambda
 - [ ] Block
