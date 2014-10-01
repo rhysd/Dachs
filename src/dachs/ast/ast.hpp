@@ -338,13 +338,23 @@ struct func_invocation final : public expression {
     std::vector<node::any_expr> args;
     bool is_monad_invocation = false;
     scope::weak_func_scope callee_scope;
+    node::function_definition do_block; // Note: This is not a part of AST!
 
-    func_invocation(node::any_expr const& c, std::vector<node::any_expr> const& args) noexcept
-        : expression(), child(c), args(args)
+    func_invocation(
+            node::any_expr const& c,
+            std::vector<node::any_expr> const& args,
+            node::function_definition const f = nullptr
+        ) noexcept
+        : expression(), child(c), args(args), do_block(std::move(f))
     {}
 
-    func_invocation(node::any_expr const& c, node::any_expr const& head, std::vector<node::any_expr> const& tail) noexcept
-        : expression(), child(c), args({head})
+    func_invocation(
+            node::any_expr const& c,
+            node::any_expr const& head,
+            std::vector<node::any_expr> const& tail,
+            node::function_definition const f = nullptr
+        ) noexcept
+        : expression(), child(c), args({head}), do_block(std::move(f))
     {
         args.insert(args.end(), tail.begin(), tail.end());
     }
@@ -387,9 +397,14 @@ struct ufcs_invocation final : public expression {
     node::any_expr child;
     std::string member_name;
     scope::weak_func_scope callee_scope;
+    node::function_definition do_block; // Note: This is not a part of AST!
 
-    explicit ufcs_invocation(node::any_expr const& c, std::string const& member_name) noexcept
-        : expression(), child(c), member_name(member_name)
+    ufcs_invocation(
+            node::any_expr const& c,
+            std::string const& member_name,
+            node::function_definition const f = nullptr
+        ) noexcept
+        : expression(), child(c), member_name(member_name), do_block(std::move(f))
     {}
 
     std::string to_string() const noexcept override
@@ -788,7 +803,8 @@ struct function_definition final : public statement {
     boost::optional<node::statement_block> ensure_body;
     scope::weak_func_scope scope;
     boost::optional<type::type> ret_type;
-    std::vector<node::function_definition> instantiated; // Caution: This is not a part of AST!
+    std::vector<node::function_definition> instantiated; // Note: This is not a part of AST!
+    // std::vector<::dachs::symbol::weak_var_symbol> captured; // Note: This is not a part of AST!
 
     function_definition(symbol::func_kind const k
                       , std::string const& n
@@ -796,7 +812,15 @@ struct function_definition final : public statement {
                       , decltype(return_type) const& ret
                       , node::statement_block const& block
                       , decltype(ensure_body) const& ensure) noexcept
-        : statement(), kind(k), name(n), params(p), return_type(ret), body(block), ensure_body(ensure)
+        : statement()
+        , kind(k)
+        , name(n)
+        , params(p)
+        , return_type(ret)
+        , body(block)
+        , ensure_body(ensure)
+        , instantiated()
+        , captured()
     {}
 
     bool is_template() const noexcept
