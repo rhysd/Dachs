@@ -338,12 +338,12 @@ struct func_invocation final : public expression {
     std::vector<node::any_expr> args;
     bool is_monad_invocation = false;
     scope::weak_func_scope callee_scope;
-    node::function_definition do_block; // Note: This is not a part of AST!
+    boost::optional<node::function_definition> do_block;
 
     func_invocation(
             node::any_expr const& c,
             std::vector<node::any_expr> const& args,
-            node::function_definition const f = nullptr
+            decltype(do_block) const f = boost::none
         ) noexcept
         : expression(), child(c), args(args), do_block(std::move(f))
     {}
@@ -352,7 +352,7 @@ struct func_invocation final : public expression {
             node::any_expr const& c,
             node::any_expr const& head,
             std::vector<node::any_expr> const& tail,
-            node::function_definition const f = nullptr
+            decltype(do_block) const f = nullptr
         ) noexcept
         : expression(), child(c), args({head}), do_block(std::move(f))
     {
@@ -397,12 +397,12 @@ struct ufcs_invocation final : public expression {
     node::any_expr child;
     std::string member_name;
     scope::weak_func_scope callee_scope;
-    node::function_definition do_block; // Note: This is not a part of AST!
+    boost::optional<node::function_definition> do_block;
 
     ufcs_invocation(
             node::any_expr const& c,
             std::string const& member_name,
-            node::function_definition const f = nullptr
+            decltype(do_block) const f = nullptr
         ) noexcept
         : expression(), child(c), member_name(member_name), do_block(std::move(f))
     {}
@@ -820,7 +820,7 @@ struct function_definition final : public statement {
         , body(block)
         , ensure_body(ensure)
         , instantiated()
-        , captured()
+        // , captured()
     {}
 
     bool is_template() const noexcept

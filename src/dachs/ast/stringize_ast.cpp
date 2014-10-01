@@ -193,7 +193,7 @@ public:
     {
         return prefix_of(ui, indent)
             + '\n' + visit(ui->child, indent+lead, ui->do_block ? "|  " : "   ")
-            + (ui->do_block ? visit(ui->do_block, indent+lead, "   ") : "");
+            + visit_optional_node(ui->do_block, indent+lead, "   ");
     }
 
     String visit(node::func_invocation const& fc, String const& indent, char const* const lead) const noexcept
@@ -201,7 +201,7 @@ public:
         return prefix_of(fc, indent)
             + '\n' + visit(fc->child, indent+lead, fc->args.empty() && !fc->do_block ? "   " : "|  ")
             + visit_nodes(fc->args, indent+lead, !fc->do_block)
-            + (fc->do_block ? visit(fc->do_block, indent+lead, "   ") : "");
+            + visit_optional_node(fc->do_block, indent+lead, "   ");
     }
 
     String visit(node::unary_expr const& ue, String const& indent, char const* const lead) const noexcept
