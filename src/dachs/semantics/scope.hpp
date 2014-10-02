@@ -65,8 +65,7 @@ struct basic_scope {
     // TODO resolve member variables and member functions
 
     virtual boost::optional<scope::func_scope>
-    resolve_func( std::string const& name
-                , std::vector<type::type> const& args) const
+    resolve_func(std::string const& name, std::vector<type::type> const& args) const
     {
         // TODO:
         // resolve_func() now searches function scopes directly.
@@ -156,7 +155,7 @@ struct global_scope final : public basic_scope {
     }
 
     boost::optional<scope::func_scope>
-    resolve_func( std::string const& name, std::vector<type::type> const& args) const override;
+    resolve_func(std::string const& name, std::vector<type::type> const& args) const override;
 
     boost::optional<scope::class_scope> resolve_class(std::string const& name) const override
     {

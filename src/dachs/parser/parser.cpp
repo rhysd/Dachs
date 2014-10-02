@@ -381,6 +381,15 @@ public:
                 | '(' >> -qi::eol >> typed_expr >> -qi::eol >> ')'
             );
 
+        do_block
+            = (
+                DACHS_KWD_STRICT(lit("do")) >> -(
+                    '|' >> (parameter % comma) >> '|'
+                ) >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
+            ) [
+                _val = make_node_ptr<ast::node::function_definition>(as_vector(_1), _2)
+            ];
+
         // primary.name(...)
         // primary.name ...
         // primary.name
@@ -389,11 +398,11 @@ public:
         postfix_expr
             =
                 primary_expr[_val = _1] >> *(
-                      (-qi::eol >> '.' >> -qi::eol >> var_ref >> '(' >> -(typed_expr % comma) >> trailing_comma >> ')')[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, as_vector(_2))]
-                    | (-qi::eol >> '.' >> -qi::eol >> var_ref >> typed_expr % comma)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2)]
-                    | (-qi::eol >> '.' >> -qi::eol >> called_function_name)[_val = make_node_ptr<ast::node::ufcs_invocation>(_val, _1)]
+                      (-qi::eol >> '.' >> -qi::eol >> var_ref >> '(' >> -(typed_expr % comma) >> trailing_comma >> ')' >> -do_block)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, as_vector(_2), _3)]
+                    | (-qi::eol >> '.' >> -qi::eol >> var_ref >> (typed_expr - "do") % comma >> -do_block)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2, _3)]
+                    | (-qi::eol >> '.' >> -qi::eol >> (called_function_name - "do") >> -do_block)[_val = make_node_ptr<ast::node::ufcs_invocation>(_val, _1, _2)]
                     | ('[' >> -qi::eol >> typed_expr >> -qi::eol >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]
-                    | ('(' >> -qi::eol >> -(typed_expr % comma) >> trailing_comma >> ')')[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1))]
+                    | ('(' >> -qi::eol >> -(typed_expr % comma) >> trailing_comma >> ')' >> -do_block)[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1), _2)]
                 )
             ;
 
@@ -961,6 +970,7 @@ public:
             , function_definition
             , constant_decl
             , constant_definition
+            , do_block
             , stmt_block_before_end
             , if_then_stmt_block
             , if_else_stmt_block
@@ -1049,6 +1059,7 @@ public:
         function_definition.name("function definition");
         constant_decl.name("constant declaration");
         constant_definition.name("constant definition");
+        do_block.name("do-end block");
         global_definition.name("global definition");
         sep.name("separater");
         constructor_call.name("constructor call");
@@ -1104,6 +1115,7 @@ private:
     rule<std::string()> string_literal;
     rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
     rule<ast::node::initialize_stmt()> constant_definition;
+    rule<ast::node::function_definition()> do_block;
 
     rule<ast::node::any_expr()>
           primary_literal

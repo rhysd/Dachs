@@ -1575,6 +1575,43 @@ BOOST_AUTO_TEST_CASE(postfix_if)
         )");
 }
 
+BOOST_AUTO_TEST_CASE(do_block)
+{
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        func main
+            foo(42) do
+                blah
+            end
+
+            foo(42) do |i|
+                blah
+            end
+
+            42.foo do
+                blah
+            end
+
+            42.foo2(42) do
+                blah
+            end
+
+            42.foo2 42 do
+                blah
+            end
+
+            foo(42) do blah end
+
+            foo(42) do |i| blah end
+
+            42.foo do blah end
+
+            42.foo2(42) do blah end
+
+            42.foo2 42 do blah end
+        end
+        )"));
+}
+
 BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)
 {
     dachs::syntax::parser p;

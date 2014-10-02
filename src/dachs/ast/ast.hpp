@@ -402,7 +402,7 @@ struct ufcs_invocation final : public expression {
     ufcs_invocation(
             node::any_expr const& c,
             std::string const& member_name,
-            decltype(do_block) const f = nullptr
+            decltype(do_block) const f = boost::none
         ) noexcept
         : expression(), child(c), member_name(member_name), do_block(std::move(f))
     {}
@@ -819,8 +819,16 @@ struct function_definition final : public statement {
         , return_type(ret)
         , body(block)
         , ensure_body(ensure)
-        , instantiated()
-        // , captured()
+    {}
+
+    function_definition(decltype(params) const& p, node::statement_block const& b) noexcept
+        : statement()
+        , kind(symbol::func_kind::func)
+        , name("")
+        , params(p)
+        , return_type(boost::none)
+        , body(b)
+        , ensure_body(boost::none)
     {}
 
     bool is_template() const noexcept
