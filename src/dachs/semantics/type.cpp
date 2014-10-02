@@ -64,6 +64,16 @@ bool any_type::is_builtin(String const& name) const noexcept
     return (*t)->name == name;
 }
 
+bool any_type::is_unit() const noexcept
+{
+    auto const t = helper::variant::get_as<tuple_type>(value);
+    if (!t) {
+        return false;
+    }
+
+    return (*t)->element_types.empty();
+}
+
 bool any_type::operator==(any_type const& rhs) const noexcept
 {
     return helper::variant::apply_lambda(

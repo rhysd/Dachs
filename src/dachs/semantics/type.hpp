@@ -191,13 +191,18 @@ public:
 
     bool is_template() const noexcept
     {
-        return helper::variant::has<type::template_type>(value);
+        return helper::variant::has<template_type>(value);
     }
 
     bool is_builtin() const noexcept
     {
-        return helper::variant::has<type::builtin_type>(value);
+        return helper::variant::has<builtin_type>(value);
     }
+
+    template<class String>
+    bool is_builtin(String const& name) const noexcept;
+
+    bool is_unit() const noexcept;
 
     template<class Visitor>
     typename Visitor::result_type apply_visitor(Visitor const& visitor) const
@@ -217,9 +222,6 @@ public:
     {
         return helper::variant::apply_lambda(lambda, value);
     }
-
-    template<class String>
-    bool is_builtin(String const& name) const noexcept;
 
     template<class T>
     friend bool is_a(any_type const&);
