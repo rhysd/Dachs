@@ -27,7 +27,7 @@ func main
         # infinite loop # print("aaa")
     end
 
-    for a in arr do print("a") end
+    for a in arr; print("a") end
 
     for a : int? in hoge
         42

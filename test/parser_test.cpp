@@ -1466,10 +1466,6 @@ BOOST_AUTO_TEST_CASE(for_statement)
                 moudameda
             end
 
-            for a in arr do
-                moudameda
-            end
-
             for a, b in arr
                 madaikeru
             end
@@ -1482,9 +1478,11 @@ BOOST_AUTO_TEST_CASE(for_statement)
                 madadameda
             end
 
+            for a in arr; akirameta; end
+
             # Keyword corner cases
             forhoge := 42
-            for inhoge in dohoge do
+            for inhoge in dohoge
                 endhoge
             end
         end

@@ -802,7 +802,7 @@ public:
         for_stmt
             = (
                 // Note: "do" might colide with do-end block in typed_expr
-                DACHS_KWD("for") >> (parameter - DACHS_KWD("in")) % comma >> DACHS_KWD("in") >> typed_expr >> (DACHS_KWD("do") || sep)
+                DACHS_KWD("for") >> (parameter - DACHS_KWD("in")) % comma >> DACHS_KWD("in") >> typed_expr >> sep
                 >> stmt_block_before_end >> -sep
                 >> "end"
             ) [
