@@ -501,22 +501,37 @@ public:
 
         builtin_func_emitter.set_module(module);
 
+        auto const emit_func_def_prototype
+            = [&](auto const& def)
+            {
+                if (def->is_template()) {
+                    for (auto const& instantiated_func_def : def->instantiated) {
+                        emit_func_prototype(instantiated_func_def);
+                    }
+                } else {
+                    emit_func_prototype(def);
+                }
+            };
+
         // Note:
         // emit Function prototypes in advance for forward reference
         for (auto const& i : p->definitions) {
             if (auto const maybe_func_def = get_as<ast::node::function_definition>(i)) {
-                auto const& func_def = *maybe_func_def;
-
-                if (func_def->is_template()) {
-                    for (auto const& instantiated_func_def : func_def->instantiated) {
-                        emit_func_prototype(instantiated_func_def);
-                    }
-                } else {
-                    emit_func_prototype(func_def);
-                }
-            }
+                emit_func_def_prototype(*maybe_func_def);
+            } // else if ...
         }
 
+        // Note:
+        // Emit lambda functions at first
+        for (auto const& l : p->lambdas) {
+            emit_func_def_prototype(l);
+        }
+        for (auto const& l : p->lambdas) {
+            emit(l);
+        }
+
+        // Note:
+        // Then, emit other functions
         for (auto const& i : p->definitions) {
             emit(i);
         }

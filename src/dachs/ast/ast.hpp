@@ -804,7 +804,6 @@ struct function_definition final : public statement {
     scope::weak_func_scope scope;
     boost::optional<type::type> ret_type;
     std::vector<node::function_definition> instantiated; // Note: This is not a part of AST!
-    // std::vector<::dachs::symbol::weak_var_symbol> captured; // Note: This is not a part of AST!
 
     function_definition(symbol::func_kind const k
                       , std::string const& n
@@ -851,6 +850,7 @@ struct function_definition final : public statement {
 
 struct inu final : public base {
     std::vector<node::global_definition> definitions;
+    std::vector<node::function_definition> lambdas;
 
     explicit inu(decltype(definitions) const& defs) noexcept
         : base(), definitions(defs)

@@ -171,6 +171,7 @@ struct global_scope final : public basic_scope {
 struct local_scope final : public basic_scope {
     std::vector<scope::local_scope> children;
     std::vector<symbol::var_symbol> local_vars;
+    std::vector<scope::func_scope> unnamed_funcs;
 
     template<class AnyScope>
     explicit local_scope(AnyScope const& enclosing) noexcept
@@ -188,6 +189,11 @@ struct local_scope final : public basic_scope {
         return define_symbol(local_vars, new_var);
     }
 
+    bool define_unnamed_func(scope::func_scope const& new_func) noexcept
+    {
+        return define_symbol(unnamed_funcs, new_func);
+    }
+
     boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
     {
         auto const target_var = helper::find_if(local_vars, [&name](auto const& v){ return v->name == name; });
@@ -195,6 +201,9 @@ struct local_scope final : public basic_scope {
                 *target_var :
                 apply_lambda([&name](auto const& s){ return s.lock()->resolve_var(name); }, enclosing_scope);
     }
+
+    virtual boost::optional<scope::func_scope>
+    resolve_func(std::string const& name, std::vector<type::type> const& args) const override;
 };
 
 struct func_scope final : public basic_scope, public symbol_node::basic_symbol {

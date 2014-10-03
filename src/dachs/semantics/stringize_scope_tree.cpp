@@ -61,7 +61,8 @@ public:
     {
         return indent(i) + c.green("LOCAL_SCOPE")
             + visit_symbols(l->local_vars, i+1, "SYMBOL: ")
-            + visit_scopes(l->children, i+1);
+            + visit_scopes(l->children, i+1)
+            + visit_scopes(l->unnamed_funcs, i+1);
     }
 
     std::string visit(func_scope const& f, size_t const i) const

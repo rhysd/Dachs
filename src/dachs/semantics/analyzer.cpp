@@ -873,6 +873,10 @@ public:
     {
         recursive_walker();
 
+        if (invocation->do_block) {
+            ast::walk_topdown(*invocation->do_block, *this);
+        }
+
         auto const child_type = type::type_of(invocation->child);
         if (!child_type) {
             return;
@@ -948,6 +952,10 @@ public:
     void visit(ast::node::ufcs_invocation const& ufcs, Walker const& recursive_walker)
     {
         recursive_walker();
+
+        if (ufcs->do_block) {
+            ast::walk_topdown(*ufcs->do_block, *this);
+        }
 
         // Check data member 'ufcs->member_name' of 'ufcs->child'.
         // Now, built-in data member is only available.

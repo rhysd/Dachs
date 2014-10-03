@@ -58,15 +58,14 @@ std::size_t get_overloaded_function_score(FuncScope const& func, ArgTypes const&
     return boost::accumulate(v, score, [](auto l, auto r){ return l*r; });
 }
 
-} // namespace detail
-
+template<class Funcs, class Types>
 boost::optional<scope::func_scope>
-global_scope::resolve_func( std::string const& name, std::vector<type::type> const& arg_types) const
+get_overloaded_function(Funcs const& candidates, std::string const& name, Types const& arg_types)
 {
     boost::optional<scope::func_scope> result = boost::none;
 
     std::size_t score = 0u;
-    for (auto const& f : functions) {
+    for (auto const& f : candidates) {
         if (f->name != name) {
             continue;
         }
@@ -79,6 +78,32 @@ global_scope::resolve_func( std::string const& name, std::vector<type::type> con
     }
 
     return result;
+}
+
+} // namespace detail
+
+boost::optional<scope::func_scope>
+global_scope::resolve_func(std::string const& name, std::vector<type::type> const& arg_types) const
+{
+    return detail::get_overloaded_function(functions, name, arg_types);
+}
+
+// For unnamed functions
+boost::optional<scope::func_scope>
+local_scope::resolve_func( std::string const& name, std::vector<type::type> const& arg_types) const
+{
+    auto const result = detail::get_overloaded_function(unnamed_funcs, name, arg_types);
+
+    if (result) {
+        return result;
+    } else {
+        return apply_lambda(
+                [&](auto const& s)
+                    -> boost::optional<scope::func_scope>
+                {
+                    return s.lock()->resolve_func(name, arg_types);
+                }, enclosing_scope);
+    }
 }
 
 ast::node::function_definition func_scope::get_ast_node() const noexcept

@@ -30,6 +30,7 @@ using helper::variant::apply_lambda;
 class forward_symbol_analyzer {
 
     scope::any_scope current_scope;
+    std::vector<ast::node::function_definition> lambdas;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -47,6 +48,15 @@ class forward_symbol_analyzer {
     {
         output_semantic_error(n, msg);
         failed++;
+    }
+
+    template<class Node>
+    std::string get_lambda_name(Node const& n) const noexcept
+    {
+        return "lambda."
+            + std::to_string(n->line)
+            + '.' + std::to_string(n->col)
+            + '.' + std::to_string(n->length);
     }
 
 public:
@@ -79,10 +89,7 @@ public:
     void visit(ast::node::function_definition const& func_def, Walker const& recursive_walker)
     {
         // Define scope
-        auto maybe_global_scope = get_as<scope::global_scope>(current_scope);
-        assert(maybe_global_scope);
-        auto& global_scope = *maybe_global_scope;
-        auto new_func = scope::make<scope::func_scope>(func_def, global_scope, func_def->name);
+        auto new_func = scope::make<scope::func_scope>(func_def, current_scope, func_def->name);
         new_func->type = type::make<type::generic_func_type>(scope::weak_func_scope{new_func});
         func_def->scope = new_func;
 
@@ -99,10 +106,18 @@ public:
             new_func->ret_type = ret_type;
         }
 
-        auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name, true /*immutable*/);
-        new_func_var->type = new_func->type;
-        global_scope->define_function(new_func);
-        global_scope->define_global_function_constant(new_func_var);
+        if (auto maybe_global_scope = get_as<scope::global_scope>(current_scope)) {
+            auto& global_scope = *maybe_global_scope;
+            auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name, true /*immutable*/);
+            new_func_var->type = new_func->type;
+            global_scope->define_function(new_func);
+            global_scope->define_global_function_constant(new_func_var);
+        } else if (auto maybe_local_scope = get_as<scope::local_scope>(current_scope)) {
+            (*maybe_local_scope)->define_unnamed_func(new_func);
+        } else {
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        }
+
         with_new_scope(std::move(new_func), recursive_walker);
     }
 
@@ -185,6 +200,38 @@ public:
                 return;
             }
         }
+    }
+
+    template<class Node>
+    void visit_do_block(Node const& n)
+    {
+        if (n->do_block) {
+            auto &b = *n->do_block;
+            b->name = get_lambda_name(b);
+            ast::walk_topdown(b, *this);
+            lambdas.push_back(b);
+        }
+    }
+
+    template<class Walker>
+    void visit(ast::node::func_invocation const& invocation, Walker const& recursive_walker)
+    {
+        recursive_walker();
+        visit_do_block(invocation);
+    }
+
+    template<class Walker>
+    void visit(ast::node::ufcs_invocation const& ufcs, Walker const& recursive_walker)
+    {
+        recursive_walker();
+        visit_do_block(ufcs);
+    }
+
+    template<class Walker>
+    void visit(ast::node::inu const& inu, Walker const& recursive_walker)
+    {
+        recursive_walker();
+        inu->lambdas = std::move(lambdas);
     }
 
     // TODO: class scopes and member function scopes
