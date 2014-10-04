@@ -1168,6 +1168,13 @@ public:
     }
 
     template<class Walker>
+    void visit(ast::node::let_stmt const& let, Walker const& recursive_walker)
+    {
+        assert(!let->scope.expired());
+        with_new_scope(let->scope.lock(), recursive_walker);
+    }
+
+    template<class Walker>
     void visit(ast::node::case_stmt const& case_, Walker const& recursive_walker)
     {
         recursive_walker();

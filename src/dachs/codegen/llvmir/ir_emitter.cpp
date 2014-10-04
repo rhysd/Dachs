@@ -1338,6 +1338,14 @@ public:
         helper.terminate_with_br(end_block, end_block);
     }
 
+    void emit(ast::node::let_stmt const& let)
+    {
+        for (auto const& i : let->inits) {
+            emit(i);
+        }
+        emit(let->child_stmt);
+    }
+
     val emit(ast::node::cast_expr const& cast)
     {
         auto *const child_val = get_operand(emit(cast->child));

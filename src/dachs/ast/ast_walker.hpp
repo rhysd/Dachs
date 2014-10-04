@@ -282,6 +282,14 @@ public:
         ));
     }
 
+    void walk(node::let_stmt &ls)
+    {
+        visitor.visit(ls, walker_for(
+            ls->inits,
+            ls->child_stmt
+        ));
+    }
+
     void walk(node::statement_block &sb)
     {
         visitor.visit(sb, walker_for(

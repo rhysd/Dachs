@@ -719,8 +719,8 @@ public:
             = (
                 (
                     variable_decl % comma
-                    >> trailing_comma >> ":=" >>
-                        -qi::eol >> typed_expr % comma
+                    >> trailing_comma >> ":="
+                    >> -qi::eol >> typed_expr % comma
                     // Note:
                     // Disallow trailing comma in here because unexpected line continuation suffers
                 ) [
@@ -847,6 +847,15 @@ public:
                 _val = make_node_ptr<ast::node::postfix_if_stmt>(_1, _2, _3)
             ];
 
+        let_stmt
+            = (
+                DACHS_KWD("let")
+                >> -qi::eol >> initialize_stmt % sep >> -qi::eol
+                >> DACHS_KWD("in") >> -qi::eol >> compound_stmt
+            ) [
+                _val = make_node_ptr<ast::node::let_stmt>(_1, _2)
+            ];
+
         compound_stmt
             = (
                   if_stmt
@@ -854,6 +863,7 @@ public:
                 | switch_stmt
                 | for_stmt
                 | while_stmt
+                | let_stmt
                 | initialize_stmt
                 | postfix_if_stmt
                 | return_stmt
@@ -967,6 +977,7 @@ public:
             , assignment_stmt
             , postfix_if_return_stmt
             , postfix_if_stmt
+            , let_stmt
             , function_definition
             , constant_decl
             , constant_definition
@@ -1054,7 +1065,7 @@ public:
         variable_decl_without_init.name("variable declaration without initialization");
         initialize_stmt.name("initialize statement");
         assignment_stmt.name("assignment statement");
-        postfix_if_stmt.name("prefix if statement");
+        let_stmt.name("let statement");
         compound_stmt.name("compound statement");
         function_definition.name("function definition");
         constant_decl.name("constant declaration");
@@ -1103,6 +1114,7 @@ private:
     DACHS_DEFINE_RULE(initialize_stmt);
     DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(postfix_if_stmt);
+    DACHS_DEFINE_RULE(let_stmt);
     DACHS_DEFINE_RULE(compound_stmt);
     DACHS_DEFINE_RULE(function_definition);
     DACHS_DEFINE_RULE(global_definition);

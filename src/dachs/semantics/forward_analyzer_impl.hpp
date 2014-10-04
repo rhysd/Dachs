@@ -70,7 +70,7 @@ public:
     template<class Walker>
     void visit(ast::node::statement_block const& block, Walker const& recursive_walker)
     {
-        auto new_local_scope = scope::make<scope::local_scope>(current_scope);
+        auto const new_local_scope = scope::make<scope::local_scope>(current_scope);
         block->scope = new_local_scope;
         if (auto maybe_local_scope = get_as<scope::local_scope>(current_scope)) {
             auto &enclosing_scope = *maybe_local_scope;
@@ -200,6 +200,20 @@ public:
             }
         }
     }
+
+    template<class Walker>
+    void visit(ast::node::let_stmt const& let, Walker const& recursive_walker)
+    {
+        auto const new_local_scope = scope::make<scope::local_scope>(current_scope);
+        let->scope = new_local_scope;
+        if (auto current_local = get_as<scope::local_scope>(current_scope)) {
+            (*current_local)->define_child(new_local_scope);
+        } else {
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        }
+        with_new_scope(std::move(new_local_scope), recursive_walker);
+    }
+
 
     template<class Node>
     void visit_do_block(Node const& n)
