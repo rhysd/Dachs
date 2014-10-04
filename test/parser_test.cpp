@@ -1575,6 +1575,48 @@ BOOST_AUTO_TEST_CASE(postfix_if)
         )");
 }
 
+BOOST_AUTO_TEST_CASE(let_stmt)
+{
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        func main
+            let a := 42 in println(42)
+
+            let
+                a := 42
+            in println(42)
+
+            let
+                a := 42
+            in
+            println(42)
+
+            let
+                a := 42
+                b := 'a'
+            in println(42)
+
+            let a := 42; b := 'a' in println(42)
+
+            let
+                a := 42
+                b := 'a'
+            in if a == 4
+                println(a)
+            else
+                println(b)
+            end
+
+            let
+                var a := 42
+                var b := 42
+            in for a < 50
+                println(a)
+                a += 1
+            end
+        end
+        )"));
+}
+
 BOOST_AUTO_TEST_CASE(do_block)
 {
     BOOST_CHECK_NO_THROW(parse_and_validate(R"(

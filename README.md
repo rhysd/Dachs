@@ -14,7 +14,7 @@ Goals :dog2:
 <pre>
 <i># Type of parameter and returned value can be inferred</i>
 <b>func</b> abs(n)
-    <b>ret</b> (<b>if</b> n > 0.0 <b>then</b> n <b>else</b> -n)
+    <b>ret</b> (<b>if</b> n <b>as</b> float > 0.0 <b>then</b> n <b>else</b> -n)
 <b>end</b>
 
 <i># Parameters and variables are defined as immutable value by default</i>

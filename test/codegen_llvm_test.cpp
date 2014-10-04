@@ -979,6 +979,77 @@ BOOST_AUTO_TEST_CASE(ufcs)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(let_stmt)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            let a := 42 in println(42)
+
+            let
+                a := 42
+            in println(42)
+
+            let
+                a := 42
+            in
+            println(42)
+
+            let
+                a := 42
+                b := 'a'
+            in println(42)
+
+            let
+                var a,b := 42,'b'
+            in println(42)
+
+            let a := 42; b := 'a' in println(42)
+
+            let
+                var a := 42
+                b := 'a'
+            in if a == 4
+                println(a)
+            else
+                println(b)
+            end
+
+            let
+                a, var b := 42, 'a'
+            in if a == 4
+                println(a)
+            else
+                println(b)
+            end
+
+            let
+                var a := 42
+                var b := 42
+            in for a < 50
+                println(a)
+                a += 1
+            end
+
+            let
+                a := 42
+            in ret a
+
+            let
+                a := 42
+            in case a
+            when 42
+                println("42")
+            end
+
+            let var a := 42 in
+            a = 21
+
+            let var a := 42 in
+            b := a
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(do_block)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(

@@ -149,6 +149,16 @@ BOOST_AUTO_TEST_CASE(ufcs)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(let)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            let a := 42 in pritln(a)
+            println(a)
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
