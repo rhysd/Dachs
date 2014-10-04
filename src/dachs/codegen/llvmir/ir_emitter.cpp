@@ -522,15 +522,6 @@ public:
         }
 
         // Note:
-        // Emit lambda functions at first
-        for (auto const& l : p->lambdas) {
-            emit_func_def_prototype(l);
-        }
-        for (auto const& l : p->lambdas) {
-            emit(l);
-        }
-
-        // Note:
         // Then, emit other functions
         for (auto const& i : p->definitions) {
             emit(i);

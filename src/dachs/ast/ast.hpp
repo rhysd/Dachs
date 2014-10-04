@@ -850,7 +850,6 @@ struct function_definition final : public statement {
 
 struct inu final : public base {
     std::vector<node::global_definition> definitions;
-    std::vector<node::function_definition> lambdas;
 
     explicit inu(decltype(definitions) const& defs) noexcept
         : base(), definitions(defs)

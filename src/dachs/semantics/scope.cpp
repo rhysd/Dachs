@@ -88,24 +88,6 @@ global_scope::resolve_func(std::string const& name, std::vector<type::type> cons
     return detail::get_overloaded_function(functions, name, arg_types);
 }
 
-// For unnamed functions
-boost::optional<scope::func_scope>
-local_scope::resolve_func( std::string const& name, std::vector<type::type> const& arg_types) const
-{
-    auto const result = detail::get_overloaded_function(unnamed_funcs, name, arg_types);
-
-    if (result) {
-        return result;
-    } else {
-        return apply_lambda(
-                [&](auto const& s)
-                    -> boost::optional<scope::func_scope>
-                {
-                    return s.lock()->resolve_func(name, arg_types);
-                }, enclosing_scope);
-    }
-}
-
 ast::node::function_definition func_scope::get_ast_node() const noexcept
 {
     auto maybe_func_def = ast::node::get_shared_as<ast::node::function_definition>(ast_node);

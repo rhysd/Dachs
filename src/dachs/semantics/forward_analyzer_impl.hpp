@@ -30,7 +30,6 @@ using helper::variant::apply_lambda;
 class forward_symbol_analyzer {
 
     scope::any_scope current_scope;
-    std::vector<ast::node::function_definition> lambdas;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -209,7 +208,6 @@ public:
             auto &b = *n->do_block;
             b->name = get_lambda_name(b);
             ast::walk_topdown(b, *this);
-            lambdas.push_back(b);
         }
     }
 
@@ -225,13 +223,6 @@ public:
     {
         recursive_walker();
         visit_do_block(ufcs);
-    }
-
-    template<class Walker>
-    void visit(ast::node::inu const& inu, Walker const& recursive_walker)
-    {
-        recursive_walker();
-        inu->lambdas = std::move(lambdas);
     }
 
     // TODO: class scopes and member function scopes

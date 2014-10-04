@@ -149,6 +149,7 @@ class symbol_analyzer {
 
     scope::any_scope current_scope;
     scope::global_scope const global;
+    std::vector<ast::node::function_definition> lambdas;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -880,6 +881,8 @@ public:
             // Move the scope to global scope.
             // All functions' scopes are in global scope.
             global->define_function(block->scope.lock());
+
+            lambdas.push_back(block);
         }
     }
 
@@ -1399,6 +1402,18 @@ public:
                               , assign->rhs_exprs | to_type_seq);
             }
         }
+    }
+
+    template<class Walker>
+    void visit(ast::node::inu const& inu, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        inu->definitions.insert(
+                std::end(inu->definitions),
+                std::make_move_iterator(std::begin(lambdas)),
+                std::make_move_iterator(std::end(lambdas))
+            );
     }
 
     // TODO: member variable accesses

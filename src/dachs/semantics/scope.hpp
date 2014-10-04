@@ -201,9 +201,6 @@ struct local_scope final : public basic_scope {
                 *target_var :
                 apply_lambda([&name](auto const& s){ return s.lock()->resolve_var(name); }, enclosing_scope);
     }
-
-    virtual boost::optional<scope::func_scope>
-    resolve_func(std::string const& name, std::vector<type::type> const& args) const override;
 };
 
 struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
