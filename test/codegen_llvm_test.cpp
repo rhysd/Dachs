@@ -998,6 +998,30 @@ BOOST_AUTO_TEST_CASE(do_block)
             p(a)
         end
 
+        func ufcs2_do_arg1(a, b, p)
+            p(a + b)
+        end
+
+        func ufcs2_do_arg12(a, b, var p)
+            p(a + b)
+        end
+
+        func ufcs2_do_no_arg(a, b, p)
+            p()
+        end
+
+        func ufcs2_do_no_arg2(a, b, p)
+            p()
+        end
+
+        func ufcs2_do_arg2(a, b, p)
+            p(a, b)
+        end
+
+        func ufcs2_do_arg22(a, b, var p)
+            p(a, b)
+        end
+
         func main
             42.ufcs_do_no_arg do
                 println("ufcs no arg")
@@ -1025,6 +1049,38 @@ BOOST_AUTO_TEST_CASE(do_block)
             42.ufcs_do_arg12 do |var i|
                 i = i * i
                 println(i)
+            end
+
+            ufcs_do_no_arg(42) do
+                println("ufcs no arg")
+            end
+
+            ufcs_do_no_arg2(42) do |i|
+                println(i)
+            end
+
+            42.ufcs2_do_no_arg 42 do
+                println("ufcs no arg")
+            end
+
+            42.ufcs2_do_arg1 42 do |i|
+                println(i)
+            end
+
+            42.ufcs2_do_arg2 42 do |i, j|
+                println(i + j)
+            end
+
+            42.ufcs2_do_no_arg2 42 do
+                println("ufcs no arg")
+            end
+
+            42.ufcs2_do_arg12 42 do |i|
+                println(i)
+            end
+
+            42.ufcs2_do_arg22 42 do |i, j|
+                println(i + j)
             end
         end
     )");
