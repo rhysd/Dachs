@@ -979,6 +979,57 @@ BOOST_AUTO_TEST_CASE(ufcs)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(do_block)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func ufcs_do_no_arg(a, p)
+            p()
+        end
+
+        func ufcs_do_arg1(a, p)
+            p(a)
+        end
+
+        func ufcs_do_no_arg2(a, var p)
+            p()
+        end
+
+        func ufcs_do_arg12(a, var p)
+            p(a)
+        end
+
+        func main
+            42.ufcs_do_no_arg do
+                println("ufcs no arg")
+            end
+
+            42.ufcs_do_arg1 do |i|
+                j := i * i
+                println(j)
+            end
+
+            42.ufcs_do_arg1 do |var i|
+                i = i * i
+                println(i)
+            end
+
+            42.ufcs_do_no_arg2 do
+                println("ufcs no arg")
+            end
+
+            42.ufcs_do_arg12 do |i|
+                j := i * i
+                println(j)
+            end
+
+            42.ufcs_do_arg12 do |var i|
+                i = i * i
+                println(i)
+            end
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(some_samples)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
