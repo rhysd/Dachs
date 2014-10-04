@@ -1232,6 +1232,20 @@ BOOST_AUTO_TEST_CASE(some_samples)
             [1.1, 2.2, 3.3, 4.4, 5.5].map(square).each println
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func each(a, p)
+            for e in a
+                p(e)
+            end
+        end
+
+        func main
+            [1, 2, 3, 4].each do |i|
+                println(i)
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
