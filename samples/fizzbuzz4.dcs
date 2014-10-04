@@ -1,0 +1,21 @@
+func step_to(var first, last, p)
+    for first <= last
+        p(first)
+        first += 1
+    end
+end
+
+func main
+    1.step_to 100 do |i|
+        case
+        when i % 15 == 0
+            println("fizzbuzz")
+        when i %  3 == 0
+            println("fizz")
+        when i %  5 == 0
+            println("buzz")
+        else
+            println(i)
+        end
+    end
+end
