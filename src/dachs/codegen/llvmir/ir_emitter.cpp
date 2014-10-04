@@ -686,6 +686,22 @@ public:
         }
     }
 
+    template<class Node, class Scope>
+    val emit_non_builtin_callee(Node const& n, Scope const& scope)
+    {
+        if (scope->is_template()) {
+            // XXX:
+            // It seems internal compilation error now
+            error(n, boost::format("'%1%' is unresolved overloaded function '%2%'") % scope->name % scope->to_string());
+        }
+
+        return check(
+                n,
+                module->getFunction(scope->to_string()),
+                boost::format("generic function variable '%1%' for '%2%'") % scope->to_string() % scope->type.to_string()
+            );
+    }
+
     template<class Node, class Scope, class Exprs>
     val emit_callee(Node const& n, Scope const& scope, Exprs const& args)
     {
@@ -703,17 +719,7 @@ public:
                 );
         }
 
-        if (scope->is_template()) {
-            // XXX:
-            // It seems internal compilation error now
-            error(n, boost::format("'%1%' is unresolved overloaded function '%2%'") % scope->name % scope->to_string());
-        }
-
-        return check(
-                n,
-                module->getFunction(scope->to_string()),
-                boost::format("generic function variable '%1%' for '%2%'") % scope->to_string() % scope->type.to_string()
-            );
+        return emit_non_builtin_callee(n, scope);
     }
 
     val emit(ast::node::func_invocation const& invocation)
@@ -867,7 +873,7 @@ public:
     {
         if (ufcs->callee_scope.expired()) {
             // Note:
-            // When the data member access.
+            // When accessing the data member.
             // Now, built-in data member is only available.
 
             // Note:
@@ -884,14 +890,30 @@ public:
                 );
         } else {
             // Scope is not expired. It means the UFCS invoke a funciton
-            return check(
-                        ufcs,
-                        ctx.builder.CreateCall(
-                            emit_callee(ufcs, ufcs->callee_scope.lock(), std::vector<ast::node::any_expr>{{ufcs->child}}),
-                            std::vector<val>{get_operand(emit(ufcs->child))}
-                        ),
-                        "UFCS function invocation"
-                    );
+            if (ufcs->do_block) {
+                auto const g = type::get<type::generic_func_type>((*ufcs->do_block)->scope.lock()->type);
+                assert(g);
+
+                // Note:
+                // Add block to the 2nd argument of invocation as function variable
+                return check(
+                            ufcs,
+                            ctx.builder.CreateCall(
+                                emit_non_builtin_callee(ufcs, ufcs->callee_scope.lock()),
+                                std::vector<val>{get_operand(emit(ufcs->child)), llvm::ConstantStruct::get(type_emitter.emit(*g), {})}
+                            ),
+                            "UFCS function invocation with do-end block"
+                        );
+            } else {
+                return check(
+                            ufcs,
+                            ctx.builder.CreateCall(
+                                emit_callee(ufcs, ufcs->callee_scope.lock(), std::vector<ast::node::any_expr>{{ufcs->child}}),
+                                std::vector<val>{get_operand(emit(ufcs->child))}
+                            ),
+                            "UFCS function invocation"
+                        );
+            }
         }
     }
 

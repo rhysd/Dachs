@@ -864,6 +864,25 @@ public:
         return boost::none;
     }
 
+    template<class Node>
+    void visit_do_block(Node const& node)
+    {
+        if (node->do_block) {
+            auto &block = *node->do_block;
+            ast::walk_topdown(block, *this);
+
+            // TODO:
+            // Replace all symbols which are captured with the data member of
+            // lambda function object.  All replaced data members become the members
+            // of lambda function object.  It must be done in the near future.
+
+            // Note:
+            // Move the scope to global scope.
+            // All functions' scopes are in global scope.
+            global->define_function(block->scope.lock());
+        }
+    }
+
     // TODO:
     // If return type of function is not determined, interrupt current parsing and parse the
     // function at first.  Add the function to the list which are already visited and check it at
@@ -873,9 +892,7 @@ public:
     {
         recursive_walker();
 
-        if (invocation->do_block) {
-            ast::walk_topdown(*invocation->do_block, *this);
-        }
+        visit_do_block(invocation);
 
         auto const child_type = type::type_of(invocation->child);
         if (!child_type) {
@@ -953,10 +970,6 @@ public:
     {
         recursive_walker();
 
-        if (ufcs->do_block) {
-            ast::walk_topdown(*ufcs->do_block, *this);
-        }
-
         // Check data member 'ufcs->member_name' of 'ufcs->child'.
         // Now, built-in data member is only available.
         auto const checked = check_member_var(ufcs);
@@ -964,21 +977,19 @@ public:
             semantic_error(ufcs, *error);
             return;
         } else {
-            // Note:
-            // When no semantic error occurs.
             auto const t = get_as<type::type>(checked);
             assert(t);
             if (*t) {
+                if (ufcs->do_block) {
+                    semantic_error(ufcs, boost::format("The access to data member '%1%' can't have do-end block.") % ufcs->member_name);
+                    return;
+                }
                 ufcs->type = *t;
                 return;
             }
         }
 
-        // TODO:
-        // Data member access has higher priority than function call.
-        // When it is data member access and also function call is available,
-        // the function call is shadowed by data member access.  Warning may
-        // be required.
+        visit_do_block(ufcs);
 
         // Note:
         // Check function call
@@ -988,7 +999,12 @@ public:
             return;
         }
 
-        auto const error = visit_invocation(ufcs, ufcs->member_name, std::vector<type::type>{{child_type}});
+        auto const arg_types
+            = ufcs->do_block
+                ? std::vector<type::type>{{child_type, (*ufcs->do_block)->scope.lock()->type}}
+                : std::vector<type::type>{{child_type}};
+
+        auto const error = visit_invocation(ufcs, ufcs->member_name, arg_types);
         if (error) {
             semantic_error(ufcs, *error);
         }
