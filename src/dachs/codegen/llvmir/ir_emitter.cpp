@@ -730,14 +730,28 @@ public:
         }
         assert(!invocation->callee_scope.expired());
 
-        return check(
-                    invocation,
-                    ctx.builder.CreateCall(
-                        emit_callee(invocation, invocation->callee_scope.lock(), invocation->args),
-                        args
-                    ),
-                    "invalid function call"
+        if (invocation->do_block) {
+            auto const g = type::get<type::generic_func_type>((*invocation->do_block)->scope.lock()->type);
+            assert(g);
+            args.push_back(llvm::ConstantStruct::get(type_emitter.emit(*g), {}));
+            return check(
+                        invocation,
+                        ctx.builder.CreateCall(
+                            emit_non_builtin_callee(invocation, invocation->callee_scope.lock()),
+                            args
+                        ),
+                        "invalid function call with do-end block"
                 );
+        } else {
+            return check(
+                        invocation,
+                        ctx.builder.CreateCall(
+                            emit_callee(invocation, invocation->callee_scope.lock(), invocation->args),
+                            args
+                        ),
+                        "invalid function call"
+                    );
+        }
     }
 
     val emit(ast::node::unary_expr const& unary)

@@ -923,9 +923,13 @@ public:
         assert(!func_type->ref->expired());
 
         std::vector<type::type> arg_types;
-        arg_types.reserve(invocation->args.size());
+        arg_types.reserve(invocation->args.size() + 1); // +1 for do block
         // Get type list of arguments
         boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return type_of(e);});
+
+        if (invocation->do_block) {
+            arg_types.push_back((*invocation->do_block)->scope.lock()->type);
+        }
 
         for (auto const& arg_type : arg_types) {
             if (!arg_type) {
@@ -992,8 +996,6 @@ public:
             }
         }
 
-        visit_do_block(ufcs);
-
         // Note:
         // Check function call
         // a.foo means foo(a)
@@ -1001,6 +1003,8 @@ public:
         if (!child_type) {
             return;
         }
+
+        visit_do_block(ufcs);
 
         auto const arg_types
             = ufcs->do_block
