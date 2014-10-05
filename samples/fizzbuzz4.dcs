@@ -5,17 +5,23 @@ func step_to(var first, last, p)
     end
 end
 
-func main
-    1.step_to 100 do |i|
+func fizzbuzz(n, p)
+    1.step_to n do |i|
         case
         when i % 15 == 0
-            println("fizzbuzz")
+            p("fizzbuzz")
         when i %  3 == 0
-            println("fizz")
+            p("fizz")
         when i %  5 == 0
-            println("buzz")
+            p("buzz")
         else
-            println(i)
+            p(i)
         end
+    end
+end
+
+func main
+    fizzbuzz(100) do |i|
+        println(i)
     end
 end
