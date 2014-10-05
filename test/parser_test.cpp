@@ -1613,6 +1613,47 @@ BOOST_AUTO_TEST_CASE(let_stmt)
                 println(a)
                 a += 1
             end
+
+            let
+                a := 42
+                b := 42
+            in do
+                if true
+                    println(42)
+                end
+                ret 99
+            end
+        end
+        )"));
+}
+
+BOOST_AUTO_TEST_CASE(do_stmt)
+{
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        func main
+            do
+            end
+
+            do
+                println(42)
+            end
+
+            do println(42) end
+            do println(42); end
+            do println(42); println(42) end
+
+            do
+                ret 42 if true
+
+                if true
+                    println(42)
+                end
+
+                case a
+                when 42
+                    42.println
+                end
+            end
         end
         )"));
 }

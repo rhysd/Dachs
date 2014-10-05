@@ -159,6 +159,20 @@ BOOST_AUTO_TEST_CASE(let)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(do_)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            do
+                a := 42
+                println(a)
+            end
+            println(a)
+        end
+    )");
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()

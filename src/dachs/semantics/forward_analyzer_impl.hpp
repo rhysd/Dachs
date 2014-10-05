@@ -214,6 +214,18 @@ public:
         with_new_scope(std::move(new_local_scope), recursive_walker);
     }
 
+    template<class Walker>
+    void visit(ast::node::do_stmt const& do_, Walker const& recursive_walker)
+    {
+        auto const new_local_scope = scope::make<scope::local_scope>(current_scope);
+        do_->scope = new_local_scope;
+        if (auto current_local = get_as<scope::local_scope>(current_scope)) {
+            (*current_local)->define_child(new_local_scope);
+        } else {
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        }
+        with_new_scope(std::move(new_local_scope), recursive_walker);
+    }
 
     template<class Node>
     void visit_do_block(Node const& n)

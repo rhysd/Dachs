@@ -351,8 +351,14 @@ public:
     String visit(node::let_stmt const& ls, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(ls, indent)
-            + visit_nodes(ls->inits, indent+lead, false)
-            + '\n' + visit(ls->child_stmt, indent+lead, "   ");
+            + '\n' + visit_nodes(ls->inits, indent+lead, false)
+            +  visit(ls->child_stmt, indent+lead, "   ");
+    }
+
+    String visit(node::do_stmt const& ds, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(ds, indent)
+            + '\n' + visit(ds->block, indent+lead, "   ");
     }
 
     String visit(node::variable_decl const& vd, String const& indent, char const* const lead) const noexcept

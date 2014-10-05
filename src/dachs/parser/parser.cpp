@@ -856,6 +856,15 @@ public:
                 _val = make_node_ptr<ast::node::let_stmt>(_1, _2)
             ];
 
+        do_stmt
+            = (
+                DACHS_KWD("do")
+                >> -qi::eol >> stmt_block_before_end >> -sep
+                >> DACHS_KWD("end")
+            ) [
+                _val = make_node_ptr<ast::node::do_stmt>(_1)
+            ];
+
         compound_stmt
             = (
                   if_stmt
@@ -864,6 +873,7 @@ public:
                 | for_stmt
                 | while_stmt
                 | let_stmt
+                | do_stmt
                 | initialize_stmt
                 | postfix_if_stmt
                 | return_stmt
@@ -978,6 +988,7 @@ public:
             , postfix_if_return_stmt
             , postfix_if_stmt
             , let_stmt
+            , do_stmt
             , function_definition
             , constant_decl
             , constant_definition
@@ -1066,6 +1077,7 @@ public:
         initialize_stmt.name("initialize statement");
         assignment_stmt.name("assignment statement");
         let_stmt.name("let statement");
+        do_stmt.name("do statement");
         compound_stmt.name("compound statement");
         function_definition.name("function definition");
         constant_decl.name("constant declaration");
@@ -1115,6 +1127,7 @@ private:
     DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(postfix_if_stmt);
     DACHS_DEFINE_RULE(let_stmt);
+    DACHS_DEFINE_RULE(do_stmt);
     DACHS_DEFINE_RULE(compound_stmt);
     DACHS_DEFINE_RULE(function_definition);
     DACHS_DEFINE_RULE(global_definition);

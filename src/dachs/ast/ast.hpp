@@ -791,6 +791,20 @@ struct let_stmt final : public statement {
     }
 };
 
+struct do_stmt final : public statement {
+    node::statement_block block;
+    scope::weak_local_scope scope;
+
+    explicit do_stmt(node::statement_block const& b)
+        : statement(), block(b)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "DO_STMT: ";
+    }
+};
+
 struct statement_block final : public base {
     using block_type
         = std::vector<node::compound_stmt>;

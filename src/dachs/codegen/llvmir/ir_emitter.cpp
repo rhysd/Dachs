@@ -1346,6 +1346,11 @@ public:
         emit(let->child_stmt);
     }
 
+    void emit(ast::node::do_stmt const& do_)
+    {
+        emit(do_->block);
+    }
+
     val emit(ast::node::cast_expr const& cast)
     {
         auto *const child_val = get_operand(emit(cast->child));
