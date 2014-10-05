@@ -9,6 +9,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/algorithm/cxx11/all_of.hpp>
 #include <boost/algorithm/cxx11/any_of.hpp>
+#include <boost/algorithm/string/join.hpp>
 #include <boost/range/algorithm/transform.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 
@@ -236,6 +237,11 @@ class symbol_analyzer {
             apply_lambda([this](auto const& t){ semantic_error(t, "Invalid type '" + t->to_string() + '\''); }, n);
         }
         return ret;
+    }
+
+    std::string make_func_signature(std::string const& name, std::vector<type::type> const& arg_types) const
+    {
+        return name + '(' + boost::algorithm::join(arg_types | transformed([](auto const& t){ return t.to_string(); }), ",") + ')';
     }
 
 public:
@@ -824,7 +830,7 @@ public:
                 );
 
         if (!maybe_func) {
-            return (boost::format("Function '%1%' is not found") % func_name).str();
+            return (boost::format("Function for '%1%' is not found") % make_func_signature(func_name, arg_types)).str();
         }
 
         auto func = *maybe_func;
