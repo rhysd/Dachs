@@ -37,6 +37,7 @@
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/type.hpp"
+#include "dachs/semantics/semantics_context.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
@@ -1443,7 +1444,7 @@ public:
 
 } // namespace detail
 
-llvm::Module &emit_llvm_ir(ast::ast const& a, scope::scope_tree const&, context &ctx)
+llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const&, context &ctx)
 {
     auto &the_module = *detail::llvm_ir_emitter{a.name, ctx}.emit(a.root);
     std::string errmsg;

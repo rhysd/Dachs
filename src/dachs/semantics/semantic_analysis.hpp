@@ -3,12 +3,13 @@
 
 #include "dachs/ast/ast_fwd.hpp"
 #include "dachs/semantics/scope_fwd.hpp"
+#include "dachs/semantics/semantics_context.hpp"
 
 namespace dachs {
 namespace semantics {
 
 // FIXME: argument should be const
-scope::scope_tree analyze_semantics(ast::ast &a);
+semantics_context analyze_semantics(ast::ast &a);
 
 } // namespace semantics
 } // namespace dachs

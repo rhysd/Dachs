@@ -7,6 +7,7 @@
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/ast_walker.hpp"
 #include "dachs/semantics/semantic_analysis.hpp"
+#include "dachs/semantics/semantics_context.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/forward_analyzer.hpp"
 #include "dachs/semantics/analyzer.hpp"
@@ -14,11 +15,10 @@
 namespace dachs {
 namespace semantics {
 
-scope::scope_tree analyze_semantics(ast::ast &a)
+semantics_context analyze_semantics(ast::ast &a)
 {
     auto tree = analyze_symbols_forward(a);
-
-    check_semantics(a, tree);
+    auto captures = check_semantics(a, tree);
 
     // TODO: Get type of global function variables' type on visit node::function_definition
     // Note:
@@ -26,7 +26,7 @@ scope::scope_tree analyze_semantics(ast::ast &a)
     // Should function type be set at forward analysis phase?
     // If so, type calculation pass should be separated from symbol analysis pass.
 
-    return tree;
+    return {tree, std::move(captures)};
 }
 
 } // namespace semantics

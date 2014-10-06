@@ -3,11 +3,12 @@
 
 #include "dachs/ast/ast_fwd.hpp"
 #include "dachs/semantics/scope_fwd.hpp"
+#include "dachs/semantics/semantics_context.hpp"
 
 namespace dachs {
 namespace semantics {
 
-void check_semantics(ast::ast &a, scope::scope_tree &t);
+lambda_captures_type check_semantics(ast::ast &a, scope::scope_tree &t);
 
 } // namespace semantics
 } // namespace dachs

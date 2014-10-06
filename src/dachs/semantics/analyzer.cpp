@@ -24,6 +24,7 @@
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/error.hpp"
+#include "dachs/semantics/semantics_context.hpp"
 #include "dachs/semantics/tmp_member_checker.hpp"
 #include "dachs/semantics/tmp_constructor_checker.hpp"
 #include "dachs/fatal.hpp"
@@ -151,6 +152,9 @@ class symbol_analyzer {
     scope::any_scope current_scope;
     scope::global_scope const global;
     std::vector<ast::node::function_definition> lambdas;
+    size_t failed = 0u;
+    lambda_captures_type captures;
+    std::unordered_set<ast::node::function_definition> already_visited_functions;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -246,9 +250,6 @@ class symbol_analyzer {
 
 public:
 
-    size_t failed = 0u;
-    std::unordered_set<ast::node::function_definition> already_visited_functions;
-
     template<class Scope>
     explicit symbol_analyzer(Scope const& root, scope::global_scope const& global) noexcept
         : current_scope{root}, global{global}
@@ -258,6 +259,16 @@ public:
     explicit symbol_analyzer(Scope const& root, scope::global_scope const& global, decltype(already_visited_functions) const& fs) noexcept
         : current_scope{root}, global{global}, already_visited_functions(fs)
     {}
+
+    size_t num_errors() const noexcept
+    {
+        return failed;
+    }
+
+    auto lambda_captures() const noexcept
+    {
+        return captures;
+    }
 
     // Push and pop current scope {{{
     template<class Walker>
@@ -1501,14 +1512,18 @@ bool check_main_func(std::vector<Func> const& funcs)
 
 } // namespace detail
 
-void check_semantics(ast::ast &a, scope::scope_tree &t)
+lambda_captures_type check_semantics(ast::ast &a, scope::scope_tree &t)
 {
     detail::symbol_analyzer resolver{t.root, t.root};
     ast::walk_topdown(a.root, resolver);
+    auto const failed = resolver.num_errors();
 
-    if (resolver.failed > 0 || !detail::check_main_func(t.root->functions)) {
-        throw semantic_check_error{resolver.failed, "symbol resolution"};
+    if (failed > 0 || !detail::check_main_func(t.root->functions)) {
+        throw semantic_check_error{failed, "symbol resolution"};
     }
+
+    // TODO
+    return resolver.lambda_captures();
 }
 
 } // namespace semantics

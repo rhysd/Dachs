@@ -42,7 +42,17 @@ using enclosing_scope_type
                         , weak_class_scope
                     >;
 
-struct scope_tree;
+struct scope_tree final {
+    scope::global_scope root;
+
+    explicit scope_tree(scope::global_scope const& r) noexcept
+        : root(r)
+    {}
+
+    scope_tree()
+        : root{}
+    {}
+};
 
 } // namespace scope
 

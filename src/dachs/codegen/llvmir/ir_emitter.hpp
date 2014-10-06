@@ -5,13 +5,14 @@
 
 #include "dachs/ast/ast_fwd.hpp"
 #include "dachs/semantics/scope_fwd.hpp"
+#include "dachs/semantics/semantics_context.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
 
 namespace dachs {
 namespace codegen {
 namespace llvmir {
 
-llvm::Module &emit_llvm_ir(ast::ast const& a, scope::scope_tree const& t, context &ctx);
+llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const& t, context &ctx);
 
 } // namespace llvm
 } // namespace codegen

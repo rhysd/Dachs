@@ -292,18 +292,6 @@ struct ast;
 
 namespace scope {
 
-struct scope_tree final {
-    scope::global_scope root;
-
-    explicit scope_tree(scope::global_scope const& r) noexcept
-        : root(r)
-    {}
-
-    scope_tree()
-        : root{}
-    {}
-};
-
 struct var_symbol_resolver
     : boost::static_visitor<boost::optional<symbol::var_symbol>> {
     std::string const& name;
