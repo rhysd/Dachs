@@ -25,6 +25,7 @@
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/error.hpp"
 #include "dachs/semantics/semantics_context.hpp"
+#include "dachs/semantics/lambda_capture_resolver.hpp"
 #include "dachs/semantics/tmp_member_checker.hpp"
 #include "dachs/semantics/tmp_constructor_checker.hpp"
 #include "dachs/fatal.hpp"

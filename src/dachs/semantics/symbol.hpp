@@ -35,6 +35,8 @@ struct basic_symbol {
         : name(s), type{}, ast_node{node}, is_builtin(is_builtin)
     {}
 
+    basic_symbol(basic_symbol const&) = default;
+
     std::string to_string() const noexcept
     {
         return '<' + name + '>';
@@ -53,6 +55,8 @@ struct var_symbol final : public basic_symbol {
     var_symbol(Node const& node, std::string const& s, bool const immutable = true, bool const is_builtin = false) noexcept
         : basic_symbol(node, s, is_builtin), immutable(immutable)
     {}
+
+    var_symbol(var_symbol const&) = default;
 };
 
 struct member_var_symbol final : public basic_symbol {

@@ -5,8 +5,13 @@
 #include <memory>
 #include <unordered_map>
 
+#include <boost/variant/static_visitor.hpp>
+#include <boost/variant/apply_visitor.hpp>
+
+#include "dachs/fatal.hpp"
 #include "dachs/ast/ast.hpp"
-#include "dachs/symbol.hpp"
+#include "dachs/ast/ast_walker.hpp"
+#include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/semantics_context.hpp"
 
@@ -16,17 +21,77 @@ namespace detail {
 
 using std::size_t;
 
+struct is_captured : boost::static_visitor<bool> {
+    symbol::var_symbol const& query;
+    scope::func_scope const& threshold;
+
+    template<class S>
+    is_captured(decltype(query) const& q, S const& s)
+        : query(q), threshold(s)
+    {}
+
+    bool operator()(scope::weak_global_scope const&) const
+    {
+        // Not reached here because the symbol is already resolved
+        // and the threshold scope must be in the looking path.
+        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+    }
+
+    bool operator()(scope::weak_local_scope const& local_) const
+    {
+        auto const local = local_.lock();
+        for (auto const& v : local->local_vars) {
+            if (*query == *v) {
+                return false;
+            }
+        }
+
+        return boost::apply_visitor(*this, local->enclosing_scope);
+    }
+
+    bool operator()(scope::weak_func_scope const& func_) const
+    {
+        auto const func = func_.lock();
+        for (auto const& p : func->params) {
+            if (*query == *p) {
+                return false;
+            }
+        }
+
+        if (*threshold == *func) {
+            return true;
+        }
+
+        return boost::apply_visitor(*this, func->enclosing_scope);
+    }
+
+    bool operator()(scope::weak_class_scope const& clazz_) const
+    {
+        auto const clazz = clazz_.lock();
+        for (auto const& m : clazz->member_var_symbols) {
+            if (*query == *m) {
+                return false;
+            }
+        }
+
+        return boost::apply_visitor(*this, clazz->enclosing_scope);
+    }
+};
+
 class lambda_capture_resolver {
     captured_offset_map captures;
     scope::func_scope const& lambda_scope;
     size_t offset;
     scope::any_scope current_scope;
-    std::unordered_map<symbol::var_symbol, symbol::var_symbol> sym_map;
+
+    using replaced_symbol = symbol::var_symbol;
+    using captured_symbol = symbol::var_symbol;
+    std::unordered_map<captured_symbol, replaced_symbol> sym_map;
 
     template<class Symbol>
     bool is_captured_symbol(Symbol const& sym) const
     {
-        return false;
+        return boost::apply_visitor(is_captured{sym, lambda_scope}, current_scope);
     }
 
     template<class Symbol>
@@ -60,6 +125,11 @@ public:
         : captures(), lambda_scope(s), offset(0u), current_scope(s)
     {}
 
+    template<class Scope>
+    lambda_capture_resolver(scope::func_scope const& s, Scope const& current) noexcept
+        : captures(), lambda_scope(s), offset(0u), current_scope(current)
+    {}
+
     auto get_captures() const
     {
         return captures;
@@ -68,11 +138,23 @@ public:
     template<class Walker>
     void visit(ast::node::var_ref const& ref, Walker const& w)
     {
-        if (is_captured_symbol(ref->symbol)) {
-            // TODO:
-            // Make new symbol for capture
-            // register it to captures
+        auto const sym = ref->symbol.lock();
+
+        {
+            auto const already_replaced = sym_map.find(sym);
+            if (already_replaced != std::end(sym_map)) {
+                ref->symbol = already_replaced->second;
+                return;
+            }
         }
+
+        if (is_captured_symbol(sym)) {
+            auto const replaced = symbol::make<symbol::var_symbol>(*sym);
+            add_capture(replaced);
+            sym_map[sym] = replaced;
+            ref->symbol = replaced;
+        }
+
         w();
     }
 
@@ -88,18 +170,20 @@ public:
         with_scope(let->scope, w);
     }
 
-    template<class Walker>
-    void visit(ast::node::do_stmt const& do_, Walker const& w)
-    {
-        with_scope(do_->scope, w);
-    }
-
     template<class Node, class Walker>
-    void visit(Node const& n, Walkker const& w)
+    void visit(Node const&, Walker const& w)
     {
         w();
     }
 };
+
+template<class Node>
+captured_offset_map resolve_lambda_captures(Node const& search_root, scope::func_scope const& lambda_scope)
+{
+    lambda_capture_resolver resolver{lambda_scope};
+    ast::walk_topdown(search_root, resolver);
+    return resolver.get_captures();
+}
 
 } // namespace detail
 } // namespace semantics

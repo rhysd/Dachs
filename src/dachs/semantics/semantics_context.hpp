@@ -11,6 +11,8 @@
 namespace dachs {
 namespace semantics {
 
+// Note:
+// The map owns the ownership of the symbol which is replaced as a aptured symbol.
 using captured_offset_map = std::unordered_map<symbol::var_symbol, std::size_t>;
 using lambda_captures_type = std::unordered_map<ast::node::function_definition, captured_offset_map>;
 
