@@ -1,6 +1,7 @@
 #if !defined DACHS_SEMANTICS_SEMANTICS_CONTEXT_HPP_INCLUDED
 #define      DACHS_SEMANTICS_SEMANTICS_CONTEXT_HPP_INCLUDED
 
+#include <cstddef>
 #include <unordered_map>
 
 #include "dachs/ast/ast_fwd.hpp"
@@ -10,8 +11,8 @@
 namespace dachs {
 namespace semantics {
 
-using capture_map_type = std::unordered_map<symbol::var_symbol, symbol::var_symbol>;
-using lambda_captures_type = std::unordered_map<ast::node::function_definition, capture_map_type>;
+using captured_offset_map = std::unordered_map<symbol::var_symbol, std::size_t>;
+using lambda_captures_type = std::unordered_map<ast::node::function_definition, captured_offset_map>;
 
 struct semantics_context {
     scope::scope_tree scopes;
