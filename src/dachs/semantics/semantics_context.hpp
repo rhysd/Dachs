@@ -16,6 +16,11 @@ using lambda_captures_type = std::unordered_map<ast::node::function_definition, 
 struct semantics_context {
     scope::scope_tree scopes;
     lambda_captures_type lambda_captures;
+
+    semantics_context(semantics_context const&) = delete;
+    semantics_context &operator=(semantics_context const&) = delete;
+    semantics_context(semantics_context &&) = default;
+    semantics_context &operator=(semantics_context &&) = default;
 };
 
 } // namespace semantics
