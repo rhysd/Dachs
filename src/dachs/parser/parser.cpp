@@ -861,9 +861,7 @@ public:
                 DACHS_KWD("do")
                 >> -qi::eol >> stmt_block_before_end >> -sep
                 >> DACHS_KWD("end")
-            ) [
-                _val = make_node_ptr<ast::node::do_stmt>(_1)
-            ];
+            );
 
         compound_stmt
             = (
@@ -1127,7 +1125,6 @@ private:
     DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(postfix_if_stmt);
     DACHS_DEFINE_RULE(let_stmt);
-    DACHS_DEFINE_RULE(do_stmt);
     DACHS_DEFINE_RULE(compound_stmt);
     DACHS_DEFINE_RULE(function_definition);
     DACHS_DEFINE_RULE(global_definition);
@@ -1141,6 +1138,7 @@ private:
     rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
     rule<ast::node::initialize_stmt()> constant_definition;
     rule<ast::node::function_definition()> do_block;
+    rule<ast::node::statement_block()> do_stmt;
 
     rule<ast::node::any_expr()>
           primary_literal

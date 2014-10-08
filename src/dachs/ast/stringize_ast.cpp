@@ -355,12 +355,6 @@ public:
             +  visit(ls->child_stmt, indent+lead, "   ");
     }
 
-    String visit(node::do_stmt const& ds, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(ds, indent)
-            + '\n' + visit(ds->block, indent+lead, "   ");
-    }
-
     String visit(node::variable_decl const& vd, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(vd, indent)

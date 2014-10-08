@@ -290,13 +290,6 @@ public:
         ));
     }
 
-    void walk(node::do_stmt &ds)
-    {
-        visitor.visit(ds, walker_for(
-            ds->block
-        ));
-    }
-
     void walk(node::statement_block &sb)
     {
         visitor.visit(sb, walker_for(

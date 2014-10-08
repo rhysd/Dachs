@@ -237,11 +237,6 @@ public:
         return copy_node<node::let_stmt>(ls, copy(ls->inits), copy(ls->child_stmt));
     }
 
-    auto copy(node::do_stmt const& ds) const
-    {
-        return copy_node<node::do_stmt>(ds, copy(ds->block));
-    }
-
     auto copy(node::function_definition const& fd) const
     {
         return copy_node<node::function_definition>(
