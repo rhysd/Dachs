@@ -893,11 +893,18 @@ public:
             assert(!block->scope.expired());
             auto const the_scope = block->scope.lock();
 
+            /*
+             * Note:
+             * Analyzing captures in lambda can't be done here because the function template
+             * is not analyzed by symbol_analyzer (instantiated functions from it will be analyzed).
+             * It makes var_ref::symbol empty and causes SEGV at the point.
+             *
             // Note:
             // Replace all symbols which are captured with the data member of
             // lambda function object.  All replaced data members become the members
             // of lambda function object.
             captures[the_scope] = detail::resolve_lambda_captures(block, the_scope);
+             */
 
             // Note:
             // Move the scope to global scope.
