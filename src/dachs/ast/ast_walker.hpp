@@ -364,7 +364,6 @@ inline void walk_topdown(ASTNode &n, Visitor && v)
 }
 
 } // namespace ast
-
 } // namespace dachs
 
 #endif    // DACHS_AST_AST_WALKER_BASE_HPP_INCLUDED

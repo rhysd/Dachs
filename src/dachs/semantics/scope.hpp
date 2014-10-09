@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <boost/variant/variant.hpp>
 #include <boost/format.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 
 #include "dachs/warning.hpp"
 #include "dachs/semantics/scope_fwd.hpp"
@@ -95,6 +96,16 @@ struct basic_scope {
                     -> boost::optional<symbol::var_symbol>
                 {
                     return s.lock()->resolve_var(name);
+                }, enclosing_scope);
+    }
+
+    virtual boost::optional<symbol::var_symbol> resolve_receiver() const
+    {
+        return apply_lambda(
+                [](auto const& s)
+                    -> boost::optional<symbol::var_symbol>
+                {
+                    return s.lock()->resolve_receiver();
                 }, enclosing_scope);
     }
 
@@ -234,6 +245,11 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
 
     ast::node::function_definition get_ast_node() const noexcept;
 
+    bool is_anonymous() const noexcept
+    {
+        return boost::algorithm::starts_with(name, "lambda.");
+    }
+
     std::string to_string() const noexcept;
 
     boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
@@ -245,6 +261,19 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
                         {
                             return s.lock()->resolve_var(name);
                         }, enclosing_scope);
+    }
+
+    boost::optional<symbol::var_symbol> resolve_receiver() const override
+    {
+        if (params.empty()) {
+            return boost::none;
+        }
+
+        if (boost::algorithm::starts_with(params[0]->name, "self.")) {
+            return params[0];
+        }
+
+        return boost::none;
     }
 
     func_scope &operator=(func_scope const& rhs) = default;

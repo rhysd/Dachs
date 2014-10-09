@@ -1439,8 +1439,11 @@ public:
 
 } // namespace detail
 
-llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const&, context &ctx)
+llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const& s, context &ctx)
 {
+    for (auto const& c : s.lambda_captures) {
+        std::cout << c.first->to_string() << std::endl;
+    }
     auto &the_module = *detail::llvm_ir_emitter{a.name, ctx}.emit(a.root);
     std::string errmsg;
     if (llvm::verifyModule(the_module, llvm::ReturnStatusAction, &errmsg)) {

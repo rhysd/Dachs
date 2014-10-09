@@ -890,15 +890,19 @@ public:
             auto &block = *node->do_block;
             ast::walk_topdown(block, *this);
 
-            // TODO:
+            assert(!block->scope.expired());
+            auto const the_scope = block->scope.lock();
+
+            // Note:
             // Replace all symbols which are captured with the data member of
             // lambda function object.  All replaced data members become the members
-            // of lambda function object.  It must be done in the near future.
+            // of lambda function object.
+            captures[the_scope] = detail::resolve_lambda_captures(block, the_scope);
 
             // Note:
             // Move the scope to global scope.
             // All functions' scopes are in global scope.
-            global->define_function(block->scope.lock());
+            global->define_function(the_scope);
 
             lambdas.push_back(block);
         }

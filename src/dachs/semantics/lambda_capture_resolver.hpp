@@ -178,7 +178,7 @@ public:
 };
 
 template<class Node>
-captured_offset_map resolve_lambda_captures(Node const& search_root, scope::func_scope const& lambda_scope)
+captured_offset_map resolve_lambda_captures(Node &search_root, scope::func_scope const& lambda_scope)
 {
     lambda_capture_resolver resolver{lambda_scope};
     ast::walk_topdown(search_root, resolver);

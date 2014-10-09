@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <unordered_map>
 
-#include "dachs/ast/ast_fwd.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
 
@@ -14,7 +13,7 @@ namespace semantics {
 // Note:
 // The map owns the ownership of the symbol which is replaced as a aptured symbol.
 using captured_offset_map = std::unordered_map<symbol::var_symbol, std::size_t>;
-using lambda_captures_type = std::unordered_map<ast::node::function_definition, captured_offset_map>;
+using lambda_captures_type = std::unordered_map<scope::func_scope, captured_offset_map>;
 
 struct semantics_context {
     scope::scope_tree scopes;
