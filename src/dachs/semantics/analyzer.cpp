@@ -224,6 +224,17 @@ class symbol_analyzer {
             current_scope = std::move(saved_current_scope);
         }
 
+        if (instantiated_func_scope->is_anonymous()){
+            // Note:
+            // Restore the enclosing scope at the point of the do-end block is defined
+            // to resolve lambda captures.  After that the enclosing scope will be restored.
+            auto const original_lambda_scope = func_template_def->scope.lock();
+            auto const saved_enclosing_scope = instantiated_func_def->scope;
+            instantiated_func_def->scope = func_template_def->scope;
+            captures[original_lambda_scope] = detail::resolve_lambda_captures(instantiated_func_def, original_lambda_scope);
+            instantiated_func_def->scope = saved_enclosing_scope;
+        }
+
         assert(!instantiated_func_def->is_template());
 
         // Add instantiated function to function template node in AST
@@ -891,27 +902,17 @@ public:
             ast::walk_topdown(block, *this);
 
             assert(!block->scope.expired());
-            auto const the_scope = block->scope.lock();
-
-            /*
-             * Note:
-             * Analyzing captures in lambda can't be done here because the function template
-             * is not analyzed by symbol_analyzer (instantiated functions from it will be analyzed).
-             * It makes var_ref::symbol empty and causes SEGV at the point.
-             *
-            // Note:
-            // Replace all symbols which are captured with the data member of
-            // lambda function object.  All replaced data members become the members
-            // of lambda function object.
-            captures[the_scope] = detail::resolve_lambda_captures(block, the_scope);
-             */
 
             // Note:
             // Move the scope to global scope.
             // All functions' scopes are in global scope.
-            global->define_function(the_scope);
+            global->define_function(block->scope.lock());
 
             lambdas.push_back(block);
+
+            // Note:
+            // Lambda captures are not resolved yet.
+            // It will be resolved on overload resolution
         }
     }
 
