@@ -2,12 +2,14 @@
 #define      DACHS_CODEGEN_LLVMIR_TYPE_IR_GENERATOR_HPP_INCLUDED
 
 #include <vector>
+#include <cassert>
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/DerivedTypes.h>
 
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/scope.hpp"
+#include "dachs/semantics/semantics_context.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
@@ -19,6 +21,7 @@ namespace llvmir {
 
 class type_ir_emitter {
     llvm::LLVMContext &context;
+    semantics::lambda_captures_type lambda_captures;
 
     template<class String>
     void error(String const& msg)
@@ -37,8 +40,8 @@ class type_ir_emitter {
 
 public:
 
-    explicit type_ir_emitter(llvm::LLVMContext &c)
-        : context(c)
+    type_ir_emitter(llvm::LLVMContext &c, decltype(lambda_captures) const& lc)
+        : context(c), lambda_captures(lc)
     {}
 
     llvm::Type *emit(type::type const& any)
@@ -150,12 +153,6 @@ public:
         DACHS_RAISE_INTERNAL_COMPILATION_ERROR
     }
 };
-
-template<class TypeType>
-llvm::Type *emit_type_ir(TypeType const& t, llvm::LLVMContext &context)
-{
-    return type_ir_emitter{context}.emit(t);
-}
 
 } // namespace llvmir
 } // namespace codegen

@@ -61,6 +61,7 @@ class llvm_ir_emitter {
 
     llvm::Module *module = nullptr;
     context &ctx;
+    semantics::semantics_context const& semantics_ctx;
     variable_table var_table;
     std::unordered_map<scope::func_scope, llvm::Function *const> func_table;
     builtin_function_emitter builtin_func_emitter;
@@ -303,14 +304,15 @@ class llvm_ir_emitter {
 
 public:
 
-    llvm_ir_emitter(std::string const& f, context &c)
+    llvm_ir_emitter(std::string const& f, context &c, semantics::semantics_context const& sc)
         : ctx(c)
+        , semantics_ctx(sc)
         , var_table(ctx)
         , builtin_func_emitter(ctx.llvm_context)
         , file(f)
-        , type_emitter(ctx.llvm_context)
+        , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , member_emitter(ctx)
-        , ctor_emitter(ctx)
+        , ctor_emitter(ctx, type_emitter)
     {}
 
     // Note:
@@ -335,15 +337,16 @@ public:
         struct literal_visitor : public boost::static_visitor<val> {
             context &c;
             ast::node::primary_literal const& pl;
+            type_ir_emitter &t_emitter;
 
-            literal_visitor(context &c, ast::node::primary_literal const& pl)
-                : c(c), pl(pl)
+            literal_visitor(context &c, ast::node::primary_literal const& pl, type_ir_emitter &te)
+                : c(c), pl(pl), t_emitter(te)
             {}
 
             val operator()(char const ch)
             {
                 return llvm::ConstantInt::get(
-                        emit_type_ir(pl->type, c.llvm_context),
+                        t_emitter.emit(pl->type),
                         static_cast<std::uint8_t const>(ch), false
                     );
             }
@@ -366,7 +369,7 @@ public:
             val operator()(int const i)
             {
                 return llvm::ConstantInt::get(
-                        emit_type_ir(pl->type, c.llvm_context),
+                        t_emitter.emit(pl->type),
                         static_cast<std::int64_t const>(i), false
                     );
             }
@@ -374,12 +377,12 @@ public:
             val operator()(unsigned int const ui)
             {
                 return llvm::ConstantInt::get(
-                        emit_type_ir(pl->type, c.llvm_context),
+                        t_emitter.emit(pl->type),
                         static_cast<std::uint64_t const>(ui), true
                     );
             }
 
-        } visitor{ctx, pl};
+        } visitor{ctx, pl, type_emitter};
 
         return check(pl, boost::apply_visitor(visitor, pl->value), "constant");
     }
@@ -1027,7 +1030,7 @@ public:
             for (auto const& d : init->var_decls) {
                 auto const sym = d->symbol.lock();
                 assert(d->maybe_type);
-                auto const type_ir = emit_type_ir(sym->type, ctx.llvm_context);
+                auto const type_ir = type_emitter.emit(sym->type);
                 auto *const allocated = ctx.builder.CreateAlloca(type_ir, nullptr, sym->name);
                 ctx.builder.CreateMemSet(
                         allocated,

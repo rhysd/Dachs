@@ -12,6 +12,7 @@
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
+#include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/helper/util.hpp"
 
 namespace dachs {
@@ -20,16 +21,19 @@ namespace llvmir {
 namespace detail {
 
 class tmp_constructor_ir_emitter {
-    context &ctx;
     using val = llvm::Value *;
+
+    context &ctx;
+    type_ir_emitter &type_emitter;
 
     template<class Values>
     struct type_ctor_emitter : boost::static_visitor<val> {
         context &ctx;
+        type_ir_emitter &type_emitter;
         Values const& arg_values;
 
-        type_ctor_emitter(context &c, Values const& a)
-            : ctx(c), arg_values(a)
+        type_ctor_emitter(context &c, type_ir_emitter &t, Values const& a)
+            : ctx(c), type_emitter(t), arg_values(a)
         {
             assert(a.size() == 1 || a.size() == 2);
         }
@@ -41,7 +45,6 @@ class tmp_constructor_ir_emitter {
             }
 
             assert(a->size);
-            type_ir_emitter type_emitter{ctx.llvm_context};
             auto *const ty = type_emitter.emit_fixed_array(a);
             auto const size = *a->size;
 
@@ -90,14 +93,14 @@ class tmp_constructor_ir_emitter {
 
 public:
 
-    explicit tmp_constructor_ir_emitter(context &c) noexcept
-        : ctx(c)
+    tmp_constructor_ir_emitter(context &c, type_ir_emitter &t) noexcept
+        : ctx(c), type_emitter(t)
     {}
 
     template<class Values>
     val emit(type::type &type, Values const& arg_values)
     {
-        return type.apply_visitor(type_ctor_emitter<decltype(arg_values)>{ctx, arg_values});
+        return type.apply_visitor(type_ctor_emitter<Values>{ctx, type_emitter, arg_values});
     }
 };
 
