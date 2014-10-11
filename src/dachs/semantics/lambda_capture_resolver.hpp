@@ -140,6 +140,14 @@ public:
     {
         auto const sym = ref->symbol.lock();
 
+        if (sym->is_builtin) {
+            return;
+        }
+
+        // TODO:
+        // Check the variable is defined in global scope.
+        // If then, global variables should not be captured.
+
         {
             auto const already_replaced = sym_map.find(sym);
             if (already_replaced != std::end(sym_map)) {

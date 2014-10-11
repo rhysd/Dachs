@@ -177,17 +177,21 @@ class symbol_analyzer {
 
     // TODO:
     // Share this function in func_scope and member_func_scope
-    template<class FuncDefNode, class EnclosingScope>
+    template<class FuncDefNode>
     std::pair<FuncDefNode, scope::func_scope>
     instantiate_function_from_template(
             FuncDefNode const& func_template_def,
-            std::vector<type::type> const& arg_types,
-            EnclosingScope const& enclosing_scope
+            std::vector<type::type> const& arg_types
         ) noexcept
     {
         assert(func_template_def->is_template());
 
         auto instantiated_func_def = ast::copy_ast(func_template_def);
+        auto const enclosing_scope
+            = apply_lambda(
+                    [](auto const& s) -> scope::any_scope { assert(!s.expired()); return s.lock(); },
+                    func_template_def->scope.lock()->enclosing_scope
+                );
 
         // Note: No need to check functions duplication
         // Note: Type of parameters are analyzed here
@@ -225,14 +229,7 @@ class symbol_analyzer {
         }
 
         if (instantiated_func_scope->is_anonymous()){
-            // Note:
-            // Restore the enclosing scope at the point of the do-end block is defined
-            // to resolve lambda captures.  After that the enclosing scope will be restored.
-            auto const original_lambda_scope = func_template_def->scope.lock();
-            auto const saved_enclosing_scope = instantiated_func_def->scope;
-            instantiated_func_def->scope = func_template_def->scope;
-            captures[original_lambda_scope] = detail::resolve_lambda_captures(instantiated_func_def, original_lambda_scope);
-            instantiated_func_def->scope = saved_enclosing_scope;
+            captures[instantiated_func_scope] = detail::resolve_lambda_captures(instantiated_func_def, instantiated_func_scope);
         }
 
         assert(!instantiated_func_def->is_template());
@@ -868,12 +865,7 @@ public:
         auto func_def = func->get_ast_node();
 
         if (func->is_template()) {
-            // Note:
-            // No need to use apply_lambda for func->enclosing_scope
-            // because enclosing_scope of func_scope is always global_scope.
-
-            std::tie(func_def, func) = instantiate_function_from_template(func_def, arg_types, global /*XXX*/);
-
+            std::tie(func_def, func) = instantiate_function_from_template(func_def, arg_types);
             assert(!global->ast_root.expired());
         }
 
