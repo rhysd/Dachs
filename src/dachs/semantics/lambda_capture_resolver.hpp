@@ -97,7 +97,7 @@ class lambda_capture_resolver {
     template<class Symbol>
     void add_capture(Symbol const& new_sym)
     {
-        captures[new_sym] = offset;
+        captures.insert({new_sym, offset});
         ++offset;
     }
 

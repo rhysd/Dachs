@@ -1439,11 +1439,11 @@ public:
 
 } // namespace detail
 
-llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const& s, context &ctx)
+llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const& sctx, context &ctx)
 {
-    s.dump_lambda_captures();
+    sctx.dump_lambda_captures();
 
-    auto &the_module = *detail::llvm_ir_emitter{a.name, ctx}.emit(a.root);
+    auto &the_module = *detail::llvm_ir_emitter{a.name, ctx, sctx}.emit(a.root);
     std::string errmsg;
     if (llvm::verifyModule(the_module, llvm::ReturnStatusAction, &errmsg)) {
         helper::colorizer<std::string> c;
