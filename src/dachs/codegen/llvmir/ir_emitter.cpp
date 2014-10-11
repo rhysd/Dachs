@@ -808,7 +808,7 @@ public:
         if (auto const g = type::get<type::generic_func_type>(var->type)) {
             return llvm::ConstantStruct::get(type_emitter.emit(*g), {});
         } else {
-            error(var, boost::format("Invalid variable reference '%1%'. Its type is '%2%'") % var->name % var->type);
+            error(var, boost::format("Invalid variable reference '%1%'. Its type is '%2%'") % var->name % var->type.to_string());
         }
     }
 
@@ -1441,9 +1441,8 @@ public:
 
 llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const& s, context &ctx)
 {
-    for (auto const& c : s.lambda_captures) {
-        std::cout << c.first->to_string() << std::endl;
-    }
+    s.dump_lambda_captures();
+
     auto &the_module = *detail::llvm_ir_emitter{a.name, ctx}.emit(a.root);
     std::string errmsg;
     if (llvm::verifyModule(the_module, llvm::ReturnStatusAction, &errmsg)) {

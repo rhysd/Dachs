@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <unordered_map>
+#include <iostream>
 
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -23,6 +24,17 @@ struct semantics_context {
     semantics_context &operator=(semantics_context const&) = delete;
     semantics_context(semantics_context &&) = default;
     semantics_context &operator=(semantics_context &&) = default;
+
+    void dump_lambda_captures() const noexcept
+    {
+        std::cout << "Lambda captures:" << std::endl;
+        for (auto const& cs : lambda_captures) {
+            std::cout << "  " << cs.first->to_string() << std::endl;
+            for (auto const& c : cs.second) {
+                std::cout << "    " << c.first->name << ": " << c.second << std::endl;
+            }
+        }
+    }
 };
 
 } // namespace semantics
