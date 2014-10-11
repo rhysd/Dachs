@@ -895,10 +895,19 @@ public:
 
             assert(!block->scope.expired());
 
+            auto const lambda_scope = block->scope.lock();
+            if (!lambda_scope->is_template()) {
+                // Note:
+                // Resolve lambda captures for the lambada function.
+                // If the lambda is a function template, its captures should be resolved in the instantiation.
+                // So, in the situation, the captures will be resolved in instantiate_function_from_template().
+                captures[lambda_scope] = detail::resolve_lambda_captures(block, lambda_scope);
+            }
+
             // Note:
             // Move the scope to global scope.
             // All functions' scopes are in global scope.
-            global->define_function(block->scope.lock());
+            global->define_function(lambda_scope);
 
             lambdas.push_back(block);
 
