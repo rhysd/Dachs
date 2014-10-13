@@ -136,7 +136,7 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::var_ref const& ref, Walker const& w)
+    void visit(ast::node::var_ref &ref, Walker const& w)
     {
         auto const sym = ref->symbol.lock();
 
@@ -167,19 +167,25 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::statement_block const& b, Walker const& w)
+    void visit(ast::node::statement_block &b, Walker const& w)
     {
         with_scope(b->scope, w);
     }
 
     template<class Walker>
-    void visit(ast::node::let_stmt const& let, Walker const& w)
+    void visit(ast::node::let_stmt &let, Walker const& w)
     {
         with_scope(let->scope, w);
     }
 
+    template<class Walker>
+    void visit(ast::node::any_expr &, Walker const& w)
+    {
+        w();
+    }
+
     template<class Node, class Walker>
-    void visit(Node const&, Walker const& w)
+    void visit(Node &, Walker const& w)
     {
         w();
     }
