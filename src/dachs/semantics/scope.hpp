@@ -233,6 +233,11 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         return define_symbol(params, new_var);
     }
 
+    void force_push_front_param(symbol::var_symbol const& new_param) noexcept
+    {
+        params.insert(std::begin(params), new_param);
+    }
+
     bool is_template() const noexcept
     {
         for (auto const& p : params) {

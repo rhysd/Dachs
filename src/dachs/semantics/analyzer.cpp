@@ -229,7 +229,36 @@ class symbol_analyzer {
         }
 
         if (instantiated_func_scope->is_anonymous()){
-            captures[instantiated_func_scope] = detail::resolve_lambda_captures(instantiated_func_def, instantiated_func_scope);
+            // TODO:
+            // The lambda object for captures is mutable and passed by reference.
+            // This is the same as a receiver of member function.
+            auto const new_param = helper::make<ast::node::parameter>(true /*TODO*/, "dachs.lambda.receiver", boost::none);
+            instantiated_func_def->params.insert(std::begin(instantiated_func_def->params), new_param);
+
+            auto const lambda_object_sym = symbol::make<symbol::var_symbol>(new_param, new_param->name, !new_param->is_var);
+            new_param->param_symbol = lambda_object_sym;
+            instantiated_func_scope->force_push_front_param(lambda_object_sym);
+
+            auto const invocation_map = detail::resolve_lambda_captures(instantiated_func_def, instantiated_func_scope, lambda_object_sym);
+
+            auto const lambda_type = type::make<type::tuple_type>();
+            lambda_type->element_types.reserve(invocation_map.size());
+            for (auto const& c : invocation_map.template get<semantics::tags::offset>()) {
+                lambda_type->element_types.push_back(c.introduced->type);
+            }
+
+            // Note:
+            // Set the lambda object's type to appropriate places
+            new_param->type = lambda_type;
+            lambda_object_sym->type = lambda_type;
+            for (auto const& c : invocation_map.template get<semantics::tags::offset>()) {
+                assert(lambda_type->element_types.size() > c.offset);
+                auto const var = get_as<ast::node::var_ref>(c.introduced->child);
+                assert(var);
+                (*var)->type = lambda_type;
+            }
+
+            captures[instantiated_func_scope] = invocation_map;
         }
 
         assert(!instantiated_func_def->is_template());
@@ -901,7 +930,7 @@ public:
                 // Resolve lambda captures for the lambada function.
                 // If the lambda is a function template, its captures should be resolved in the instantiation.
                 // So, in the situation, the captures will be resolved in instantiate_function_from_template().
-                captures[lambda_scope] = detail::resolve_lambda_captures(block, lambda_scope);
+                // captures[lambda_scope] = detail::resolve_lambda_captures(block, lambda_scope);
             }
 
             // Note:
@@ -972,6 +1001,10 @@ public:
         if (error) {
             semantic_error(invocation, *error);
         }
+
+        // TODO:
+        // Add a lambda object as the receiver of function invocation if it is lambda object and
+        // captures 1 or more variables.
     }
 
     template<class Walker>

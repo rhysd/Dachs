@@ -107,13 +107,15 @@ class lambda_capture_resolver {
         auto const new_receiver_ref = helper::make<ast::node::var_ref>(receiver_symbol->name);
         new_receiver_ref->is_lhs_of_assignment = var->is_lhs_of_assignment;
         new_receiver_ref->symbol = receiver_symbol;
-        new_receiver_ref->type = receiver_symbol->type;
         new_receiver_ref->set_source_location(*var);
+        // Note:
+        // 'type' member will be set after the type of lambda object is determined.
 
         auto const new_invocation = helper::make<ast::node::ufcs_invocation>(new_receiver_ref, get_member_name());
         new_invocation->set_source_location(*var);
+        new_invocation->type = var->type;
 
-        auto const result = captures.insert({new_invocation, offset});
+        auto const result = captures.insert({new_invocation, offset, var->symbol});
         assert(result.second);
         (void) result;
 
@@ -179,6 +181,8 @@ public:
             }
 
             {
+                // Note:
+                // 1 ufcs_invocation instance per 1 captured symbol.
                 auto const already_replaced = sym_map.find(symbol);
                 if (already_replaced != std::end(sym_map)) {
                     e = already_replaced->second;
