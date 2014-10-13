@@ -42,6 +42,14 @@ struct base {
         : id(generate_id())
     {}
 
+    template<class Node>
+    void set_source_location(Node const& n) noexcept
+    {
+        line = n.line;
+        col = n.col;
+        length = n.length;
+    }
+
     virtual ~base() noexcept
     {}
 

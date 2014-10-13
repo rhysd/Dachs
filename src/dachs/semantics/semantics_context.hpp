@@ -5,12 +5,13 @@
 #include <unordered_map>
 #include <iostream>
 #include <utility>
+#include <string>
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 
-#include "dachs/semantics/symbol.hpp"
+#include "dachs/ast/ast.hpp"
 #include "dachs/semantics/scope.hpp"
 
 namespace dachs {
@@ -18,23 +19,21 @@ namespace semantics {
 
 namespace tags {
 
-struct symbol{};
+struct invocation{};
 struct offset{};
 
 } // namespace tags
 
 namespace mi = boost::multi_index;
 
-// Note:
-// The map owns the ownership of the symbol which is replaced as a aptured symbol.
-using offset_map_elem_type = std::pair<symbol::var_symbol, std::size_t>;
+using offset_map_elem_type = std::pair<ast::node::ufcs_invocation, std::size_t>;
 using captured_offset_map
     = boost::multi_index_container<
             offset_map_elem_type,
             mi::indexed_by<
                 mi::ordered_unique<
-                        mi::tag<tags::symbol>,
-                        mi::member<offset_map_elem_type, symbol::var_symbol, &offset_map_elem_type::first>
+                        mi::tag<tags::invocation>,
+                        mi::member<offset_map_elem_type, ast::node::ufcs_invocation, &offset_map_elem_type::first>
                 >,
                 mi::ordered_unique<
                         mi::tag<tags::offset>,
@@ -59,7 +58,7 @@ struct semantics_context {
         for (auto const& cs : lambda_captures) {
             std::cout << "  " << cs.first->to_string() << std::endl;
             for (auto const& c : cs.second.get<semantics::tags::offset>()) {
-                std::cout << "    " << c.first->name << ": " << c.second << std::endl;
+                std::cout << "    " << c.first->to_string() << ": " << c.second << std::endl;
             }
         }
     }
