@@ -314,6 +314,13 @@ public:
         ));
     }
 
+    void walk(node::any_expr &a)
+    {
+        visitor.visit(a, [&,this]{
+                helper::variant::apply_lambda([this](auto &n) { walk(n); }, a);
+            });
+    }
+
     template<class... Nodes>
     void walk(boost::variant<Nodes...> &v)
     {
