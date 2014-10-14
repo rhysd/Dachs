@@ -230,6 +230,8 @@ class symbol_analyzer {
 
         if (instantiated_func_scope->is_anonymous()){
             // TODO:
+            // split this block as a function
+            // TODO:
             // The lambda object for captures is mutable and passed by reference.
             // This is the same as a receiver of member function.
             auto const new_param = helper::make<ast::node::parameter>(true /*TODO*/, "dachs.lambda.receiver", boost::none);
@@ -1005,6 +1007,25 @@ public:
         // TODO:
         // Add a lambda object as the receiver of function invocation if it is lambda object and
         // captures 1 or more variables.
+        {
+            // TODO:
+            // Split this block as a function for ufcs_invocation
+            assert(!invocation->callee_scope.expired());
+            auto const the_scope = invocation->callee_scope.lock();
+            if (the_scope->is_anonymous()) {
+                auto const lambda_receiver = helper::make<ast::node::tuple_literal>();
+                for (auto const& c : captures.at(the_scope).template get<semantics::tags::offset>()) {
+                    auto const s = c.refered_symbol.lock();
+                    auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
+                    new_var_ref->symbol = c.refered_symbol;
+                    new_var_ref->type = s->type;
+                    lambda_receiver->element_exprs.push_back(new_var_ref);
+                }
+                assert(type::is_a<type::tuple_type>(the_scope->params[0]->type));
+                lambda_receiver->type = the_scope->params[0]->type;
+                invocation->args.insert(std::begin(invocation->args), lambda_receiver);
+            }
+        }
     }
 
     template<class Walker>

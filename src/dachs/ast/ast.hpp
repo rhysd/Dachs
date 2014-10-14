@@ -271,6 +271,8 @@ struct tuple_literal final : public expression {
         : expression(), element_exprs(elems)
     {}
 
+    tuple_literal() = default;
+
     std::string to_string() const noexcept override
     {
         return "TUPLE_LITERAL: size is " + std::to_string(element_exprs.size());

@@ -180,6 +180,9 @@ public:
                 return;
             }
 
+            // TODO:
+            // Deal with an ignoread variable, "_"
+
             {
                 // Note:
                 // 1 ufcs_invocation instance per 1 captured symbol.
