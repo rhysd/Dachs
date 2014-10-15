@@ -1005,9 +1005,6 @@ public:
             semantic_error(invocation, *error);
         }
 
-        // TODO:
-        // Add a lambda object as the receiver of function invocation if it is lambda object and
-        // captures 1 or more variables.
         {
             // TODO:
             // Split this block as a function for ufcs_invocation
@@ -1024,7 +1021,7 @@ public:
                 }
                 assert(type::is_a<type::tuple_type>(the_scope->params[0]->type));
                 lambda_receiver->type = the_scope->params[0]->type;
-                invocation->args.insert(std::begin(invocation->args), lambda_receiver);
+                invocation->args.insert(std::begin(invocation->args), std::move(lambda_receiver));
             }
         }
     }

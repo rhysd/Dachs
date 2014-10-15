@@ -811,7 +811,6 @@ public:
         if (auto const g = type::get<type::generic_func_type>(var->type)) {
             return llvm::ConstantStruct::get(type_emitter.emit(*g), {});
         } else {
-            std::cout << var->line << ", " << var->col << std::endl;
             error(var, boost::format("Invalid variable reference '%1%'. Its type is '%2%'") % var->name % var->type.to_string());
         }
     }

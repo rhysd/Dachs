@@ -25,12 +25,12 @@ namespace detail {
 using std::size_t;
 using helper::variant::get_as;
 
-struct is_captured : boost::static_visitor<bool> {
+struct capture_checker : boost::static_visitor<bool> {
     symbol::var_symbol const& query;
     scope::func_scope const& threshold;
 
     template<class S>
-    is_captured(decltype(query) const& q, S const& s)
+    capture_checker(decltype(query) const& q, S const& s)
         : query(q), threshold(s)
     {}
 
@@ -92,9 +92,9 @@ class lambda_capture_resolver {
     std::unordered_map<symbol::var_symbol, ast::node::ufcs_invocation> sym_map;
 
     template<class Symbol>
-    bool is_captured_symbol(Symbol const& sym) const
+    bool check_captured_symbol(Symbol const& sym) const
     {
-        return boost::apply_visitor(is_captured{sym, lambda_scope}, current_scope);
+        return boost::apply_visitor(capture_checker{sym, lambda_scope}, current_scope);
     }
 
     std::string get_member_name() const noexcept
@@ -187,6 +187,10 @@ public:
 
         // TODO:
         // Deal with an ignoread variable, "_"
+
+        if (!check_captured_symbol(symbol)) {
+            return;
+        }
 
         {
             // Note:
