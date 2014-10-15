@@ -172,38 +172,38 @@ public:
     template<class Walker>
     void visit(ast::node::any_expr &e, Walker const& w)
     {
-        if (auto const maybe_var = get_as<ast::node::var_ref>(e)) {
-            auto const& var = *maybe_var;
-            auto const symbol = var->symbol.lock();
-
-            if (symbol->is_builtin) {
-                return;
-            }
-
-            // TODO:
-            // Deal with an ignoread variable, "_"
-
-            {
-                // Note:
-                // 1 ufcs_invocation instance per 1 captured symbol.
-                auto const already_replaced = sym_map.find(symbol);
-                if (already_replaced != std::end(sym_map)) {
-                    e = already_replaced->second;
-                    return;
-                }
-            }
-
-            auto const invocation = generate_invocation_from(var);
-            // Note:
-            // Replace var_ref with ufcs_invocation to access the member of lambda object.
-            // The offset of member is memorized in lambda_capture map.
-            e = invocation;
-            sym_map[symbol] = invocation;
-
+        auto const maybe_var = get_as<ast::node::var_ref>(e);
+        if (!maybe_var) {
+            w();
             return;
         }
 
-        w();
+        auto const& var = *maybe_var;
+        auto const symbol = var->symbol.lock();
+
+        if (symbol->is_builtin) {
+            return;
+        }
+
+        // TODO:
+        // Deal with an ignoread variable, "_"
+
+        {
+            // Note:
+            // 1 ufcs_invocation instance per 1 captured symbol.
+            auto const already_replaced = sym_map.find(symbol);
+            if (already_replaced != std::end(sym_map)) {
+                e = already_replaced->second;
+                return;
+            }
+        }
+
+        auto const invocation = generate_invocation_from(var);
+        // Note:
+        // Replace var_ref with ufcs_invocation to access the member of lambda object.
+        // The offset of member is memorized in lambda_capture map.
+        e = invocation;
+        sym_map[symbol] = invocation;
     }
 
     template<class Node, class Walker>

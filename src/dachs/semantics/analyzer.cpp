@@ -235,6 +235,7 @@ class symbol_analyzer {
             // The lambda object for captures is mutable and passed by reference.
             // This is the same as a receiver of member function.
             auto const new_param = helper::make<ast::node::parameter>(true /*TODO*/, "dachs.lambda.receiver", boost::none);
+            new_param->set_source_location(*instantiated_func_def);
             instantiated_func_def->params.insert(std::begin(instantiated_func_def->params), new_param);
 
             auto const lambda_object_sym = symbol::make<symbol::var_symbol>(new_param, new_param->name, !new_param->is_var);
