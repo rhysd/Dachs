@@ -107,7 +107,11 @@ bool generic_func_type::operator==(generic_func_type const& rhs) const noexcept
 
 std::string generic_func_type::to_string() const noexcept
 {
-    return "<funcref" + (ref ? ':' + ref->lock()->to_string() + '>' : ">");
+    if (!ref || ref->expired()) {
+        return "<funcref:UNKNOWN>";
+    }
+
+    return "<funcref:" + ref->lock()->name + '>';
 }
 
 boost::optional<ast::node::parameter> template_type::get_ast_node_as_parameter() const noexcept
