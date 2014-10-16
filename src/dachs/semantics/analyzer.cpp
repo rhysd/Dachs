@@ -244,18 +244,13 @@ class symbol_analyzer {
 
             auto const invocation_map = detail::resolve_lambda_captures(instantiated_func_def, instantiated_func_scope, lambda_object_sym);
 
-            auto const lambda_type = type::make<type::tuple_type>();
-            lambda_type->element_types.reserve(invocation_map.size());
-            for (auto const& c : invocation_map.template get<semantics::tags::offset>()) {
-                lambda_type->element_types.push_back(c.introduced->type);
-            }
+            auto const lambda_type = type::make<type::generic_func_type>(instantiated_func_scope);
 
             // Note:
             // Set the lambda object's type to appropriate places
             new_param->type = lambda_type;
             lambda_object_sym->type = lambda_type;
             for (auto const& c : invocation_map.template get<semantics::tags::offset>()) {
-                assert(lambda_type->element_types.size() > c.offset);
                 auto const var = get_as<ast::node::var_ref>(c.introduced->child);
                 assert(var);
                 (*var)->type = lambda_type;
@@ -1005,25 +1000,14 @@ public:
             semantic_error(invocation, *error);
         }
 
-        {
-            // TODO:
-            // Split this block as a function for ufcs_invocation
-            assert(!invocation->callee_scope.expired());
-            auto const the_scope = invocation->callee_scope.lock();
-            if (the_scope->is_anonymous()) {
-                auto const lambda_receiver = helper::make<ast::node::tuple_literal>();
-                for (auto const& c : captures.at(the_scope).template get<semantics::tags::offset>()) {
-                    auto const s = c.refered_symbol.lock();
-                    auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
-                    new_var_ref->symbol = c.refered_symbol;
-                    new_var_ref->type = s->type;
-                    lambda_receiver->element_exprs.push_back(new_var_ref);
-                }
-                assert(type::is_a<type::tuple_type>(the_scope->params[0]->type));
-                lambda_receiver->type = the_scope->params[0]->type;
-                invocation->args.insert(std::begin(invocation->args), std::move(lambda_receiver));
-            }
-        }
+        // XXX:
+        // Function invocation with do-end block (= predicate with lambda) should have a lambda object
+        // on the 1st argument of the invocation.  The lambda object is created at the invocation and
+        // it has captures for the do-end block.  However, currently Dachs doesn't have an AST node for
+        // to generate a lambda object.  It should be done with class object construct.  Lambda object should
+        // be an anonymous class object.
+        // I'll implement the generation of lambda object on code generation temporary.  It must be replaced
+        // by object construction.
     }
 
     template<class Walker>
