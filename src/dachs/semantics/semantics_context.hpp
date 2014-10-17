@@ -21,6 +21,7 @@ namespace semantics {
 namespace tags {
 
 struct offset{};
+struct introduced{};
 
 } // namespace tags
 
@@ -39,6 +40,10 @@ using captured_offset_map
                 mi::ordered_unique<
                         mi::tag<tags::offset>,
                         mi::member<lambda_capture, std::size_t, &lambda_capture::offset>
+                >,
+                mi::ordered_unique<
+                        mi::tag<tags::introduced>,
+                        mi::member<lambda_capture, ast::node::ufcs_invocation, &lambda_capture::introduced>
                 >
             >
         >;

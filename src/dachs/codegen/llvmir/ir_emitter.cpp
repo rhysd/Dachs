@@ -881,6 +881,20 @@ public:
     val emit(ast::node::ufcs_invocation const& ufcs)
     {
         if (ufcs->callee_scope.expired()) {
+            auto *const child_val = emit(ufcs->child);
+
+            if (auto const g_ = type::get<type::generic_func_type>(type::type_of(ufcs->child))) {
+                auto const& g = *g_;
+                assert(g->ref && !g->ref->expired());
+                auto const func = g->ref->lock();
+
+                if (func->is_anonymous()) {
+                    auto const& capture = semantics_ctx.lambda_captures.at(func).get<semantics::tags::introduced>().find(ufcs);
+                    return child_val->getType()->isStructTy() ?
+                        ctx.builder.CreateExtractValue(child_val, capture->offset) :
+                        ctx.builder.CreateStructGEP(child_val, capture->offset);
+                }
+            }
             // Note:
             // When accessing the data member.
             // Now, built-in data member is only available.
@@ -891,7 +905,7 @@ public:
             return check(
                     ufcs,
                     member_emitter.emit_var(
-                        emit(ufcs->child),
+                        child_val,
                         ufcs->member_name,
                         type::type_of(ufcs->child)
                     ),
