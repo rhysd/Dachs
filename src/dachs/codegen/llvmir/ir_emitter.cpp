@@ -732,12 +732,17 @@ public:
             // Deal with func_type
             error(invocation, boost::format("calls '%1%' type variable which is not callable") % child_type.to_string());
         }
+
         assert(!invocation->callee_scope.expired());
+        assert((*generic)->ref && !(*generic)->ref->expired());
+
+        // Note:
+        // Add a receiver for lambda function invocation
+        if ((*generic)->ref->lock()->is_anonymous()) {
+            args.insert(std::begin(args), get_operand(emit(invocation->child)));
+        }
 
         if (invocation->do_block) {
-            auto const g = type::get<type::generic_func_type>((*invocation->do_block)->scope.lock()->type);
-            assert(g);
-            args.push_back(llvm::ConstantStruct::get(type_emitter.emit(*g), {}));
             return check(
                         invocation,
                         ctx.builder.CreateCall(
