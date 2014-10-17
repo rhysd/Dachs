@@ -234,7 +234,7 @@ class symbol_analyzer {
             // TODO:
             // The lambda object for captures is mutable and passed by reference.
             // This is the same as a receiver of member function.
-            auto const new_param = helper::make<ast::node::parameter>(true /*TODO*/, "dachs.lambda.receiver", boost::none);
+            auto const new_param = helper::make<ast::node::parameter>(true /*TODO*/, "lambda.receiver", boost::none);
             new_param->set_source_location(*instantiated_func_def);
             instantiated_func_def->params.insert(std::begin(instantiated_func_def->params), new_param);
 
@@ -986,7 +986,13 @@ public:
         boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return type_of(e);});
 
         if (invocation->do_block) {
-            arg_types.push_back((*invocation->do_block)->scope.lock()->type);
+            // Note:
+            // The refered function now may be function template.
+            // It will be instantiated in visit_invocation() and then I should update the refered function to
+            // instantiated function.  I generate new generic function type here because the update should not
+            // affect the original generic function type.
+            auto const new_lambda_type = type::make<type::generic_func_type>((*invocation->do_block)->scope);
+            arg_types.push_back(new_lambda_type);
         }
 
         for (auto const& arg_type : arg_types) {
@@ -995,19 +1001,28 @@ public:
             }
         }
 
-        auto const error = visit_invocation(invocation, func_type->ref->lock()->name, arg_types);
+        auto const callee_scope = func_type->ref->lock();
+        auto const error = visit_invocation(invocation, callee_scope->name, arg_types);
         if (error) {
             semantic_error(invocation, *error);
         }
 
-        // XXX:
-        // Function invocation with do-end block (= predicate with lambda) should have a lambda object
-        // on the 1st argument of the invocation.  The lambda object is created at the invocation and
-        // it has captures for the do-end block.  However, currently Dachs doesn't have an AST node for
-        // to generate a lambda object.  It should be done with class object construct.  Lambda object should
-        // be an anonymous class object.
-        // I'll implement the generation of lambda object on code generation temporary.  It must be replaced
-        // by object construction.
+        if (callee_scope->is_template()) {
+            // Note:
+            // Replace function template with instantiated function within the newly generated generic
+            // function type.  This is because lambda captures are associated with the instantiated function.
+            // Below makes code generation find its lambda captures properly.
+            func_type->ref = invocation->callee_scope;
+
+            // XXX:
+            // Function invocation with do-end block (= predicate with lambda) should have a lambda object
+            // on the 1st argument of the invocation.  The lambda object is created at the invocation and
+            // it has captures for the do-end block.  However, currently Dachs doesn't have an AST node for
+            // to generate a lambda object.  It should be done with class object construct.  Lambda object should
+            // be an anonymous class object.
+            // I'll implement the generation of lambda object on code generation temporary.  It must be replaced
+            // by object construction.
+        }
     }
 
     template<class Walker>
@@ -1073,14 +1088,34 @@ public:
 
         visit_do_block(ufcs);
 
+        if (!ufcs->do_block) {
+            auto const error = visit_invocation(ufcs, ufcs->member_name, std::vector<type::type>{{child_type}});
+            if (error) {
+                semantic_error(ufcs, *error);
+            }
+            return;
+        }
+
+        // Note:
+        // The refered function now may be function template.
+        // It will be instantiated in visit_invocation() and then I should update the refered function to
+        // instantiated function.  I generate new generic function type here because the update should not
+        // affect the original generic function type.
+        auto const new_lambda_type = type::make<type::generic_func_type>((*ufcs->do_block)->scope);
         auto const arg_types
-            = ufcs->do_block
-                ? std::vector<type::type>{{child_type, (*ufcs->do_block)->scope.lock()->type}}
-                : std::vector<type::type>{{child_type}};
+            = std::vector<type::type>{{child_type, new_lambda_type}};
 
         auto const error = visit_invocation(ufcs, ufcs->member_name, arg_types);
         if (error) {
             semantic_error(ufcs, *error);
+        }
+
+        if (new_lambda_type->ref->lock()->is_template()) {
+            // Note:
+            // Replace function template with instantiated function within the newly generated generic
+            // function type.  This is because lambda captures are associated with the instantiated function.
+            // Below makes code generation find its lambda captures properly.
+            new_lambda_type->ref = ufcs->callee_scope;
         }
     }
 
