@@ -1029,7 +1029,6 @@ public:
             auto const& new_lambda_type = *type::get<type::generic_func_type>(arg_types.back());
             assert(new_lambda_type->ref && !new_lambda_type->ref->expired());
             auto const the_scope = new_lambda_type->ref->lock();
-            std::cout << the_scope->to_string() << " " << the_scope->is_template() << std::endl;
             assert(!the_scope->is_template());
             auto const lambda_object = helper::make<ast::node::tuple_literal>();
             lambda_object->set_source_location(*invocation);
