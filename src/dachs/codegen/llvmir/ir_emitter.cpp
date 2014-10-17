@@ -746,6 +746,7 @@ public:
                         ),
                         "invalid function call with do-end block"
                 );
+
         } else {
             return check(
                         invocation,

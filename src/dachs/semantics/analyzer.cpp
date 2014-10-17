@@ -1013,15 +1013,37 @@ public:
             // function type.  This is because lambda captures are associated with the instantiated function.
             // Below makes code generation find its lambda captures properly.
             func_type->ref = invocation->callee_scope;
+        }
 
-            // XXX:
-            // Function invocation with do-end block (= predicate with lambda) should have a lambda object
-            // on the 1st argument of the invocation.  The lambda object is created at the invocation and
-            // it has captures for the do-end block.  However, currently Dachs doesn't have an AST node for
-            // to generate a lambda object.  It should be done with class object construct.  Lambda object should
-            // be an anonymous class object.
-            // I'll implement the generation of lambda object on code generation temporary.  It must be replaced
-            // by object construction.
+        // XXX:
+        // Function invocation with do-end block (= predicate with lambda) should have a lambda object
+        // on the 1st argument of the invocation.  The lambda object is created at the invocation and
+        // it has captures for the do-end block.  However, currently Dachs doesn't have an AST node for
+        // to generate a lambda object.  It should be done with class object construct.  Lambda object should
+        // be an anonymous class object.
+        // I'll implement the generation of lambda object with anonymous struct.  It must be replaced
+        // with class object construction.
+        if (invocation->do_block){
+            // TODO:
+            // Split this block as a function for ufcs_invocation
+            auto const& new_lambda_type = *type::get<type::generic_func_type>(arg_types.back());
+            assert(new_lambda_type->ref && !new_lambda_type->ref->expired());
+            auto const the_scope = new_lambda_type->ref->lock();
+            std::cout << the_scope->to_string() << " " << the_scope->is_template() << std::endl;
+            assert(!the_scope->is_template());
+            auto const lambda_object = helper::make<ast::node::tuple_literal>();
+            lambda_object->set_source_location(*invocation);
+            for (auto const& c : captures.at(the_scope).template get<semantics::tags::offset>()) {
+                auto const s = c.refered_symbol.lock();
+                auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
+                new_var_ref->symbol = c.refered_symbol;
+                new_var_ref->type = s->type;
+                new_var_ref->set_source_location(*invocation);
+                lambda_object->element_exprs.push_back(new_var_ref);
+            }
+            assert(type::is_a<type::generic_func_type>(the_scope->params[0]->type));
+            lambda_object->type = the_scope->params[0]->type;
+            invocation->args.push_back(std::move(lambda_object));
         }
     }
 
