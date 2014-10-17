@@ -58,13 +58,14 @@ struct semantics_context {
     semantics_context(semantics_context &&) = default;
     semantics_context &operator=(semantics_context &&) = default;
 
-    void dump_lambda_captures() const noexcept
+    template<class Stream = std::ostream>
+    void dump_lambda_captures(Stream &out = std::cerr) const noexcept
     {
-        std::cout << "Lambda captures:" << std::endl;
+        out << "Lambda captures:" << std::endl;
         for (auto const& cs : lambda_captures) {
-            std::cout << "  " << cs.first->to_string() << std::endl;
+            out << "  " << cs.first->to_string() << std::endl;
             for (auto const& c : cs.second.get<semantics::tags::offset>()) {
-                std::cout << "    " << c.refered_symbol.lock()->name << ':' << c.introduced->line << ':' << c.introduced->col << " -> " << c.introduced->member_name << std::endl;
+                out << "    " << c.refered_symbol.lock()->name << ':' << c.introduced->line << ':' << c.introduced->col << " -> " << c.introduced->member_name << std::endl;
             }
         }
     }

@@ -186,7 +186,7 @@ public:
         }
 
         // TODO:
-        // Deal with an ignoread variable, "_"
+        // Deal with an ignored variable, "_"
 
         if (!check_captured_symbol(symbol)) {
             return;
