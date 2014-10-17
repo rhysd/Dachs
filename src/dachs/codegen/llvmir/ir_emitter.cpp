@@ -407,8 +407,8 @@ public:
             return llvm::ConstantStruct::getAnon(ctx.llvm_context, elem_consts);
         } else {
             auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(t));
-            for (auto const idx : helper::indices(elem_exprs.size())) {
-                auto *const elem_val = get_operand(emit(elem_exprs[idx]));
+            for (auto const idx : helper::indices(elem_values.size())) {
+                auto *const elem_val = get_operand(elem_values[idx]);
                 ctx.builder.CreateStore(
                         elem_val,
                         // Note:
