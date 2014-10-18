@@ -735,10 +735,11 @@ public:
 
         assert(!invocation->callee_scope.expired());
         assert((*generic)->ref && !(*generic)->ref->expired());
+        auto const callee = invocation->callee_scope.lock();
 
         // Note:
         // Add a receiver for lambda function invocation
-        if ((*generic)->ref->lock()->is_anonymous()) {
+        if (callee->is_anonymous()) {
             args.insert(std::begin(args), get_operand(emit(invocation->child)));
         }
 
@@ -746,17 +747,16 @@ public:
             return check(
                         invocation,
                         ctx.builder.CreateCall(
-                            emit_non_builtin_callee(invocation, invocation->callee_scope.lock()),
+                            emit_non_builtin_callee(invocation, callee),
                             args
                         ),
                         "invalid function call with do-end block"
                 );
-
         } else {
             return check(
                         invocation,
                         ctx.builder.CreateCall(
-                            emit_callee(invocation, invocation->callee_scope.lock(), invocation->args),
+                            emit_callee(invocation, callee, invocation->args),
                             args
                         ),
                         "invalid function call"
@@ -889,6 +889,8 @@ public:
         if (ufcs->callee_scope.expired()) {
             auto *const child_val = emit(ufcs->child);
 
+            // Note:
+            // When the UFCS invocation is generated for lambda capture access
             if (auto const g_ = type::get<type::generic_func_type>(type::type_of(ufcs->child))) {
                 auto const& g = *g_;
                 assert(g->ref && !g->ref->expired());
@@ -901,6 +903,7 @@ public:
                         ctx.builder.CreateStructGEP(child_val, capture->offset);
                 }
             }
+
             // Note:
             // When accessing the data member.
             // Now, built-in data member is only available.
@@ -918,18 +921,30 @@ public:
                     "data member access"
                 );
         } else {
+
+            assert(!ufcs->callee_scope.expired());
+
+            std::vector<val> args = {get_operand(emit(ufcs->child))};
+            auto const callee = ufcs->callee_scope.lock();
+
+            // Note:
+            // UFCS invocation never invokes lambda function.
+
             // Scope is not expired. It means the UFCS invoke a funciton
             if (ufcs->do_block) {
                 auto const g = type::get<type::generic_func_type>((*ufcs->do_block)->scope.lock()->type);
                 assert(g);
+
+                assert(ufcs->do_block_object);
+                args.push_back(get_operand(emit(*ufcs->do_block_object)));
 
                 // Note:
                 // Add block to the 2nd argument of invocation as function variable
                 return check(
                             ufcs,
                             ctx.builder.CreateCall(
-                                emit_non_builtin_callee(ufcs, ufcs->callee_scope.lock()),
-                                std::vector<val>{get_operand(emit(ufcs->child)), llvm::ConstantStruct::get(type_emitter.emit(*g), {})}
+                                emit_non_builtin_callee(ufcs, callee),
+                                args
                             ),
                             "UFCS function invocation with do-end block"
                         );
@@ -937,8 +952,8 @@ public:
                 return check(
                             ufcs,
                             ctx.builder.CreateCall(
-                                emit_callee(ufcs, ufcs->callee_scope.lock(), std::vector<ast::node::any_expr>{{ufcs->child}}),
-                                std::vector<val>{get_operand(emit(ufcs->child))}
+                                emit_callee(ufcs, callee, std::vector<ast::node::any_expr>{{ufcs->child}}),
+                                args
                             ),
                             "UFCS function invocation"
                         );

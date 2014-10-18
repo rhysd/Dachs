@@ -1144,14 +1144,15 @@ public:
             return;
         }
 
+        // ------ Deal with do-end block from here ------
+
         // Note:
         // The refered function now may be function template.
         // It will be instantiated in visit_invocation() and then I should update the refered function to
         // instantiated function.  I generate new generic function type here because the update should not
         // affect the original generic function type.
         auto const new_lambda_type = type::make<type::generic_func_type>((*ufcs->do_block)->scope);
-        auto const arg_types
-            = std::vector<type::type>{{child_type, new_lambda_type}};
+        std::vector<type::type> const arg_types = {child_type, new_lambda_type};
 
         auto const error = visit_invocation(ufcs, ufcs->member_name, arg_types);
         if (error) {
@@ -1165,6 +1166,8 @@ public:
             // Below makes code generation find its lambda captures properly.
             new_lambda_type->ref = ufcs->callee_scope;
         }
+
+        ufcs->do_block_object = generate_lambda_object_node(new_lambda_type, *ufcs);
     }
 
     template<class Walker>
