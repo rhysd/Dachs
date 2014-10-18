@@ -1026,12 +1026,15 @@ public:
         if (invocation->do_block){
             // TODO:
             // Split this block as a function for ufcs_invocation
-            auto const& new_lambda_type = *type::get<type::generic_func_type>(arg_types.back());
+            auto const new_lambda_type = *type::get<type::generic_func_type>(arg_types.back());
             assert(new_lambda_type->ref && !new_lambda_type->ref->expired());
             auto const the_scope = new_lambda_type->ref->lock();
             assert(!the_scope->is_template());
+            assert(type::is_a<type::generic_func_type>(the_scope->params[0]->type));
+
             auto const lambda_object = helper::make<ast::node::tuple_literal>();
-            lambda_object->set_source_location(*invocation);
+            auto const temporary_tuple_type = type::make<type::tuple_type>();
+
             for (auto const& c : captures.at(the_scope).template get<semantics::tags::offset>()) {
                 auto const s = c.refered_symbol.lock();
                 auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
@@ -1039,9 +1042,12 @@ public:
                 new_var_ref->type = s->type;
                 new_var_ref->set_source_location(*invocation);
                 lambda_object->element_exprs.push_back(new_var_ref);
+                temporary_tuple_type->element_types.push_back(s->type);
             }
-            assert(type::is_a<type::generic_func_type>(the_scope->params[0]->type));
-            lambda_object->type = the_scope->params[0]->type;
+
+            lambda_object->set_source_location(*invocation);
+            lambda_object->type = temporary_tuple_type;
+
             invocation->args.push_back(std::move(lambda_object));
         }
     }
