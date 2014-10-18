@@ -200,10 +200,10 @@ class symbol_analyzer {
         auto instantiated_func_scope = instantiated_func_def->scope.lock();
 
         // Replace types of params with instantiated types
-        {
-            assert(instantiated_func_def->params.size() == arg_types.size());
+        assert(instantiated_func_def->params.size() == arg_types.size());
 
-            helper::each([](auto &def_param, auto const& arg, auto &scope_param)
+        helper::each(
+                [](auto &def_param, auto const& arg, auto &scope_param)
                 {
                     if (def_param->type.is_template()) {
                         def_param->type = arg;
@@ -216,8 +216,8 @@ class symbol_analyzer {
                 }
                 , instantiated_func_def->params
                 , arg_types
-                , instantiated_func_scope->params);
-        }
+                , instantiated_func_scope->params
+            );
 
         // Last, symnol analyzer visits
         {
@@ -966,32 +966,25 @@ public:
     template<class Node>
     void visit_do_block(Node const& node)
     {
-        if (node->do_block) {
-            auto &block = *node->do_block;
-            ast::walk_topdown(block, *this);
-
-            assert(!block->scope.expired());
-
-            auto const lambda_scope = block->scope.lock();
-            if (!lambda_scope->is_template()) {
-                // Note:
-                // Resolve lambda captures for the lambada function.
-                // If the lambda is a function template, its captures should be resolved in the instantiation.
-                // So, in the situation, the captures will be resolved in instantiate_function_from_template().
-                // captures[lambda_scope] = detail::resolve_lambda_captures(block, lambda_scope);
-            }
-
-            // Note:
-            // Move the scope to global scope.
-            // All functions' scopes are in global scope.
-            global->define_function(lambda_scope);
-
-            lambdas.push_back(block);
-
-            // Note:
-            // Lambda captures are not resolved yet.
-            // It will be resolved on overload resolution
+        if (!node->do_block) {
+            return;
         }
+
+        auto &block = *node->do_block;
+        ast::walk_topdown(block, *this);
+
+        assert(!block->scope.expired());
+
+        // Note:
+        // Move the scope to global scope.
+        // All functions' scopes are in global scope.
+        global->define_function(block->scope.lock());
+
+        lambdas.push_back(block);
+
+        // Note:
+        // Lambda captures are not resolved yet.
+        // It will be resolved on overload resolution
     }
 
     // TODO:

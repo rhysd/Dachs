@@ -884,81 +884,85 @@ public:
         }
     }
 
+    val emit_data_member(ast::node::ufcs_invocation const& ufcs)
+    {
+        auto *const child_val = emit(ufcs->child);
+
+        // Note:
+        // When the UFCS invocation is generated for lambda capture access
+        if (auto const g_ = type::get<type::generic_func_type>(type::type_of(ufcs->child))) {
+            auto const& g = *g_;
+            assert(g->ref && !g->ref->expired());
+            auto const func = g->ref->lock();
+
+            if (func->is_anonymous()) {
+                auto const& capture = semantics_ctx.lambda_captures.at(func).get<semantics::tags::introduced>().find(ufcs);
+                return child_val->getType()->isStructTy() ?
+                    ctx.builder.CreateExtractValue(child_val, capture->offset) :
+                    ctx.builder.CreateStructGEP(child_val, capture->offset);
+            }
+        }
+
+        // Note:
+        // When accessing the data member.
+        // Now, built-in data member is only available.
+
+        // Note:
+        // Do not use get_operand() because GEP is emitted
+        // in member_emitter internally.
+        return check(
+                ufcs,
+                member_emitter.emit_var(
+                    child_val,
+                    ufcs->member_name,
+                    type::type_of(ufcs->child)
+                ),
+                "data member access"
+            );
+    }
+
     val emit(ast::node::ufcs_invocation const& ufcs)
     {
         if (ufcs->callee_scope.expired()) {
-            auto *const child_val = emit(ufcs->child);
-
-            // Note:
-            // When the UFCS invocation is generated for lambda capture access
-            if (auto const g_ = type::get<type::generic_func_type>(type::type_of(ufcs->child))) {
-                auto const& g = *g_;
-                assert(g->ref && !g->ref->expired());
-                auto const func = g->ref->lock();
-
-                if (func->is_anonymous()) {
-                    auto const& capture = semantics_ctx.lambda_captures.at(func).get<semantics::tags::introduced>().find(ufcs);
-                    return child_val->getType()->isStructTy() ?
-                        ctx.builder.CreateExtractValue(child_val, capture->offset) :
-                        ctx.builder.CreateStructGEP(child_val, capture->offset);
-                }
-            }
-
-            // Note:
-            // When accessing the data member.
-            // Now, built-in data member is only available.
-
-            // Note:
-            // Do not use get_operand() because GEP is emitted
-            // in member_emitter internally.
-            return check(
-                    ufcs,
-                    member_emitter.emit_var(
-                        child_val,
-                        ufcs->member_name,
-                        type::type_of(ufcs->child)
-                    ),
-                    "data member access"
-                );
-        } else {
-
-            assert(!ufcs->callee_scope.expired());
-
-            std::vector<val> args = {get_operand(emit(ufcs->child))};
-            auto const callee = ufcs->callee_scope.lock();
-
-            // Note:
-            // UFCS invocation never invokes lambda function.
-
-            // Scope is not expired. It means the UFCS invoke a funciton
-            if (ufcs->do_block) {
-                auto const g = type::get<type::generic_func_type>((*ufcs->do_block)->scope.lock()->type);
-                assert(g);
-
-                assert(ufcs->do_block_object);
-                args.push_back(get_operand(emit(*ufcs->do_block_object)));
-
-                // Note:
-                // Add block to the 2nd argument of invocation as function variable
-                return check(
-                            ufcs,
-                            ctx.builder.CreateCall(
-                                emit_non_builtin_callee(ufcs, callee),
-                                args
-                            ),
-                            "UFCS function invocation with do-end block"
-                        );
-            } else {
-                return check(
-                            ufcs,
-                            ctx.builder.CreateCall(
-                                emit_callee(ufcs, callee, std::vector<ast::node::any_expr>{{ufcs->child}}),
-                                args
-                            ),
-                            "UFCS function invocation"
-                        );
-            }
+            return emit_data_member(ufcs);
         }
+
+        assert(!ufcs->callee_scope.expired());
+
+        std::vector<val> args = {get_operand(emit(ufcs->child))};
+        auto const callee = ufcs->callee_scope.lock();
+
+        // Note:
+        // UFCS invocation never invokes lambda function.
+
+        // Scope is not expired. It means the UFCS invoke a funciton
+        if (ufcs->do_block) {
+            auto const g = type::get<type::generic_func_type>((*ufcs->do_block)->scope.lock()->type);
+            assert(g);
+
+            assert(ufcs->do_block_object);
+            args.push_back(get_operand(emit(*ufcs->do_block_object)));
+
+            // Note:
+            // Add block to the 2nd argument of invocation as function variable
+            return check(
+                        ufcs,
+                        ctx.builder.CreateCall(
+                            emit_non_builtin_callee(ufcs, callee),
+                            args
+                        ),
+                        "UFCS function invocation with do-end block"
+                    );
+        }
+
+        return check(
+                    ufcs,
+                    ctx.builder.CreateCall(
+                        emit_callee(ufcs, callee, std::vector<ast::node::any_expr>{{ufcs->child}}),
+                        args
+                    ),
+                    "UFCS function invocation"
+                );
     }
 
     void emit(ast::node::while_stmt const& while_)
