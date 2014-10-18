@@ -1,13 +1,13 @@
-func print_density(d)
+func to_density_char(d)
     case
     when d > 8.0
-        print(' ')
+        ret ' '
     when d > 4.0
-        print('.')
+        ret '.'
     when d > 2.0
-        print('*')
+        ret '*'
     else
-        print('+')
+        ret '+'
     end
 end
 
@@ -27,18 +27,19 @@ func mandel_converge(real, imag)
     ret mandel_converge'(real, imag, 0.0, real, imag)
 end
 
+func step_to(var from, to, by, block)
+    for from < to
+        block(from)
+        from += by
+    end
+end
+
 func mandel'(xmin, xmax, xstep, ymin, ymax, ystep)
-    let
-        var y := ymin
-    in for y < ymax
-        let
-            var x := xmin
-        in for x < xmax
-            print_density(mandel_converge(x, y))
-            x += xstep
+    ymin.step_to ymax, ystep do |y|
+        xmin.step_to xmax, xstep do |x|
+            mandel_converge(x, y).to_density_char.print
         end
         println("")
-        y += ystep
     end
 end
 
