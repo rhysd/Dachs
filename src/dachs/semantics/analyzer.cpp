@@ -229,34 +229,7 @@ class symbol_analyzer {
         }
 
         if (instantiated_func_scope->is_anonymous()){
-            // TODO:
-            // split this block as a function
-            // TODO:
-            // The lambda object for captures is mutable and passed by reference.
-            // This is the same as a receiver of member function.
-            auto const new_param = helper::make<ast::node::parameter>(true /*TODO*/, "lambda.receiver", boost::none);
-            new_param->set_source_location(*instantiated_func_def);
-            instantiated_func_def->params.insert(std::begin(instantiated_func_def->params), new_param);
-
-            auto const lambda_object_sym = symbol::make<symbol::var_symbol>(new_param, new_param->name, !new_param->is_var);
-            new_param->param_symbol = lambda_object_sym;
-            instantiated_func_scope->force_push_front_param(lambda_object_sym);
-
-            auto const invocation_map = detail::resolve_lambda_captures(instantiated_func_def, instantiated_func_scope, lambda_object_sym);
-
-            auto const lambda_type = type::make<type::generic_func_type>(instantiated_func_scope);
-
-            // Note:
-            // Set the lambda object's type to appropriate places
-            new_param->type = lambda_type;
-            lambda_object_sym->type = lambda_type;
-            for (auto const& c : invocation_map.template get<semantics::tags::offset>()) {
-                auto const var = get_as<ast::node::var_ref>(c.introduced->child);
-                assert(var);
-                (*var)->type = lambda_type;
-            }
-
-            captures[instantiated_func_scope] = invocation_map;
+            captures[instantiated_func_scope] = analyze_as_lambda(instantiated_func_def, instantiated_func_scope);
         }
 
         assert(!instantiated_func_def->is_template());
@@ -282,6 +255,83 @@ class symbol_analyzer {
     std::string make_func_signature(std::string const& name, std::vector<type::type> const& arg_types) const
     {
         return name + '(' + boost::algorithm::join(arg_types | transformed([](auto const& t){ return t.to_string(); }), ",") + ')';
+    }
+
+    captured_offset_map analyze_as_lambda(ast::node::function_definition &func_def, scope::func_scope const& func_scope)
+    {
+        // Note:
+        //  1. Lambda function takes its lambda object (captured values) as 1st parameter
+        //  2. Analyze captures for the lambda function and return it to register
+
+        // TODO:
+        // The lambda object for captures is mutable and passed by reference.
+        // This is the same as a receiver of member function.
+        auto const new_param = helper::make<ast::node::parameter>(true /*TODO*/, "lambda.receiver", boost::none);
+        new_param->set_source_location(*func_def);
+        func_def->params.insert(std::begin(func_def->params), new_param);
+
+        auto const lambda_object_sym = symbol::make<symbol::var_symbol>(new_param, new_param->name, !new_param->is_var);
+        new_param->param_symbol = lambda_object_sym;
+        func_scope->force_push_front_param(lambda_object_sym);
+
+        auto const invocation_map = detail::resolve_lambda_captures(func_def, func_scope, lambda_object_sym);
+        auto const lambda_type = type::make<type::generic_func_type>(func_scope);
+
+        // Note:
+        // Set the lambda object's type to appropriate places
+        new_param->type = lambda_type;
+        lambda_object_sym->type = lambda_type;
+        for (auto const& c : invocation_map.template get<semantics::tags::offset>()) {
+            auto const var = get_as<ast::node::var_ref>(c.introduced->child);
+            assert(var);
+            (*var)->type = lambda_type;
+        }
+
+        return invocation_map;
+    }
+
+    captured_offset_map analyze_as_lambda(ast::node::function_definition &func_def)
+    {
+        assert(!func_def->scope.expired());
+        return analyze_as_lambda(func_def, func_def->scope.lock());
+    }
+
+    template<class Location>
+    auto generate_lambda_object_node(type::generic_func_type const& lambda_type, Location const& location)
+    {
+        // XXX:
+        // Function invocation with do-end block (= predicate with lambda) should have a lambda object
+        // on the 1st argument of the invocation.  The lambda object is created at the invocation and
+        // it has captures for the do-end block.  However, currently Dachs doesn't have an AST node for
+        // to generate a lambda object.  It should be done with class object construct.  Lambda object should
+        // be an anonymous class object.
+        // I'll implement the generation of lambda object with anonymous struct.  It must be replaced
+        // with class object construction.
+
+        assert(lambda_type->ref && !lambda_type->ref->expired());
+        auto const lambda_func = lambda_type->ref->lock();
+        assert(!lambda_func->is_template());
+        assert(type::is_a<type::generic_func_type>(lambda_func->params[0]->type));
+
+        auto const lambda_object = helper::make<ast::node::tuple_literal>();
+        auto const temporary_tuple_type = type::make<type::tuple_type>();
+
+        // Note:
+        // Substitute captured values as its fields
+        for (auto const& c : captures.at(lambda_func).template get<semantics::tags::offset>()) {
+            auto const s = c.refered_symbol.lock();
+            auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
+            new_var_ref->symbol = c.refered_symbol;
+            new_var_ref->type = s->type;
+            new_var_ref->set_source_location(location);
+            lambda_object->element_exprs.push_back(new_var_ref);
+            temporary_tuple_type->element_types.push_back(s->type);
+        }
+
+        lambda_object->set_source_location(location);
+        lambda_object->type = temporary_tuple_type;
+
+        return lambda_object;
     }
 
 public:
@@ -1015,40 +1065,11 @@ public:
             func_type->ref = invocation->callee_scope;
         }
 
-        // XXX:
-        // Function invocation with do-end block (= predicate with lambda) should have a lambda object
-        // on the 1st argument of the invocation.  The lambda object is created at the invocation and
-        // it has captures for the do-end block.  However, currently Dachs doesn't have an AST node for
-        // to generate a lambda object.  It should be done with class object construct.  Lambda object should
-        // be an anonymous class object.
-        // I'll implement the generation of lambda object with anonymous struct.  It must be replaced
-        // with class object construction.
         if (invocation->do_block){
-            // TODO:
-            // Split this block as a function for ufcs_invocation
-            auto const new_lambda_type = *type::get<type::generic_func_type>(arg_types.back());
-            assert(new_lambda_type->ref && !new_lambda_type->ref->expired());
-            auto const the_scope = new_lambda_type->ref->lock();
-            assert(!the_scope->is_template());
-            assert(type::is_a<type::generic_func_type>(the_scope->params[0]->type));
-
-            auto const lambda_object = helper::make<ast::node::tuple_literal>();
-            auto const temporary_tuple_type = type::make<type::tuple_type>();
-
-            for (auto const& c : captures.at(the_scope).template get<semantics::tags::offset>()) {
-                auto const s = c.refered_symbol.lock();
-                auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
-                new_var_ref->symbol = c.refered_symbol;
-                new_var_ref->type = s->type;
-                new_var_ref->set_source_location(*invocation);
-                lambda_object->element_exprs.push_back(new_var_ref);
-                temporary_tuple_type->element_types.push_back(s->type);
-            }
-
-            lambda_object->set_source_location(*invocation);
-            lambda_object->type = temporary_tuple_type;
-
-            invocation->args.push_back(std::move(lambda_object));
+            // Note:
+            // Add do-end block's lambda object to the last of arguments of invocation
+            assert(type::is_a<type::generic_func_type>(arg_types.back()));
+            invocation->args.push_back(generate_lambda_object_node(*type::get<type::generic_func_type>(arg_types.back()), *invocation));
         }
     }
 
