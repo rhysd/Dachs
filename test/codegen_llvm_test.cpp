@@ -1230,6 +1230,24 @@ BOOST_AUTO_TEST_CASE(do_block_with_captures)
             ret a + b + p()
         end
 
+        func verbose(a, p)
+            println("start")
+            p(a)
+            println("end")
+        end
+
+        func verbose2(a, p)
+            println("start")
+            p()
+            println("end")
+        end
+
+        func verbose(p)
+            println("start")
+            p()
+            println("end")
+        end
+
         func main
             # func_invocation, function template
             do
@@ -1275,6 +1293,52 @@ BOOST_AUTO_TEST_CASE(do_block_with_captures)
                         ret a + b
                     end
                 end.println
+
+                verbose() do
+                    verbose() do
+                        verbose() do
+                            verbose() do
+                                "foo!".println
+                            end
+                        end
+                    end
+                end
+            end
+
+            # ufcs_invocation, function template
+            do
+                a := 42
+                var b:= 21
+
+                42.verbose do |i|
+                    println(a + b + i)
+                end
+
+                a.verbose do |i|
+                    println(a + b + i)
+                end
+
+                b.verbose do |i|
+                    println(a + b + i)
+                end
+            end
+
+            # ufcs_invocation, non function template
+            do
+                a := 42
+                var b:= 21
+
+                42.verbose2 do
+                    println(a + b)
+                end
+
+                a.verbose2 do
+                    println(a + b)
+                end
+
+                b.verbose2 do
+                    println(a + b)
+                end
             end
         end
     )");
