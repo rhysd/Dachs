@@ -5,40 +5,45 @@
 #include <unordered_map>
 #include <iostream>
 #include <utility>
+#include <string>
 
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 
-#include "dachs/semantics/symbol.hpp"
+#include "dachs/ast/ast.hpp"
 #include "dachs/semantics/scope.hpp"
+#include "dachs/semantics/symbol.hpp"
 
 namespace dachs {
 namespace semantics {
 
 namespace tags {
 
-struct symbol{};
 struct offset{};
+struct introduced{};
 
 } // namespace tags
 
+struct lambda_capture {
+    ast::node::ufcs_invocation introduced;
+    std::size_t offset;
+    symbol::weak_var_symbol refered_symbol;
+};
+
 namespace mi = boost::multi_index;
 
-// Note:
-// The map owns the ownership of the symbol which is replaced as a aptured symbol.
-using offset_map_elem_type = std::pair<symbol::var_symbol, std::size_t>;
 using captured_offset_map
     = boost::multi_index_container<
-            offset_map_elem_type,
+            lambda_capture,
             mi::indexed_by<
                 mi::ordered_unique<
-                        mi::tag<tags::symbol>,
-                        mi::member<offset_map_elem_type, symbol::var_symbol, &offset_map_elem_type::first>
+                        mi::tag<tags::offset>,
+                        mi::member<lambda_capture, std::size_t, &lambda_capture::offset>
                 >,
                 mi::ordered_unique<
-                        mi::tag<tags::offset>,
-                        mi::member<offset_map_elem_type, std::size_t, &offset_map_elem_type::second>
+                        mi::tag<tags::introduced>,
+                        mi::member<lambda_capture, ast::node::ufcs_invocation, &lambda_capture::introduced>
                 >
             >
         >;
@@ -53,13 +58,14 @@ struct semantics_context {
     semantics_context(semantics_context &&) = default;
     semantics_context &operator=(semantics_context &&) = default;
 
-    void dump_lambda_captures() const noexcept
+    template<class Stream = std::ostream>
+    void dump_lambda_captures(Stream &out = std::cerr) const noexcept
     {
-        std::cout << "Lambda captures:" << std::endl;
+        out << "Lambda captures:" << std::endl;
         for (auto const& cs : lambda_captures) {
-            std::cout << "  " << cs.first->to_string() << std::endl;
+            out << "  " << cs.first->to_string() << std::endl;
             for (auto const& c : cs.second.get<semantics::tags::offset>()) {
-                std::cout << "    " << c.first->name << ": " << c.second << std::endl;
+                out << "    " << c.refered_symbol.lock()->name << ':' << c.introduced->line << ':' << c.introduced->col << " -> " << c.introduced->member_name << std::endl;
             }
         }
     }

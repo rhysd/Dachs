@@ -1215,6 +1215,135 @@ BOOST_AUTO_TEST_CASE(do_block)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(do_block_with_captures)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func apply(a, b, p)
+            p(a, b)
+        end
+
+        func output(a, b, p)
+            println(a + b + p())
+        end
+
+        func plus(a, b, p)
+            ret a + b + p()
+        end
+
+        func verbose(a, p)
+            println("start")
+            p(a)
+            println("end")
+        end
+
+        func verbose2(a, p)
+            println("start")
+            p()
+            println("end")
+        end
+
+        func verbose(p)
+            println("start")
+            p()
+            println("end")
+        end
+
+        func main
+            # func_invocation, function template
+            do
+                a := 42
+                var b:= 21
+
+                42.apply a do |i, j|
+                    println(i + j + a)
+                end
+
+                b.apply a do |i, j|
+                    println(i + j + a + b)
+                end
+
+                a.apply 42 do |i, j|
+                    i.apply j do |p, q|
+                        println(a + b + i + j + p + q)
+                    end
+                end
+            end
+
+            # func_invocation, function template
+            do
+                a := 42
+                var b:= 21
+
+                42.output a do
+                    ret a
+                end
+
+                b.output a do
+                    ret a + b
+                end
+
+                a.apply 42 do |i, j|
+                    i.output j do
+                        ret a + b + i + j
+                    end
+                end
+
+                a.plus 42 do
+                    ret 42.plus b do
+                        ret a + b
+                    end
+                end.println
+
+                verbose() do
+                    verbose() do
+                        verbose() do
+                            verbose() do
+                                "foo!".println
+                            end
+                        end
+                    end
+                end
+            end
+
+            # ufcs_invocation, function template
+            do
+                a := 42
+                var b:= 21
+
+                42.verbose do |i|
+                    println(a + b + i)
+                end
+
+                a.verbose do |i|
+                    println(a + b + i)
+                end
+
+                b.verbose do |i|
+                    println(a + b + i)
+                end
+            end
+
+            # ufcs_invocation, non function template
+            do
+                a := 42
+                var b:= 21
+
+                42.verbose2 do
+                    println(a + b)
+                end
+
+                a.verbose2 do
+                    println(a + b)
+                end
+
+                b.verbose2 do
+                    println(a + b)
+                end
+            end
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(some_samples)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(

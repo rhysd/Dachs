@@ -128,9 +128,26 @@ public:
         throw not_implemented_error{__FILE__, __func__, __LINE__, "procedure type LLVM IR generation"};
     }
 
-    llvm::StructType *emit(type::generic_func_type const&)
+    llvm::StructType *emit(type::generic_func_type const& g)
     {
-        return llvm::StructType::get(context, {});
+        if (!g->ref || g->ref->expired()) {
+            return llvm::StructType::get(context, {});
+        }
+
+        auto const scope = g->ref->lock();
+        auto const itr = lambda_captures.find(scope);
+        if (itr == std::end(lambda_captures)) {
+            return llvm::StructType::get(context, {});
+        }
+
+        auto const& captures = itr->second;
+        std::vector<llvm::Type *> capture_types;
+        capture_types.reserve(captures.size());
+        for (auto const& capture : captures.get<semantics::tags::offset>()) {
+            capture_types.push_back(emit(capture.introduced->type));
+        }
+
+        return llvm::StructType::get(context, capture_types);
     }
 
     llvm::Type *emit(type::dict_type const&)

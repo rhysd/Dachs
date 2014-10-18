@@ -1,9 +1,24 @@
+# If 'var' is specified, the argument is copied and passed by value
+# then immutable.  Otherwise, the argument is passed by reference then
+# immutable. Variable definition has the same rule as this.
+
+# If you want to specify the type of argument, you can use ':'.
+# e.g.
+#   func step_to(var first : float, last : float, p) : ()
+
 func step_to(var first, last, p)
     for first <= last
         p(first)
         first += 1
     end
 end
+
+# UFCS is implemented.
+# '1.step_to n' is equivalent to 'step_to(1, n)'
+
+# Dachs has a block inspired from Ruby.
+# do-end block is passed to the last argument of callee as lambda object.
+# Here, 'p' is captured into do-end block.
 
 func fizzbuzz(n, p)
     1.step_to n do |i|
@@ -25,3 +40,6 @@ func main
         println(i)
     end
 end
+
+# Array and tuple are available as container.
+# (dictionary will come.)

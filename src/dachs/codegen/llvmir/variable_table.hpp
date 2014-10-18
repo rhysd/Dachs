@@ -3,6 +3,7 @@
 
 #include <unordered_map>
 #include <cassert>
+#include <iostream>
 
 #include <boost/optional.hpp>
 
@@ -87,6 +88,30 @@ public:
     explicit variable_table(context &c) noexcept
         : ctx(c)
     {}
+
+    template<class Stream = std::ostream>
+    void dump(Stream &out = std::cerr) noexcept
+    {
+        auto const dump_table
+            = [&out](auto const& t)
+            {
+                for (auto const& row : t) {
+                    auto const a = row.first->ast_node.get_weak();
+                    std::string location = "location:";
+                    if (a.expired()) {
+                        location += "UNKNOWN";
+                    } else {
+                        auto const s = a.lock();
+                        location += "line:" + std::to_string(s->line) + ":col:" + std::to_string(s->col);
+                    }
+                    out << location << ": \"" << row.first->name << "\" ";
+                    row.second->dump();
+                }
+            };
+        dump_table(register_table);
+        dump_table(alloca_table);
+        dump_table(alloca_aggregate_table);
+    }
 
     template<class Value>
     val emit_ir_to_store(symbol::var_symbol const& sym, Value const v) noexcept

@@ -271,6 +271,8 @@ struct tuple_literal final : public expression {
         : expression(), element_exprs(elems)
     {}
 
+    tuple_literal() = default;
+
     std::string to_string() const noexcept override
     {
         return "TUPLE_LITERAL: size is " + std::to_string(element_exprs.size());
@@ -399,6 +401,7 @@ struct ufcs_invocation final : public expression {
     std::string member_name;
     scope::weak_func_scope callee_scope;
     boost::optional<node::function_definition> do_block;
+    boost::optional<node::any_expr> do_block_object;
 
     ufcs_invocation(
             node::any_expr const& c,

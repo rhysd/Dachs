@@ -200,10 +200,10 @@ class symbol_analyzer {
         auto instantiated_func_scope = instantiated_func_def->scope.lock();
 
         // Replace types of params with instantiated types
-        {
-            assert(instantiated_func_def->params.size() == arg_types.size());
+        assert(instantiated_func_def->params.size() == arg_types.size());
 
-            helper::each([](auto &def_param, auto const& arg, auto &scope_param)
+        helper::each(
+                [](auto &def_param, auto const& arg, auto &scope_param)
                 {
                     if (def_param->type.is_template()) {
                         def_param->type = arg;
@@ -216,8 +216,8 @@ class symbol_analyzer {
                 }
                 , instantiated_func_def->params
                 , arg_types
-                , instantiated_func_scope->params);
-        }
+                , instantiated_func_scope->params
+            );
 
         // Last, symnol analyzer visits
         {
@@ -226,10 +226,6 @@ class symbol_analyzer {
             ast::walk_topdown(instantiated_func_def, *this);
             already_visited_functions.insert(instantiated_func_def);
             current_scope = std::move(saved_current_scope);
-        }
-
-        if (instantiated_func_scope->is_anonymous()){
-            captures[instantiated_func_scope] = detail::resolve_lambda_captures(instantiated_func_def, instantiated_func_scope);
         }
 
         assert(!instantiated_func_def->is_template());
@@ -255,6 +251,83 @@ class symbol_analyzer {
     std::string make_func_signature(std::string const& name, std::vector<type::type> const& arg_types) const
     {
         return name + '(' + boost::algorithm::join(arg_types | transformed([](auto const& t){ return t.to_string(); }), ",") + ')';
+    }
+
+    captured_offset_map analyze_as_lambda(ast::node::function_definition &func_def, scope::func_scope const& func_scope)
+    {
+        // Note:
+        //  1. Lambda function takes its lambda object (captured values) as 1st parameter
+        //  2. Analyze captures for the lambda function and return it to register
+
+        // TODO:
+        // The lambda object for captures is mutable and passed by reference.
+        // This is the same as a receiver of member function.
+        auto const new_param = helper::make<ast::node::parameter>(true /*TODO*/, "lambda.receiver", boost::none);
+        new_param->set_source_location(*func_def);
+        func_def->params.insert(std::begin(func_def->params), new_param);
+
+        auto const lambda_object_sym = symbol::make<symbol::var_symbol>(new_param, new_param->name, !new_param->is_var);
+        new_param->param_symbol = lambda_object_sym;
+        func_scope->force_push_front_param(lambda_object_sym);
+
+        auto const invocation_map = detail::resolve_lambda_captures(func_def, func_scope, lambda_object_sym);
+        auto const lambda_type = type::make<type::generic_func_type>(func_scope);
+
+        // Note:
+        // Set the lambda object's type to appropriate places
+        new_param->type = lambda_type;
+        lambda_object_sym->type = lambda_type;
+        for (auto const& c : invocation_map.template get<semantics::tags::offset>()) {
+            auto const var = get_as<ast::node::var_ref>(c.introduced->child);
+            assert(var);
+            (*var)->type = lambda_type;
+        }
+
+        return invocation_map;
+    }
+
+    captured_offset_map analyze_as_lambda(ast::node::function_definition &func_def)
+    {
+        assert(!func_def->scope.expired());
+        return analyze_as_lambda(func_def, func_def->scope.lock());
+    }
+
+    template<class Location>
+    auto generate_lambda_object_node(type::generic_func_type const& lambda_type, Location const& location)
+    {
+        // XXX:
+        // Function invocation with do-end block (= predicate with lambda) should have a lambda object
+        // on the 1st argument of the invocation.  The lambda object is created at the invocation and
+        // it has captures for the do-end block.  However, currently Dachs doesn't have an AST node for
+        // to generate a lambda object.  It should be done with class object construct.  Lambda object should
+        // be an anonymous class object.
+        // I'll implement the generation of lambda object with anonymous struct.  It must be replaced
+        // with class object construction.
+
+        assert(lambda_type->ref && !lambda_type->ref->expired());
+        auto const lambda_func = lambda_type->ref->lock();
+        assert(!lambda_func->is_template());
+        assert(type::is_a<type::generic_func_type>(lambda_func->params[0]->type));
+
+        auto const lambda_object = helper::make<ast::node::tuple_literal>();
+        auto const temporary_tuple_type = type::make<type::tuple_type>();
+
+        // Note:
+        // Substitute captured values as its fields
+        for (auto const& c : captures.at(lambda_func).template get<semantics::tags::offset>()) {
+            auto const s = c.refered_symbol.lock();
+            auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
+            new_var_ref->symbol = c.refered_symbol;
+            new_var_ref->type = s->type;
+            new_var_ref->set_source_location(location);
+            lambda_object->element_exprs.push_back(new_var_ref);
+            temporary_tuple_type->element_types.push_back(s->type);
+        }
+
+        lambda_object->set_source_location(location);
+        lambda_object->type = temporary_tuple_type;
+
+        return lambda_object;
     }
 
 public:
@@ -869,6 +942,10 @@ public:
             assert(!global->ast_root.expired());
         }
 
+        if (func->is_anonymous()){
+            captures[func] = analyze_as_lambda(func_def, func);
+        }
+
         if (!func_def->ret_type) {
             auto saved_current_scope = current_scope;
             current_scope = global; // enclosing scope of function scope is always global scope
@@ -889,32 +966,25 @@ public:
     template<class Node>
     void visit_do_block(Node const& node)
     {
-        if (node->do_block) {
-            auto &block = *node->do_block;
-            ast::walk_topdown(block, *this);
-
-            assert(!block->scope.expired());
-
-            auto const lambda_scope = block->scope.lock();
-            if (!lambda_scope->is_template()) {
-                // Note:
-                // Resolve lambda captures for the lambada function.
-                // If the lambda is a function template, its captures should be resolved in the instantiation.
-                // So, in the situation, the captures will be resolved in instantiate_function_from_template().
-                captures[lambda_scope] = detail::resolve_lambda_captures(block, lambda_scope);
-            }
-
-            // Note:
-            // Move the scope to global scope.
-            // All functions' scopes are in global scope.
-            global->define_function(lambda_scope);
-
-            lambdas.push_back(block);
-
-            // Note:
-            // Lambda captures are not resolved yet.
-            // It will be resolved on overload resolution
+        if (!node->do_block) {
+            return;
         }
+
+        auto &block = *node->do_block;
+        ast::walk_topdown(block, *this);
+
+        assert(!block->scope.expired());
+
+        // Note:
+        // Move the scope to global scope.
+        // All functions' scopes are in global scope.
+        global->define_function(block->scope.lock());
+
+        lambdas.push_back(block);
+
+        // Note:
+        // Lambda captures are not resolved yet.
+        // It will be resolved on overload resolution
     }
 
     // TODO:
@@ -959,7 +1029,13 @@ public:
         boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return type_of(e);});
 
         if (invocation->do_block) {
-            arg_types.push_back((*invocation->do_block)->scope.lock()->type);
+            // Note:
+            // The refered function now may be function template.
+            // It will be instantiated in visit_invocation() and then I should update the refered function to
+            // instantiated function.  I generate new generic function type here because the update should not
+            // affect the original generic function type.
+            auto const new_lambda_type = type::make<type::generic_func_type>((*invocation->do_block)->scope);
+            arg_types.push_back(new_lambda_type);
         }
 
         for (auto const& arg_type : arg_types) {
@@ -968,9 +1044,25 @@ public:
             }
         }
 
-        auto const error = visit_invocation(invocation, func_type->ref->lock()->name, arg_types);
+        auto const callee_scope = func_type->ref->lock();
+        auto const error = visit_invocation(invocation, callee_scope->name, arg_types);
         if (error) {
             semantic_error(invocation, *error);
+        }
+
+        if (callee_scope->is_template()) {
+            // Note:
+            // Replace function template with instantiated function within the newly generated generic
+            // function type.  This is because lambda captures are associated with the instantiated function.
+            // Below makes code generation find its lambda captures properly.
+            func_type->ref = invocation->callee_scope;
+        }
+
+        if (invocation->do_block){
+            // Note:
+            // Add do-end block's lambda object to the last of arguments of invocation
+            assert(type::is_a<type::generic_func_type>(arg_types.back()));
+            invocation->args.push_back(generate_lambda_object_node(*type::get<type::generic_func_type>(arg_types.back()), *invocation));
         }
     }
 
@@ -1037,15 +1129,38 @@ public:
 
         visit_do_block(ufcs);
 
-        auto const arg_types
-            = ufcs->do_block
-                ? std::vector<type::type>{{child_type, (*ufcs->do_block)->scope.lock()->type}}
-                : std::vector<type::type>{{child_type}};
+        if (!ufcs->do_block) {
+            auto const error = visit_invocation(ufcs, ufcs->member_name, std::vector<type::type>{{child_type}});
+            if (error) {
+                semantic_error(ufcs, *error);
+            }
+            return;
+        }
+
+        // ------ Deal with do-end block from here ------
+
+        // Note:
+        // The refered function now may be function template.
+        // It will be instantiated in visit_invocation() and then I should update the refered function to
+        // instantiated function.  I generate new generic function type here because the update should not
+        // affect the original generic function type.
+        auto const new_lambda_type = type::make<type::generic_func_type>((*ufcs->do_block)->scope);
+        std::vector<type::type> const arg_types = {child_type, new_lambda_type};
 
         auto const error = visit_invocation(ufcs, ufcs->member_name, arg_types);
         if (error) {
             semantic_error(ufcs, *error);
         }
+
+        if (new_lambda_type->ref->lock()->is_template()) {
+            // Note:
+            // Replace function template with instantiated function within the newly generated generic
+            // function type.  This is because lambda captures are associated with the instantiated function.
+            // Below makes code generation find its lambda captures properly.
+            new_lambda_type->ref = ufcs->callee_scope;
+        }
+
+        ufcs->do_block_object = generate_lambda_object_node(new_lambda_type, *ufcs);
     }
 
     template<class Walker>

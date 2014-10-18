@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <memory>
 #include <unordered_map>
+#include <string>
 
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
@@ -14,19 +15,22 @@
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/semantics_context.hpp"
+#include "dachs/helper/make.hpp"
+#include "dachs/helper/variant.hpp"
 
 namespace dachs {
 namespace semantics {
 namespace detail {
 
 using std::size_t;
+using helper::variant::get_as;
 
-struct is_captured : boost::static_visitor<bool> {
+struct capture_checker : boost::static_visitor<bool> {
     symbol::var_symbol const& query;
     scope::func_scope const& threshold;
 
     template<class S>
-    is_captured(decltype(query) const& q, S const& s)
+    capture_checker(decltype(query) const& q, S const& s)
         : query(q), threshold(s)
     {}
 
@@ -83,22 +87,40 @@ class lambda_capture_resolver {
     scope::func_scope const& lambda_scope;
     size_t offset;
     scope::any_scope current_scope;
+    symbol::var_symbol const& receiver_symbol;
 
-    using replaced_symbol = symbol::var_symbol;
-    using captured_symbol = symbol::var_symbol;
-    std::unordered_map<captured_symbol, replaced_symbol> sym_map;
+    std::unordered_map<symbol::var_symbol, ast::node::ufcs_invocation> sym_map;
 
     template<class Symbol>
-    bool is_captured_symbol(Symbol const& sym) const
+    bool check_captured_symbol(Symbol const& sym) const
     {
-        return boost::apply_visitor(is_captured{sym, lambda_scope}, current_scope);
+        return boost::apply_visitor(capture_checker{sym, lambda_scope}, current_scope);
     }
 
-    template<class Symbol>
-    void add_capture(Symbol const& new_sym)
+    std::string get_member_name() const noexcept
     {
-        captures.insert({new_sym, offset});
+        return receiver_symbol->name + ".capture." + std::to_string(offset);
+    }
+
+    ast::node::ufcs_invocation generate_invocation_from(ast::node::var_ref const& var)
+    {
+        auto const new_receiver_ref = helper::make<ast::node::var_ref>(receiver_symbol->name);
+        new_receiver_ref->is_lhs_of_assignment = var->is_lhs_of_assignment;
+        new_receiver_ref->symbol = receiver_symbol;
+        new_receiver_ref->set_source_location(*var);
+        // Note:
+        // 'type' member will be set after the type of lambda object is determined.
+
+        auto const new_invocation = helper::make<ast::node::ufcs_invocation>(new_receiver_ref, get_member_name());
+        new_invocation->set_source_location(*var);
+        new_invocation->type = var->type;
+
+        auto const result = captures.insert({new_invocation, offset, var->symbol});
+        assert(result.second);
+        (void) result;
+
         ++offset;
+        return new_invocation;
     }
 
     template<class S, class W>
@@ -121,13 +143,13 @@ class lambda_capture_resolver {
 
 public:
 
-    explicit lambda_capture_resolver(scope::func_scope const& s) noexcept
-        : captures(), lambda_scope(s), offset(0u), current_scope(s)
+    explicit lambda_capture_resolver(scope::func_scope const& s, symbol::var_symbol const& r) noexcept
+        : captures(), lambda_scope(s), offset(0u), current_scope(s), receiver_symbol(r)
     {}
 
     template<class Scope>
-    lambda_capture_resolver(scope::func_scope const& s, Scope const& current) noexcept
-        : captures(), lambda_scope(s), offset(0u), current_scope(current)
+    lambda_capture_resolver(scope::func_scope const& s, Scope const& current, symbol::var_symbol const& r) noexcept
+        : captures(), lambda_scope(s), offset(0u), current_scope(current), receiver_symbol(r)
     {}
 
     auto get_captures() const
@@ -136,59 +158,69 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::var_ref const& ref, Walker const& w)
-    {
-        auto const sym = ref->symbol.lock();
-
-        if (sym->is_builtin) {
-            return;
-        }
-
-        // TODO:
-        // Check the variable is defined in global scope.
-        // If then, global variables should not be captured.
-
-        {
-            auto const already_replaced = sym_map.find(sym);
-            if (already_replaced != std::end(sym_map)) {
-                ref->symbol = already_replaced->second;
-                return;
-            }
-        }
-
-        if (is_captured_symbol(sym)) {
-            auto const replaced = symbol::make<symbol::var_symbol>(*sym);
-            add_capture(replaced);
-            sym_map[sym] = replaced;
-            ref->symbol = replaced;
-        }
-
-        w();
-    }
-
-    template<class Walker>
-    void visit(ast::node::statement_block const& b, Walker const& w)
+    void visit(ast::node::statement_block &b, Walker const& w)
     {
         with_scope(b->scope, w);
     }
 
     template<class Walker>
-    void visit(ast::node::let_stmt const& let, Walker const& w)
+    void visit(ast::node::let_stmt &let, Walker const& w)
     {
         with_scope(let->scope, w);
     }
 
+    template<class Walker>
+    void visit(ast::node::any_expr &e, Walker const& w)
+    {
+        auto const maybe_var = get_as<ast::node::var_ref>(e);
+        if (!maybe_var) {
+            w();
+            return;
+        }
+
+        auto const& var = *maybe_var;
+        auto const symbol = var->symbol.lock();
+
+        if (symbol->is_builtin) {
+            return;
+        }
+
+        // TODO:
+        // Deal with an ignored variable, "_"
+
+        if (!check_captured_symbol(symbol)) {
+            return;
+        }
+
+        {
+            // Note:
+            // 1 ufcs_invocation instance per 1 captured symbol.
+            auto const already_replaced = sym_map.find(symbol);
+            if (already_replaced != std::end(sym_map)) {
+                e = already_replaced->second;
+                return;
+            }
+        }
+
+        auto const invocation = generate_invocation_from(var);
+        // Note:
+        // Replace var_ref with ufcs_invocation to access the member of lambda object.
+        // The offset of member is memorized in lambda_capture map.
+        e = invocation;
+        sym_map[symbol] = invocation;
+    }
+
     template<class Node, class Walker>
-    void visit(Node const&, Walker const& w)
+    void visit(Node &, Walker const& w)
     {
         w();
     }
 };
 
 template<class Node>
-captured_offset_map resolve_lambda_captures(Node &search_root, scope::func_scope const& lambda_scope)
+captured_offset_map resolve_lambda_captures(Node &search_root, scope::func_scope const& lambda_scope, symbol::var_symbol const& receiver)
 {
-    lambda_capture_resolver resolver{lambda_scope};
+    lambda_capture_resolver resolver{lambda_scope, receiver};
     ast::walk_topdown(search_root, resolver);
     return resolver.get_captures();
 }
