@@ -12,43 +12,99 @@ Goals :dog2:
 - Dog-friendly
 
 <pre>
-<i># Type of parameter and returned value can be inferred</i>
-<b>func</b> abs(n)
-    <b>ret</b> (<b>if</b> n <b>as</b> float > 0.0 <b>then</b> n <b>else</b> -n)
+<i># If 'var' is specified, the argument is copied and passed by value</i>
+<i># then immutable.  Otherwise, the argument is passed by reference then</i>
+<i># immutable. Variable definition has the same rule as this.</i>
+
+<i># If you want to specify the type of argument, you can use ':'.</i>
+<i># e.g.</i>
+<i>#   func step_to(var first : float, last : float, p) : ()</i>
+
+<b>func</b> step_to(<b>var</b> first, last, p)
+    <b>for</b> first <= last
+        p(first)
+        first += 1
+    <b>end</b>
 <b>end</b>
 
-<i># Parameters and variables are defined as immutable value by default</i>
-<b>func</b> sqrt(x)
-    <b>var</b> z, <b>var</b> p := x, 0.0   <i># but 'var' is available to declare a mutable variable</i>
-    <b>for</b> abs(p-z) > 0.00001
-        p, z = z, z-(z*z-x)/(2*z)
+<i># UFCS is implemented.</i>
+<i># '1.step_to n' is equivalent to 'step_to(1, n)'</i>
+
+<i># Dachs has a block inspired from Ruby.</i>
+<i># do-end block is passed to the last argument of callee as lambda object.</i>
+<i># Here, 'p' is captured into do-end block.</i>
+
+<b>func</b> fizzbuzz(n, p)
+    1.step_to n <b>do</b> |i|
+        <b>case</b>
+        <b>when</b> i % 15 == 0
+            p("fizzbuzz")
+        <b>when</b> i %  3 == 0
+            p("fizz")
+        <b>when</b> i %  5 == 0
+            p("buzz")
+        <b>else</b>
+            p(i)
+        <b>end</b>
     <b>end</b>
-    <b>ret</b> z
 <b>end</b>
 
 <b>func</b> main
-    print(sqrt(10.0))
+    fizzbuzz(100) <b>do</b> |i|
+        println(i)
+    <b>end</b>
 <b>end</b>
+
+<i># Array and tuple are available as container.</i>
+<i># (dictionary will come.)</i>
 </pre>
 
 <!--
-# Type of parameter and returned value can be inferred
-func abs(n)
-    ret (if n > 0.0 then n else -n)
+# If 'var' is specified, the argument is copied and passed by value
+# then immutable.  Otherwise, the argument is passed by reference then
+# immutable. Variable definition has the same rule as this.
+
+# If you want to specify the type of argument, you can use ':'.
+# e.g.
+#   func step_to(var first : float, last : float, p) : ()
+
+func step_to(var first, last, p)
+    for first <= last
+        p(first)
+        first += 1
+    end
 end
 
-# Parameters and variables are defined as immutable value by default
-func sqrt(x)
-    var z, p := x, 0.0   # but 'var' is available to declare a mutable variable
-    for abs(p-z) > 0.00001
-        p, z = z, z-(z*z-x)/(2*z)
+# UFCS is implemented.
+# '1.step_to n' is equivalent to 'step_to(1, n)'
+
+# Dachs has a block inspired from Ruby.
+# do-end block is passed to the last argument of callee as lambda object.
+# Here, 'p' is captured into do-end block.
+
+func fizzbuzz(n, p)
+    1.step_to n do |i|
+        case
+        when i % 15 == 0
+            p("fizzbuzz")
+        when i %  3 == 0
+            p("fizz")
+        when i %  5 == 0
+            p("buzz")
+        else
+            p(i)
+        end
     end
-    ret z
 end
 
 func main
-    print(sqrt(10.0))
+    fizzbuzz(100) do |i|
+        println(i)
+    end
 end
+
+# Array and tuple are available as container.
+# (dictionary will come.)
 -->
 
 ## Progress Report
