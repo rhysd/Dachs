@@ -1108,108 +1108,173 @@ BOOST_AUTO_TEST_CASE(do_stmt)
     )");
 }
 
-BOOST_AUTO_TEST_CASE(do_block)
+// BOOST_AUTO_TEST_CASE(do_block)
+// {
+//     CHECK_NO_THROW_CODEGEN_ERROR(R"(
+//         func ufcs_do_no_arg(a, p)
+//             p()
+//         end
+//
+//         func ufcs_do_arg1(a, p)
+//             p(a)
+//         end
+//
+//         func ufcs_do_no_arg2(a, var p)
+//             p()
+//         end
+//
+//         func ufcs_do_arg12(a, var p)
+//             p(a)
+//         end
+//
+//         func ufcs2_do_arg1(a, b, p)
+//             p(a + b)
+//         end
+//
+//         func ufcs2_do_arg12(a, b, var p)
+//             p(a + b)
+//         end
+//
+//         func ufcs2_do_no_arg(a, b, p)
+//             p()
+//         end
+//
+//         func ufcs2_do_no_arg2(a, b, p)
+//             p()
+//         end
+//
+//         func ufcs2_do_arg2(a, b, p)
+//             p(a, b)
+//         end
+//
+//         func ufcs2_do_arg22(a, b, var p)
+//             p(a, b)
+//         end
+//
+//         func main
+//             42.ufcs_do_no_arg do
+//                 println("ufcs no arg")
+//             end
+//
+//             42.ufcs_do_arg1 do |i|
+//                 j := i * i
+//                 println(j)
+//             end
+//
+//             42.ufcs_do_arg1 do |var i|
+//                 i = i * i
+//                 println(i)
+//             end
+//
+//             42.ufcs_do_no_arg2 do
+//                 println("ufcs no arg")
+//             end
+//
+//             42.ufcs_do_arg12 do |i|
+//                 j := i * i
+//                 println(j)
+//             end
+//
+//             42.ufcs_do_arg12 do |var i|
+//                 i = i * i
+//                 println(i)
+//             end
+//
+//             ufcs_do_no_arg(42) do
+//                 println("ufcs no arg")
+//             end
+//
+//             ufcs_do_no_arg2(42) do
+//                 println("ufcs no arg")
+//             end
+//
+//             42.ufcs2_do_no_arg 42 do
+//                 println("ufcs no arg")
+//             end
+//
+//             42.ufcs2_do_arg1 42 do |i|
+//                 println(i)
+//             end
+//
+//             42.ufcs2_do_arg2 42 do |i, j|
+//                 println(i + j)
+//             end
+//
+//             42.ufcs2_do_no_arg2 42 do
+//                 println("ufcs no arg")
+//             end
+//
+//             42.ufcs2_do_arg12 42 do |i|
+//                 println(i)
+//             end
+//
+//             42.ufcs2_do_arg22 42 do |i, j|
+//                 println(i + j)
+//             end
+//         end
+//     )");
+// }
+
+BOOST_AUTO_TEST_CASE(do_block_with_captures)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
-        func ufcs_do_no_arg(a, p)
-            p()
-        end
-
-        func ufcs_do_arg1(a, p)
-            p(a)
-        end
-
-        func ufcs_do_no_arg2(a, var p)
-            p()
-        end
-
-        func ufcs_do_arg12(a, var p)
-            p(a)
-        end
-
-        func ufcs2_do_arg1(a, b, p)
-            p(a + b)
-        end
-
-        func ufcs2_do_arg12(a, b, var p)
-            p(a + b)
-        end
-
-        func ufcs2_do_no_arg(a, b, p)
-            p()
-        end
-
-        func ufcs2_do_no_arg2(a, b, p)
-            p()
-        end
-
-        func ufcs2_do_arg2(a, b, p)
+        func apply(a, b, p)
             p(a, b)
         end
 
-        func ufcs2_do_arg22(a, b, var p)
-            p(a, b)
+        func output(a, b, p)
+            println(a + b + p())
+        end
+
+        func plus(a, b, p)
+            ret a + b + p()
         end
 
         func main
-            42.ufcs_do_no_arg do
-                println("ufcs no arg")
+            # func_invocation, function template
+            do
+                a := 42
+                var b:= 21
+
+                42.apply a do |i, j|
+                    println(i + j + a)
+                end
+
+                b.apply a do |i, j|
+                    println(i + j + a + b)
+                end
+
+                a.apply 42 do |i, j|
+                    i.apply j do |p, q|
+                        println(a + b + i + j + p + q)
+                    end
+                end
             end
 
-            42.ufcs_do_arg1 do |i|
-                j := i * i
-                println(j)
-            end
+            # func_invocation, function template
+            do
+                a := 42
+                var b:= 21
 
-            42.ufcs_do_arg1 do |var i|
-                i = i * i
-                println(i)
-            end
+                42.output a do
+                    ret a
+                end
 
-            42.ufcs_do_no_arg2 do
-                println("ufcs no arg")
-            end
+                b.output a do
+                    ret a + b
+                end
 
-            42.ufcs_do_arg12 do |i|
-                j := i * i
-                println(j)
-            end
+                a.apply 42 do |i, j|
+                    i.output j do
+                        ret a + b + i + j
+                    end
+                end
 
-            42.ufcs_do_arg12 do |var i|
-                i = i * i
-                println(i)
-            end
-
-            ufcs_do_no_arg(42) do
-                println("ufcs no arg")
-            end
-
-            ufcs_do_no_arg2(42) do
-                println("ufcs no arg")
-            end
-
-            42.ufcs2_do_no_arg 42 do
-                println("ufcs no arg")
-            end
-
-            42.ufcs2_do_arg1 42 do |i|
-                println(i)
-            end
-
-            42.ufcs2_do_arg2 42 do |i, j|
-                println(i + j)
-            end
-
-            42.ufcs2_do_no_arg2 42 do
-                println("ufcs no arg")
-            end
-
-            42.ufcs2_do_arg12 42 do |i|
-                println(i)
-            end
-
-            42.ufcs2_do_arg22 42 do |i, j|
-                println(i + j)
+                a.plus 42 do
+                    ret 42.plus b do
+                        ret a + b
+                    end
+                end.println
             end
         end
     )");

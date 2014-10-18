@@ -228,10 +228,6 @@ class symbol_analyzer {
             current_scope = std::move(saved_current_scope);
         }
 
-        if (instantiated_func_scope->is_anonymous()){
-            captures[instantiated_func_scope] = analyze_as_lambda(instantiated_func_def, instantiated_func_scope);
-        }
-
         assert(!instantiated_func_def->is_template());
 
         // Add instantiated function to function template node in AST
@@ -944,6 +940,10 @@ public:
         if (func->is_template()) {
             std::tie(func_def, func) = instantiate_function_from_template(func_def, arg_types);
             assert(!global->ast_root.expired());
+        }
+
+        if (func->is_anonymous()){
+            captures[func] = analyze_as_lambda(func_def, func);
         }
 
         if (!func_def->ret_type) {
