@@ -4,11 +4,12 @@
 =========================================================================================================
 
 Goals :dog2:
-- Light to write
+- Light to write (inspired by Ruby)
 - Strongly and statically typed
 - Native code efficiency
-- Full OOP
+- OOP
 - Immutability-aware
+- Familiar with functional features
 - Dog-friendly
 
 <pre>
@@ -120,7 +121,7 @@ end
 - [x] UFCS
 - [ ] Class
 - [ ] Lambda
-- [ ] Block
+- [x] Block
 - [ ] Variadic arguments
 - [ ] Module
 - [x] Semantic checks
