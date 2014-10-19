@@ -22,7 +22,7 @@ Goals :dog2:
 <i>#   func step_to(var first : float, last : float, p) : ()</i>
 
 <b>func</b> step_to(<b>var</b> first, last, p)
-    <b>for</b> first <= last
+    <b>for</b> first &lt;= last
         p(first)
         first += 1
     <b>end</b>
