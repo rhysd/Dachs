@@ -1342,6 +1342,37 @@ BOOST_AUTO_TEST_CASE(do_block_with_captures)
             end
         end
     )");
+
+    // do-end block for lambda
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(a, p)
+            p(a * 2) do |i|
+                println(i)
+            end
+        end
+
+        func main
+            42.foo do |i, p|
+                p(i)
+            end
+        end
+    )");
+
+    // Generic lambda tests
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(p)
+            p(42)
+            p(42.0)
+            p('a')
+            p(true)
+        end
+
+        func main
+            foo() do |x|
+                println(x)
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(some_samples)
