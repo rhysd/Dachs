@@ -1375,6 +1375,47 @@ BOOST_AUTO_TEST_CASE(do_block_with_captures)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(unit_type)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo
+        end
+
+        func foo2 : ()
+            ret
+        end
+
+        func foo3 : ()
+            ret ()
+        end
+
+        func bar(a)
+        end
+
+        func bar2(a : ())
+        end
+
+        func bar3(a)
+            bar(a())
+        end
+
+        func main
+            bar(foo())
+            bar(foo2())
+            bar(foo3())
+            bar2(foo())
+            bar2(foo2())
+            bar2(foo3())
+
+            bar3() do
+                ret foo()
+            end
+
+            bar3(foo)
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(some_samples)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
