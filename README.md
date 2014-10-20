@@ -14,8 +14,9 @@ Goals :dog2:
 
 <pre>
 <i># If 'var' is specified, the argument is copied and passed by value</i>
-<i># then immutable.  Otherwise, the argument is passed by reference then</i>
+<i># then mutable.  Otherwise, the argument is passed by reference then</i>
 <i># immutable. Variable definition has the same rule as this.</i>
+<i># Type of arguments and returned value are deduced automatically.</i>
 
 <i># If you want to specify the type of argument, you can use ':'.</i>
 <i># e.g.</i>
