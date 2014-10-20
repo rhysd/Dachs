@@ -601,7 +601,9 @@ public:
         if (!func_def->ret_type
                 || func_def->kind == ast::symbol::func_kind::proc
                 || *func_def->ret_type == type::get_unit_type()) {
-            ctx.builder.CreateRetVoid();
+            ctx.builder.CreateRet(
+                llvm::ConstantStruct::getAnon(ctx.llvm_context, {})
+            );
         } else {
             // Note:
             // Believe that the insert block is the last block of the function
@@ -664,10 +666,6 @@ public:
 
         if (return_->ret_exprs.size() == 1) {
             ctx.builder.CreateRet(get_operand(emit(return_->ret_exprs[0])));
-        } else if (return_->ret_exprs.empty()) {
-            // TODO:
-            // Return statements with no expression in functions should returns unit
-            ctx.builder.CreateRetVoid();
         } else {
             assert(type::is_a<type::tuple_type>(return_->ret_type));
             ctx.builder.CreateRet(

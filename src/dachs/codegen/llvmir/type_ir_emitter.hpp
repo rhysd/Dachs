@@ -87,10 +87,6 @@ public:
 
     llvm::Type *emit(type::tuple_type const& t)
     {
-        if (t->element_types.empty()) {
-            return llvm::Type::getVoidTy(context);
-        }
-
         std::vector<llvm::Type *> element_type_irs;
         element_type_irs.reserve(t->element_types.size());
         for (auto const& t : t->element_types) {

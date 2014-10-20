@@ -55,7 +55,7 @@ public:
                 std::vector<llvm::Type *> param_types
                     = {arg_type_ir};
                 auto const print_func_type = llvm::FunctionType::get(
-                        llvm::Type::getVoidTy(context),
+                        llvm::StructType::get(context, {}),
                         param_types,
                         false
                     );
