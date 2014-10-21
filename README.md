@@ -52,7 +52,7 @@ Goals :dog2:
 <b>end</b>
 
 <b>func</b> main
-    fizzbuzz(100) <b>do</b> |i|
+    fizzbuzz 100 <b>do</b> |i|
         println(i)
     <b>end</b>
 <b>end</b>

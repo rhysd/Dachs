@@ -1184,6 +1184,10 @@ BOOST_AUTO_TEST_CASE(do_block)
                 println("ufcs no arg")
             end
 
+            ufcs_do_no_arg 42 do
+                println("ufcs no arg")
+            end
+
             ufcs_do_no_arg2(42) do
                 println("ufcs no arg")
             end

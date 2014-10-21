@@ -403,6 +403,7 @@ public:
                     | (-qi::eol >> '.' >> -qi::eol >> (called_function_name - "do") >> -do_block)[_val = make_node_ptr<ast::node::ufcs_invocation>(_val, _1, _2)]
                     | ('[' >> -qi::eol >> typed_expr >> -qi::eol >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]
                     | ('(' >> -qi::eol >> -(typed_expr % comma) >> trailing_comma >> ')' >> -do_block)[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1), _2)]
+                    | ((typed_expr - "do") % comma >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_val, _1, _2)]
                 )
             ;
 
