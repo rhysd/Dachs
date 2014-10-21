@@ -45,7 +45,7 @@ func main
     # this is test
 
     var h := huga
-    var h := new ([int]?, [char])?{}
+    var h := ([int]?, [char])?{}
 
     10.to_s()
 

@@ -396,13 +396,13 @@ BOOST_AUTO_TEST_CASE(object_construction)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func main
-            a := new [char]{4u}
-            var b := new [float]{4u}
-            c := new [float]{4u, 3.14}
-            var d := new [char]{4u, 'd'}
-            var s := new [string]{4u, "aaa"}
+            a := [char]{4u}
+            var b := [float]{4u}
+            c := [float]{4u, 3.14}
+            var d := [char]{4u, 'd'}
+            var s := [string]{4u, "aaa"}
 
-            var e := new [uint]{32u}
+            var e := [uint]{32u}
 
             var i := 0u
             for i < e.size

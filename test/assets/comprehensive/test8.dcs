@@ -11,7 +11,7 @@ func hoge?'
 end
 
 func main
-    var aaaa := new int{51}
+    var aaaa := int{51}
 end
 
 func end; end

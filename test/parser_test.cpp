@@ -776,17 +776,17 @@ BOOST_AUTO_TEST_CASE(primary_expr)
                 1 + 2 * 3
             )
             hogehoge # variable reference
-            new int{42}
-            new (int, int){42, 42}
-            new (int,
+            int{42}
+            (int, int){42, 42}
+            (int,
              int){42,
                   42}
-            new {int => string}{{1 => "aaa", 2 => "bbb"}}
+            {int => string}{{1 => "aaa", 2 => "bbb"}}
         end
         )"));
 
     CHECK_PARSE_THROW("func main; (1 + 2; end");
-    CHECK_PARSE_THROW("func main; new int{42; end");
+    CHECK_PARSE_THROW("func main; int{42; end");
 }
 
 BOOST_AUTO_TEST_CASE(unary_expr)
@@ -1041,21 +1041,18 @@ BOOST_AUTO_TEST_CASE(object_construct)
 {
     BOOST_CHECK_NO_THROW(parse_and_validate(R"(
         func main
-            new int{42}
-            new int{
+            int{42}
+            int{
                 42
                }
-            new [int]{
+            [int]{
                     [
                         1,
                         2,
                         3,
                     ]
                  }
-            new {int => string}{{42 => "answer"}}
-            new int
-            new [int]
-            new {int => string}
+            {int => string}{{42 => "answer"}}
         end
         )"));
 }
@@ -1066,7 +1063,7 @@ BOOST_AUTO_TEST_CASE(variable_decl)
         func main
             a := 42
             var a := 42
-            a := new int{42}
+            a := int{42}
             a, b := 42, 24
             a,
             b := 42,
@@ -1086,7 +1083,7 @@ BOOST_AUTO_TEST_CASE(variable_decl)
                     ,'b'
             a, b := foo()
             var a, b := bar()
-            var a, b := new int{32}, new char{'b'}
+            var a, b := int{32}, char{'b'}
             var a, b := [] : [int], {} : {int => string}
             var a,
                 b := [] : [int],
@@ -1158,7 +1155,7 @@ BOOST_AUTO_TEST_CASE(constant_decl)
 {
     BOOST_CHECK_NO_THROW(parse_and_validate(R"(
         a := 42
-        a := new int{42}
+        a := int{42}
         a, b := 42, 24
         a,
         b := 42,
@@ -1176,7 +1173,7 @@ BOOST_AUTO_TEST_CASE(constant_decl)
               ,'b'
         a, b := foo()
         a, b := bar()
-        a, b := new int{32}, new char{'b'}
+        a, b := int{32}, char{'b'}
         a, b := [] : [int], {} : {int => string}
         a,
         b := [] : [int],

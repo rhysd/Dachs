@@ -357,14 +357,14 @@ public:
 
         constructor_call
             = (
-                -('{' >> -(
+                '{' >> -(
                     -qi::eol >> typed_expr[phx::push_back(_val, _1)] % comma >> -qi::eol
-                ) >> '}')
+                ) >> '}'
             );
 
         object_construct
             = (
-                DACHS_KWD("new") >> qualified_type >> constructor_call
+                qualified_type >> constructor_call
             ) [
                 _val = make_node_ptr<ast::node::object_construct>(_1, _2)
             ];
@@ -931,7 +931,6 @@ public:
             );
 
     #undef DACHS_KWD
-    #undef DACHS_KWD_STRICT
 
         // Set callback to get the position of node and show obvious compile error {{{
         detail::set_position_getter_on_success(

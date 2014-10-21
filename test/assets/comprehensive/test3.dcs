@@ -1,6 +1,6 @@
 func main()
-    var i := new int{42}
-    var m := new (){}
+    var i := int{42}
+    var m := (){}
 end
 
 func hoge

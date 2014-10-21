@@ -20,7 +20,7 @@ ensure
 end
 
 func main()
-    var m := new {int => [int]?}{{3 => 3, 4 => nothing}}
-    new {int => int} # expression
-    new {int => int}{} # object construction
+    var m := {int => [int]?}{{3 => 3, 4 => nothing}}
+    {int => int} # expression
+    {int => int}{} # object construction
 end
