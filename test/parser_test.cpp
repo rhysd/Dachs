@@ -737,19 +737,19 @@ BOOST_AUTO_TEST_CASE(type)
             expr : {(func(char) : int)? => (proc(string))?}?
 
             # template types
-            expr : T(int)
-            expr : T(
+            expr : T<int>
+            expr : T<
                         int
-                    )
-            expr : T(int, string)
-            expr : [T(int)]
-            expr : (T(int), U(int))
-            expr : {T(int) => U(int)}
-            expr : T(int)?
-            expr : T(int?, string?)
-            expr : [T(int)?]
-            expr : (T(int)?, U(int)?)
-            expr : {T(int)? => U(int)?}?
+                    >
+            expr : T<int, string>
+            expr : [T<int>]
+            expr : (T<int>, U<int>)
+            expr : {T<int> => U<int>}
+            expr : T<int>?
+            expr : T<int?, string?>
+            expr : [T<int>?]
+            expr : (T<int>?, U<int>?)
+            expr : {T<int>? => U<int>?}?
 
             (expr : int) + (expr : int)
 
@@ -812,11 +812,11 @@ BOOST_AUTO_TEST_CASE(cast_expression)
             expr as int?
             expr as [int]
             expr as (int, int)?
-            expr as T((int, int)?)
+            expr as T<(int, int)?>
             expr
-                as T((int, int)?)
+                as T<(int, int)?>
             expr as
-                T((int, int)?)
+                T<(int, int)?>
         end
         )"));
 

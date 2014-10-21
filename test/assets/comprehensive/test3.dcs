@@ -4,8 +4,8 @@ func main()
 end
 
 func hoge
-    1..2 : range(int)
-    1...3 : range(int)
+    1..2 : range<int>
+    1...3 : range<int>
     [1..2]
     [1...3]
     main : func() : ()
