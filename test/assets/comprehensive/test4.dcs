@@ -32,8 +32,8 @@ func main()
     end
 
     h := 3
-    var h := [hoge]{[aaa, bbb, ccc]}
-    var h := ([hoge], int?)?{}
-    var h := (hoge, int)?{}
-    var i := int{42}
+    var h := new [hoge]{[aaa, bbb, ccc]}
+    var h := new ([hoge], int?)?{}
+    var h := new (hoge, int)?{}
+    var i := new int{42}
 end
