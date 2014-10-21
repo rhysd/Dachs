@@ -20,11 +20,11 @@ Goals :dog2:
 
 <i># If you want to specify the type of argument, you can use ':'.</i>
 <i># e.g.</i>
-<i>#   func step_to(var first : float, last : float, p) : ()</i>
+<i>#   func step_to(var first : float, last : float, block) : ()</i>
 
-<b>func</b> step_to(<b>var</b> first, last, p)
+<b>func</b> step_to(<b>var</b> first, last, block)
     <b>for</b> first &lt;= last
-        p(first)
+        block(first)
         first += 1
     <b>end</b>
 <b>end</b>
@@ -34,19 +34,19 @@ Goals :dog2:
 
 <i># Dachs has a block inspired from Ruby.</i>
 <i># do-end block is passed to the last argument of callee as lambda object.</i>
-<i># Here, 'p' is captured into do-end block.</i>
+<i># Here, 'block' variable is captured into do-end block.</i>
 
-<b>func</b> fizzbuzz(n, p)
+<b>func</b> fizzbuzz(n, block)
     1.step_to n <b>do</b> |i|
         <b>case</b>
         <b>when</b> i % 15 == 0
-            p("fizzbuzz")
+            block("fizzbuzz")
         <b>when</b> i %  3 == 0
-            p("fizz")
+            block("fizz")
         <b>when</b> i %  5 == 0
-            p("buzz")
+            block("buzz")
         <b>else</b>
-            p(i)
+            block(i)
         <b>end</b>
     <b>end</b>
 <b>end</b>
@@ -63,16 +63,17 @@ Goals :dog2:
 
 <!--
 # If 'var' is specified, the argument is copied and passed by value
-# then immutable.  Otherwise, the argument is passed by reference then
+# then mutable.  Otherwise, the argument is passed by reference then
 # immutable. Variable definition has the same rule as this.
+# Type of arguments and returned value are deduced automatically.
 
 # If you want to specify the type of argument, you can use ':'.
-# e.g.
-#   func step_to(var first : float, last : float, p) : ()
+# e.g.</i>
+#   func step_to(var first : float, last : float, block) : ()
 
-func step_to(var first, last, p)
+func step_to(var first, last, block)
     for first <= last
-        p(first)
+        block(first)
         first += 1
     end
 end
@@ -82,25 +83,25 @@ end
 
 # Dachs has a block inspired from Ruby.
 # do-end block is passed to the last argument of callee as lambda object.
-# Here, 'p' is captured into do-end block.
+# Here, 'block' variable is captured into do-end block.
 
-func fizzbuzz(n, p)
+func fizzbuzz(n, block)
     1.step_to n do |i|
         case
         when i % 15 == 0
-            p("fizzbuzz")
+            block("fizzbuzz")
         when i %  3 == 0
-            p("fizz")
+            block("fizz")
         when i %  5 == 0
-            p("buzz")
+            block("buzz")
         else
-            p(i)
+            block(i)
         end
     end
 end
 
 func main
-    fizzbuzz(100) do |i|
+    fizzbuzz 100 do |i|
         println(i)
     end
 end
