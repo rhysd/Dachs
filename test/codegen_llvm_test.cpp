@@ -1358,7 +1358,7 @@ BOOST_AUTO_TEST_CASE(do_block_with_captures)
         end
     )");
 
-    // Generic lambda tests
+    // Generic lambda overload
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func foo(p)
             p(42)

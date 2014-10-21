@@ -191,6 +191,21 @@ BOOST_AUTO_TEST_CASE(lambda_return_type_deduction)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(no_lambda_capture_found)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(p)
+        end
+
+        func main
+            foo() do
+                println(x)
+            end
+        end
+    )");
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
