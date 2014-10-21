@@ -99,7 +99,13 @@ bool generic_func_type::operator==(generic_func_type const& rhs) const noexcept
     }
 
     if (ref && rhs.ref) {
-        return *ref->lock() == *rhs.ref->lock();
+        assert(!ref->expired() && !rhs.ref->expired());
+        // Note:
+        // Compare two pointers because generic function type is equal iff two (instantiated)
+        // functions are exactly the same.
+        // If compare two scopes directly, it causes infinite loop when the parameter
+        // of function has its generic function type.
+        return ref->lock() == rhs.ref->lock();
     }
 
     return false;

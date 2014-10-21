@@ -172,6 +172,24 @@ BOOST_AUTO_TEST_CASE(do_)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(lambda_return_type_deduction)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo(a, p)
+            if a < 0
+                ret p(a)
+            else
+                ret foo(a-1, p)
+            end
+        end
+
+        func main
+            42.foo do |i|
+                ret i * 2
+            end.println
+        end
+    )");
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 
