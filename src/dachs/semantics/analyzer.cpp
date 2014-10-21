@@ -312,20 +312,18 @@ class symbol_analyzer {
         auto const lambda_object = helper::make<ast::node::tuple_literal>();
         auto const temporary_tuple_type = type::make<type::tuple_type>();
 
-        if (captures.find(lambda_func) == std::end(captures)) {
-            return decltype(lambda_object){nullptr};
-        }
-
-        // Note:
-        // Substitute captured values as its fields
-        for (auto const& c : captures.at(lambda_func).template get<semantics::tags::offset>()) {
-            auto const s = c.refered_symbol.lock();
-            auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
-            new_var_ref->symbol = c.refered_symbol;
-            new_var_ref->type = s->type;
-            new_var_ref->set_source_location(location);
-            lambda_object->element_exprs.push_back(new_var_ref);
-            temporary_tuple_type->element_types.push_back(s->type);
+        if (captures.find(lambda_func) != std::end(captures)) {
+            // Note:
+            // Substitute captured values as its fields
+            for (auto const& c : captures.at(lambda_func).template get<semantics::tags::offset>()) {
+                auto const s = c.refered_symbol.lock();
+                auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
+                new_var_ref->symbol = c.refered_symbol;
+                new_var_ref->type = s->type;
+                new_var_ref->set_source_location(location);
+                lambda_object->element_exprs.push_back(new_var_ref);
+                temporary_tuple_type->element_types.push_back(s->type);
+            }
         }
 
         lambda_object->set_source_location(location);
@@ -1066,13 +1064,7 @@ public:
             // Note:
             // Add do-end block's lambda object to the last of arguments of invocation
             assert(type::is_a<type::generic_func_type>(arg_types.back()));
-            auto const lambda_type = *type::get<type::generic_func_type>(arg_types.back());
-            auto const lambda = generate_lambda_object_node(lambda_type, *invocation);
-            if (!lambda) {
-                semantic_error(invocation, "Invalid lambda '" + lambda_type->to_string() + "'");
-                return;
-            }
-            invocation->args.push_back(std::move(lambda));
+            invocation->args.push_back(generate_lambda_object_node(*type::get<type::generic_func_type>(arg_types.back()), *invocation));
         }
     }
 
@@ -1170,11 +1162,7 @@ public:
             new_lambda_type->ref = ufcs->callee_scope;
         }
 
-        auto const lambda = generate_lambda_object_node(new_lambda_type, *ufcs);
-        if (!lambda) {
-            semantic_error(ufcs, "Invalid lambda '" + new_lambda_type->to_string() + "'");
-        }
-        ufcs->do_block_object = std::move(lambda);
+        ufcs->do_block_object = generate_lambda_object_node(new_lambda_type, *ufcs);
     }
 
     template<class Walker>
