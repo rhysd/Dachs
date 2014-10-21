@@ -388,6 +388,15 @@ public:
                 ) >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
             ) [
                 _val = make_node_ptr<ast::node::function_definition>(as_vector(_1), _2)
+            ] | (
+                lit('{') >> -('|' >> (parameter % comma) >> '|') >> typed_expr >> '}'
+            ) [
+                _val = make_node_ptr<ast::node::function_definition>(
+                        as_vector(_1),
+                        make_node_ptr<ast::node::statement_block>(
+                            make_node_ptr<ast::node::return_stmt>(_2)
+                        )
+                    )
             ];
 
         // primary.name(...)
