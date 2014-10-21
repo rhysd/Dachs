@@ -1510,7 +1510,7 @@ BOOST_AUTO_TEST_CASE(while_statement)
             for true
             end
 
-            for true do
+            for true
                 moudameda
             end
 
@@ -1520,7 +1520,7 @@ BOOST_AUTO_TEST_CASE(while_statement)
 
             # Keyword corner cases
             forhoge := 42
-            for dohoge do
+            for dohoge
                 endhoge
             end
         end

@@ -351,6 +351,7 @@ struct func_invocation final : public expression {
         : expression(), child(c), args(args), do_block(std::move(f))
     {}
 
+    // Note: For UFCS
     func_invocation(
             node::any_expr const& c,
             node::any_expr const& head,

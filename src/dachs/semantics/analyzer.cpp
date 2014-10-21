@@ -1011,7 +1011,7 @@ public:
         if (!maybe_func_type) {
             semantic_error(
                     invocation,
-                    "Only function type can be called\nNote: the type '" + child_type.to_string() + "' is not a function"
+                    "Only function type can be called\nNote: The type '" + child_type.to_string() + "' is not a function"
                 );
             return;
         }
