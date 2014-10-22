@@ -612,7 +612,7 @@ public:
         primary_type
             = (
                 type_name >> -(
-                    '<' >> -qi::eol >> (qualified_type % comma) >> -qi::eol >> '>'
+                    '(' >> -qi::eol >> (qualified_type % comma) >> -qi::eol >> ')'
                 )
             ) [
                 _val = make_node_ptr<ast::node::primary_type>(_1, as_vector(_2))
