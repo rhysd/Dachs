@@ -389,7 +389,7 @@ public:
             ) [
                 _val = make_node_ptr<ast::node::function_definition>(as_vector(_1), _2)
             ] | (
-                lit('{') >> -('|' >> (parameter % comma) >> '|') >> typed_expr >> '}'
+                '{' >> -('|' >> (parameter % comma) >> '|') >> -qi::eol >> typed_expr >> -qi::eol >> '}'
             ) [
                 _val = make_node_ptr<ast::node::function_definition>(
                         as_vector(_1),
