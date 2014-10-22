@@ -272,7 +272,7 @@ public:
                         (
                             -qi::eol >> (
                                 qi::as<ast::node_type::dict_literal::dict_elem_type>()[
-                                    typed_expr > "=>" > typed_expr
+                                    typed_expr >> "=>" > typed_expr
                                 ] % comma
                             ) >> trailing_comma
                         )[_1] // Note: Avoid bug
@@ -399,11 +399,12 @@ public:
                     )
             ];
 
-        // primary.name(...)
-        // primary.name ...
-        // primary.name
+        // primary.name(...) [do-end]
+        // primary.name ... [do-end]
+        // primary.name [do-end]
         // primary[...]
         // primary(...)
+        // primary ... do-end
         postfix_expr
             =
                 primary_expr[_val = _1] >> *(
