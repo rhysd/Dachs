@@ -115,6 +115,7 @@ end
 - [x] Basic literals
 - [x] Basic expressions
 - [x] Basic statements
+- [x] Basic strong type check
 - [x] Functions
 - [ ] Operator functions
 - [x] Overload resolution
@@ -126,10 +127,7 @@ end
 - [x] Block
 - [ ] Variadic arguments
 - [ ] Module
-- [x] Semantic checks
-- [x] LLVM IR code generation
-- [x] Executable generation
-- [x] Test
+- [x] Tests
 - [x] CMakeLists.txt
 - [x] Travis-CI
 - [ ] Option parser
