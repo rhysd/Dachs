@@ -369,9 +369,38 @@ public:
                 _val = make_node_ptr<ast::node::object_construct>(_1, _2)
             ];
 
+        lambda_expr
+            = "->" >> -qi::eol >> (
+                (
+                    // Note:
+                    // One expression lambda
+                    (('(' >> -(parameter % comma) >> trailing_comma >> ')' >> -qi::eol >> "in") | -(parameter % comma >> -qi::eol >> "in"))
+                    >> -qi::eol >> typed_expr
+                ) [
+                    _val = make_node_ptr<ast::node::lambda_expr>(
+                            make_node_ptr<ast::node::function_definition>(
+                                as_vector(_1),
+                                make_node_ptr<ast::node::statement_block>(
+                                    make_node_ptr<ast::node::return_stmt>(_2)
+                                )
+                            )
+                        )
+                ] | (
+                    // Note:
+                    // Multi-statement lambda
+                    (('(' >> -(parameter % comma) >> trailing_comma >> ')') | -(parameter % comma))
+                    >> -qi::eol >> "do" >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
+                ) [
+                    _val = make_node_ptr<ast::node::lambda_expr>(
+                            make_node_ptr<ast::node::function_definition>(as_vector(_1), _2)
+                        )
+                ]
+            );
+
         primary_expr
             = (
                   object_construct
+                | lambda_expr
                 | primary_literal
                 | array_literal
                 | symbol_literal
@@ -958,6 +987,7 @@ public:
             , primary_literal
             , array_literal
             , tuple_literal
+            , lambda_expr
             , symbol_literal
             , dict_literal
             , var_ref
@@ -1044,6 +1074,7 @@ public:
         string_literal.name("string literal");
         array_literal.name("array literal");
         tuple_literal.name("tuple literal");
+        lambda_expr.name("lambda expression");
         symbol_literal.name("symbol literal");
         dict_literal.name("dictionary literal");
         var_ref.name("variable reference");
@@ -1156,6 +1187,7 @@ private:
           primary_literal
         , array_literal
         , dict_literal
+        , lambda_expr
         , var_ref
         , primary_expr
         , postfix_expr

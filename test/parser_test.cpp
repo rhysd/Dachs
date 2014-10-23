@@ -1060,6 +1060,95 @@ BOOST_AUTO_TEST_CASE(object_construct)
         )"));
 }
 
+BOOST_AUTO_TEST_CASE(lambda_expr)
+{
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        func main
+            l := -> a, b in a + b
+            foo(
+                -> a in foo a { a },
+                -> a, var x in foo a,x { a + x },
+            )
+            l = ->
+                a, b, c, d, e
+            in
+                foo(a, b, c, d, e)
+            request(
+                -> response in println("success: " + response as string),
+                -> error in println("failure: " + error as string),
+            )
+
+            l := -> (a, b) in a + b
+            foo(
+                -> (a) in foo a { a },
+                -> (a, var x) in foo a,x { a + x },
+            )
+            l = ->
+                (a, b, c, d, e)
+            in
+                foo(a, b, c, d, e)
+
+            (-> x in x * x)(2).println
+
+            l := -> 42
+            (-> 42)().println
+            -> foo a {l(a)}
+
+            -> a, b do
+                p := a + b
+                println(p)
+            end
+            -> a, b do p := a + b; println(p); end
+            ->
+                a, b
+            do
+                p := a + b
+                println(a + p)
+            end
+            request(
+                -> response do
+                    print("response: ")
+                    println(response)
+                end,
+                -> error do
+                    print("error: ")
+                    println(error)
+                end
+            )
+
+            -> (a, b) do
+                p := a + b
+                println(p)
+            end
+            -> (a, b) do p := a + b; println(p); end
+            ->
+                (a, b)
+            do
+                p := a + b
+                println(a + p)
+            end
+            request(
+                -> (response) do
+                    print("response: ")
+                    println(response)
+                end,
+                -> (error) do
+                    print("error: ")
+                    println(error)
+                end
+            )
+        end
+    )"));
+
+    CHECK_PARSE_THROW(R"(
+        # It can't contain statement
+        func main
+            foo bar {|i| if b then c else d end}
+        end
+    )");
+
+}
+
 BOOST_AUTO_TEST_CASE(variable_decl)
 {
     BOOST_CHECK_NO_THROW(parse_and_validate(R"(

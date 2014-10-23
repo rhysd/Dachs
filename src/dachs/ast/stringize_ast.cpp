@@ -159,6 +159,11 @@ public:
         return prefix_of(tl, indent) + visit_nodes(tl->element_exprs, indent+lead, true);
     }
 
+    String visit(node::lambda_expr const& le, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(le, indent) + visit(le->def, indent+lead, "   ");
+    }
+
     String visit(node::dict_literal const& ml, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(ml, indent)

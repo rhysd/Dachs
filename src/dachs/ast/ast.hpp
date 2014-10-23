@@ -878,6 +878,19 @@ struct function_definition final : public statement {
     }
 };
 
+struct lambda_expr final : public expression {
+    node::function_definition def;
+
+    explicit lambda_expr(decltype(def) const& d)
+        : expression(), def(d)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "LAMBDA_EXPR: " + def->name;
+    }
+};
+
 struct inu final : public base {
     std::vector<node::global_definition> definitions;
 
