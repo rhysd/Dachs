@@ -1714,6 +1714,78 @@ BOOST_AUTO_TEST_CASE(do_block)
         )"));
 }
 
+BOOST_AUTO_TEST_CASE(do_block2)
+{
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        func main
+            foo(bar) { blah }
+            foo(42) {
+                blah
+            }
+
+            foo(bar) {|i| blah }
+            foo(42) {|i|
+                blah
+            }
+
+            foo bar { blah }
+            foo 42 {
+                blah
+            }
+
+            foo bar {|i| blah }
+            foo 42 {|i|
+                blah
+            }
+
+            foo 42,'a','b' {|i| blah }
+            foo 42,'a','b' {|i|
+                blah
+            }
+
+            42.foo { blah }
+            42.foo {
+                blah
+            }
+
+            42.foo2(42) { blah }
+            42.foo2(42) {
+                blah
+            }
+
+            42.foo2 foo { blah }
+            42.foo2 42 {
+                blah
+            }
+
+            42.foo2 42,'a',b { blah }
+            42.foo2 42,'a',b {
+                blah
+            }
+
+            foo bar {|i| if b then i else -i}
+
+            42.expect to_be {|i| i % 2 == 0}
+            42.should_be even?
+        end
+    )"));
+
+    CHECK_PARSE_THROW(R"(
+        # It can't contain statement
+        func main
+            foo bar {|i| if b then c else d end}
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        # It can't contain statement
+        func main
+            baz.foo { ret 42 }
+        end
+    )");
+}
+
+
 BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)
 {
     dachs::syntax::parser p;

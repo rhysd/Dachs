@@ -1217,6 +1217,90 @@ BOOST_AUTO_TEST_CASE(do_block)
             end
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func ufcs_do_no_arg(a, p)
+            p()
+        end
+
+        func ufcs_do_arg1(a, p)
+            p(a)
+        end
+
+        func ufcs_do_no_arg2(a, var p)
+            p()
+        end
+
+        func ufcs_do_arg12(a, var p)
+            p(a)
+        end
+
+        func ufcs2_do_arg1(a, b, p)
+            p(a + b)
+        end
+
+        func ufcs2_do_arg12(a, b, var p)
+            p(a + b)
+        end
+
+        func ufcs2_do_no_arg(a, b, p)
+            p()
+        end
+
+        func ufcs2_do_no_arg2(a, b, p)
+            p()
+        end
+
+        func ufcs2_do_arg2(a, b, p)
+            p(a, b)
+        end
+
+        func ufcs2_do_arg22(a, b, var p)
+            p(a, b)
+        end
+
+        func apply(arg, f)
+            ret f(arg)
+        end
+
+        func main
+            foo := 42
+
+            42.ufcs_do_arg1 {|i| i as float + 3.14 }
+
+            42.ufcs_do_arg1 {|var i| println(i * i) }
+
+            42.ufcs_do_arg12 {|_| "hoge" }
+
+            42.ufcs_do_arg12 {|var i| i * i}
+
+            42.ufcs_do_no_arg { println("ufcs no arg") }
+
+            42.ufcs_do_no_arg2 { println("ufcs no arg") }
+
+            ufcs_do_no_arg(foo) { println("ufcs no arg") }
+
+            ufcs_do_no_arg foo { println("ufcs no arg") }
+
+            ufcs_do_no_arg2(foo) { println("ufcs no arg") }
+
+            42.ufcs2_do_no_arg foo { println("ufcs no arg") }
+
+            42.ufcs2_do_arg1 foo {|i| println(i) }
+
+            42.ufcs2_do_arg2 foo {|i, j| println(i + j) }
+
+            42.ufcs2_do_no_arg2 foo { println("ufcs no arg") }
+
+            42.ufcs2_do_arg12 foo {|i| println(i) }
+
+            42.ufcs2_do_arg22 foo {|i, j| println(i + j) }
+
+            42.apply {|i| i * i} == 42 * 42
+
+            42.0.apply {|_| 3.14} == 3.14
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(do_block_with_captures)

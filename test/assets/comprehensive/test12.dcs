@@ -1,0 +1,35 @@
+func should(lhs, rhs)
+    (if rhs(lhs) then '.' else 'F').print
+end
+
+func should(lhs, filter, rhs)
+    (if filter(rhs(lhs)) then '.' else 'F').print
+end
+
+func should_not(lhs, rhs)
+    (unless rhs(lhs) then '.' else 'F').print
+end
+
+func should_not(lhs, filter, rhs)
+    (unless filter(rhs(lhs)) then '.' else 'F').print
+end
+
+func not(x)
+    ret !x
+end
+
+func even?(i)
+    ret i % 2 == 0
+end
+
+func run_tests
+    42.should {|i| i.even?}
+    42.should even?
+    43.should not {|i| i.even?}
+    43.should not, even?
+    43.should_not even?
+end
+
+func main
+    run_tests() # It outputs .....
+end

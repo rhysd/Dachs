@@ -272,7 +272,7 @@ public:
                         (
                             -qi::eol >> (
                                 qi::as<ast::node_type::dict_literal::dict_elem_type>()[
-                                    typed_expr > "=>" > typed_expr
+                                    typed_expr >> "=>" > typed_expr
                                 ] % comma
                             ) >> trailing_comma
                         )[_1] // Note: Avoid bug
@@ -388,13 +388,23 @@ public:
                 ) >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
             ) [
                 _val = make_node_ptr<ast::node::function_definition>(as_vector(_1), _2)
+            ] | (
+                '{' >> -('|' >> (parameter % comma) >> '|') >> -qi::eol >> typed_expr >> -qi::eol >> '}'
+            ) [
+                _val = make_node_ptr<ast::node::function_definition>(
+                        as_vector(_1),
+                        make_node_ptr<ast::node::statement_block>(
+                            make_node_ptr<ast::node::return_stmt>(_2)
+                        )
+                    )
             ];
 
-        // primary.name(...)
-        // primary.name ...
-        // primary.name
+        // primary.name(...) [do-end]
+        // primary.name ... [do-end]
+        // primary.name [do-end]
         // primary[...]
         // primary(...)
+        // primary ... do-end
         postfix_expr
             =
                 primary_expr[_val = _1] >> *(

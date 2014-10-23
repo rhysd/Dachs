@@ -675,6 +675,10 @@ struct return_stmt final : public statement {
         : statement(), ret_exprs(rets)
     {}
 
+    explicit return_stmt(node::any_expr const& ret) noexcept
+        : statement(), ret_exprs({ret})
+    {}
+
     std::string to_string() const noexcept override
     {
         return "RETURN_STMT";
@@ -808,6 +812,10 @@ struct statement_block final : public base {
 
     explicit statement_block(boost::optional<block_type> const& ov) noexcept
         : value(ov ? *ov : block_type{})
+    {}
+
+    explicit statement_block(node::compound_stmt const& s) noexcept
+        : value({s})
     {}
 
     std::string to_string() const noexcept override
