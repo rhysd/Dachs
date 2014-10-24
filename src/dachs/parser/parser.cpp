@@ -387,16 +387,15 @@ public:
         lambda_expr_do_end
             = "->" >> -qi::eol >> (
                 (
-                    ('(' >> -(parameter % comma >> trailing_comma) >> ')' >> -qi::eol)
-                 | -((parameter - "do") % comma)
-                ) >> DACHS_KWD("do") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
+                    ('(' >> -(parameter % comma >> trailing_comma) >> ')') | -((parameter - "do") % comma)
+                ) >> -qi::eol >> DACHS_KWD("do") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
             ) [
                 _val = make_node_ptr<ast::node::function_definition>(as_vector(_1), _2)
             ];
 
         lambda_expr
             =  (
-                lambda_expr_oneline | lambda_expr_do_end
+                lambda_expr_do_end | lambda_expr_oneline 
             ) [
                 _val = make_node_ptr<ast::node::lambda_expr>(_1)
             ];
