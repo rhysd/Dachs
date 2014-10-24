@@ -493,6 +493,21 @@ public:
             );
     }
 
+    val emit(ast::node::lambda_expr const& lambda)
+    {
+        auto const g = type::get<type::generic_func_type>(lambda->type);
+        assert(g);
+
+        auto const instantiation_itr = semantics_ctx.lambda_instantiation_map.find(*g);
+        if (instantiation_itr == std::end(semantics_ctx.lambda_instantiation_map)) {
+            // Note:
+            // When the lambda object is defined but not used.
+            return llvm::ConstantStruct::get(type_emitter.emit(*g), {});
+        }
+
+        return emit(instantiation_itr->second);
+    }
+
     llvm::Module *emit(ast::node::inu const& p)
     {
         module = new llvm::Module(file, ctx.llvm_context);
