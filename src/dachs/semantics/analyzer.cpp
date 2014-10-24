@@ -254,6 +254,14 @@ class symbol_analyzer {
         return name + '(' + boost::algorithm::join(arg_types | transformed([](auto const& t){ return t.to_string(); }), ",") + ')';
     }
 
+    template<class Node>
+    bool walk_with_failed_check(Node &node)
+    {
+        auto const saved_failed = failed;
+        ast::walk_topdown(node, *this);
+        return failed > saved_failed;
+    }
+
     captured_offset_map analyze_as_lambda(ast::node::function_definition &func_def, scope::func_scope const& func_scope)
     {
         // Note:
@@ -307,6 +315,11 @@ class symbol_analyzer {
 
         assert(lambda_type->ref && !lambda_type->ref->expired());
         auto const lambda_func = lambda_type->ref->lock();
+        if (!lambda_func->params[0]->type) {
+            // Note:
+            // When an error is detected
+            return helper::make<ast::node::tuple_literal>();
+        }
         assert(!lambda_func->is_template());
         assert(type::is_a<type::generic_func_type>(lambda_func->params[0]->type));
 
@@ -987,14 +1000,16 @@ public:
     }
 
     template<class Node>
-    void visit_do_block(Node const& node)
+    bool visit_do_block(Node const& node)
     {
         if (!node->do_block) {
-            return;
+            return true;
         }
 
         auto &block = *node->do_block;
-        ast::walk_topdown(block, *this);
+        if (walk_with_failed_check(block)) {
+            return false;
+        }
 
         assert(!block->scope.expired());
 
@@ -1008,6 +1023,8 @@ public:
         // Note:
         // Lambda captures are not resolved yet.
         // It will be resolved on overload resolution
+
+        return true;
     }
 
     // TODO:
@@ -1019,7 +1036,9 @@ public:
     {
         recursive_walker();
 
-        visit_do_block(invocation);
+        if (!visit_do_block(invocation)) {
+            return;
+        }
 
         auto const child_type = type::type_of(invocation->child);
         if (!child_type) {
@@ -1157,7 +1176,9 @@ public:
             return;
         }
 
-        visit_do_block(ufcs);
+        if (!visit_do_block(ufcs)) {
+            return;
+        }
 
         if (!ufcs->do_block) {
             auto const error = visit_invocation(ufcs, ufcs->member_name, std::vector<type::type>{{child_type}});
