@@ -1090,10 +1090,6 @@ BOOST_AUTO_TEST_CASE(lambda_expr)
 
             (-> x in x * x)(2).println
 
-            l := -> 42
-            (-> 42)().println
-            -> foo a {l(a)}
-
             -> a, b do
                 p := a + b
                 println(p)
@@ -1115,6 +1111,7 @@ BOOST_AUTO_TEST_CASE(lambda_expr)
                     println(error)
                 end
             )
+            -> x in if x < 0 then -x else x
 
             -> (a, b) do
                 p := a + b
@@ -1137,6 +1134,18 @@ BOOST_AUTO_TEST_CASE(lambda_expr)
                     println(error)
                 end
             )
+
+            - -> 42()
+            -> foo()().println
+            l := -> 42
+            (-> 42)().println
+            -> foo a {l(a)}
+            println(-> () in 42())
+            -> () do
+                println("hoge")
+                println("fuga")
+            end().println
+
         end
     )"));
 
