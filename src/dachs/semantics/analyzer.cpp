@@ -155,6 +155,7 @@ class symbol_analyzer {
     std::vector<ast::node::function_definition> lambdas;
     size_t failed = 0u;
     lambda_captures_type captures;
+    std::unordered_map<type::generic_func_type, ast::node::tuple_literal> lambda_instantiation_map;
     std::unordered_set<ast::node::function_definition> already_visited_functions;
 
     // Introduce a new scope and ensure to restore the old scope
@@ -349,9 +350,14 @@ public:
         return failed;
     }
 
-    auto lambda_captures() const noexcept
+    auto get_lambda_captures() const noexcept
     {
         return captures;
+    }
+
+    auto get_lambda_instantiation_map() const noexcept
+    {
+        return lambda_instantiation_map;
     }
 
     // Push and pop current scope {{{
@@ -731,6 +737,21 @@ public:
     }
 
     template<class Walker>
+    void visit(ast::node::lambda_expr const& lambda, Walker const&)
+    {
+        ast::walk_topdown(lambda->def, *this);
+
+        assert(!lambda->def->scope.expired());
+        auto const lambda_scope = lambda->def->scope.lock();
+        assert(lambda_scope->is_anonymous());
+
+        global->define_function(lambda_scope);
+        lambdas.push_back(lambda->def);
+
+        lambda->type = type::make<type::generic_func_type>(lambda_scope);
+    }
+
+    template<class Walker>
     void visit(ast::node::index_access const& access, Walker const& recursive_walker)
     {
         recursive_walker();
@@ -1046,7 +1067,7 @@ public:
             }
         }
 
-        auto const callee_scope = func_type->ref->lock();
+        auto callee_scope = func_type->ref->lock();
         auto const error = visit_invocation(invocation, callee_scope->name, arg_types);
         if (error) {
             semantic_error(invocation, *error);
@@ -1058,6 +1079,7 @@ public:
             // function type.  This is because lambda captures are associated with the instantiated function.
             // Below makes code generation find its lambda captures properly.
             func_type->ref = invocation->callee_scope;
+            callee_scope = invocation->callee_scope.lock();
         }
 
         if (invocation->do_block){
@@ -1065,6 +1087,11 @@ public:
             // Add do-end block's lambda object to the last of arguments of invocation
             assert(type::is_a<type::generic_func_type>(arg_types.back()));
             invocation->args.push_back(generate_lambda_object_node(*type::get<type::generic_func_type>(arg_types.back()), *invocation));
+        }
+
+        if (callee_scope->is_anonymous()) {
+            // When invoke the lambda object
+            lambda_instantiation_map[func_type] = generate_lambda_object_node(func_type, *invocation);
         }
     }
 
@@ -1636,7 +1663,7 @@ bool check_main_func(std::vector<Func> const& funcs)
 
 } // namespace detail
 
-lambda_captures_type check_semantics(ast::ast &a, scope::scope_tree &t)
+semantics_context check_semantics(ast::ast &a, scope::scope_tree &t)
 {
     detail::symbol_analyzer resolver{t.root, t.root};
     ast::walk_topdown(a.root, resolver);
@@ -1647,7 +1674,7 @@ lambda_captures_type check_semantics(ast::ast &a, scope::scope_tree &t)
     }
 
     // TODO
-    return resolver.lambda_captures();
+    return {t, resolver.get_lambda_captures(), resolver.get_lambda_instantiation_map()};
 }
 
 } // namespace semantics

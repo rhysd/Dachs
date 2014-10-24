@@ -18,15 +18,13 @@ namespace semantics {
 semantics_context analyze_semantics(ast::ast &a)
 {
     auto tree = analyze_symbols_forward(a);
-    auto captures = check_semantics(a, tree);
+    return check_semantics(a, tree);
 
     // TODO: Get type of global function variables' type on visit node::function_definition
     // Note:
     // Type of function can be set after parameters' types are set.
     // Should function type be set at forward analysis phase?
     // If so, type calculation pass should be separated from symbol analysis pass.
-
-    return {tree, std::move(captures)};
 }
 
 } // namespace semantics
