@@ -1071,6 +1071,7 @@ public:
         auto const error = visit_invocation(invocation, callee_scope->name, arg_types);
         if (error) {
             semantic_error(invocation, *error);
+            return;
         }
 
         if (callee_scope->is_template()) {
