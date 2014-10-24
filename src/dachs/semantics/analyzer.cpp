@@ -1106,7 +1106,14 @@ public:
             // Note:
             // Add do-end block's lambda object to the last of arguments of invocation
             assert(type::is_a<type::generic_func_type>(arg_types.back()));
-            invocation->args.push_back(generate_lambda_object_node(*type::get<type::generic_func_type>(arg_types.back()), *invocation));
+            auto const f = *type::get<type::generic_func_type>(arg_types.back());
+            if (f->ref->lock()->is_template()) {
+                // Note:
+                // When the lambda object is invocated with invalid arguments,
+                // the callee (= the lambda object)'s type is leaved as template.
+                return;
+            }
+            invocation->args.push_back(generate_lambda_object_node(f, *invocation));
         }
 
         if (callee_scope->is_anonymous()) {
