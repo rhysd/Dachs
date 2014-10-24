@@ -179,14 +179,15 @@ public:
         }
 
         auto const& var = *maybe_var;
+        if (var->symbol.expired()) {
+            return;
+        }
+
         auto const symbol = var->symbol.lock();
 
         if (symbol->is_builtin) {
             return;
         }
-
-        // TODO:
-        // Deal with an ignored variable, "_"
 
         if (!check_captured_symbol(symbol)) {
             return;
