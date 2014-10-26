@@ -320,7 +320,7 @@ class symbol_analyzer {
 
         assert(lambda_type->ref && !lambda_type->ref->expired());
         auto const lambda_func = lambda_type->ref->lock();
-        if (!lambda_func->params[0]->type || lambda_func->is_template()) {
+        if (lambda_func->params.empty() || lambda_func->is_template()) {
             // Note:
             // When an error is detected or lambda func is generated but not used.
             return temporary_tuple;
