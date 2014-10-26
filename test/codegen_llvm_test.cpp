@@ -1784,6 +1784,13 @@ BOOST_AUTO_TEST_CASE(some_samples)
             end
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            f := -> x in x + 1
+            f2 := -> 42
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
