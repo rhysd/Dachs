@@ -1809,7 +1809,30 @@ BOOST_AUTO_TEST_CASE(do_block)
 
             42.foo2 42 do blah end
         end
-        )"));
+    )"));
+
+    /* TODO: Not fixed yet
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        func do_corner_case(p)
+        end
+
+        func do_corner_case(x, p)
+        end
+
+        func do_corner_case(x, y, p)
+        end
+
+        func main
+            do_corner_case() do
+            end
+
+            42.do_corner_case do |i|
+            end
+
+            42.do_corner_case(42) do |i|
+            end
+        end
+    )")); */
 }
 
 BOOST_AUTO_TEST_CASE(do_block2)

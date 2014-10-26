@@ -1301,6 +1301,41 @@ BOOST_AUTO_TEST_CASE(do_block)
             42.0.apply {|_| 3.14} == 3.14
         end
     )");
+
+    // Unused blocks
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func nothing(a, p)
+        end
+
+        func nothing(p)
+        end
+
+        func main
+            42.nothing do |i|
+                println(i)
+            end
+
+            42.nothing do
+                println("non template")
+            end
+
+            nothing(42) do |i|
+                println(i)
+            end
+
+            nothing(42) do
+                println("non template")
+            end
+
+            nothing() do |i|
+                println(i)
+            end
+
+            nothing() do
+                println("non template")
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(do_block_with_captures)
