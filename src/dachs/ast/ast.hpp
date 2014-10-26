@@ -402,7 +402,7 @@ struct ufcs_invocation final : public expression {
     std::string member_name;
     scope::weak_func_scope callee_scope;
     boost::optional<node::function_definition> do_block;
-    boost::optional<node::any_expr> do_block_object;
+    boost::optional<node::lambda_expr> do_block_object;
 
     ufcs_invocation(
             node::any_expr const& c,

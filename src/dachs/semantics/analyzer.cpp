@@ -303,7 +303,7 @@ class symbol_analyzer {
     }
 
     template<class Location>
-    auto generate_lambda_object_node(type::generic_func_type const& lambda_type, Location const& location)
+    auto generate_lambda_capture_object(type::generic_func_type const& lambda_type, Location const& location)
     {
         // XXX:
         // Function invocation with do-end block (= predicate with lambda) should have a lambda object
@@ -314,16 +314,16 @@ class symbol_analyzer {
         // I'll implement the generation of lambda object with anonymous struct.  It must be replaced
         // with class object construction.
 
-        auto const lambda_object = helper::make<ast::node::tuple_literal>();
+        auto const temporary_tuple = helper::make<ast::node::tuple_literal>();
         auto const temporary_tuple_type = type::make<type::tuple_type>();
-        lambda_object->type = temporary_tuple_type;
+        temporary_tuple->type = temporary_tuple_type;
 
         assert(lambda_type->ref && !lambda_type->ref->expired());
         auto const lambda_func = lambda_type->ref->lock();
         if (!lambda_func->params[0]->type || lambda_func->is_template()) {
             // Note:
             // When an error is detected or lambda func is generated but not used.
-            return lambda_object;
+            return temporary_tuple;
         }
         assert(type::is_a<type::generic_func_type>(lambda_func->params[0]->type));
 
@@ -336,14 +336,14 @@ class symbol_analyzer {
                 new_var_ref->symbol = c.refered_symbol;
                 new_var_ref->type = s->type;
                 new_var_ref->set_source_location(location);
-                lambda_object->element_exprs.push_back(new_var_ref);
+                temporary_tuple->element_exprs.push_back(new_var_ref);
                 temporary_tuple_type->element_types.push_back(s->type);
             }
         }
 
-        lambda_object->set_source_location(location);
+        temporary_tuple->set_source_location(location);
 
-        return lambda_object;
+        return temporary_tuple;
     }
 
 public:
@@ -1107,12 +1107,18 @@ public:
             // Add do-end block's lambda object to the last of arguments of invocation
             assert(type::is_a<type::generic_func_type>(arg_types.back()));
             auto const f = *type::get<type::generic_func_type>(arg_types.back());
-            invocation->args.push_back(generate_lambda_object_node(f, *invocation));
+
+            auto const new_lambda = helper::make<ast::node::lambda_expr>(*invocation->do_block);
+            new_lambda->set_source_location(*invocation);
+            new_lambda->type = arg_types.back();
+            invocation->args.push_back(new_lambda);
+
+            lambda_instantiation_map[f] = generate_lambda_capture_object(f, *invocation);
         }
 
         if (callee_scope->is_anonymous()) {
             // When invoke the lambda object
-            lambda_instantiation_map[func_type] = generate_lambda_object_node(func_type, *invocation);
+            lambda_instantiation_map[func_type] = generate_lambda_capture_object(func_type, *invocation);
         }
     }
 
@@ -1204,15 +1210,14 @@ public:
             semantic_error(ufcs, *error);
         }
 
-        if (new_lambda_type->ref->lock()->is_template()) {
-            // Note:
-            // Replace function template with instantiated function within the newly generated generic
-            // function type.  This is because lambda captures are associated with the instantiated function.
-            // Below makes code generation find its lambda captures properly.
-            new_lambda_type->ref = ufcs->callee_scope;
-        }
+        auto const callee_scope = ufcs->callee_scope.lock();
 
-        ufcs->do_block_object = generate_lambda_object_node(new_lambda_type, *ufcs);
+        auto const new_lambda = helper::make<ast::node::lambda_expr>(*ufcs->do_block);
+        new_lambda->set_source_location(*ufcs);
+        new_lambda->type = new_lambda_type;
+        ufcs->do_block_object = new_lambda;
+
+        lambda_instantiation_map[new_lambda_type] = generate_lambda_capture_object(new_lambda_type, *ufcs);
     }
 
     template<class Walker>
