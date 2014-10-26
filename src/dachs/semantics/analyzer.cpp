@@ -314,18 +314,18 @@ class symbol_analyzer {
         // I'll implement the generation of lambda object with anonymous struct.  It must be replaced
         // with class object construction.
 
-        assert(lambda_type->ref && !lambda_type->ref->expired());
-        auto const lambda_func = lambda_type->ref->lock();
-        if (!lambda_func->params[0]->type) {
-            // Note:
-            // When an error is detected
-            return helper::make<ast::node::tuple_literal>();
-        }
-        assert(!lambda_func->is_template());
-        assert(type::is_a<type::generic_func_type>(lambda_func->params[0]->type));
-
         auto const lambda_object = helper::make<ast::node::tuple_literal>();
         auto const temporary_tuple_type = type::make<type::tuple_type>();
+        lambda_object->type = temporary_tuple_type;
+
+        assert(lambda_type->ref && !lambda_type->ref->expired());
+        auto const lambda_func = lambda_type->ref->lock();
+        if (!lambda_func->params[0]->type || lambda_func->is_template()) {
+            // Note:
+            // When an error is detected or lambda func is generated but not used.
+            return lambda_object;
+        }
+        assert(type::is_a<type::generic_func_type>(lambda_func->params[0]->type));
 
         if (captures.find(lambda_func) != std::end(captures)) {
             // Note:
@@ -342,7 +342,6 @@ class symbol_analyzer {
         }
 
         lambda_object->set_source_location(location);
-        lambda_object->type = temporary_tuple_type;
 
         return lambda_object;
     }
@@ -1108,12 +1107,6 @@ public:
             // Add do-end block's lambda object to the last of arguments of invocation
             assert(type::is_a<type::generic_func_type>(arg_types.back()));
             auto const f = *type::get<type::generic_func_type>(arg_types.back());
-            if (f->ref->lock()->is_template()) {
-                // Note:
-                // When the lambda object is invocated with invalid arguments,
-                // the callee (= the lambda object)'s type is leaved as template.
-                return;
-            }
             invocation->args.push_back(generate_lambda_object_node(f, *invocation));
         }
 

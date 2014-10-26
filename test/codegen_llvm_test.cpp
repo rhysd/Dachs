@@ -1572,16 +1572,16 @@ BOOST_AUTO_TEST_CASE(lambda_expression)
             end
             i()
 
-            j := -> x, y do
-                ret h() * foo(21) * x * y * 21
-            end(2, 3).println
+            # j := -> x, y do
+            #     ret h() * foo(21) * x * y * 21
+            # end(2, 3).println
         end
     )");
 
     // Lambda is generic
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func main
-            double := -> x -> x * x
+            double := -> x in x * x
 
             double(42).println
             double(3.14).println
