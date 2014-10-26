@@ -1504,6 +1504,91 @@ BOOST_AUTO_TEST_CASE(unit_type)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(lambda_expression)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func bind1st(x, f)
+            ret -> y in f(x, y)
+        end
+
+        func plus(x, y)
+            ret x + y
+        end
+
+        func returns_42(x)
+            ret x() as int == 42
+        end
+
+        func fourty_two
+            ret 42
+        end
+
+        func main
+            y := 42
+
+            f := -> x in x + 42
+            f(21).println
+
+            g := -> x in -f(x)
+            f(g((g(21) + f(21)))).println
+
+            p := -> ()
+            q := -> p()
+
+            r := -> 42
+
+            returns_42(fourty_two).println
+            returns_42(){42}.println
+            returns_42(r).println
+
+            s := bind1st(21, plus)
+            s(11).println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+            ret x * 2
+        end
+
+        func main
+            y := 42
+            f := -> x do
+                z := x + 42
+                println(z)
+            end
+            f(21)
+
+            -> x do
+                f(x)
+            end(21)
+
+            h := -> do
+                ret 42
+            end
+
+            i := -> do
+                println(h())
+            end
+            i()
+
+            j := -> x, y do
+                ret h() * foo(21) * x * y * 21
+            end(2, 3).println
+        end
+    )");
+
+    // Lambda is generic
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            double := -> x -> x * x
+
+            double(42).println
+            double(3.14).println
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(some_samples)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(

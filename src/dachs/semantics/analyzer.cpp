@@ -4,6 +4,7 @@
 #include <iterator>
 #include <unordered_set>
 #include <tuple>
+#include <set>
 
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
@@ -262,7 +263,7 @@ class symbol_analyzer {
         return failed > saved_failed;
     }
 
-    captured_offset_map analyze_as_lambda(ast::node::function_definition &func_def, scope::func_scope const& func_scope)
+    captured_offset_map analyze_as_lambda_invocation(ast::node::function_definition &func_def, scope::func_scope const& func_scope)
     {
         // Note:
         //  1. Lambda function takes its lambda object (captured values) as 1st parameter
@@ -295,10 +296,10 @@ class symbol_analyzer {
         return invocation_map;
     }
 
-    captured_offset_map analyze_as_lambda(ast::node::function_definition &func_def)
+    captured_offset_map analyze_as_lambda_invocation(ast::node::function_definition &func_def)
     {
         assert(!func_def->scope.expired());
-        return analyze_as_lambda(func_def, func_def->scope.lock());
+        return analyze_as_lambda_invocation(func_def, func_def->scope.lock());
     }
 
     template<class Location>
@@ -979,7 +980,7 @@ public:
         }
 
         if (func->is_anonymous()){
-            captures[func] = analyze_as_lambda(func_def, func);
+            captures[func] = analyze_as_lambda_invocation(func_def, func);
         }
 
         if (!func_def->ret_type) {
