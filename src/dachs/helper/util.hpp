@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <algorithm>
 #include <initializer_list>
+#include <unordered_map>
 #include <boost/optional.hpp>
 #include <boost/range/algorithm/find.hpp>
 #include <boost/range/algorithm/find_if.hpp>
@@ -129,6 +130,12 @@ auto indices(I1 const i1, I2 const i2) noexcept
 {
     assert(i1 <= i2);
     return boost::irange<I1>(i1, static_cast<I1>(i2));
+}
+
+template<class Key, class Value, class T>
+bool exists(std::unordered_map<Key, Value> const& m, T const& t) noexcept
+{
+    return m.find(t) != std::end(m);
 }
 
 } // namespace helper

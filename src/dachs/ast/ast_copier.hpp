@@ -250,6 +250,11 @@ public:
                 );
     }
 
+    auto copy(node::lambda_expr const& le) const
+    {
+        return copy_node<node::lambda_expr>(le, copy(le->def));
+    }
+
     auto copy(node::inu const& p) const
     {
         return copy_node<node::inu>(p, copy(p->definitions));

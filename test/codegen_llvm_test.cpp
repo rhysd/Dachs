@@ -1301,6 +1301,41 @@ BOOST_AUTO_TEST_CASE(do_block)
             42.0.apply {|_| 3.14} == 3.14
         end
     )");
+
+    // Unused blocks
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func nothing(a, p)
+        end
+
+        func nothing(p)
+        end
+
+        func main
+            42.nothing do |i|
+                println(i)
+            end
+
+            42.nothing do
+                println("non template")
+            end
+
+            nothing(42) do |i|
+                println(i)
+            end
+
+            nothing(42) do
+                println("non template")
+            end
+
+            nothing() do |i|
+                println(i)
+            end
+
+            nothing() do
+                println("non template")
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(do_block_with_captures)
@@ -1504,6 +1539,91 @@ BOOST_AUTO_TEST_CASE(unit_type)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(lambda_expression)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func bind1st(x, f)
+            ret -> y in f(x, y)
+        end
+
+        func plus(x, y)
+            ret x + y
+        end
+
+        func returns_42(x)
+            ret x() as int == 42
+        end
+
+        func fourty_two
+            ret 42
+        end
+
+        func main
+            y := 42
+
+            f := -> x in x + 42
+            f(21).println
+
+            g := -> x in -f(x)
+            f(g((g(21) + f(21)))).println
+
+            p := -> ()
+            q := -> p()
+
+            r := -> 42
+
+            returns_42(fourty_two).println
+            returns_42(){42}.println
+            returns_42(r).println
+
+            s := bind1st(21, plus)
+            s(11).println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+            ret x * 2
+        end
+
+        func main
+            y := 42
+            f := -> x do
+                z := x + 42
+                println(z)
+            end
+            f(21)
+
+            -> x do
+                f(x)
+            end(21)
+
+            h := -> do
+                ret 42
+            end
+
+            i := -> do
+                println(h())
+            end
+            i()
+
+            # j := -> x, y do
+            #     ret h() * foo(21) * x * y * 21
+            # end(2, 3).println
+        end
+    )");
+
+    // Lambda is generic
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            double := -> x in x * x
+
+            double(42).println
+            double(3.14).println
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(some_samples)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
@@ -1662,6 +1782,13 @@ BOOST_AUTO_TEST_CASE(some_samples)
             [1, 2, 3, 4].each do |i|
                 println(i)
             end
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            f := -> x in x + 1
+            f2 := -> 42
         end
     )");
 }

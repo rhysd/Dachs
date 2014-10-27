@@ -214,6 +214,13 @@ public:
         with_new_scope(std::move(new_local_scope), recursive_walker);
     }
 
+    template<class Walker>
+    void visit(ast::node::lambda_expr const& lambda, Walker const&)
+    {
+        lambda->def->name = get_lambda_name(lambda);
+        ast::walk_topdown(lambda->def, *this);
+    }
+
     template<class Node>
     void visit_do_block(Node const& n)
     {

@@ -1060,6 +1060,104 @@ BOOST_AUTO_TEST_CASE(object_construct)
         )"));
 }
 
+BOOST_AUTO_TEST_CASE(lambda_expr)
+{
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        func main
+            l := -> a, b in a + b
+            foo(
+                -> a in foo a { a },
+                -> a, var x in foo a,x { a + x },
+            )
+            l = ->
+                a, b, c, d, e
+            in
+                foo(a, b, c, d, e)
+            request(
+                -> response in println("success: " + response as string),
+                -> error in println("failure: " + error as string),
+            )
+
+            l := -> (a, b) in a + b
+            foo(
+                -> (a) in foo a { a },
+                -> (a, var x) in foo a,x { a + x },
+            )
+            l = ->
+                (a, b, c, d, e)
+            in
+                foo(a, b, c, d, e)
+
+            (-> x in x * x)(2).println
+
+            -> a, b do
+                p := a + b
+                println(p)
+            end
+            -> a, b do p := a + b; println(p); end
+            ->
+                a, b
+            do
+                p := a + b
+                println(a + p)
+            end
+            request(
+                -> response do
+                    print("response: ")
+                    println(response)
+                end,
+                -> error do
+                    print("error: ")
+                    println(error)
+                end
+            )
+            -> x in if x < 0 then -x else x
+
+            -> (a, b) do
+                p := a + b
+                println(p)
+            end
+            -> (a, b) do p := a + b; println(p); end
+            ->
+                (a, b)
+            do
+                p := a + b
+                println(a + p)
+            end
+            request(
+                -> (response) do
+                    print("response: ")
+                    println(response)
+                end,
+                -> (error) do
+                    print("error: ")
+                    println(error)
+                end
+            )
+
+            - -> 42()
+            -> foo()().println
+            l := -> 42
+            (-> 42)().println
+            -> foo a {l(a)}
+            println(-> () in 42())
+            -> () do
+                println("hoge")
+                println("fuga")
+            end().println
+
+        end
+    )"));
+
+    CHECK_PARSE_THROW(R"(
+        # It can't contain statement
+        func main
+            foo bar {|i| if b then c else d end}
+        end
+    )");
+
+}
+
 BOOST_AUTO_TEST_CASE(variable_decl)
 {
     BOOST_CHECK_NO_THROW(parse_and_validate(R"(
@@ -1711,7 +1809,30 @@ BOOST_AUTO_TEST_CASE(do_block)
 
             42.foo2 42 do blah end
         end
-        )"));
+    )"));
+
+    /* TODO: Not fixed yet
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        func do_corner_case(p)
+        end
+
+        func do_corner_case(x, p)
+        end
+
+        func do_corner_case(x, y, p)
+        end
+
+        func main
+            do_corner_case() do
+            end
+
+            42.do_corner_case do |i|
+            end
+
+            42.do_corner_case(42) do |i|
+            end
+        end
+    )")); */
 }
 
 BOOST_AUTO_TEST_CASE(do_block2)

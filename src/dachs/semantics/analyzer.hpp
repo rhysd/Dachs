@@ -8,7 +8,7 @@
 namespace dachs {
 namespace semantics {
 
-lambda_captures_type check_semantics(ast::ast &a, scope::scope_tree &t);
+semantics_context check_semantics(ast::ast &a, scope::scope_tree &t);
 
 } // namespace semantics
 } // namespace dachs

@@ -369,9 +369,41 @@ public:
                 _val = make_node_ptr<ast::node::object_construct>(_1, _2)
             ];
 
+        lambda_expr_oneline
+            = "->" >> -qi::eol >> (
+                (
+                    ('(' >> -(parameter % comma >> trailing_comma) >> ')' >> -qi::eol >> DACHS_KWD("in"))
+                 | -((parameter - "in") % comma >> trailing_comma >> DACHS_KWD("in"))
+                ) >> -qi::eol >> typed_expr
+            ) [
+                _val = make_node_ptr<ast::node::function_definition>(
+                    as_vector(_1),
+                    make_node_ptr<ast::node::statement_block>(
+                        make_node_ptr<ast::node::return_stmt>(_2)
+                    )
+                )
+            ];
+
+        lambda_expr_do_end
+            = "->" >> -qi::eol >> (
+                (
+                    ('(' >> -(parameter % comma >> trailing_comma) >> ')') | -((parameter - "do") % comma)
+                ) >> -qi::eol >> DACHS_KWD("do") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
+            ) [
+                _val = make_node_ptr<ast::node::function_definition>(as_vector(_1), _2)
+            ];
+
+        lambda_expr
+            =  (
+                lambda_expr_do_end | lambda_expr_oneline 
+            ) [
+                _val = make_node_ptr<ast::node::lambda_expr>(_1)
+            ];
+
         primary_expr
             = (
                   object_construct
+                | lambda_expr
                 | primary_literal
                 | array_literal
                 | symbol_literal
@@ -958,6 +990,7 @@ public:
             , primary_literal
             , array_literal
             , tuple_literal
+            , lambda_expr
             , symbol_literal
             , dict_literal
             , var_ref
@@ -1008,6 +1041,8 @@ public:
             , if_else_stmt_block
             , case_when_stmt_block
             , func_body_stmt_block
+            , lambda_expr_oneline
+            , lambda_expr_do_end
         );
 
         qi::on_error<qi::fail>(
@@ -1044,6 +1079,7 @@ public:
         string_literal.name("string literal");
         array_literal.name("array literal");
         tuple_literal.name("tuple literal");
+        lambda_expr.name("lambda expression");
         symbol_literal.name("symbol literal");
         dict_literal.name("dictionary literal");
         var_ref.name("variable reference");
@@ -1109,6 +1145,8 @@ public:
         type_name.name("type name");
         func_precondition.name("precondition in function");
         postfix_if_return_stmt.name("return statement in postfix if statement");
+        lambda_expr_oneline.name("\"in\" lambda expression");
+        lambda_expr_do_end.name("\"do-end\" lambda expression");
         // }}}
     }
 
@@ -1149,13 +1187,14 @@ private:
     rule<std::string()> string_literal;
     rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
     rule<ast::node::initialize_stmt()> constant_definition;
-    rule<ast::node::function_definition()> do_block;
+    rule<ast::node::function_definition()> do_block, lambda_expr_oneline, lambda_expr_do_end;
     rule<ast::node::statement_block()> do_stmt;
 
     rule<ast::node::any_expr()>
           primary_literal
         , array_literal
         , dict_literal
+        , lambda_expr
         , var_ref
         , primary_expr
         , postfix_expr

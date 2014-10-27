@@ -402,7 +402,7 @@ struct ufcs_invocation final : public expression {
     std::string member_name;
     scope::weak_func_scope callee_scope;
     boost::optional<node::function_definition> do_block;
-    boost::optional<node::any_expr> do_block_object;
+    boost::optional<node::lambda_expr> do_block_object;
 
     ufcs_invocation(
             node::any_expr const& c,
@@ -875,6 +875,19 @@ struct function_definition final : public statement {
     std::string to_string() const noexcept override
     {
         return "FUNC_DEFINITION: " + symbol::to_string(kind) + ' ' + name;
+    }
+};
+
+struct lambda_expr final : public expression {
+    node::function_definition def;
+
+    explicit lambda_expr(decltype(def) const& d)
+        : expression(), def(d)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "LAMBDA_EXPR: " + def->name;
     }
 };
 

@@ -203,8 +203,63 @@ BOOST_AUTO_TEST_CASE(no_lambda_capture_found)
             end
         end
     )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            f := -> a in x
+            f(42)
+        end
+    )");
 }
 
+BOOST_AUTO_TEST_CASE(invocation_with_wrong_arguments)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i : int)
+        end
+
+        func main
+            foo(1.0)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i : int)
+        end
+
+        func main
+            foo(1, 2)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i)
+        end
+
+        func main
+            foo(1, 2)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(p)
+            p(1, 2)
+        end
+
+        func main
+            foo() do |i|
+                println(i)
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            f := -> x in x + 1
+            f(1, 2)
+        end
+    )");
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 
