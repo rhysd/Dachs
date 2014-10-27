@@ -1496,6 +1496,19 @@ BOOST_AUTO_TEST_CASE(do_block_with_captures)
             end
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            (-> -> 42)()().println
+            (-> -> println(42))()()
+
+            a := 42
+            (-> -> a)()().println
+
+            var b := 42
+            (-> -> b)()().println
+        end
+    )")
 }
 
 BOOST_AUTO_TEST_CASE(unit_type)
