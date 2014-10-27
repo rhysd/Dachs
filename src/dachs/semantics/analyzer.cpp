@@ -327,7 +327,7 @@ class symbol_analyzer {
         }
         assert(type::is_a<type::generic_func_type>(lambda_func->params[0]->type));
 
-        if (captures.find(lambda_func) != std::end(captures)) {
+        if (helper::exists(captures, lambda_func)) {
             // Note:
             // Substitute captured values as its fields
             for (auto const& c : captures.at(lambda_func).template get<semantics::tags::offset>()) {
@@ -1116,11 +1116,16 @@ public:
             lambda_instantiation_map[f] = generate_lambda_capture_object(f, *invocation);
         }
 
-        if (callee_scope->is_anonymous()) {
+        if (callee_scope->is_anonymous() && helper::exists(lambda_instantiation_map, func_type)) {
             // When invoke the lambda object
             lambda_instantiation_map[func_type] = generate_lambda_capture_object(func_type, *invocation);
         }
     }
+
+    // TODO:
+    // lambda 関数の func_def を覚えておく
+    // analyze_as_lambda_invocation() の呼び出しを意味解析の最後に行う
+    // generate_lambda_capture_object() の呼び出しを意味解析の最後に行う
 
     template<class Walker>
     void visit(ast::node::typed_expr const& typed, Walker const& recursive_walker)
