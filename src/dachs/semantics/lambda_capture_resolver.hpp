@@ -212,7 +212,7 @@ public:
 
         auto const symbol = var->symbol.lock();
 
-        if (symbol->is_builtin) {
+        if (symbol->is_builtin || symbol->is_global) {
             return;
         }
 

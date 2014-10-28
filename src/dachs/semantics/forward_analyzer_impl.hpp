@@ -107,8 +107,9 @@ public:
 
         if (auto maybe_global_scope = get_as<scope::global_scope>(current_scope)) {
             auto& global_scope = *maybe_global_scope;
-            auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name, true /*immutable*/);
+            auto const new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name, true /*immutable*/);
             new_func_var->type = new_func->type;
+            new_func_var->is_global = true;
             global_scope->define_function(new_func);
             global_scope->define_global_function_constant(new_func_var);
         } else if (auto maybe_local_scope = get_as<scope::local_scope>(current_scope)) {
