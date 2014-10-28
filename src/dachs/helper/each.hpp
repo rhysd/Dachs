@@ -11,7 +11,7 @@
 
 // Fallback for libstdc++ 4.8
 #if defined(__GLIBCPP__) || defined(__GLIBCXX__)
-#if (__GNUC__ == 4 && __GNUC_MINOR__ <= 8)
+#if (__GNUC__ == 4 && __GNUC_MINOR__ <= 8 && __GNUC_MINOR__ != 2)
 namespace std {
 
 template <std::size_t... Indices>
