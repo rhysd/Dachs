@@ -14,6 +14,7 @@
 #include "dachs/ast/ast_walker.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/scope.hpp"
+#include "dachs/semantics/type.hpp"
 #include "dachs/semantics/semantics_context.hpp"
 #include "dachs/helper/make.hpp"
 #include "dachs/helper/variant.hpp"
@@ -88,8 +89,8 @@ class lambda_capture_resolver {
     size_t offset;
     scope::any_scope current_scope;
     symbol::var_symbol const& receiver_symbol;
-
     std::unordered_map<symbol::var_symbol, ast::node::ufcs_invocation> sym_map;
+    std::unordered_map<type::generic_func_type, ast::node::tuple_literal> &lambda_instantiations;
 
     template<class Symbol>
     bool check_captured_symbol(Symbol const& sym) const
@@ -143,8 +144,8 @@ class lambda_capture_resolver {
 
 public:
 
-    explicit lambda_capture_resolver(scope::func_scope const& s, symbol::var_symbol const& r) noexcept
-        : captures(), lambda_scope(s), offset(0u), current_scope(s), receiver_symbol(r)
+    explicit lambda_capture_resolver(scope::func_scope const& s, symbol::var_symbol const& r, decltype(lambda_instantiations) &i) noexcept
+        : captures(), lambda_scope(s), offset(0u), current_scope(s), receiver_symbol(r), lambda_instantiations(i)
     {}
 
     template<class Scope>
@@ -167,6 +168,32 @@ public:
     void visit(ast::node::let_stmt &let, Walker const& w)
     {
         with_scope(let->scope, w);
+    }
+
+    template<class Walker>
+    void visit(ast::node::lambda_expr &lambda, Walker const&)
+    {
+        // Note:
+        // Update symbols in lambda object instantiation
+
+        assert(type::is_a<type::generic_func_type>(lambda->type));
+        auto const instantiation = lambda_instantiations.find(*type::get<type::generic_func_type>(lambda->type));
+        if (instantiation != std::end(lambda_instantiations)) {
+            ast::walk_topdown(instantiation->second, *this);
+        }
+    }
+
+    template<class Walker>
+    void visit(ast::node::ufcs_invocation &ufcs, Walker const& w)
+    {
+        w();
+
+        // Note:
+        // Update symbols in lambda object instantiation
+        if (ufcs->do_block_object) {
+            assert(lambda_instantiations.find(*type::get<type::generic_func_type>((*ufcs->do_block_object)->type)) != std::end(lambda_instantiations));
+            ast::walk_topdown(*ufcs->do_block_object, *this);
+        }
     }
 
     template<class Walker>
@@ -219,9 +246,9 @@ public:
 };
 
 template<class Node>
-captured_offset_map resolve_lambda_captures(Node &search_root, scope::func_scope const& lambda_scope, symbol::var_symbol const& receiver)
+captured_offset_map resolve_lambda_captures(Node &search_root, scope::func_scope const& lambda_scope, symbol::var_symbol const& receiver, std::unordered_map<type::generic_func_type, ast::node::tuple_literal> &lambda_instantiations)
 {
-    lambda_capture_resolver resolver{lambda_scope, receiver};
+    lambda_capture_resolver resolver{lambda_scope, receiver, lambda_instantiations};
     ast::walk_topdown(search_root, resolver);
     return resolver.get_captures();
 }

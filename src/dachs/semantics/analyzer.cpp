@@ -280,7 +280,7 @@ class symbol_analyzer {
         new_param->param_symbol = lambda_object_sym;
         func_scope->force_push_front_param(lambda_object_sym);
 
-        auto const invocation_map = detail::resolve_lambda_captures(func_def, func_scope, lambda_object_sym);
+        auto const invocation_map = detail::resolve_lambda_captures(func_def, func_scope, lambda_object_sym, lambda_instantiation_map);
         auto const lambda_type = type::make<type::generic_func_type>(func_scope);
 
         // Note:
