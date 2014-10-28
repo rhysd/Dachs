@@ -27,7 +27,7 @@
 # include <llvm/Analysis/Verifier.h>
 #elif (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 5)
 # include <llvm/IR/Verifier.h>
-#include <llvm/Support/raw_ostream.h>
+# include <llvm/Support/raw_ostream.h>
 #else
 # error LLVM: Not supported version.
 #endif
