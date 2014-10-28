@@ -1500,7 +1500,7 @@ llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const
     std::string errmsg;
     if (llvm::verifyModule(the_module, llvm::ReturnStatusAction, &errmsg)) {
         helper::colorizer<std::string> c;
-        std::cout << c.red(errmsg) << std::endl;
+        std::cerr << c.red(errmsg) << std::endl;
     }
     return the_module;
 }
