@@ -12,6 +12,7 @@
 #include <llvm/PassManager.h>
 #include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Support/FormattedStream.h>
+#include <llvm/Support/FileSystem.h>
 
 #include "dachs/codegen/llvmir/executable_generator.hpp"
 #include "dachs/exception.hpp"
@@ -43,12 +44,12 @@ class binary_generator final {
 
         // Note:
         // This implies that all passes MUST be allocated with 'new'.
-        pm.add(new llvm::DataLayout(*ctx.data_layout));
+        pm.add(new llvm::DataLayoutPass(llvm::DataLayout(*ctx.data_layout)));
 
         auto const obj_name = get_base_name_from_module(module) + ".o";
 
         std::string buffer;
-        llvm::tool_output_file out{obj_name.c_str(), buffer, llvm::sys::fs::F_None | llvm::sys::fs::F_Binary};
+        llvm::tool_output_file out{obj_name.c_str(), buffer, llvm::sys::fs::F_None};
         out.keep(); // Do not delete object file
 
         llvm::formatted_raw_ostream formatted_os{out.os()};

@@ -23,7 +23,14 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Function.h>
-#include <llvm/Analysis/Verifier.h>
+#if (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 4)
+# include <llvm/Analysis/Verifier.h>
+#elif (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 5)
+# include <llvm/IR/Verifier.h>
+#include <llvm/Support/raw_ostream.h>
+#else
+# error LLVM: Not supported version.
+#endif
 
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
@@ -1498,10 +1505,22 @@ llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const
 {
     auto &the_module = *detail::llvm_ir_emitter{a.name, ctx, sctx}.emit(a.root);
     std::string errmsg;
+
+#if (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 4)
     if (llvm::verifyModule(the_module, llvm::ReturnStatusAction, &errmsg)) {
+
+#elif (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 5)
+    llvm::raw_string_ostream rso(errmsg);
+    if (llvm::verifyModule(the_module, &rso)) {
+
+#else
+# error LLVM: Not supported version.
+#endif
+
         helper::colorizer<std::string> c;
         std::cerr << c.red(errmsg) << std::endl;
     }
+
     return the_module;
 }
 
