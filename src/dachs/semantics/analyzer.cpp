@@ -761,7 +761,9 @@ public:
         global->define_function(lambda_scope);
         lambdas.push_back(lambda->def);
 
-        lambda->type = type::make<type::generic_func_type>(lambda_scope);
+        auto const new_lambda_type = type::make<type::generic_func_type>(lambda_scope);
+        lambda->type = new_lambda_type;
+        lambda_instantiation_map[new_lambda_type] = generate_lambda_capture_object(new_lambda_type, *lambda);
     }
 
     template<class Walker>
