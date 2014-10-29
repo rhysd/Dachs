@@ -1122,11 +1122,6 @@ public:
         }
     }
 
-    // TODO:
-    // lambda 関数の func_def を覚えておく
-    // analyze_as_lambda_invocation() の呼び出しを意味解析の最後に行う
-    // generate_lambda_capture_object() の呼び出しを意味解析の最後に行う
-
     template<class Walker>
     void visit(ast::node::typed_expr const& typed, Walker const& recursive_walker)
     {

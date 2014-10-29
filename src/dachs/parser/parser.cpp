@@ -47,6 +47,7 @@ using qi::_4;
 using qi::_5;
 using qi::_6;
 using qi::_a;
+using qi::_b;
 using qi::_val;
 using qi::lit;
 using qi::string;
@@ -369,15 +370,22 @@ public:
                 _val = make_node_ptr<ast::node::object_construct>(_1, _2)
             ];
 
+        // Note:
+        // Use 2 temporary variables _a and _b. Causing back tracking on the parameters without parens
+        // because of lack of "in", the body of lambda may be already parsed as parameter and it remains.
+        // So, at first bind the parameters to _a and if "in" is parsed correctly, then substitute _a to _b.
+        // Finally _b is used to construct ast::node::function_definition.
         lambda_expr_oneline
             = "->" >> -qi::eol >> (
                 (
-                    ('(' >> -(parameter % comma >> trailing_comma) >> ')' >> -qi::eol >> DACHS_KWD("in"))
-                 | -((parameter - "in") % comma >> trailing_comma >> DACHS_KWD("in"))
+                    ('(' >> -(parameter[phx::push_back(_b, _1)] % comma >> trailing_comma) >> ')' >> -qi::eol >> -DACHS_KWD("in"))
+                 | -(
+                        (parameter - "in")[phx::push_back(_a, _1)] % comma >> trailing_comma >> DACHS_KWD("in")[_b = _a]
+                    )
                 ) >> -qi::eol >> typed_expr
             ) [
                 _val = make_node_ptr<ast::node::function_definition>(
-                    as_vector(_1),
+                    _b,
                     make_node_ptr<ast::node::statement_block>(
                         make_node_ptr<ast::node::return_stmt>(_2)
                     )
@@ -1187,7 +1195,7 @@ private:
     rule<std::string()> string_literal;
     rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
     rule<ast::node::initialize_stmt()> constant_definition;
-    rule<ast::node::function_definition()> do_block, lambda_expr_oneline, lambda_expr_do_end;
+    rule<ast::node::function_definition()> do_block, lambda_expr_do_end;
     rule<ast::node::statement_block()> do_stmt;
 
     rule<ast::node::any_expr()>
@@ -1217,6 +1225,13 @@ private:
 
     rule<ast::node::any_expr(), qi::locals<std::vector<ast::node::any_expr>>> tuple_literal;
     rule<ast::node::any_expr(), qi::locals<std::string>> symbol_literal;
+    rule<
+        ast::node::function_definition(),
+        qi::locals<
+            std::vector<ast::node::parameter>,
+            std::vector<ast::node::parameter>
+        >
+    >  lambda_expr_oneline;
 
     rule<ast::node::any_type()>
           primary_type
