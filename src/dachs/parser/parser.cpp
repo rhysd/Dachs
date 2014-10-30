@@ -378,10 +378,10 @@ public:
         lambda_expr_oneline
             = "->" >> -qi::eol >> (
                 (
-                    ('(' >> -(parameter[phx::push_back(_b, _1)] % comma >> trailing_comma) >> ')' >> -qi::eol >> -DACHS_KWD("in"))
-                 | -(
-                        (parameter - "in")[phx::push_back(_a, _1)] % comma >> trailing_comma >> DACHS_KWD("in")[_b = _a]
-                    )
+                   ('(' >> -(parameter[phx::push_back(_a, _1)] % comma >> trailing_comma) >> ')' >> -qi::eol >> DACHS_KWD("in")[_b = _a])
+                | -(
+                      (parameter - "in")[phx::push_back(_a, _1)] % comma >> trailing_comma >> DACHS_KWD("in")[_b = _a]
+                   )
                 ) >> -qi::eol >> typed_expr
             ) [
                 _val = make_node_ptr<ast::node::function_definition>(

@@ -1156,6 +1156,17 @@ BOOST_AUTO_TEST_CASE(lambda_expr)
         end
     )");
 
+    // Corner cases
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        func main
+            p := -> ()
+            q := -> p()
+
+            r := -> (p, q)       # tuple
+            s := -> (p, q) in 42 # params
+            t := -> () in (p, q)
+        end
+    )"));
 }
 
 BOOST_AUTO_TEST_CASE(variable_decl)
