@@ -1,6 +1,6 @@
 func main
-	var i := 1
-	print("i="); println(i)
+    var i := 1
+    print("i="); println(i)
     i = 2
-	print("i="); println(i)
+    print("i="); println(i)
 end
