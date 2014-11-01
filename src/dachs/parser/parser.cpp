@@ -204,7 +204,7 @@ public:
 
         boolean_literal
             = (
-                qi::bool_
+                DACHS_KWD(qi::bool_)
             );
 
         string_literal
