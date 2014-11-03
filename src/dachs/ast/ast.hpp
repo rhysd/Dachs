@@ -297,6 +297,19 @@ struct dict_literal final : public expression {
     }
 };
 
+struct lambda_expr final : public expression {
+    node::function_definition def;
+
+    explicit lambda_expr(decltype(def) const& d)
+        : expression(), def(d)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "LAMBDA_EXPR";
+    }
+};
+
 // This node will have kind of variable (global, member, local variables and functions)
 struct var_ref final : public expression {
     std::string name;
@@ -345,22 +358,30 @@ struct func_invocation final : public expression {
 
     func_invocation(
             node::any_expr const& c,
-            std::vector<node::any_expr> const& args,
-            decltype(do_block) const f = boost::none
+            std::vector<node::any_expr> const& a,
+            boost::optional<node::function_definition> const& do_ = boost::none
         ) noexcept
-        : expression(), child(c), args(args), do_block(std::move(f))
-    {}
+        : expression(), child(c), args(a)
+    {
+        if (do_) {
+            // args.push_back(helper::make<node::lambda_expr>(*do_));
+            args.push_back(std::make_shared<node_type::lambda_expr>(*do_));
+        }
+    }
 
     // Note: For UFCS
     func_invocation(
             node::any_expr const& c,
             node::any_expr const& head,
             std::vector<node::any_expr> const& tail,
-            decltype(do_block) const f = nullptr
+            boost::optional<node::function_definition> const& do_= boost::none
         ) noexcept
-        : expression(), child(c), args({head}), do_block(std::move(f))
+        : expression(), child(c), args({head})
     {
         args.insert(args.end(), tail.begin(), tail.end());
+        if (do_) {
+            args.push_back(helper::make<node::lambda_expr>(*do_));
+        }
     }
 
     std::string to_string() const noexcept override
@@ -875,19 +896,6 @@ struct function_definition final : public statement {
     std::string to_string() const noexcept override
     {
         return "FUNC_DEFINITION: " + symbol::to_string(kind) + ' ' + name;
-    }
-};
-
-struct lambda_expr final : public expression {
-    node::function_definition def;
-
-    explicit lambda_expr(decltype(def) const& d)
-        : expression(), def(d)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "LAMBDA_EXPR: " + def->name;
     }
 };
 
