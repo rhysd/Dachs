@@ -91,6 +91,7 @@ class lambda_capture_resolver {
     symbol::var_symbol const& receiver_symbol;
     std::unordered_map<symbol::var_symbol, ast::node::ufcs_invocation> sym_map;
     std::unordered_map<type::generic_func_type, ast::node::tuple_literal> &lambda_instantiations;
+    std::unordered_map<scope::func_scope, symbol::var_symbol> lambda_object_symbol_map;
 
     template<class Symbol>
     bool check_captured_symbol(Symbol const& sym) const
