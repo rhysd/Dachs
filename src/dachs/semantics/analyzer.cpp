@@ -1038,10 +1038,6 @@ public:
     {
         recursive_walker();
 
-        if (!visit_do_block(invocation)) {
-            return;
-        }
-
         auto const child_type = type::type_of(invocation->child);
         if (!child_type) {
             return;
@@ -1072,16 +1068,6 @@ public:
         // Get type list of arguments
         boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return type_of(e);});
 
-        if (invocation->do_block) {
-            // Note:
-            // The refered function now may be function template.
-            // It will be instantiated in visit_invocation() and then I should update the refered function to
-            // instantiated function.  I generate new generic function type here because the update should not
-            // affect the original generic function type.
-            auto const new_lambda_type = type::make<type::generic_func_type>((*invocation->do_block)->scope);
-            arg_types.push_back(new_lambda_type);
-        }
-
         for (auto const& arg_type : arg_types) {
             if (!arg_type) {
                 return;
@@ -1102,20 +1088,6 @@ public:
             // Below makes code generation find its lambda captures properly.
             func_type->ref = invocation->callee_scope;
             callee_scope = invocation->callee_scope.lock();
-        }
-
-        if (invocation->do_block){
-            // Note:
-            // Add do-end block's lambda object to the last of arguments of invocation
-            assert(type::is_a<type::generic_func_type>(arg_types.back()));
-            auto const f = *type::get<type::generic_func_type>(arg_types.back());
-
-            auto const new_lambda = helper::make<ast::node::lambda_expr>(*invocation->do_block);
-            new_lambda->set_source_location(*invocation);
-            new_lambda->type = arg_types.back();
-            invocation->args.push_back(new_lambda);
-
-            lambda_instantiation_map[f] = generate_lambda_capture_object(f, *invocation);
         }
 
         if (callee_scope->is_anonymous() && helper::exists(lambda_instantiation_map, func_type)) {

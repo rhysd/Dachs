@@ -354,7 +354,6 @@ struct func_invocation final : public expression {
     std::vector<node::any_expr> args;
     bool is_monad_invocation = false;
     scope::weak_func_scope callee_scope;
-    boost::optional<node::function_definition> do_block;
 
     func_invocation(
             node::any_expr const& c,
@@ -387,6 +386,7 @@ struct func_invocation final : public expression {
         }
     }
 
+    // Note: For UFCS
     func_invocation(
             node::function_definition const& do_,
             node::any_expr const& c,

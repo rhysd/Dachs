@@ -756,25 +756,14 @@ public:
             args.insert(std::begin(args), get_operand(emit(invocation->child)));
         }
 
-        if (invocation->do_block) {
-            return check(
-                        invocation,
-                        ctx.builder.CreateCall(
-                            emit_non_builtin_callee(invocation, callee),
-                            args
-                        ),
-                        "invalid function call with do-end block"
+        return check(
+                    invocation,
+                    ctx.builder.CreateCall(
+                        emit_callee(invocation, callee, invocation->args),
+                        args
+                    ),
+                    "invalid function call"
                 );
-        } else {
-            return check(
-                        invocation,
-                        ctx.builder.CreateCall(
-                            emit_callee(invocation, callee, invocation->args),
-                            args
-                        ),
-                        "invalid function call"
-                    );
-        }
     }
 
     val emit(ast::node::unary_expr const& unary)

@@ -233,13 +233,6 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::func_invocation const& invocation, Walker const& recursive_walker)
-    {
-        recursive_walker();
-        visit_do_block(invocation);
-    }
-
-    template<class Walker>
     void visit(ast::node::ufcs_invocation const& ufcs, Walker const& recursive_walker)
     {
         recursive_walker();
