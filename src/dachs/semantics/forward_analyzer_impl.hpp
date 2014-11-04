@@ -246,6 +246,16 @@ public:
         visit_do_block(ufcs);
     }
 
+    template<class Walker>
+    void visit(ast::node::return_stmt const& ret, Walker const& recursive_walker)
+    {
+        if ((ret->line == 0u) && (ret->col == 0u)) {
+            assert(ret->ret_exprs.size() > 0u);
+            apply_lambda([&ret](auto const& child){ ret->set_source_location(*child); }, ret->ret_exprs[0]);
+        }
+        recursive_walker();
+    }
+
     // TODO: class scopes and member function scopes
 
     template<class T, class Walker>

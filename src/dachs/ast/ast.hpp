@@ -364,8 +364,9 @@ struct func_invocation final : public expression {
         : expression(), child(c), args(a)
     {
         if (do_) {
-            // args.push_back(helper::make<node::lambda_expr>(*do_));
-            args.push_back(std::make_shared<node_type::lambda_expr>(*do_));
+            auto const lambda = helper::make<node::lambda_expr>(*do_);
+            lambda->set_source_location(**do_);
+            args.push_back(std::move(lambda));
         }
     }
 
@@ -380,7 +381,9 @@ struct func_invocation final : public expression {
     {
         args.insert(args.end(), tail.begin(), tail.end());
         if (do_) {
-            args.push_back(helper::make<node::lambda_expr>(*do_));
+            auto const lambda = helper::make<node::lambda_expr>(*do_);
+            lambda->set_source_location(**do_);
+            args.push_back(std::move(lambda));
         }
     }
 
