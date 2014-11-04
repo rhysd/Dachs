@@ -384,6 +384,18 @@ struct func_invocation final : public expression {
         }
     }
 
+    func_invocation(
+            node::function_definition const& do_,
+            node::any_expr const& c,
+            node::any_expr const& arg
+        ) noexcept
+        : expression(), child(c), args({arg})
+    {
+        auto const lambda = helper::make<node::lambda_expr>(do_);
+        lambda->set_source_location(*do_);
+        args.push_back(std::move(lambda));
+    }
+
     std::string to_string() const noexcept override
     {
         return "FUNC_INVOCATION";
@@ -427,8 +439,15 @@ struct ufcs_invocation final : public expression {
 
     ufcs_invocation(
             node::any_expr const& c,
+            std::string const& member_name
+        ) noexcept
+        : expression(), child(c), member_name(member_name)
+    {}
+
+    ufcs_invocation(
+            node::any_expr const& c,
             std::string const& member_name,
-            decltype(do_block) const f = boost::none
+            decltype(do_block) const f
         ) noexcept
         : expression(), child(c), member_name(member_name), do_block(std::move(f))
     {}
