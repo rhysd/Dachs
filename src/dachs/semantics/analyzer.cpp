@@ -255,14 +255,6 @@ class symbol_analyzer {
         return name + '(' + boost::algorithm::join(arg_types | transformed([](auto const& t){ return t.to_string(); }), ",") + ')';
     }
 
-    template<class Node>
-    bool walk_with_failed_check(Node &node)
-    {
-        auto const saved_failed = failed;
-        ast::walk_topdown(node, *this);
-        return failed > saved_failed;
-    }
-
     captured_offset_map analyze_as_lambda_invocation(ast::node::function_definition &func_def, scope::func_scope const& func_scope)
     {
         // Note:
@@ -1001,34 +993,6 @@ public:
         return boost::none;
     }
 
-    template<class Node>
-    bool visit_do_block(Node const& node)
-    {
-        if (!node->do_block) {
-            return true;
-        }
-
-        auto &block = *node->do_block;
-        if (walk_with_failed_check(block)) {
-            return false;
-        }
-
-        assert(!block->scope.expired());
-
-        // Note:
-        // Move the scope to global scope.
-        // All functions' scopes are in global scope.
-        global->define_function(block->scope.lock());
-
-        lambdas.push_back(block);
-
-        // Note:
-        // Lambda captures are not resolved yet.
-        // It will be resolved on overload resolution
-
-        return true;
-    }
-
     // TODO:
     // If return type of function is not determined, interrupt current parsing and parse the
     // function at first.  Add the function to the list which are already visited and check it at
@@ -1140,10 +1104,6 @@ public:
             auto const t = get_as<type::type>(checked);
             assert(t);
             if (*t) {
-                if (ufcs->do_block) {
-                    semantic_error(ufcs, boost::format("The access to data member '%1%' can't have do-end block.") % ufcs->member_name);
-                    return;
-                }
                 ufcs->type = *t;
                 return;
             }
@@ -1157,41 +1117,10 @@ public:
             return;
         }
 
-        if (!visit_do_block(ufcs)) {
-            return;
-        }
-
-        if (!ufcs->do_block) {
-            auto const error = visit_invocation(ufcs, ufcs->member_name, std::vector<type::type>{{child_type}});
-            if (error) {
-                semantic_error(ufcs, *error);
-            }
-            return;
-        }
-
-        // ------ Deal with do-end block from here ------
-
-        // Note:
-        // The refered function now may be function template.
-        // It will be instantiated in visit_invocation() and then I should update the refered function to
-        // instantiated function.  I generate new generic function type here because the update should not
-        // affect the original generic function type.
-        auto const new_lambda_type = type::make<type::generic_func_type>((*ufcs->do_block)->scope);
-        std::vector<type::type> const arg_types = {child_type, new_lambda_type};
-
-        auto const error = visit_invocation(ufcs, ufcs->member_name, arg_types);
+        auto const error = visit_invocation(ufcs, ufcs->member_name, std::vector<type::type>{{child_type}});
         if (error) {
             semantic_error(ufcs, *error);
         }
-
-        auto const callee_scope = ufcs->callee_scope.lock();
-
-        auto const new_lambda = helper::make<ast::node::lambda_expr>(*ufcs->do_block);
-        new_lambda->set_source_location(*ufcs);
-        new_lambda->type = new_lambda_type;
-        ufcs->do_block_object = new_lambda;
-
-        lambda_instantiation_map[new_lambda_type] = generate_lambda_capture_object(new_lambda_type, *ufcs);
     }
 
     template<class Walker>

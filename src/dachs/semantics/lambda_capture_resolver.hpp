@@ -184,19 +184,6 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::ufcs_invocation &ufcs, Walker const& w)
-    {
-        w();
-
-        // Note:
-        // Update symbols in lambda object instantiation
-        if (ufcs->do_block_object) {
-            assert(lambda_instantiations.find(*type::get<type::generic_func_type>((*ufcs->do_block_object)->type)) != std::end(lambda_instantiations));
-            ast::walk_topdown(*ufcs->do_block_object, *this);
-        }
-    }
-
-    template<class Walker>
     void visit(ast::node::any_expr &e, Walker const& w)
     {
         auto const maybe_var = get_as<ast::node::var_ref>(e);

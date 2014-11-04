@@ -934,29 +934,6 @@ public:
         std::vector<val> args = {get_operand(emit(ufcs->child))};
         auto const callee = ufcs->callee_scope.lock();
 
-        // Note:
-        // UFCS invocation never invokes lambda function.
-
-        // Scope is not expired. It means the UFCS invoke a funciton
-        if (ufcs->do_block) {
-            auto const g = type::get<type::generic_func_type>((*ufcs->do_block)->scope.lock()->type);
-            assert(g);
-
-            assert(ufcs->do_block_object);
-            args.push_back(get_operand(emit(*ufcs->do_block_object)));
-
-            // Note:
-            // Add block to the 2nd argument of invocation as function variable
-            return check(
-                        ufcs,
-                        ctx.builder.CreateCall(
-                            emit_non_builtin_callee(ufcs, callee),
-                            args
-                        ),
-                        "UFCS function invocation with do-end block"
-                    );
-        }
-
         return check(
                     ufcs,
                     ctx.builder.CreateCall(

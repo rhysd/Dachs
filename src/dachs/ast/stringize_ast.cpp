@@ -197,8 +197,7 @@ public:
     String visit(node::ufcs_invocation const& ui, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(ui, indent)
-            + '\n' + visit(ui->child, indent+lead, ui->do_block ? "|  " : "   ")
-            + visit_optional_node(ui->do_block, indent+lead, "   ");
+            + '\n' + visit(ui->child, indent+lead, "   ");
     }
 
     String visit(node::func_invocation const& fc, String const& indent, char const* const lead) const noexcept

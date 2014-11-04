@@ -222,23 +222,6 @@ public:
         ast::walk_topdown(lambda->def, *this);
     }
 
-    template<class Node>
-    void visit_do_block(Node const& n)
-    {
-        if (n->do_block) {
-            auto &b = *n->do_block;
-            b->name = get_lambda_name(b);
-            ast::walk_topdown(b, *this);
-        }
-    }
-
-    template<class Walker>
-    void visit(ast::node::ufcs_invocation const& ufcs, Walker const& recursive_walker)
-    {
-        recursive_walker();
-        visit_do_block(ufcs);
-    }
-
     template<class Walker>
     void visit(ast::node::return_stmt const& ret, Walker const& recursive_walker)
     {

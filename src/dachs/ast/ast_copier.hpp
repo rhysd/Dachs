@@ -115,7 +115,7 @@ public:
 
     auto copy(node::ufcs_invocation const& ui) const
     {
-        return copy_node<node::ufcs_invocation>(ui, copy(ui->child), ui->member_name, copy(ui->do_block));
+        return copy_node<node::ufcs_invocation>(ui, copy(ui->child), ui->member_name);
     }
 
     auto copy(node::unary_expr const& ue) const

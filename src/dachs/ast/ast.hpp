@@ -358,13 +358,13 @@ struct func_invocation final : public expression {
     func_invocation(
             node::any_expr const& c,
             std::vector<node::any_expr> const& a,
-            boost::optional<node::function_definition> const& do_ = boost::none
+            boost::optional<node::function_definition> const& do_block = boost::none
         ) noexcept
         : expression(), child(c), args(a)
     {
-        if (do_) {
-            auto const lambda = helper::make<node::lambda_expr>(*do_);
-            lambda->set_source_location(**do_);
+        if (do_block) {
+            auto const lambda = helper::make<node::lambda_expr>(*do_block);
+            lambda->set_source_location(**do_block);
             args.push_back(std::move(lambda));
         }
     }
@@ -374,28 +374,28 @@ struct func_invocation final : public expression {
             node::any_expr const& c,
             node::any_expr const& head,
             std::vector<node::any_expr> const& tail,
-            boost::optional<node::function_definition> const& do_= boost::none
+            boost::optional<node::function_definition> const& do_block= boost::none
         ) noexcept
         : expression(), child(c), args({head})
     {
         args.insert(args.end(), tail.begin(), tail.end());
-        if (do_) {
-            auto const lambda = helper::make<node::lambda_expr>(*do_);
-            lambda->set_source_location(**do_);
+        if (do_block) {
+            auto const lambda = helper::make<node::lambda_expr>(*do_block);
+            lambda->set_source_location(**do_block);
             args.push_back(std::move(lambda));
         }
     }
 
     // Note: For UFCS
     func_invocation(
-            node::function_definition const& do_,
+            node::function_definition const& do_block,
             node::any_expr const& c,
             node::any_expr const& arg
         ) noexcept
         : expression(), child(c), args({arg})
     {
-        auto const lambda = helper::make<node::lambda_expr>(do_);
-        lambda->set_source_location(*do_);
+        auto const lambda = helper::make<node::lambda_expr>(do_block);
+        lambda->set_source_location(*do_block);
         args.push_back(std::move(lambda));
     }
 
@@ -437,22 +437,12 @@ struct ufcs_invocation final : public expression {
     node::any_expr child;
     std::string member_name;
     scope::weak_func_scope callee_scope;
-    boost::optional<node::function_definition> do_block;
-    boost::optional<node::lambda_expr> do_block_object;
 
     ufcs_invocation(
             node::any_expr const& c,
             std::string const& member_name
         ) noexcept
         : expression(), child(c), member_name(member_name)
-    {}
-
-    ufcs_invocation(
-            node::any_expr const& c,
-            std::string const& member_name,
-            decltype(do_block) const f
-        ) noexcept
-        : expression(), child(c), member_name(member_name), do_block(std::move(f))
     {}
 
     std::string to_string() const noexcept override
