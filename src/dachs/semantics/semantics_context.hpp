@@ -48,7 +48,7 @@ using captured_offset_map
                 >
             >
         >;
-using lambda_captures_type = std::unordered_map<scope::func_scope, captured_offset_map>;
+using lambda_captures_type = std::unordered_map<type::generic_func_type, captured_offset_map>;
 
 struct semantics_context {
     scope::scope_tree scopes;

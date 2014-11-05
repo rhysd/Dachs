@@ -898,7 +898,7 @@ public:
             auto const func = g->ref->lock();
 
             if (func->is_anonymous()) {
-                auto const& capture = semantics_ctx.lambda_captures.at(func).get<semantics::tags::introduced>().find(ufcs);
+                auto const& capture = semantics_ctx.lambda_captures.at(g).get<semantics::tags::introduced>().find(ufcs);
                 return child_val->getType()->isStructTy() ?
                     ctx.builder.CreateExtractValue(child_val, capture->offset) :
                     ctx.builder.CreateStructGEP(child_val, capture->offset);

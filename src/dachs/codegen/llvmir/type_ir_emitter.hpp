@@ -130,8 +130,7 @@ public:
             return llvm::StructType::get(context, {});
         }
 
-        auto const scope = g->ref->lock();
-        auto const itr = lambda_captures.find(scope);
+        auto const itr = lambda_captures.find(g);
         if (itr == std::end(lambda_captures)) {
             return llvm::StructType::get(context, {});
         }

@@ -158,7 +158,7 @@ class symbol_analyzer {
     lambda_captures_type captures;
     std::unordered_map<type::generic_func_type, ast::node::tuple_literal> lambda_instantiation_map;
     std::unordered_set<ast::node::function_definition> already_visited_functions;
-    std::unordered_map<scope::func_scope, symbol::var_symbol> lambda_object_symbol_map;
+    std::unordered_map<type::generic_func_type, symbol::var_symbol> lambda_object_symbol_map;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -256,7 +256,7 @@ class symbol_analyzer {
         return name + '(' + boost::algorithm::join(arg_types | transformed([](auto const& t){ return t.to_string(); }), ",") + ')';
     }
 
-    captured_offset_map get_lambda_capture_map(ast::node::function_definition &func_def)
+    captured_offset_map get_lambda_capture_map(ast::node::function_definition &func_def, type::generic_func_type const& lambda_type)
     {
         assert(!func_def->scope.expired());
         auto const func_scope = func_def->scope.lock();
@@ -267,13 +267,12 @@ class symbol_analyzer {
 
         auto const lambda_object_sym = symbol::make<symbol::var_symbol>(nullptr, "lambda.receiver", /*immutable*/true /*TODO*/);
 
-        auto const invocation_map = detail::resolve_lambda_captures(func_def, func_scope, lambda_object_sym, lambda_instantiation_map);
-        auto const lambda_type = type::make<type::generic_func_type>(func_scope);
+        auto const capture_map = detail::resolve_lambda_captures(func_def, func_scope, lambda_object_sym, lambda_instantiation_map);
 
         // Note:
         // Set the lambda object's type to appropriate places
         lambda_object_sym->type = lambda_type;
-        for (auto const& c : invocation_map.template get<semantics::tags::offset>()) {
+        for (auto const& c : capture_map.template get<semantics::tags::offset>()) {
             auto const var = get_as<ast::node::var_ref>(c.introduced->child);
             assert(var);
             (*var)->type = lambda_type;
@@ -282,17 +281,17 @@ class symbol_analyzer {
         // Note:
         // Preserve the symbol for lambda object to use it for the first argument
         // (which is receiver of the lambda invocation) in function invocation.
-        lambda_object_symbol_map[func_scope] = lambda_object_sym;
+        lambda_object_symbol_map[lambda_type] = lambda_object_sym;
 
-        return invocation_map;
+        return capture_map;
     }
 
-    void set_lambda_receiver(ast::node::function_definition const& func_def)
+    void set_lambda_receiver(ast::node::function_definition const& func_def, type::generic_func_type const& lambda_type)
     {
         auto const scope = func_def->scope.lock();
-        assert(helper::exists(lambda_object_symbol_map, scope));
+        assert(helper::exists(lambda_object_symbol_map, lambda_type));
 
-        auto const receiver_sym = lambda_object_symbol_map.at(scope);
+        auto const receiver_sym = lambda_object_symbol_map.at(lambda_type);
 
         auto const new_param = helper::make<ast::node::parameter>(!receiver_sym->immutable, receiver_sym->name, boost::none);
         new_param->set_source_location(*func_def);
@@ -327,10 +326,10 @@ class symbol_analyzer {
         }
         assert(type::is_a<type::generic_func_type>(lambda_func->params[0]->type));
 
-        if (helper::exists(captures, lambda_func)) {
+        if (helper::exists(captures, lambda_type)) {
             // Note:
             // Substitute captured values as its fields
-            for (auto const& c : captures.at(lambda_func).template get<semantics::tags::offset>()) {
+            for (auto const& c : captures.at(lambda_type).template get<semantics::tags::offset>()) {
                 auto const s = c.refered_symbol.lock();
                 auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
                 new_var_ref->symbol = c.refered_symbol;
@@ -764,6 +763,7 @@ public:
         auto const new_lambda_type = type::make<type::generic_func_type>(lambda_scope);
         lambda->type = new_lambda_type;
         lambda_instantiation_map[new_lambda_type] = generate_lambda_capture_object(new_lambda_type, *lambda);
+        captures[new_lambda_type] = get_lambda_capture_map(lambda->def, new_lambda_type);
     }
 
     template<class Walker>
@@ -981,8 +981,11 @@ public:
         }
 
         if (func->is_anonymous()){
-            captures[func] = get_lambda_capture_map(func_def);
-            set_lambda_receiver(func_def);
+            // Get the original generic function type for the lambda.
+            // Type of 'func' may be updated by instantiation.
+            auto const lambda_type = type::get<type::generic_func_type>(type::type_of(node->child));
+            assert(lambda_type);
+            set_lambda_receiver(func_def, *lambda_type);
         }
 
         if (!func_def->ret_type) {
