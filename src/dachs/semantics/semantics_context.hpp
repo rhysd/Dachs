@@ -23,13 +23,14 @@ namespace tags {
 
 struct offset{};
 struct introduced{};
+struct refered_symbol{};
 
 } // namespace tags
 
 struct lambda_capture {
     ast::node::ufcs_invocation introduced;
     std::size_t offset;
-    symbol::weak_var_symbol refered_symbol;
+    symbol::var_symbol refered_symbol;
 };
 
 namespace mi = boost::multi_index;
@@ -45,6 +46,10 @@ using captured_offset_map
                 mi::ordered_unique<
                         mi::tag<tags::introduced>,
                         mi::member<lambda_capture, ast::node::ufcs_invocation, &lambda_capture::introduced>
+                >,
+                mi::ordered_unique<
+                        mi::tag<tags::refered_symbol>,
+                        mi::member<lambda_capture, symbol::var_symbol, &lambda_capture::refered_symbol>
                 >
             >
         >;
@@ -67,7 +72,7 @@ struct semantics_context {
         for (auto const& cs : lambda_captures) {
             out << "  " << cs.first->to_string() << std::endl;
             for (auto const& c : cs.second.get<semantics::tags::offset>()) {
-                out << "    " << c.refered_symbol.lock()->name << ':' << c.introduced->line << ':' << c.introduced->col << " -> " << c.introduced->member_name << std::endl;
+                out << "    " << c.refered_symbol->name << ':' << c.introduced->line << ':' << c.introduced->col << " -> " << c.introduced->member_name << std::endl;
             }
         }
     }

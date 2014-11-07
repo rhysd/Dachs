@@ -266,17 +266,9 @@ class symbol_analyzer {
         //  2. Analyze captures for the lambda function and return it to register
 
         auto const lambda_object_sym = symbol::make<symbol::var_symbol>(nullptr, "lambda.receiver", /*immutable*/true /*TODO*/);
+        lambda_object_sym->type = lambda_type;
 
         auto const capture_map = detail::resolve_lambda_captures(func_def, func_scope, lambda_object_sym, lambda_instantiation_map);
-
-        // Note:
-        // Set the lambda object's type to appropriate places
-        lambda_object_sym->type = lambda_type;
-        for (auto const& c : capture_map.template get<semantics::tags::offset>()) {
-            auto const var = get_as<ast::node::var_ref>(c.introduced->child);
-            assert(var);
-            (*var)->type = lambda_type;
-        }
 
         // Note:
         // Preserve the symbol for lambda object to use it for the first argument
@@ -330,7 +322,7 @@ class symbol_analyzer {
             // Note:
             // Substitute captured values as its fields
             for (auto const& c : captures.at(lambda_type).template get<semantics::tags::offset>()) {
-                auto const s = c.refered_symbol.lock();
+                auto const& s = c.refered_symbol;
                 auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
                 new_var_ref->symbol = c.refered_symbol;
                 new_var_ref->type = s->type;
@@ -985,7 +977,11 @@ public:
             // Type of 'func' may be updated by instantiation.
             auto const lambda_type = type::get<type::generic_func_type>(type::type_of(node->child));
             assert(lambda_type);
-            set_lambda_receiver(func_def, *lambda_type);
+            auto const& lt = *lambda_type;
+            set_lambda_receiver(func_def, lt);
+            assert(helper::exists(captures, lt));
+            assert(helper::exists(lambda_instantiations, lt));
+            resolve_lambda_capture_access(func_def, captures.at(lt), lambda_instantiation_map);
         }
 
         if (!func_def->ret_type) {

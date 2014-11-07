@@ -111,6 +111,7 @@ class lambda_capture_resolver {
         new_receiver_ref->is_lhs_of_assignment = var->is_lhs_of_assignment;
         new_receiver_ref->symbol = receiver_symbol;
         new_receiver_ref->set_source_location(*var);
+        new_receiver_ref->type = receiver_symbol->type;
         // Note:
         // 'type' member will be set after the type of lambda object is determined.
 
@@ -142,6 +143,34 @@ class lambda_capture_resolver {
         current_scope = ss;
         w();
         current_scope = tmp;
+    }
+
+    symbol::var_symbol get_symbol_from_var(ast::node::var_ref const& var)
+    {
+        if (var->symbol.expired()) {
+            // Note:
+            // Fallback.  When the target is a function template,
+            // it is never analyzed by symbol_analyzer and the
+            // variable symbol is expired.
+
+            auto name = var->name;
+            if (name.back() == '!') {
+                name.pop_back();
+            }
+
+            auto const maybe_var_symbol = boost::apply_visitor(scope::var_symbol_resolver{name}, current_scope);
+            if (!maybe_var_symbol) {
+                // Note:
+                // It must be a semantic error.
+                return nullptr;
+            }
+
+            var->type = (*maybe_var_symbol)->type;
+
+            return *maybe_var_symbol;
+        }
+
+        return var->symbol.lock();
     }
 
 public:
@@ -185,38 +214,13 @@ public:
         }
     }
 
-    symbol::var_symbol get_symbol_from_var(ast::node::var_ref const& var)
-    {
-        if (var->symbol.expired()) {
-            // Note:
-            // Fallback.  When the target is a function template,
-            // it is never analyzed by symbol_analyzer and the
-            // variable symbol is expired.
-
-            auto name = var->name;
-            if (name.back() == '!') {
-                name.pop_back();
-            }
-
-            auto const maybe_var_symbol = boost::apply_visitor(scope::var_symbol_resolver{name}, current_scope);
-            if (!maybe_var_symbol) {
-                // Note:
-                // It must be a semantic error.
-                return nullptr;
-            }
-
-            var->type = (*maybe_var_symbol)->type;
-
-            return *maybe_var_symbol;
-        }
-
-        return var->symbol.lock();
-    }
-
     template<class Walker>
     void visit(ast::node::var_ref const& var, Walker const& w)
     {
         auto const symbol = get_symbol_from_var(var);
+        if (!symbol) {
+            return;
+        }
 
         if (symbol->is_builtin ||
                 symbol->is_global ||
@@ -245,6 +249,59 @@ captured_offset_map resolve_lambda_captures(Node &search_root, scope::func_scope
     lambda_capture_resolver resolver{lambda_scope, receiver, lambda_instantiations};
     ast::walk_topdown(search_root, resolver);
     return resolver.get_captures();
+}
+
+class lambda_capture_replacer {
+    captured_offset_map const& captures;
+    std::unordered_map<type::generic_func_type, ast::node::tuple_literal> &lambda_instantiations;
+
+public:
+
+    lambda_capture_replacer(decltype(captures) const& cs, decltype(lambda_instantiations) &li)
+        : captures(cs), lambda_instantiations(li)
+    {}
+
+    template<class Walker>
+    void visit(ast::node::lambda_expr const& lambda, Walker const&)
+    {
+        auto const instantiation = lambda_instantiations.find(*type::get<type::generic_func_type>(lambda->type));
+        if (instantiation != std::end(lambda_instantiations)) {
+            ast::walk_topdown(instantiation->second, *this);
+        }
+    }
+
+    template<class Walker>
+    void visit(ast::node::any_expr &e, Walker const& w)
+    {
+        auto const maybe_var_ref = get_as<ast::node::var_ref>(e);
+        if (!maybe_var_ref) {
+            w();
+            return;
+        }
+
+        auto const& symbol = (*maybe_var_ref)->symbol.lock();
+        auto const& indexed = captures.get<tags::refered_symbol>();
+        auto const capture = indexed.find(symbol);
+        if (capture != boost::end(indexed)) {
+            e = capture->introduced;
+        }
+    }
+
+    template<class Node, class Walker>
+    void visit(Node const&, Walker const& w)
+    {
+        w();
+    }
+};
+
+// Note:
+// This function assumes that 'search_root' and its children are already analyzed.
+// All symbols and types should be resolved normally.
+template<class Node>
+void resolve_lambda_capture_access(Node &search_root, captured_offset_map const& captures, std::unordered_map<type::generic_func_type, ast::node::tuple_literal> &lambda_instantiations)
+{
+    lambda_capture_replacer replacer{captures, lambda_instantiations};
+    ast::walk_topdown(search_root, replacer);
 }
 
 } // namespace detail
