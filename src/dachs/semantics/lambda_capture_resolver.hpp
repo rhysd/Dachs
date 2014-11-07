@@ -18,6 +18,7 @@
 #include "dachs/semantics/semantics_context.hpp"
 #include "dachs/helper/make.hpp"
 #include "dachs/helper/variant.hpp"
+#include "dachs/helper/util.hpp"
 
 namespace dachs {
 namespace semantics {
@@ -104,7 +105,7 @@ class lambda_capture_resolver {
         return receiver_symbol->name + ".capture." + std::to_string(offset);
     }
 
-    ast::node::ufcs_invocation generate_invocation_from(ast::node::var_ref const& var)
+    ast::node::ufcs_invocation generate_invocation_from(ast::node::var_ref const& var, symbol::var_symbol const& symbol)
     {
         auto const new_receiver_ref = helper::make<ast::node::var_ref>(receiver_symbol->name);
         new_receiver_ref->is_lhs_of_assignment = var->is_lhs_of_assignment;
@@ -115,9 +116,9 @@ class lambda_capture_resolver {
 
         auto const new_invocation = helper::make<ast::node::ufcs_invocation>(new_receiver_ref, get_member_name());
         new_invocation->set_source_location(*var);
-        new_invocation->type = var->type;
+        new_invocation->type = symbol->type;
 
-        auto const result = captures.insert({new_invocation, offset, var->symbol});
+        auto const result = captures.insert({new_invocation, offset, symbol});
         assert(result.second);
         (void) result;
 
@@ -160,19 +161,19 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::statement_block &b, Walker const& w)
+    void visit(ast::node::statement_block const& b, Walker const& w)
     {
         with_scope(b->scope, w);
     }
 
     template<class Walker>
-    void visit(ast::node::let_stmt &let, Walker const& w)
+    void visit(ast::node::let_stmt const& let, Walker const& w)
     {
         with_scope(let->scope, w);
     }
 
     template<class Walker>
-    void visit(ast::node::lambda_expr &lambda, Walker const&)
+    void visit(ast::node::lambda_expr const& lambda, Walker const&)
     {
         // Note:
         // Update symbols in lambda object instantiation
@@ -184,50 +185,55 @@ public:
         }
     }
 
-    template<class Walker>
-    void visit(ast::node::any_expr &e, Walker const& w)
+    symbol::var_symbol get_symbol_from_var(ast::node::var_ref const& var)
     {
-        auto const maybe_var = get_as<ast::node::var_ref>(e);
-        if (!maybe_var) {
-            w();
-            return;
-        }
-
-        auto const& var = *maybe_var;
         if (var->symbol.expired()) {
-            return;
+            // Note:
+            // Fallback.  When the target is a function template,
+            // it is never analyzed by symbol_analyzer and the
+            // variable symbol is expired.
+
+            auto name = var->name;
+            if (name.back() == '!') {
+                name.pop_back();
+            }
+
+            auto const maybe_var_symbol = boost::apply_visitor(scope::var_symbol_resolver{name}, current_scope);
+            if (!maybe_var_symbol) {
+                // Note:
+                // It must be a semantic error.
+                return nullptr;
+            }
+
+            var->type = (*maybe_var_symbol)->type;
+
+            return *maybe_var_symbol;
         }
 
-        auto const symbol = var->symbol.lock();
+        return var->symbol.lock();
+    }
 
-        if (symbol->is_builtin || symbol->is_global) {
-            return;
-        }
+    template<class Walker>
+    void visit(ast::node::var_ref const& var, Walker const& w)
+    {
+        auto const symbol = get_symbol_from_var(var);
 
-        if (!check_captured_symbol(symbol)) {
-            return;
-        }
-
-        {
+        if (symbol->is_builtin ||
+                symbol->is_global ||
+                !check_captured_symbol(symbol) ||
+                helper::exists(sym_map, symbol)) {
             // Note:
             // 1 ufcs_invocation instance per 1 captured symbol.
-            auto const already_replaced = sym_map.find(symbol);
-            if (already_replaced != std::end(sym_map)) {
-                e = already_replaced->second;
-                return;
-            }
+            return;
         }
 
-        auto const invocation = generate_invocation_from(var);
-        // Note:
-        // Replace var_ref with ufcs_invocation to access the member of lambda object.
-        // The offset of member is memorized in lambda_capture map.
-        e = invocation;
-        sym_map[symbol] = invocation;
+        sym_map[symbol] = generate_invocation_from(var, symbol);
+
+        w();
     }
 
     template<class Node, class Walker>
-    void visit(Node &, Walker const& w)
+    void visit(Node const&, Walker const& w)
     {
         w();
     }
