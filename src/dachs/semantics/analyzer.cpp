@@ -367,7 +367,7 @@ public:
     void visit(ast::node::function_definition const& func, Walker const& recursive_walker)
     {
         if (already_visited_functions.find(func) != std::end(already_visited_functions)) {
-            if (func->ret_type || func->kind == ast::symbol::func_kind::proc) {
+            if (func->ret_type || func->kind == ast::symbol::func_kind::proc || func->is_template()) {
                 return;
             }
             recursive_function_return_type_resolver resolver;
