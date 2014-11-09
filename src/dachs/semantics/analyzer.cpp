@@ -309,15 +309,6 @@ class symbol_analyzer {
         auto const temporary_tuple_type = type::make<type::tuple_type>();
         temporary_tuple->type = temporary_tuple_type;
 
-        assert(lambda_type->ref && !lambda_type->ref->expired());
-        auto const lambda_func = lambda_type->ref->lock();
-        if (lambda_func->params.empty() || lambda_func->is_template()) {
-            // Note:
-            // When an error is detected or lambda func is generated but not used.
-            return temporary_tuple;
-        }
-        assert(type::is_a<type::generic_func_type>(lambda_func->params[0]->type));
-
         if (helper::exists(captures, lambda_type)) {
             // Note:
             // Substitute captured values as its fields
@@ -754,8 +745,8 @@ public:
 
         auto const new_lambda_type = type::make<type::generic_func_type>(lambda_scope);
         lambda->type = new_lambda_type;
-        lambda_instantiation_map[new_lambda_type] = generate_lambda_capture_object(new_lambda_type, *lambda);
         captures[new_lambda_type] = get_lambda_capture_map(lambda->def, new_lambda_type);
+        lambda_instantiation_map[new_lambda_type] = generate_lambda_capture_object(new_lambda_type, *lambda);
     }
 
     template<class Walker>
@@ -980,7 +971,7 @@ public:
             auto const& lt = *lambda_type;
             set_lambda_receiver(func_def, lt);
             assert(helper::exists(captures, lt));
-            assert(helper::exists(lambda_instantiations, lt));
+            assert(helper::exists(lambda_instantiation_map, lt));
             resolve_lambda_capture_access(func_def, captures.at(lt), lambda_instantiation_map);
         }
 

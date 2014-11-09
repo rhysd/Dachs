@@ -207,7 +207,7 @@ public:
         // Note:
         // Update symbols in lambda object instantiation
 
-        assert(type::is_a<type::generic_func_type>(lambda->type));
+        assert(!lambda->type || type::is_a<type::generic_func_type>(lambda->type));
         auto const instantiation = lambda_instantiations.find(*type::get<type::generic_func_type>(lambda->type));
         if (instantiation != std::end(lambda_instantiations)) {
             ast::walk_topdown(instantiation->second, *this);
