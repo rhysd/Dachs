@@ -153,12 +153,13 @@ class symbol_analyzer {
 
     scope::any_scope current_scope;
     scope::global_scope const global;
-    std::vector<ast::node::function_definition> lambdas;
+    std::vector<ast::node::lambda_expr> lambdas;
     size_t failed = 0u;
     lambda_captures_type captures;
     std::unordered_map<type::generic_func_type, ast::node::tuple_literal> lambda_instantiation_map;
     std::unordered_set<ast::node::function_definition> already_visited_functions;
     std::unordered_map<type::generic_func_type, symbol::var_symbol> lambda_object_symbol_map;
+    std::vector<boost::variant<ast::node::func_invocation, ast::node::ufcs_invocation>> lambda_invocations;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -741,12 +742,8 @@ public:
         assert(lambda_scope->is_anonymous());
 
         global->define_function(lambda_scope);
-        lambdas.push_back(lambda->def);
-
-        auto const new_lambda_type = type::make<type::generic_func_type>(lambda_scope);
-        lambda->type = new_lambda_type;
-        captures[new_lambda_type] = get_lambda_capture_map(lambda->def, new_lambda_type);
-        lambda_instantiation_map[new_lambda_type] = generate_lambda_capture_object(new_lambda_type, *lambda);
+        lambda->type = type::make<type::generic_func_type>(lambda_scope);
+        lambdas.push_back(lambda);
     }
 
     template<class Walker>
@@ -964,15 +961,7 @@ public:
         }
 
         if (func->is_anonymous()){
-            // Get the original generic function type for the lambda.
-            // Type of 'func' may be updated by instantiation.
-            auto const lambda_type = type::get<type::generic_func_type>(type::type_of(node->child));
-            assert(lambda_type);
-            auto const& lt = *lambda_type;
-            set_lambda_receiver(func_def, lt);
-            assert(helper::exists(captures, lt));
-            assert(helper::exists(lambda_instantiation_map, lt));
-            resolve_lambda_capture_access(func_def, captures.at(lt), lambda_instantiation_map);
+            lambda_invocations.push_back(node);
         }
 
         if (!func_def->ret_type) {
@@ -1517,16 +1506,82 @@ public:
         }
     }
 
+    template<class V>
+    struct lambda_resolver {
+        typedef lambda_resolver<V> self_type;
+
+        // TODO:
+        // 'outer' is a temporary for experiment
+        V &outer;
+
+        template<class Node>
+        void walk_recursively(Node &n)
+        {
+            ast::walk_topdown(n, *this);
+        }
+
+        explicit lambda_resolver(V &o)
+            : outer(o)
+        {}
+
+        template<class LambdaDef, class LambdaType>
+        void resolve_captures(LambdaDef &l, LambdaType const& t)
+        {
+            std::cout << "begin: " << l->name << std::endl;
+            outer.captures[t] = outer.get_lambda_capture_map(l, t);
+            outer.lambda_instantiation_map[t] = outer.generate_lambda_capture_object(t, *l);
+            for (auto const& c : outer.captures[t]) {
+                std::cout << "    " << c.refered_symbol->name << ':' << c.introduced->line << ':' << c.introduced->col << " -> " << c.introduced->member_name << std::endl;
+            }
+            outer.set_lambda_receiver(l, t);
+            resolve_lambda_capture_access(l, outer.captures.at(t), outer.lambda_instantiation_map);
+            std::cout << "end: " << l->name << std::endl;
+        }
+
+        template<class Walker>
+        void visit(ast::node::lambda_expr &lambda, Walker const&)
+        {
+            auto &def = lambda->def;
+            assert(type::is_a<type::generic_func_type>(lambda->type));
+            auto const type = *type::get<type::generic_func_type>(lambda->type);
+
+            if (helper::exists(outer.captures, type)) {
+                // Note:
+                // Already resolved because of other lambda's dependency.
+                return;
+            }
+
+            if (def->is_template()) {
+                for (auto &i : def->instantiated) {
+                    walk_recursively(i);
+                    resolve_captures(i, type);
+                }
+            } else {
+                walk_recursively(def);
+                resolve_captures(def, type);
+            }
+        }
+
+        template<class Node, class Walker>
+        void visit(Node &, Walker const& w)
+        {
+            w();
+        }
+    };
+
     template<class Walker>
     void visit(ast::node::inu const& inu, Walker const& recursive_walker)
     {
         recursive_walker();
 
-        inu->definitions.insert(
-                std::end(inu->definitions),
-                std::make_move_iterator(std::begin(lambdas)),
-                std::make_move_iterator(std::end(lambdas))
-            );
+        lambda_resolver<symbol_analyzer> resolver{*this};
+        for (auto &l : lambdas) {
+            ast::walk_topdown(l, resolver);
+        }
+
+        for (auto const& l : lambdas) {
+            inu->definitions.push_back(std::move(l->def));
+        }
     }
 
     // TODO: member variable accesses
