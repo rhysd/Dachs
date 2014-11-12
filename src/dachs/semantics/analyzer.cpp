@@ -963,8 +963,6 @@ public:
             func_type->ref = invocation->callee_scope;
             callee_scope = invocation->callee_scope.lock();
         }
-
-        assert(!callee_scope->is_anonymous() || helper::exists(lambda_instantiation_map, func_type));
     }
 
     template<class Walker>
