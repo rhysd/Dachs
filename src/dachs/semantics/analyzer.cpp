@@ -159,7 +159,6 @@ class symbol_analyzer {
     std::unordered_map<type::generic_func_type, ast::node::tuple_literal> lambda_instantiation_map;
     std::unordered_set<ast::node::function_definition> already_visited_functions;
     std::unordered_map<type::generic_func_type, symbol::var_symbol> lambda_object_symbol_map;
-    std::vector<boost::variant<ast::node::func_invocation, ast::node::ufcs_invocation>> lambda_invocations;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -960,10 +959,6 @@ public:
             assert(!global->ast_root.expired());
         }
 
-        if (func->is_anonymous()){
-            lambda_invocations.push_back(node);
-        }
-
         if (!func_def->ret_type) {
             auto saved_current_scope = current_scope;
             current_scope = global; // enclosing scope of function scope is always global scope
@@ -1527,15 +1522,10 @@ public:
         template<class LambdaDef, class LambdaType>
         void resolve_captures(LambdaDef &l, LambdaType const& t)
         {
-            std::cout << "begin: " << l->name << std::endl;
             outer.captures[t] = outer.get_lambda_capture_map(l, t);
             outer.lambda_instantiation_map[t] = outer.generate_lambda_capture_object(t, *l);
-            for (auto const& c : outer.captures[t]) {
-                std::cout << "    " << c.refered_symbol->name << ':' << c.introduced->line << ':' << c.introduced->col << " -> " << c.introduced->member_name << std::endl;
-            }
             outer.set_lambda_receiver(l, t);
             resolve_lambda_capture_access(l, outer.captures.at(t), outer.lambda_instantiation_map);
-            std::cout << "end: " << l->name << std::endl;
         }
 
         template<class Walker>
