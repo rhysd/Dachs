@@ -892,16 +892,20 @@ public:
 
         // Note:
         // When the UFCS invocation is generated for lambda capture access
-        if (auto const g_ = type::get<type::generic_func_type>(type::type_of(ufcs->child))) {
-            auto const& g = *g_;
-            assert(g->ref && !g->ref->expired());
-            auto const func = g->ref->lock();
-
-            if (func->is_anonymous()) {
-                auto const& capture = semantics_ctx.lambda_captures.at(g).get<semantics::tags::introduced>().find(ufcs);
-                return child_val->getType()->isStructTy() ?
-                    ctx.builder.CreateExtractValue(child_val, capture->offset) :
-                    ctx.builder.CreateStructGEP(child_val, capture->offset);
+        if (auto const g = type::get<type::generic_func_type>(type::type_of(ufcs->child))) {
+            if (helper::exists(semantics_ctx.lambda_captures, *g)) {
+                auto const& indexed_by_introduced = semantics_ctx.lambda_captures.at(*g).get<semantics::tags::introduced>();
+                auto const capture = indexed_by_introduced.find(ufcs);
+                if (capture != boost::end(indexed_by_introduced)) {
+                    return child_val->getType()->isStructTy() ?
+                        ctx.builder.CreateExtractValue(child_val, capture->offset) :
+                        ctx.builder.CreateStructGEP(child_val, capture->offset);
+                } else {
+                    // Note:
+                    // If the capture map exists but no capture is found,
+                    // it is non-captured lambda.
+                    return llvm::ConstantStruct::getAnon(ctx.llvm_context, {});
+                }
             }
         }
 
