@@ -212,6 +212,66 @@ BOOST_AUTO_TEST_CASE(no_lambda_capture_found)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(invalid_type)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(p : oops)
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            x : oops := 42
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            x := 42 : oops
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            -> x : oops in x + x
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            a := [1, 2, 3]
+            for i : oops in a
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func f(a)
+            println("foo")
+        end
+
+        func f(a : double)
+            println("foo for double")
+        end
+
+        func main
+            g := f
+            g(3.14)
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(no_main)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(invocation_with_wrong_arguments)
 {
     CHECK_THROW_SEMANTIC_ERROR(R"(
