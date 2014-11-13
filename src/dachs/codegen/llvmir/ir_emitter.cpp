@@ -754,6 +754,8 @@ public:
         // Add a receiver for lambda function invocation
         if (callee->is_anonymous()) {
             args.insert(std::begin(args), get_operand(emit(invocation->child)));
+        } else {
+            emit(invocation->child);
         }
 
         return check(

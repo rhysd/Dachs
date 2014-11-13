@@ -961,7 +961,6 @@ public:
             // function type.  This is because lambda captures are associated with the instantiated function.
             // Below makes code generation find its lambda captures properly.
             func_type->ref = invocation->callee_scope;
-            callee_scope = invocation->callee_scope.lock();
         }
     }
 
