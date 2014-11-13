@@ -110,6 +110,11 @@ int main(int const, char const* const argv[])
     auto const cmdopts = dachs::cmdline::get_command_options(&argv[1]);
     dachs::compiler compiler;
 
+    if (cmdopts.source_files.empty()) {
+        std::cerr << "No input file: Source file must end with '.dcs'.\n";
+        return 2;
+    }
+
     switch (cmdopts.rest_args.size()) {
 
     case 1: {
