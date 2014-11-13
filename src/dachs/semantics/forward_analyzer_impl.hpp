@@ -144,8 +144,18 @@ public:
             param->type =
                 boost::apply_visitor(
                     type_calculator_from_type_nodes{current_scope},
-                    *(param->param_type)
+                    *param->param_type
                 );
+            if (!param->type) {
+                semantic_error(
+                        param,
+                        boost::format("Invalid type '%1%' for parameter '%2%'")
+                            % apply_lambda([](auto const& t){
+                                    return t->to_string();
+                            }, *param->param_type)
+                            % param->name
+                    );
+            }
             new_param_sym->type = param->type;
         }
 
