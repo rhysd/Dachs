@@ -1619,7 +1619,14 @@ bool check_main_func(std::vector<Func> const& funcs)
         return false;
     }
 
-    return true;
+    if (!found_main) {
+        output_semantic_error(
+                1u, 1u,
+                "Entry point 'main' is not found"
+            );
+    }
+
+    return found_main;
 }
 
 } // namespace detail
