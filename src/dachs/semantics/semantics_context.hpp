@@ -58,7 +58,6 @@ using lambda_captures_type = std::unordered_map<type::generic_func_type, capture
 struct semantics_context {
     scope::scope_tree scopes;
     lambda_captures_type lambda_captures;
-    std::unordered_map<type::generic_func_type, ast::node::tuple_literal> lambda_instantiation_map;
 
     semantics_context(semantics_context const&) = delete;
     semantics_context &operator=(semantics_context const&) = delete;

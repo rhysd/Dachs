@@ -299,15 +299,25 @@ struct dict_literal final : public expression {
 
 struct lambda_expr final : public expression {
     node::function_definition def;
+    node::tuple_literal receiver;
 
     explicit lambda_expr(decltype(def) const& d)
-        : expression(), def(d)
-    {}
+        : expression()
+        , def(d)
+        , receiver(helper::make<node::tuple_literal>())
+    {
+        receiver->set_source_location(*this);
+        receiver->type = type::make<type::tuple_type>();
+    }
 
     std::string to_string() const noexcept override
     {
         return "LAMBDA_EXPR";
     }
+
+private:
+
+    void initialize();
 };
 
 // This node will have kind of variable (global, member, local variables and functions)

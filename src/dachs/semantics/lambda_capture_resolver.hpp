@@ -91,7 +91,6 @@ class lambda_capture_resolver {
     scope::any_scope current_scope;
     symbol::var_symbol const& receiver_symbol;
     std::unordered_map<symbol::var_symbol, ast::node::ufcs_invocation> sym_map;
-    std::unordered_map<type::generic_func_type, ast::node::tuple_literal> &lambda_instantiations;
     std::unordered_map<scope::func_scope, symbol::var_symbol> lambda_object_symbol_map;
 
     template<class Symbol>
@@ -175,8 +174,8 @@ class lambda_capture_resolver {
 
 public:
 
-    explicit lambda_capture_resolver(scope::func_scope const& s, symbol::var_symbol const& r, decltype(lambda_instantiations) &i) noexcept
-        : captures(), lambda_scope(s), offset(0u), current_scope(s), receiver_symbol(r), lambda_instantiations(i)
+    explicit lambda_capture_resolver(scope::func_scope const& s, symbol::var_symbol const& r) noexcept
+        : captures(), lambda_scope(s), offset(0u), current_scope(s), receiver_symbol(r)
     {}
 
     template<class Scope>
@@ -208,10 +207,7 @@ public:
         // Update symbols in lambda object instantiation
 
         assert(!lambda->type || type::is_a<type::generic_func_type>(lambda->type));
-        auto const instantiation = lambda_instantiations.find(*type::get<type::generic_func_type>(lambda->type));
-        if (instantiation != std::end(lambda_instantiations)) {
-            ast::walk_topdown(instantiation->second, *this);
-        }
+        ast::walk_topdown(lambda->receiver, *this);
     }
 
     template<class Walker>
@@ -244,30 +240,26 @@ public:
 };
 
 template<class Node>
-captured_offset_map resolve_lambda_captures(Node &search_root, scope::func_scope const& lambda_scope, symbol::var_symbol const& receiver, std::unordered_map<type::generic_func_type, ast::node::tuple_literal> &lambda_instantiations)
+captured_offset_map resolve_lambda_captures(Node &search_root, scope::func_scope const& lambda_scope, symbol::var_symbol const& receiver)
 {
-    lambda_capture_resolver resolver{lambda_scope, receiver, lambda_instantiations};
+    lambda_capture_resolver resolver{lambda_scope, receiver};
     ast::walk_topdown(search_root, resolver);
     return resolver.get_captures();
 }
 
 class lambda_capture_replacer {
     captured_offset_map const& captures;
-    std::unordered_map<type::generic_func_type, ast::node::tuple_literal> &lambda_instantiations;
 
 public:
 
-    lambda_capture_replacer(decltype(captures) const& cs, decltype(lambda_instantiations) &li)
-        : captures(cs), lambda_instantiations(li)
+    explicit lambda_capture_replacer(decltype(captures) const& cs)
+        : captures(cs)
     {}
 
     template<class Walker>
     void visit(ast::node::lambda_expr const& lambda, Walker const&)
     {
-        auto const instantiation = lambda_instantiations.find(*type::get<type::generic_func_type>(lambda->type));
-        if (instantiation != std::end(lambda_instantiations)) {
-            ast::walk_topdown(instantiation->second, *this);
-        }
+        ast::walk_topdown(lambda->receiver, *this);
     }
 
     template<class Walker>
@@ -298,19 +290,13 @@ public:
 // This function assumes that 'search_root' and its children are already analyzed.
 // All symbols and types should be resolved normally.
 template<class Node>
-void resolve_lambda_capture_access(Node &search_root, captured_offset_map const& captures, std::unordered_map<type::generic_func_type, ast::node::tuple_literal> &lambda_instantiations)
+void resolve_lambda_capture_access(Node &search_root, captured_offset_map const& captures)
 {
-    lambda_capture_replacer replacer{captures, lambda_instantiations};
+    lambda_capture_replacer replacer{captures};
     ast::walk_topdown(search_root, replacer);
 }
 
-struct lambda_context {
-    lambda_captures_type captures;
-    std::unordered_map<type::generic_func_type, ast::node::tuple_literal> instantiation_map;
-};
-
 class lambda_resolver {
-    std::unordered_map<type::generic_func_type, ast::node::tuple_literal> lambda_instantiation_map;
     lambda_captures_type captures;
 
     template<class Node>
@@ -331,15 +317,14 @@ class lambda_resolver {
         auto const lambda_object_sym = symbol::make<symbol::var_symbol>(nullptr, "lambda.receiver", /*immutable*/true /*TODO*/);
         lambda_object_sym->type = lambda_type;
 
-        auto const capture_map = detail::resolve_lambda_captures(func_def, func_scope, lambda_object_sym, lambda_instantiation_map);
+        auto const capture_map = resolve_lambda_captures(func_def, func_scope, lambda_object_sym);
 
         captures[lambda_type] = capture_map;
 
         return lambda_object_sym;
     }
 
-    template<class Location>
-    auto generate_lambda_capture_object(type::generic_func_type const& lambda_type, Location const& location)
+    void set_lambda_receiver(type::generic_func_type const& lambda_type, ast::node::lambda_expr const& lambda)
     {
         // XXX:
         // Function invocation with do-end block (= predicate with lambda) should have a lambda object
@@ -350,27 +335,28 @@ class lambda_resolver {
         // I'll implement the generation of lambda object with anonymous struct.  It must be replaced
         // with class object construction.
 
-        auto const temporary_tuple = helper::make<ast::node::tuple_literal>();
-        auto const temporary_tuple_type = type::make<type::tuple_type>();
-        temporary_tuple->type = temporary_tuple_type;
+        assert(lambda->receiver->element_exprs.empty());
+        assert(type::is_a<type::tuple_type>(lambda->receiver->type));
 
-        if (helper::exists(captures, lambda_type)) {
-            // Note:
-            // Substitute captured values as its fields
-            for (auto const& c : captures.at(lambda_type).template get<semantics::tags::offset>()) {
-                auto const& s = c.refered_symbol;
-                auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
-                new_var_ref->symbol = c.refered_symbol;
-                new_var_ref->type = s->type;
-                new_var_ref->set_source_location(location);
-                temporary_tuple->element_exprs.push_back(new_var_ref);
-                temporary_tuple_type->element_types.push_back(s->type);
-            }
+        auto const capture = captures.find(lambda_type);
+
+        if (capture == std::end(captures)) {
+            return;
         }
 
-        temporary_tuple->set_source_location(location);
+        auto const receiver_type = *type::get<type::tuple_type>(lambda->receiver->type);
 
-        return temporary_tuple;
+        // Note:
+        // Substitute captured values as its fields
+        for (auto const& c : capture->second.template get<semantics::tags::offset>()) {
+            auto const& s = c.refered_symbol;
+            auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
+            new_var_ref->symbol = c.refered_symbol;
+            new_var_ref->type = s->type;
+            new_var_ref->set_source_location(*lambda);
+            lambda->receiver->element_exprs.push_back(new_var_ref);
+            receiver_type->element_types.push_back(s->type);
+        }
     }
 
     void set_lambda_receiver(ast::node::function_definition const& func_def, symbol::var_symbol const& receiver_sym)
@@ -391,16 +377,15 @@ class lambda_resolver {
         walk_recursively(l);
 
         auto const receiver = resolve_lambda_capture_map(l, t);
-        lambda_instantiation_map[t] = generate_lambda_capture_object(t, *l);
         set_lambda_receiver(l, receiver);
-        resolve_lambda_capture_access(l, captures.at(t), lambda_instantiation_map);
+        resolve_lambda_capture_access(l, captures.at(t));
     }
 
 public:
 
-    lambda_context get_result() const
+    lambda_captures_type get_captures() const
     {
-        return {captures, lambda_instantiation_map};
+        return captures;
     }
 
     template<class Walker>
@@ -423,6 +408,8 @@ public:
         } else {
             resolve_lambda(def, type);
         }
+
+        set_lambda_receiver(type, lambda);
     }
 
     template<class Node, class Walker>

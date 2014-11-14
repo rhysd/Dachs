@@ -495,17 +495,7 @@ public:
 
     val emit(ast::node::lambda_expr const& lambda)
     {
-        auto const g = type::get<type::generic_func_type>(lambda->type);
-        assert(g);
-
-        auto const instantiation_itr = semantics_ctx.lambda_instantiation_map.find(*g);
-        if (instantiation_itr == std::end(semantics_ctx.lambda_instantiation_map)) {
-            // Note:
-            // When the lambda object is defined but not used.
-            return llvm::ConstantStruct::get(type_emitter.emit(*g), {});
-        }
-
-        return emit(instantiation_itr->second);
+        return emit(lambda->receiver);
     }
 
     llvm::Module *emit(ast::node::inu const& p)
@@ -898,16 +888,17 @@ public:
             if (helper::exists(semantics_ctx.lambda_captures, *g)) {
                 auto const& indexed_by_introduced = semantics_ctx.lambda_captures.at(*g).get<semantics::tags::introduced>();
                 auto const capture = indexed_by_introduced.find(ufcs);
-                if (capture != boost::end(indexed_by_introduced)) {
-                    return child_val->getType()->isStructTy() ?
-                        ctx.builder.CreateExtractValue(child_val, capture->offset) :
-                        ctx.builder.CreateStructGEP(child_val, capture->offset);
-                } else {
+
+                if (capture == boost::end(indexed_by_introduced)) {
                     // Note:
                     // If the capture map exists but no capture is found,
                     // it is non-captured lambda.
                     return llvm::ConstantStruct::getAnon(ctx.llvm_context, {});
                 }
+
+                return child_val->getType()->isStructTy() ?
+                    ctx.builder.CreateExtractValue(child_val, capture->offset) :
+                    ctx.builder.CreateStructGEP(child_val, capture->offset);
             }
         }
 

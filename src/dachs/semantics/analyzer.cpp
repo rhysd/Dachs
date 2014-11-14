@@ -1426,7 +1426,7 @@ public:
             root->definitions.push_back(std::move(l->def));
         }
 
-        return resolver.get_result();
+        return resolver.get_captures();
     }
 
     // TODO: member variable accesses
@@ -1501,7 +1501,7 @@ semantics_context check_semantics(ast::ast &a, scope::scope_tree &t)
 {
     detail::symbol_analyzer resolver{t.root, t.root};
     ast::walk_topdown(a.root, resolver);
-    auto const resolved_lambdas = resolver.resolve_lambda(a.root);
+    auto const lambda_captures = resolver.resolve_lambda(a.root);
     auto const failed = resolver.num_errors();
 
     if (failed > 0 || !detail::check_main_func(t.root->functions)) {
@@ -1511,7 +1511,7 @@ semantics_context check_semantics(ast::ast &a, scope::scope_tree &t)
     // Note:
     // Aggregate initialization here makes clang 3.4.2 crash.
     // I avoid it by explicitly specifying 'semantics_context'.
-    return semantics_context{t, resolved_lambdas.captures, resolved_lambdas.instantiation_map};
+    return semantics_context{t, lambda_captures};
 }
 
 } // namespace semantics
