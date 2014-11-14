@@ -1065,6 +1065,12 @@ BOOST_AUTO_TEST_CASE(ufcs)
 BOOST_AUTO_TEST_CASE(let_stmt)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo
+            let
+                a := 42
+            in ret a
+        end
+
         func main
             let a := 42 in println(42)
 
@@ -1113,9 +1119,7 @@ BOOST_AUTO_TEST_CASE(let_stmt)
                 a += 1
             end
 
-            let
-                a := 42
-            in ret a
+            foo().println
 
             let
                 a := 42
@@ -1416,6 +1420,20 @@ BOOST_AUTO_TEST_CASE(do_block)
 
             nothing() do
                 println("non template")
+            end
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func each(a, b)
+            for e in a
+                b(e)
+            end
+        end
+
+        func main
+            [1, 2, 3].each do |i|
+                println(i)
             end
         end
     )");
@@ -1777,6 +1795,15 @@ BOOST_AUTO_TEST_CASE(lambda_expression)
         func main
             m := curry3(mult3)
             m(1)(2)(3) == mult3(1, 2, 3)
+        end
+    )");
+}
+BOOST_AUTO_TEST_CASE(return_stmt_in_the_middle_of_basic_block)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            ret 0
+            println(42)
         end
     )");
 }

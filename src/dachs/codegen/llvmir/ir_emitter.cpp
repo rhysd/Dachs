@@ -620,6 +620,12 @@ public:
     {
         // Basic block is already emitd on visiting function_definition and for_stmt
         for (auto const& stmt : block->value) {
+            if (ctx.builder.GetInsertBlock()->getTerminator()) {
+                // Note:
+                // If current basic block is already terminated,
+                // no more statement should be emitted.
+                return;
+            }
             emit(stmt);
         }
     }
