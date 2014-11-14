@@ -314,10 +314,6 @@ struct lambda_expr final : public expression {
     {
         return "LAMBDA_EXPR";
     }
-
-private:
-
-    void initialize();
 };
 
 // This node will have kind of variable (global, member, local variables and functions)
@@ -365,6 +361,14 @@ struct func_invocation final : public expression {
     bool is_monad_invocation = false;
     scope::weak_func_scope callee_scope;
 
+    void set_do_block(node::function_definition const& def)
+    {
+        auto const lambda = helper::make<node::lambda_expr>(def);
+        lambda->set_source_location(*def);
+        lambda->receiver->set_source_location(*def);
+        args.push_back(std::move(lambda));
+    }
+
     func_invocation(
             node::any_expr const& c,
             std::vector<node::any_expr> const& a,
@@ -373,9 +377,7 @@ struct func_invocation final : public expression {
         : expression(), child(c), args(a)
     {
         if (do_block) {
-            auto const lambda = helper::make<node::lambda_expr>(*do_block);
-            lambda->set_source_location(**do_block);
-            args.push_back(std::move(lambda));
+            set_do_block(*do_block);
         }
     }
 
@@ -390,9 +392,7 @@ struct func_invocation final : public expression {
     {
         args.insert(args.end(), tail.begin(), tail.end());
         if (do_block) {
-            auto const lambda = helper::make<node::lambda_expr>(*do_block);
-            lambda->set_source_location(**do_block);
-            args.push_back(std::move(lambda));
+            set_do_block(*do_block);
         }
     }
 
@@ -404,9 +404,7 @@ struct func_invocation final : public expression {
         ) noexcept
         : expression(), child(c), args({arg})
     {
-        auto const lambda = helper::make<node::lambda_expr>(do_block);
-        lambda->set_source_location(*do_block);
-        args.push_back(std::move(lambda));
+        set_do_block(do_block);
     }
 
     std::string to_string() const noexcept override
