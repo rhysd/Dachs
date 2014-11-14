@@ -562,6 +562,23 @@ BOOST_AUTO_TEST_CASE(if_expr)
             (if if then if else if) # 'if' is a contextual keyword
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(a)
+        end
+
+        func main
+            (unless true then 42 else 24)
+            foo(unless true then 3.14 else 4.12)
+            (unless true then
+                42
+            else
+                24)
+            var unless := true
+            (unless true then 42
+             else 24)
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(typed_expr)
@@ -879,6 +896,72 @@ BOOST_AUTO_TEST_CASE(while_statement)
                 i += 1
                 println(i)
             end
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(postfix_if_statement)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+            ret if x
+        end
+
+        func foo2(x)
+            ret if x
+            ret
+        end
+
+        func abs(x)
+            ret -x if x as float < 0.0
+            ret x
+        end
+
+        func main
+            foo(true)
+            foo2(false)
+            abs(-3).println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+            ret unless x
+        end
+
+        func foo2(x)
+            ret unless x
+            ret
+        end
+
+        func abs(x)
+            ret -x unless x as float > 0.0
+            ret x
+        end
+
+        func main
+            foo(true)
+            foo2(false)
+            abs(-3).println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+            if x
+                ret if if x then !x else x
+            end
+        end
+
+        func foo2(x)
+            unless x
+                ret unless unless x then !x else x
+            end
+        end
+
+        func main
+            foo(true)
+            foo2(true)
         end
     )");
 }
