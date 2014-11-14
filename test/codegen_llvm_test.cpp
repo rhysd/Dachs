@@ -1635,6 +1635,67 @@ BOOST_AUTO_TEST_CASE(lambda_expression)
             double(3.14).println
         end
     )");
+
+    // Access to captured values in different basic block
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+            x()
+        end
+
+        func foo2(x)
+            ret x(42)
+        end
+
+        func main
+            var a := 42
+            foo(-> println(42))
+
+            b := 3.14
+            foo(-> println(b))
+
+            foo2(-> x in x + a).println
+            foo2(-> x in x as float + b).println
+        end
+    )");
+
+    // Returned lambdas
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo
+            ret -> 42
+        end
+
+        func foo2
+            ret -> x in x * x
+        end
+
+        func foo3(a)
+            ret -> x in a * x
+        end
+
+        func main
+            foo()() == 42
+            foo2()(42) == 42 * 42
+            foo3(10)(32) == 10 * 32
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func curry3(f)
+            ret -> x in
+                    -> y in
+                        -> z in
+                            f(x, y, z)
+        end
+
+        func mult3(x, y, z)
+            ret x * y * z
+        end
+
+        func main
+            m := curry3(mult3)
+            m(1)(2)(3) == mult3(1, 2, 3)
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(some_samples)
