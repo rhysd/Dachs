@@ -148,14 +148,13 @@ foreach (l ${LLVM_LIBS} ${LLVM_SYS_LIBS})
     list(APPEND REQUIRED_LLVM_LIBRARIES ${lib_name})
 endforeach (l)
 
-# adhoc:
-# ADD SYSTEM LIBRARYS
-if ( CMAKE_SYSTEM_NAME STREQUAL "Linux" )
-  list( APPEND REQUIRED_LLVM_LIBRARIES "z" "pthread" "dl" "curses" )     # zlib, pthread, dl, curses
-else()
-  # FIXME...
-  message( FATAL_ERROR "Currently, your platform ${CMAKE_SYSTEM_NAME} is not supported..." )
-endif()
+# Check libraries which LLVM depends on
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  list(APPEND REQUIRED_LLVM_LIBRARIES "z" "pthread" "dl" "curses")
+else ()
+  # FIXME
+  message(FATAL_ERROR "Currently, your platform ${CMAKE_SYSTEM_NAME} is not supported...")
+endif ()
 
 include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
