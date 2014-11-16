@@ -502,17 +502,7 @@ public:
 
     val emit(ast::node::lambda_expr const& lambda)
     {
-        auto const g = type::get<type::generic_func_type>(lambda->type);
-        assert(g);
-
-        auto const instantiation_itr = semantics_ctx.lambda_instantiation_map.find(*g);
-        if (instantiation_itr == std::end(semantics_ctx.lambda_instantiation_map)) {
-            // Note:
-            // When the lambda object is defined but not used.
-            return llvm::ConstantStruct::get(type_emitter.emit(*g), {});
-        }
-
-        return emit(instantiation_itr->second);
+        return emit(lambda->receiver);
     }
 
     llvm::Module *emit(ast::node::inu const& p)
@@ -637,6 +627,12 @@ public:
     {
         // Basic block is already emitd on visiting function_definition and for_stmt
         for (auto const& stmt : block->value) {
+            if (ctx.builder.GetInsertBlock()->getTerminator()) {
+                // Note:
+                // If current basic block is already terminated,
+                // no more statement should be emitted.
+                return;
+            }
             emit(stmt);
         }
     }
@@ -761,27 +757,18 @@ public:
         // Add a receiver for lambda function invocation
         if (callee->is_anonymous()) {
             args.insert(std::begin(args), get_operand(emit(invocation->child)));
+        } else {
+            emit(invocation->child);
         }
 
-        if (invocation->do_block) {
-            return check(
-                        invocation,
-                        ctx.builder.CreateCall(
-                            emit_non_builtin_callee(invocation, callee),
-                            args
-                        ),
-                        "invalid function call with do-end block"
+        return check(
+                    invocation,
+                    ctx.builder.CreateCall(
+                        emit_callee(invocation, callee, invocation->args),
+                        args
+                    ),
+                    "invalid function call"
                 );
-        } else {
-            return check(
-                        invocation,
-                        ctx.builder.CreateCall(
-                            emit_callee(invocation, callee, invocation->args),
-                            args
-                        ),
-                        "invalid function call"
-                    );
-        }
     }
 
     val emit(ast::node::unary_expr const& unary)
@@ -910,13 +897,18 @@ public:
 
         // Note:
         // When the UFCS invocation is generated for lambda capture access
-        if (auto const g_ = type::get<type::generic_func_type>(type::type_of(ufcs->child))) {
-            auto const& g = *g_;
-            assert(g->ref && !g->ref->expired());
-            auto const func = g->ref->lock();
+        if (auto const g = type::get<type::generic_func_type>(type::type_of(ufcs->child))) {
+            if (helper::exists(semantics_ctx.lambda_captures, *g)) {
+                auto const& indexed_by_introduced = semantics_ctx.lambda_captures.at(*g).get<semantics::tags::introduced>();
+                auto const capture = indexed_by_introduced.find(ufcs);
 
-            if (func->is_anonymous()) {
-                auto const& capture = semantics_ctx.lambda_captures.at(func).get<semantics::tags::introduced>().find(ufcs);
+                if (capture == boost::end(indexed_by_introduced)) {
+                    // Note:
+                    // If the capture map exists but no capture is found,
+                    // it is non-captured lambda.
+                    return llvm::ConstantStruct::getAnon(ctx.llvm_context, {});
+                }
+
                 return child_val->getType()->isStructTy() ?
                     ctx.builder.CreateExtractValue(child_val, capture->offset) :
                     ctx.builder.CreateStructGEP(child_val, capture->offset);
@@ -951,29 +943,6 @@ public:
 
         std::vector<val> args = {get_operand(emit(ufcs->child))};
         auto const callee = ufcs->callee_scope.lock();
-
-        // Note:
-        // UFCS invocation never invokes lambda function.
-
-        // Scope is not expired. It means the UFCS invoke a funciton
-        if (ufcs->do_block) {
-            auto const g = type::get<type::generic_func_type>((*ufcs->do_block)->scope.lock()->type);
-            assert(g);
-
-            assert(ufcs->do_block_object);
-            args.push_back(get_operand(emit(*ufcs->do_block_object)));
-
-            // Note:
-            // Add block to the 2nd argument of invocation as function variable
-            return check(
-                        ufcs,
-                        ctx.builder.CreateCall(
-                            emit_non_builtin_callee(ufcs, callee),
-                            args
-                        ),
-                        "UFCS function invocation with do-end block"
-                    );
-        }
 
         return check(
                     ufcs,

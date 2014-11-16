@@ -123,7 +123,7 @@ end
 - [ ] Type inference
 - [x] UFCS
 - [ ] Class
-- [ ] Lambda
+- [x] Lambda
 - [x] Block
 - [ ] Variadic arguments
 - [ ] Module

@@ -5,6 +5,7 @@
 #include <string>
 #include <type_traits>
 #include <cstddef>
+#include <cassert>
 #include <boost/variant/variant.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string/predicate.hpp>
@@ -121,10 +122,18 @@ struct basic_scope {
         if (maybe_shadowing_var) {
             auto const the_node = new_var->ast_node.get_shared();
             auto const prev_node = (*maybe_shadowing_var)->ast_node.get_shared();
-            output_warning(the_node, boost::format(
-                            "Shadowing variable '%1%'. It shadows a variable at line:%2%, col:%3%"
-                        ) % new_var->name % prev_node->line % prev_node->col
-                    );
+            assert(the_node);
+            if (prev_node) {
+                output_warning(the_node, boost::format(
+                                "Shadowing variable '%1%'. It shadows a variable at line:%2%, col:%3%"
+                            ) % new_var->name % prev_node->line % prev_node->col
+                        );
+            } else {
+                output_warning(the_node, boost::format(
+                                "Shadowing variable '%1%'. It shadows a built-in variable"
+                            ) % new_var->name
+                        );
+            }
         }
     }
 };

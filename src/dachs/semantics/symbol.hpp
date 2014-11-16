@@ -50,6 +50,7 @@ struct basic_symbol {
 
 struct var_symbol final : public basic_symbol {
     bool immutable;
+    bool is_global = false;
 
     template<class Node>
     var_symbol(Node const& node, std::string const& s, bool const immutable = true, bool const is_builtin = false) noexcept

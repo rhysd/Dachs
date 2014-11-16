@@ -562,6 +562,23 @@ BOOST_AUTO_TEST_CASE(if_expr)
             (if if then if else if) # 'if' is a contextual keyword
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(a)
+        end
+
+        func main
+            (unless true then 42 else 24)
+            foo(unless true then 3.14 else 4.12)
+            (unless true then
+                42
+            else
+                24)
+            var unless := true
+            (unless true then 42
+             else 24)
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(typed_expr)
@@ -883,6 +900,72 @@ BOOST_AUTO_TEST_CASE(while_statement)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(postfix_if_statement)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+            ret if x
+        end
+
+        func foo2(x)
+            ret if x
+            ret
+        end
+
+        func abs(x)
+            ret -x if x as float < 0.0
+            ret x
+        end
+
+        func main
+            foo(true)
+            foo2(false)
+            abs(-3).println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+            ret unless x
+        end
+
+        func foo2(x)
+            ret unless x
+            ret
+        end
+
+        func abs(x)
+            ret -x unless x as float > 0.0
+            ret x
+        end
+
+        func main
+            foo(true)
+            foo2(false)
+            abs(-3).println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+            if x
+                ret if if x then !x else x
+            end
+        end
+
+        func foo2(x)
+            unless x
+                ret unless unless x then !x else x
+            end
+        end
+
+        func main
+            foo(true)
+            foo2(true)
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(function_variable)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
@@ -982,6 +1065,12 @@ BOOST_AUTO_TEST_CASE(ufcs)
 BOOST_AUTO_TEST_CASE(let_stmt)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo
+            let
+                a := 42
+            in ret a
+        end
+
         func main
             let a := 42 in println(42)
 
@@ -1030,9 +1119,7 @@ BOOST_AUTO_TEST_CASE(let_stmt)
                 a += 1
             end
 
-            let
-                a := 42
-            in ret a
+            foo().println
 
             let
                 a := 42
@@ -1336,6 +1423,20 @@ BOOST_AUTO_TEST_CASE(do_block)
             end
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func each(a, b)
+            for e in a
+                b(e)
+            end
+        end
+
+        func main
+            [1, 2, 3].each do |i|
+                println(i)
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(do_block_with_captures)
@@ -1496,6 +1597,19 @@ BOOST_AUTO_TEST_CASE(do_block_with_captures)
             end
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            (-> -> 42)()().println
+            (-> -> println(42))()()
+
+            a := 42
+            (-> -> a)()().println
+
+            var b := 42
+            (-> -> b)()().println
+        end
+    )")
 }
 
 BOOST_AUTO_TEST_CASE(unit_type)
@@ -1620,6 +1734,76 @@ BOOST_AUTO_TEST_CASE(lambda_expression)
 
             double(42).println
             double(3.14).println
+        end
+    )");
+
+    // Access to captured values in different basic block
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+            x()
+        end
+
+        func foo2(x)
+            ret x(42)
+        end
+
+        func main
+            var a := 42
+            foo(-> println(42))
+
+            b := 3.14
+            foo(-> println(b))
+
+            foo2(-> x in x + a).println
+            foo2(-> x in x as float + b).println
+        end
+    )");
+
+    // Returned lambdas
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo
+            ret -> 42
+        end
+
+        func foo2
+            ret -> x in x * x
+        end
+
+        func foo3(a)
+            ret -> x in a * x
+        end
+
+        func main
+            foo()() == 42
+            foo2()(42) == 42 * 42
+            foo3(10)(32) == 10 * 32
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func curry3(f)
+            ret -> x in
+                    -> y in
+                        -> z in
+                            f(x, y, z)
+        end
+
+        func mult3(x, y, z)
+            ret x * y * z
+        end
+
+        func main
+            m := curry3(mult3)
+            m(1)(2)(3) == mult3(1, 2, 3)
+        end
+    )");
+}
+BOOST_AUTO_TEST_CASE(return_stmt_in_the_middle_of_basic_block)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            ret 0
+            println(42)
         end
     )");
 }

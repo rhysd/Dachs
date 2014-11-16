@@ -100,7 +100,7 @@ public:
 
     auto copy(node::func_invocation const& fc) const
     {
-        return copy_node<node::func_invocation>(fc, copy(fc->child), copy(fc->args), copy(fc->do_block));
+        return copy_node<node::func_invocation>(fc, copy(fc->child), copy(fc->args));
     }
 
     auto copy(node::object_construct const& oc) const
@@ -115,7 +115,7 @@ public:
 
     auto copy(node::ufcs_invocation const& ui) const
     {
-        return copy_node<node::ufcs_invocation>(ui, copy(ui->child), ui->member_name, copy(ui->do_block));
+        return copy_node<node::ufcs_invocation>(ui, copy(ui->child), ui->member_name);
     }
 
     auto copy(node::unary_expr const& ue) const

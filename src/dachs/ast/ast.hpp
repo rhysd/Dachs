@@ -297,6 +297,25 @@ struct dict_literal final : public expression {
     }
 };
 
+struct lambda_expr final : public expression {
+    node::function_definition def;
+    node::tuple_literal receiver;
+
+    explicit lambda_expr(decltype(def) const& d)
+        : expression()
+        , def(d)
+        , receiver(helper::make<node::tuple_literal>())
+    {
+        receiver->set_source_location(*this);
+        receiver->type = type::make<type::tuple_type>();
+    }
+
+    std::string to_string() const noexcept override
+    {
+        return "LAMBDA_EXPR";
+    }
+};
+
 // This node will have kind of variable (global, member, local variables and functions)
 struct var_ref final : public expression {
     std::string name;
@@ -341,26 +360,51 @@ struct func_invocation final : public expression {
     std::vector<node::any_expr> args;
     bool is_monad_invocation = false;
     scope::weak_func_scope callee_scope;
-    boost::optional<node::function_definition> do_block;
+
+    void set_do_block(node::function_definition const& def)
+    {
+        auto const lambda = helper::make<node::lambda_expr>(def);
+        lambda->set_source_location(*def);
+        lambda->receiver->set_source_location(*def);
+        args.push_back(std::move(lambda));
+    }
 
     func_invocation(
             node::any_expr const& c,
-            std::vector<node::any_expr> const& args,
-            decltype(do_block) const f = boost::none
+            std::vector<node::any_expr> const& a,
+            boost::optional<node::function_definition> const& do_block = boost::none
         ) noexcept
-        : expression(), child(c), args(args), do_block(std::move(f))
-    {}
+        : expression(), child(c), args(a)
+    {
+        if (do_block) {
+            set_do_block(*do_block);
+        }
+    }
 
     // Note: For UFCS
     func_invocation(
             node::any_expr const& c,
             node::any_expr const& head,
             std::vector<node::any_expr> const& tail,
-            decltype(do_block) const f = nullptr
+            boost::optional<node::function_definition> const& do_block= boost::none
         ) noexcept
-        : expression(), child(c), args({head}), do_block(std::move(f))
+        : expression(), child(c), args({head})
     {
         args.insert(args.end(), tail.begin(), tail.end());
+        if (do_block) {
+            set_do_block(*do_block);
+        }
+    }
+
+    // Note: For UFCS
+    func_invocation(
+            node::function_definition const& do_block,
+            node::any_expr const& c,
+            node::any_expr const& arg
+        ) noexcept
+        : expression(), child(c), args({arg})
+    {
+        set_do_block(do_block);
     }
 
     std::string to_string() const noexcept override
@@ -401,15 +445,12 @@ struct ufcs_invocation final : public expression {
     node::any_expr child;
     std::string member_name;
     scope::weak_func_scope callee_scope;
-    boost::optional<node::function_definition> do_block;
-    boost::optional<node::lambda_expr> do_block_object;
 
     ufcs_invocation(
             node::any_expr const& c,
-            std::string const& member_name,
-            decltype(do_block) const f = boost::none
+            std::string const& member_name
         ) noexcept
-        : expression(), child(c), member_name(member_name), do_block(std::move(f))
+        : expression(), child(c), member_name(member_name)
     {}
 
     std::string to_string() const noexcept override
@@ -875,19 +916,6 @@ struct function_definition final : public statement {
     std::string to_string() const noexcept override
     {
         return "FUNC_DEFINITION: " + symbol::to_string(kind) + ' ' + name;
-    }
-};
-
-struct lambda_expr final : public expression {
-    node::function_definition def;
-
-    explicit lambda_expr(decltype(def) const& d)
-        : expression(), def(d)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "LAMBDA_EXPR: " + def->name;
     }
 };
 

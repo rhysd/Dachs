@@ -107,8 +107,9 @@ public:
 
         if (auto maybe_global_scope = get_as<scope::global_scope>(current_scope)) {
             auto& global_scope = *maybe_global_scope;
-            auto new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name, true /*immutable*/);
+            auto const new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name, true /*immutable*/);
             new_func_var->type = new_func->type;
+            new_func_var->is_global = true;
             global_scope->define_function(new_func);
             global_scope->define_global_function_constant(new_func_var);
         } else if (auto maybe_local_scope = get_as<scope::local_scope>(current_scope)) {
@@ -143,8 +144,18 @@ public:
             param->type =
                 boost::apply_visitor(
                     type_calculator_from_type_nodes{current_scope},
-                    *(param->param_type)
+                    *param->param_type
                 );
+            if (!param->type) {
+                semantic_error(
+                        param,
+                        boost::format("Invalid type '%1%' for parameter '%2%'")
+                            % apply_lambda([](auto const& t){
+                                    return t->to_string();
+                            }, *param->param_type)
+                            % param->name
+                    );
+            }
             new_param_sym->type = param->type;
         }
 
@@ -221,28 +232,14 @@ public:
         ast::walk_topdown(lambda->def, *this);
     }
 
-    template<class Node>
-    void visit_do_block(Node const& n)
+    template<class Walker>
+    void visit(ast::node::return_stmt const& ret, Walker const& recursive_walker)
     {
-        if (n->do_block) {
-            auto &b = *n->do_block;
-            b->name = get_lambda_name(b);
-            ast::walk_topdown(b, *this);
+        if ((ret->line == 0u) && (ret->col == 0u)) {
+            assert(ret->ret_exprs.size() > 0u);
+            apply_lambda([&ret](auto const& child){ ret->set_source_location(*child); }, ret->ret_exprs[0]);
         }
-    }
-
-    template<class Walker>
-    void visit(ast::node::func_invocation const& invocation, Walker const& recursive_walker)
-    {
         recursive_walker();
-        visit_do_block(invocation);
-    }
-
-    template<class Walker>
-    void visit(ast::node::ufcs_invocation const& ufcs, Walker const& recursive_walker)
-    {
-        recursive_walker();
-        visit_do_block(ufcs);
     }
 
     // TODO: class scopes and member function scopes

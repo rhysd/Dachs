@@ -184,7 +184,7 @@ public:
     {
         return prefix_of(oc, indent)
             + '\n' + visit(oc->obj_type, indent+lead, (oc->args.empty() ? "   " : "|  "))
-            + visit_nodes(oc->args, indent+lead, "   ");
+            + visit_nodes(oc->args, indent+lead, true);
     }
 
     String visit(node::index_access const& ia, String const& indent, char const* const lead) const noexcept
@@ -197,16 +197,14 @@ public:
     String visit(node::ufcs_invocation const& ui, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(ui, indent)
-            + '\n' + visit(ui->child, indent+lead, ui->do_block ? "|  " : "   ")
-            + visit_optional_node(ui->do_block, indent+lead, "   ");
+            + '\n' + visit(ui->child, indent+lead, "   ");
     }
 
     String visit(node::func_invocation const& fc, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(fc, indent)
-            + '\n' + visit(fc->child, indent+lead, fc->args.empty() && !fc->do_block ? "   " : "|  ")
-            + visit_nodes(fc->args, indent+lead, !fc->do_block)
-            + visit_optional_node(fc->do_block, indent+lead, "   ");
+            + '\n' + visit(fc->child, indent+lead, fc->args.empty() ? "   " : "|  ")
+            + visit_nodes(fc->args, indent+lead, true);
     }
 
     String visit(node::unary_expr const& ue, String const& indent, char const* const lead) const noexcept
