@@ -531,17 +531,22 @@ public:
 
         // Note:
         // emit Function prototypes in advance for forward reference
-        for (auto const& i : p->definitions) {
-            if (auto const maybe_func_def = get_as<ast::node::function_definition>(i)) {
-                emit_func_def_prototype(*maybe_func_def);
-            } // else if ...
+        for (auto const& f : p->functions) {
+            emit_func_def_prototype(f);
         }
 
         // Note:
         // Then, emit other functions
-        for (auto const& i : p->definitions) {
-            emit(i);
-        }
+        auto const emit_defs
+            = [this](auto const& defs)
+            {
+                for (auto const& d : defs) {
+                    emit(d);
+                }
+            };
+
+        emit_defs(p->global_constants);
+        emit_defs(p->functions);
 
         assert(loop_stack.empty());
 

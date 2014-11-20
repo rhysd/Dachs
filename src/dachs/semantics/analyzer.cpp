@@ -1423,7 +1423,7 @@ public:
         }
 
         for (auto const& l : lambdas) {
-            root->definitions.push_back(std::move(l->def));
+            root->functions.push_back(std::move(l->def));
         }
 
         return resolver.get_captures();

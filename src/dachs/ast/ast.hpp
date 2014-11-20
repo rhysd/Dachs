@@ -920,15 +920,17 @@ struct function_definition final : public statement {
 };
 
 struct inu final : public base {
-    std::vector<node::global_definition> definitions;
+    std::vector<node::function_definition> functions;
+    std::vector<node::initialize_stmt> global_constants;
 
-    explicit inu(decltype(definitions) const& defs) noexcept
-        : base(), definitions(defs)
+    inu(decltype(functions) const& fs, decltype(global_constants) const& gs) noexcept
+        : base(), functions(fs), global_constants(gs)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "PROGRAM: num of definitions is " + std::to_string(definitions.size());
+        return "PROGRAM: functions: " + std::to_string(functions.size())
+            + ", constants: " + std::to_string(global_constants.size());
     }
 };
 

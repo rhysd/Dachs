@@ -310,7 +310,8 @@ public:
     void walk(node::inu &p)
     {
         visitor.visit(p, walker_for(
-            p->definitions
+            p->functions,
+            p->global_constants
         ));
     }
 

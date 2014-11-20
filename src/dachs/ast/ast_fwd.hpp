@@ -214,12 +214,6 @@ using compound_stmt =
         , any_expr
     >;
 
-using global_definition =
-    boost::variant<
-        function_definition,
-        initialize_stmt
-    >;
-
 class any_node {
     std::weak_ptr<node_type::base> node;
 

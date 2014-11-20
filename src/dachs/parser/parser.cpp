@@ -147,7 +147,7 @@ struct strict_real_policies_disallowing_trailing_dot final
 };
 
 template<class Iterator>
-class grammar final : public qi::grammar<Iterator, ast::node::inu(), comment_skipper<Iterator>> {
+class grammar final : public qi::grammar<Iterator, ast::node::inu(), comment_skipper<Iterator>, qi::locals<std::vector<ast::node::function_definition>, std::vector<ast::node::initialize_stmt>>> {
     template<class Value, class... Extra>
     using rule = qi::rule<Iterator, Value, comment_skipper<Iterator>, Extra...>;
 
@@ -177,9 +177,14 @@ public:
 
         inu
             = (
-                -sep > -(global_definition % sep) > -sep > (qi::eol | qi::eoi)
+                -sep > -(
+                    (
+                        function_definition[phx::push_back(_a, _1)]
+                      | constant_definition[phx::push_back(_b, _1)]
+                    ) % sep
+                ) > -sep > (qi::eol | qi::eoi)
             ) [
-                _val = make_node_ptr<ast::node::inu>(as_vector(_1))
+                _val = make_node_ptr<ast::node::inu>(_a, _b)
             ];
 
         character_literal
@@ -976,11 +981,6 @@ public:
                 _val = make_node_ptr<ast::node::initialize_stmt>(_1, _2)
             ];
 
-        global_definition
-            = (
-                function_definition | constant_definition
-            );
-
     #undef DACHS_KWD
     #undef DACHS_KWD_STRICT
 
@@ -1138,7 +1138,6 @@ public:
         constant_decl.name("constant declaration");
         constant_definition.name("constant definition");
         do_block.name("do-end block");
-        global_definition.name("global definition");
         sep.name("separater");
         constructor_call.name("constructor call");
         function_param_decls.name("parameter declarations of function");
@@ -1170,7 +1169,7 @@ private:
 #define DACHS_DEFINE_RULE(n) rule<ast::node::n()> n
 #define DACHS_DEFINE_RULE_WITH_LOCALS(n, ...) rule<ast::node::n(), qi::locals< __VA_ARGS__ >> n
 
-    DACHS_DEFINE_RULE(inu);
+    DACHS_DEFINE_RULE_WITH_LOCALS(inu, std::vector<ast::node::function_definition>, std::vector<ast::node::initialize_stmt>);
     DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE(object_construct);
     DACHS_DEFINE_RULE(if_stmt);
@@ -1186,7 +1185,6 @@ private:
     DACHS_DEFINE_RULE(let_stmt);
     DACHS_DEFINE_RULE(compound_stmt);
     DACHS_DEFINE_RULE(function_definition);
-    DACHS_DEFINE_RULE(global_definition);
 
     rule<char()> character_literal;
     rule<double()> float_literal;
