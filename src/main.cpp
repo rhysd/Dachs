@@ -4,16 +4,40 @@
 #include <string>
 #include <cstring>
 
+#include <signal.h>
+
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
 
 #include "dachs/compiler.hpp"
 #include "dachs/helper/colorizer.hpp"
+#include "dachs/helper/backtrace_printer.hpp"
 #include "dachs/exception.hpp"
 
 namespace dachs {
 namespace cmdline {
+
+[[noreturn]]
+static void signal_handler(int s)
+{
+    dachs::helper::colorizer<std::string> c;
+    helper::backtrace_printer<> printer{c};
+
+    std::cout << c.red("Caught deadly signal " + std::to_string(s)) << std::endl;
+    printer.dump_pretty_backtrace();
+
+    std::cerr << std::endl;
+
+    struct sigaction restored;
+    sigemptyset(&restored.sa_mask);
+    sigaddset(&restored.sa_mask, s);
+    restored.sa_flags = SA_RESETHAND;
+
+    sigaction(s, &restored, nullptr);
+    raise(s);
+    std::exit(1);
+}
 
 template<class Action>
 int do_compiler_action(Action const& action)
@@ -98,6 +122,23 @@ auto get_command_options(ArgPtr arg)
 int main(int const, char const* const argv[])
 {
     (U'ω') /* Hello, Dachs! */;
+
+    auto const& add_signal_action
+        = [&](auto const signal, auto &new_action)
+        {
+            sigemptyset(&new_action.sa_mask);
+            sigaddset(&new_action.sa_mask, signal);
+            new_action.sa_handler = dachs::cmdline::signal_handler;
+
+            return sigaction(signal, &new_action, nullptr) != -1;
+        };
+
+    struct sigaction sigsegv_action, sigabrt_action;
+    if (!add_signal_action(SIGSEGV, sigsegv_action) ||
+        !add_signal_action(SIGABRT, sigabrt_action)) {
+        std::cerr << "Failed to set signal handler." << std::endl;
+        return 4;
+    }
 
     auto const show_usage =
         [argv]()
