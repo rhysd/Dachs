@@ -47,6 +47,42 @@ struct backtrace_printer {
 
     backtrace_frame parse_frame(char const* const frame) const
     {
+#if defined(__GLIBCPP__) || defined(__GLIBCXX__)
+        std::string detail = frame;
+        char const* start;
+        char const* last;
+        start = last = frame;
+
+        auto const advance_last_until
+            = [&](char const c)
+            {
+                while(*last != c && *last != '\0') ++last;
+                return *last != '\0';
+            };
+
+        auto const tokenize_until
+            = [&](char const c) -> std::string
+            {
+                if (advance_last_until(c)) {
+                    auto const s = start, l = last;
+                    start = ++last;
+                    return {s, l};
+                } else {
+                    return "UNKNOWN";
+                }
+            };
+
+        std::string const objname = tokenize_until('(');
+        std::string const demangled = tokenize_until(')');
+
+        if (advance_last_until('[')) {
+            start = ++last;
+        }
+
+        std::string const address = tokenize_until(']');
+
+        return {objname, address, demangled, detail};
+#else
         char const* current = frame;
 
         auto const skip_white
@@ -71,19 +107,19 @@ struct backtrace_printer {
             };
 
         get_token(); // Skip no.
-        auto const libname = get_token();
+        auto const objname = get_token();
 
         auto const address = get_token();
         skip_white();
         std::string detail = current;
 
-#if BOOST_VERSION >= 105600
+#   if BOOST_VERSION >= 105600
         auto const demangled = boost::core::demangle(get_token());
-#else
+#   else
         auto const demangled = get_token();
+#   endif
+        return {objname, address, demangled, detail};
 #endif
-
-        return {libname, address, demangled, detail};
     }
 
 
