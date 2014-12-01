@@ -11,8 +11,8 @@ namespace helper {
 // background color of text, underline, bold and blink effects
 
 template<class String>
-class colorizer {
-    bool enabled;
+class basic_colorizer {
+    static bool enabled;
 
     enum class color {
         yellow,
@@ -101,6 +101,9 @@ public:
 
 template<class String>
 bool basic_colorizer<String>::enabled = true;
+
+using colorizer = basic_colorizer<std::string>;
+
 } // namespace helper
 } // namespace dachs
 

@@ -136,7 +136,7 @@ class ast_stringizer {
                     is_last);
     }
 
-    helper::colorizer<String> c;
+    helper::colorizer c;
 
 public:
 

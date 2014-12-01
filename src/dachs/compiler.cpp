@@ -74,7 +74,7 @@ std::vector<std::string> compiler::compile_to_objects(compiler::files_type const
         auto &module = codegen::llvmir::emit_llvm_ir(ast, semantics, context);
         if (debug) {
             std::cerr << "file: " << f << '\n'
-                      << ast::stringize_ast(ast, colorful)
+                      << ast::stringize_ast(ast)
                             + "\n\n=========Scope Tree=========\n\n"
                             + scope::stringize_scope_tree(semantics.scopes)
                     << "\n\n=========LLVM IR=========\n\n";
@@ -88,7 +88,7 @@ std::vector<std::string> compiler::compile_to_objects(compiler::files_type const
 
 std::string compiler::report_ast(std::string const& file, std::string const& code, bool const colorful) const
 {
-    return ast::stringize_ast(parser.parse(code, file), colorful);
+    return ast::stringize_ast(parser.parse(code, file));
 }
 
 std::string compiler::report_scope_tree(std::string const& file, std::string const& code) const

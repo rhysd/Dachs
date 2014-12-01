@@ -22,7 +22,7 @@ namespace helper {
 
 template<std::size_t MaxFrames = 100u, class String = std::string>
 struct backtrace_printer {
-    colorizer<String> c;
+    colorizer c;
 
     struct backtrace_frame {
         std::string object;

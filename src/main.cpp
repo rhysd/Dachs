@@ -21,7 +21,7 @@ namespace cmdline {
 [[noreturn]]
 static void signal_handler(int s)
 {
-    dachs::helper::colorizer<std::string> c;
+    dachs::helper::colorizer c;
     helper::backtrace_printer<> printer{c};
 
     std::cout << c.red("Caught deadly signal " + std::to_string(s)) << std::endl;
@@ -42,7 +42,7 @@ static void signal_handler(int s)
 template<class Action>
 int do_compiler_action(Action const& action)
 {
-    dachs::helper::colorizer<std::string> c;
+    dachs::helper::colorizer c;
 
     try {
         action();

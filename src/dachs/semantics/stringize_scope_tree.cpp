@@ -18,7 +18,7 @@ using std::size_t;
 
 class scope_tree_stringizer {
 
-    helper::colorizer<std::string> c;
+    helper::colorizer c;
 
     std::string indent(size_t const i) const
     {

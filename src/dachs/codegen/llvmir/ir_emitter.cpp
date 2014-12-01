@@ -1491,7 +1491,7 @@ llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const
 # error LLVM: Not supported version.
 #endif
 
-        helper::colorizer<std::string> c;
+        helper::colorizer c;
         std::cerr << c.red(errmsg) << std::endl;
     }
 
