@@ -140,10 +140,6 @@ class ast_stringizer {
 
 public:
 
-    explicit ast_stringizer(bool const colorful)
-        : c(colorful)
-    {}
-
     String visit(node::inu const& p, String const& indent) const noexcept
     {
         return prefix_of(p, indent)
@@ -404,9 +400,9 @@ public:
 
 } // namespace detail
 
-std::string stringize_ast(ast const& ast, bool const colorful)
+std::string stringize_ast(ast const& ast)
 {
-    return detail::ast_stringizer<std::string>{colorful}.visit(ast.root, "");
+    return detail::ast_stringizer<std::string>{}.visit(ast.root, "");
 }
 
 } // namespace ast

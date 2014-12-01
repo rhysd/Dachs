@@ -40,7 +40,7 @@ std::string compiler::compile(compiler::files_type const& files, std::vector<std
 
         auto ast = parser.parse(code, f);
         if (debug) {
-            std::cerr << ast::stringize_ast(ast, colorful) << "\n\n";
+            std::cerr << ast::stringize_ast(ast) << "\n\n";
         }
 
         auto ctx = semantics::analyze_semantics(ast);

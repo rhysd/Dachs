@@ -2,6 +2,7 @@
 #define      DACHS_HELPER_COLORIZER_HPP_INCLUDED
 
 #include <map>
+#include <string>
 
 namespace dachs {
 namespace helper {
@@ -63,10 +64,6 @@ class colorizer {
 
 public:
 
-    explicit colorizer(bool const colorful_output=true) noexcept
-        : enabled(colorful_output)
-    {}
-
     String yellow(String const& target, bool const end_seq=true, brightness const b=brightness::light) const noexcept
     {
         return colorize(color::yellow, target, end_seq, b);
@@ -102,6 +99,8 @@ public:
     }
 };
 
+template<class String>
+bool basic_colorizer<String>::enabled = true;
 } // namespace helper
 } // namespace dachs
 

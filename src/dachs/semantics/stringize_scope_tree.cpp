@@ -53,10 +53,6 @@ class scope_tree_stringizer {
 
 public:
 
-    explicit scope_tree_stringizer(bool const colorful)
-        : c(colorful)
-    {}
-
     std::string visit(local_scope const& l, size_t const i) const
     {
         return indent(i) + c.green("LOCAL_SCOPE")
@@ -93,7 +89,7 @@ public:
 
 std::string stringize_scope_tree(scope_tree const& tree)
 {
-    return detail::scope_tree_stringizer{true}.visit(tree.root, 0);
+    return detail::scope_tree_stringizer{}.visit(tree.root, 0);
 }
 
 } // namespace scope
