@@ -15,8 +15,14 @@
 #include "dachs/codegen/llvmir/executable_generator.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/helper/util.hpp"
+#include "dachs/helper/colorizer.hpp"
 
 namespace dachs {
+
+compiler::compiler(bool const colorful)
+{
+    helper::colorizer::enabled = colorful;
+}
 
 std::string compiler::read(std::string const& file) const
 {
@@ -27,7 +33,7 @@ std::string compiler::read(std::string const& file) const
     return *maybe_code;
 }
 
-std::string compiler::compile(compiler::files_type const& files, std::vector<std::string> const& libdirs, bool const colorful, bool const debug) const
+std::string compiler::compile(compiler::files_type const& files, std::vector<std::string> const& libdirs, bool const debug) const
 {
     std::vector<llvm::Module *> modules;
     codegen::llvmir::context context;
@@ -62,7 +68,7 @@ std::string compiler::compile(compiler::files_type const& files, std::vector<std
     return codegen::llvmir::generate_executable(modules, libdirs, context);
 }
 
-std::vector<std::string> compiler::compile_to_objects(compiler::files_type const& files, bool const colorful, bool const debug) const
+std::vector<std::string> compiler::compile_to_objects(compiler::files_type const& files, bool const debug) const
 {
     std::vector<llvm::Module *> modules;
     codegen::llvmir::context context;
@@ -86,7 +92,7 @@ std::vector<std::string> compiler::compile_to_objects(compiler::files_type const
     return codegen::llvmir::generate_objects(modules, context);
 }
 
-std::string compiler::report_ast(std::string const& file, std::string const& code, bool const colorful) const
+std::string compiler::report_ast(std::string const& file, std::string const& code) const
 {
     return ast::stringize_ast(parser.parse(code, file));
 }
@@ -111,11 +117,11 @@ std::string compiler::report_llvm_ir(std::string const& file, std::string const&
     return result;
 }
 
-void compiler::dump_asts(std::ostream &out, compiler::files_type const& files, bool const colorful) const
+void compiler::dump_asts(std::ostream &out, compiler::files_type const& files) const
 {
    for (auto const& f : files) {
        out << "file: " << f << '\n'
-           << report_ast(f, read(f), colorful) << '\n';
+           << report_ast(f, read(f)) << '\n';
    }
 }
 

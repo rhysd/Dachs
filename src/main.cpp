@@ -149,12 +149,13 @@ int main(int const, char const* const argv[])
     // TODO: Use Boost.ProgramOptions
 
     auto const cmdopts = dachs::cmdline::get_command_options(&argv[1]);
-    dachs::compiler compiler;
 
     if (cmdopts.source_files.empty()) {
         std::cerr << "No input file: Source file must end with '.dcs'.\n";
         return 2;
     }
+
+    dachs::compiler compiler{cmdopts.enable_color};
 
     switch (cmdopts.rest_args.size()) {
 
@@ -167,8 +168,7 @@ int main(int const, char const* const argv[])
                 {
                     compiler.dump_asts(
                         std::cout,
-                        cmdopts.source_files,
-                        cmdopts.enable_color
+                        cmdopts.source_files
                     );
                 }
             );
@@ -198,7 +198,6 @@ int main(int const, char const* const argv[])
                 {
                     compiler.compile_to_objects(
                         cmdopts.source_files,
-                        cmdopts.enable_color,
                         cmdopts.debug
                     );
                 }
@@ -215,7 +214,6 @@ int main(int const, char const* const argv[])
                     compiler.compile(
                         cmdopts.source_files,
                         cmdopts.libdirs,
-                        cmdopts.enable_color,
                         cmdopts.debug
                     );
                 }

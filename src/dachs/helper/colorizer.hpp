@@ -12,7 +12,6 @@ namespace helper {
 
 template<class String>
 class basic_colorizer {
-    static bool enabled;
 
     enum class color {
         yellow,
@@ -97,6 +96,10 @@ public:
     {
         return enabled ? start_sequence(brightness::light, color::none) : "";
     }
+
+public:
+    static bool enabled;
+
 };
 
 template<class String>
