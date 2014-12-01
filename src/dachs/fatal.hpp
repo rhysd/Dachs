@@ -3,6 +3,9 @@
 
 #include <cstddef>
 #include <iostream>
+#include <string>
+
+#include "dachs/helper/colorizer.hpp"
 
 namespace dachs {
 namespace fatal {
@@ -14,7 +17,8 @@ void internal_compilation_error(
         std::size_t const line,
         std::ostream &output = std::cerr)
 {
-    output << "Internal compilation error at file:" << file << " function:" << func << " line:" << line << std::endl;
+    helper::colorizer c;
+    output << c.red(std::string{"Internal compilation error at file:"} + file + " function:" + func + " line:" + std::to_string(line)) << std::endl;
     std::abort();
 }
 

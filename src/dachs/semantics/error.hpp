@@ -9,6 +9,7 @@
 
 #include "dachs/semantics/type.hpp"
 #include "dachs/ast/ast_fwd.hpp"
+#include "dachs/helper/colorizer.hpp"
 
 namespace dachs {
 namespace semantics {
@@ -16,14 +17,15 @@ namespace semantics {
 template<class Message>
 inline void output_semantic_error(std::size_t const line, std::size_t const col, Message const& msg, std::ostream &ost = std::cerr)
 {
-    ost << "Semantic error at line:" << line << ", col:" << col << '\n' << msg << std::endl;
+    helper::colorizer c;
+    ost << c.red("Error") << " in line:" << line << ", col:" << col << '\n' << msg << std::endl;
 }
 
 template<class Node, class Message>
 inline void output_semantic_error(std::shared_ptr<Node> const& node, Message const& msg, std::ostream &ost = std::cerr)
 {
     static_assert(ast::traits::is_node<Node>::value, "output_semantic_error(): Node is not AST node.");
-    ost << "Semantic error at line:" << node->line << ", col:" << node->col << '\n' << msg << std::endl;
+    output_semantic_error(node->line, node->col, msg, ost);
 }
 
 template<class Node1, class Node2>

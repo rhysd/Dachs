@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <boost/format.hpp>
 
+#include "dachs/helper/colorizer.hpp"
+
 namespace dachs {
 
 class not_implemented_error final : public std::runtime_error {
@@ -14,11 +16,12 @@ public:
                           char const* const file,
                           char const* const func,
                           std::size_t const line,
-                          String const& what_feature) noexcept
+                          String const& what_feature,
+                          helper::colorizer const c = helper::colorizer{}) noexcept
         : std::runtime_error(
                 (
                     boost::format(
-                            "In line:%1%, col:%2%\n%3% is not implemented yet.\n"
+                            c.red("Error") + " in line:%1%, col:%2%\n%3% is not implemented yet.\n"
                             "Note: You can contribute to Dachs with implementing this feature. "
                             "Clone https://github.com/rhysd/Dachs and "
                             "see %4%, %5%(), line:%6%, ")
@@ -36,11 +39,12 @@ public:
     not_implemented_error(char const* const file,
                           char const* const func,
                           std::size_t const line,
-                          String const& what_feature) noexcept
+                          String const& what_feature,
+                          helper::colorizer const c = helper::colorizer{}) noexcept
         : std::runtime_error(
                 (
                     boost::format(
-                            "%1% is not implemented yet.\n"
+                            c.red("Error") + ": %1% is not implemented yet.\n"
                             "Note: You can contribute to Dachs with implementing this feature. "
                             "Clone https://github.com/rhysd/Dachs and "
                             "see %2%, %3%(), line:%4%, ")
@@ -73,8 +77,12 @@ struct semantic_check_error final : public std::runtime_error {
 
 struct code_generation_error final : public std::runtime_error {
     template<class String>
-    code_generation_error(std::string const& generator_name, String const& msg) noexcept
-        : std::runtime_error("Code generation with " + generator_name + " failed: " + msg)
+    code_generation_error(
+            std::string const& generator_name,
+            String const& msg,
+            helper::colorizer const c = helper::colorizer{}
+        ) noexcept
+        : std::runtime_error(c.red("Error\n") + msg + "\n1 error generated in " + generator_name)
     {}
 
     code_generation_error(std::string const& generator_name, boost::format const& format) noexcept

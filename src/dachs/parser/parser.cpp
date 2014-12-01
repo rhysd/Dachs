@@ -28,6 +28,7 @@
 #include "dachs/ast/ast.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/helper/variant.hpp"
+#include "dachs/helper/colorizer.hpp"
 // }}}
 
 namespace dachs {
@@ -150,6 +151,7 @@ template<class Iterator>
 class grammar final : public qi::grammar<Iterator, ast::node::inu(), comment_skipper<Iterator>, qi::locals<std::vector<ast::node::function_definition>, std::vector<ast::node::initialize_stmt>>> {
     template<class Value, class... Extra>
     using rule = qi::rule<Iterator, Value, comment_skipper<Iterator>, Extra...>;
+    helper::colorizer c;
 
 public:
     grammar(Iterator const code_begin) noexcept
@@ -1060,18 +1062,18 @@ public:
             // _2 : end of string to parse
             // _3 : iterator at failed point
             // _4 : what failed?
-            std::cerr << phx::val("Syntax error at ")
+            std::cerr << phx::val(c.red("Syntax error") + " in ")
                       << phx::bind([](auto const begin, auto const err_pos) {
                               return (boost::format("line:%1%, col:%2%") % spirit::get_line(err_pos) % spirit::get_column(begin, err_pos)).str();
                           }, _1, _3) << '\n'
-                      << "expected " << _4
+                      << "Expected " << _4
                       << "\n\n"
-                      << phx::bind([](auto const begin, auto const end, auto const err_itr) {
+                      << phx::bind([this /*for 'c'*/](auto const begin, auto const end, auto const err_itr) {
                               return std::string{
                                         spirit::get_line_start(begin, err_itr),
                                         std::find_if(err_itr, end, [](auto c){ return c == '\r' || c == '\n'; })
                                      } + '\n'
-                                     + std::string(spirit::get_column(begin, err_itr)-1, ' ') + "^ here";
+                                     + std::string(spirit::get_column(begin, err_itr)-1, ' ') + c.green("^ here");
                           }, _1, _2, _3)
                       << '\n' << std::endl
         );
