@@ -125,12 +125,12 @@ struct basic_scope {
             assert(the_node);
             if (prev_node) {
                 output_warning(the_node, boost::format(
-                                "Shadowing variable '%1%'. It shadows a variable at line:%2%, col:%3%"
+                                "  Shadowing variable '%1%'. It shadows a variable at line:%2%, col:%3%"
                             ) % new_var->name % prev_node->line % prev_node->col
                         );
             } else {
                 output_warning(the_node, boost::format(
-                                "Shadowing variable '%1%'. It shadows a built-in variable"
+                                "  Shadowing variable '%1%'. It shadows a built-in variable"
                             ) % new_var->name
                         );
             }

@@ -93,7 +93,7 @@ public:
         func_def->scope = new_func;
 
         if (func_def->kind == ast::symbol::func_kind::proc && func_def->return_type) {
-            semantic_error(func_def, boost::format("Procedure '%1%' can't have return type") % func_def->name);
+            semantic_error(func_def, boost::format("  Procedure '%1%' can't have return type") % func_def->name);
             return;
         }
 
@@ -149,7 +149,7 @@ public:
             if (!param->type) {
                 semantic_error(
                         param,
-                        boost::format("Invalid type '%1%' for parameter '%2%'")
+                        boost::format("  Invalid type '%1%' for parameter '%2%'")
                             % apply_lambda([](auto const& t){
                                     return t->to_string();
                             }, *param->param_type)
@@ -275,7 +275,13 @@ std::size_t check_functions_duplication(Scope const& scope_root)
             if (**right == **left) {
                 auto const rhs_def = (*right)->get_ast_node();
                 auto const lhs_def = (*left)->get_ast_node();
-                output_semantic_error(rhs_def, boost::format("'%1%' is redefined.\nNote: Previous definition is at line:%2%, col:%3%") % (*right)->to_string() % lhs_def->line % lhs_def->col);
+                output_semantic_error(
+                        rhs_def,
+                        boost::format(
+                            "  '%1%' is redefined.\n"
+                            "  Note: Previous definition is at line:%2%, col:%3%"
+                        ) % (*right)->to_string() % lhs_def->line % lhs_def->col
+                    );
                 failed++;
             }
         }

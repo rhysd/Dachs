@@ -45,7 +45,7 @@ public:
                 (
                     boost::format(
                             c.red("Error") + ": %1% is not implemented yet.\n"
-                            "Note: You can contribute to Dachs with implementing this feature. "
+                            "  Note: You can contribute to Dachs with implementing this feature. "
                             "Clone https://github.com/rhysd/Dachs and "
                             "see %2%, %3%(), line:%4%, ")
                         % what_feature
@@ -82,7 +82,11 @@ struct code_generation_error final : public std::runtime_error {
             String const& msg,
             helper::colorizer const c = helper::colorizer{}
         ) noexcept
-        : std::runtime_error(c.red("Error\n") + msg + "\n1 error generated in " + generator_name)
+        : std::runtime_error(
+                c.red("Error\n")
+                + msg + "\n"
+                "  1 error generated in " + generator_name
+            )
     {}
 
     code_generation_error(std::string const& generator_name, boost::format const& format) noexcept

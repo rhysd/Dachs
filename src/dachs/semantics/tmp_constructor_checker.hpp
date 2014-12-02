@@ -28,12 +28,12 @@ struct ctor_checker {
     result_type operator()(type::array_type const& a, Exprs const& args) const
     {
         if (args.size() != 1 && args.size() != 2) {
-            return (boost::format("Invalid argument for constructor of '%1%' (%2% for 1 or 2)") % a->to_string() % args.size()).str();
+            return (boost::format("  Invalid argument for constructor of '%1%' (%2% for 1 or 2)") % a->to_string() % args.size()).str();
         }
 
         auto const maybe_lit = helper::variant::get_as<ast::node::primary_literal>(args[0]);
 
-        auto const err_msg = (boost::format("1st argument of constructor of '%1%' must be constant uint") % a->to_string()).str();
+        auto const err_msg = (boost::format("  1st argument of constructor of '%1%' must be constant uint") % a->to_string()).str();
         if (!maybe_lit) {
             return err_msg;
         }
@@ -44,7 +44,7 @@ struct ctor_checker {
         }
 
         if (a->size && *a->size <= *maybe_uint) {
-            return (boost::format("Size is out of bounds of the array type (size:%1% , specified:%2%)") % *a->size % *maybe_uint).str();
+            return (boost::format("  Size is out of bounds of the array type (size:%1% , specified:%2%)") % *a->size % *maybe_uint).str();
         }
 
         a->size = *maybe_uint;
@@ -54,7 +54,7 @@ struct ctor_checker {
     template<class T, class Exprs>
     result_type operator()(T const& t, Exprs const&) const
     {
-        return (boost::format("Invalid constructor for '%1%'") % t->to_string()).str();
+        return (boost::format("  Invalid constructor for '%1%'") % t->to_string()).str();
     }
 };
 

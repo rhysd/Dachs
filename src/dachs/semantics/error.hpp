@@ -18,7 +18,7 @@ template<class Message>
 inline void output_semantic_error(std::size_t const line, std::size_t const col, Message const& msg, std::ostream &ost = std::cerr)
 {
     helper::colorizer c;
-    ost << c.red("Error") << " in line:" << line << ", col:" << col << '\n' << msg << std::endl;
+    ost << c.red("Error") << " in line:" << line << ", col:" << col << '\n' << msg << "\n\n";
 }
 
 template<class Node, class Message>

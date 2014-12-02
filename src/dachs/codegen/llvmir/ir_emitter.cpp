@@ -113,7 +113,7 @@ class llvm_ir_emitter {
         // Dump builder's debug information and context's information
         throw code_generation_error{
                 "LLVM IR generator",
-                (boost::format("In line:%1%:col:%2%, %3%") % n->line % n->col % msg).str()
+                (boost::format("  In line:%1%:col:%2%. %3%") % n->line % n->col % msg).str()
             };
     }
 
@@ -1397,7 +1397,7 @@ public:
                 error(
                     cast,
                     boost::format("Cannot cast from '%1%' to '%2%'\n"
-                                  "Note: Now only some built-in primary types are supported."
+                                  "  Note: Now only some built-in primary types are supported."
                                   "(int, uint, float and char)")
                         % type::to_string(child_type)
                         % type::to_string(cast->type)

@@ -243,7 +243,7 @@ class symbol_analyzer {
                 n
             );
         if (!ret) {
-            apply_lambda([this](auto const& t){ semantic_error(t, "Invalid type '" + t->to_string() + '\''); }, n);
+            apply_lambda([this](auto const& t){ semantic_error(t, "  Invalid type '" + t->to_string() + '\''); }, n);
         }
         return ret;
     }
@@ -289,13 +289,20 @@ public:
             auto func_ = func; // To remove const
             ast::make_walker(resolver).walk(func_);
             if (resolver.result.empty()) {
-                semantic_error(func, boost::format("Can't deduce return type of function '%1%' from return statement") % func->name);
+                semantic_error(func, boost::format("  Can't deduce return type of function '%1%' from return statement") % func->name);
             } else if (boost::algorithm::any_of(resolver.result, [&](auto const& t){ return resolver.result[0] != t; })) {
                 std::string note = "";
                 for (auto const& t : resolver.result) {
                     note += '\'' + t.to_string() + "' ";
                 }
-                semantic_error(func, boost::format("Conflict among some return types in function '%1%'\nNote: Candidates are: " + note) % func->name);
+                semantic_error(
+                        func,
+                        boost::format(
+                            "  Conflict among some return types in function '%1%'\n"
+                            "  Note: Candidates are: %2%"
+                        ) % func->name
+                          % note
+                    );
             } else {
                 func->ret_type = resolver.result[0];
                 assert(!func->scope.expired());
@@ -308,7 +315,7 @@ public:
         bool const is_query_function = func->name.find('?') != std::string::npos;
 
         if (func->kind == ast::symbol::func_kind::proc && is_query_function) {
-            semantic_error(func, boost::format("'?' can't be used in a name of procedure because procedure can't return value"));
+            semantic_error(func, boost::format("  '?' can't be used in a name of procedure because procedure can't return value"));
             return;
         }
 
@@ -334,8 +341,8 @@ public:
             semantic_error(
                 func,
                 boost::format(
-                    "Can't deduce return type of function '%1%' from return statement\n"
-                    "Note: return statement is here: line%2%, col%3%")
+                    "  Can't deduce return type of function '%1%' from return statement\n"
+                    "  Note: return statement is here: line%2%, col%3%")
                     % func->name
                     % gatherer.failed_return_stmts[0]->line
                     % gatherer.failed_return_stmts[0]->col
@@ -346,7 +353,7 @@ public:
         if (!gatherer.result_types.empty()) {
             if (func->kind == ast::symbol::func_kind::proc) {
                 if (gatherer.result_types.size() != 1 || gatherer.result_types[0] != type::get_unit_type()) {
-                    semantic_error(func, boost::format("proc '%1%' can't return any value") % func->name);
+                    semantic_error(func, boost::format("  proc '%1%' can't return any value") % func->name);
                     return;
                 }
             }
@@ -356,7 +363,7 @@ public:
                         [&](auto const& t){ return gatherer.result_types[0] != t; })) {
                 semantic_error(
                         func,
-                        boost::format("Mismatch among the result types of return statements in function '%1%'")
+                        boost::format("  Mismatch among the result types of return statements in function '%1%'")
                             % func->name
                     );
                 return;
@@ -367,12 +374,12 @@ public:
                 semantic_error(
                         func,
                         boost::format(
-                            "Return type of function '%1%' mismatch\n"
-                            "Note: Specified type is '%2%'\n"
-                            "Note: Deduced type is '%3%'")
-                            % func->name
-                            % func->ret_type->to_string()
-                            % deduced_type.to_string()
+                            "  Return type of function '%1%' mismatch\n"
+                            "  Note: Specified type is '%2%'\n"
+                            "  Note: Deduced type is '%3%'"
+                        ) % func->name
+                          % func->ret_type->to_string()
+                          % deduced_type.to_string()
                     );
                 return;
             }
@@ -384,12 +391,12 @@ public:
                 semantic_error(
                         func,
                         boost::format(
-                            "Return type of function '%1%' mismatch\n"
-                            "Note: Specified type is '%2%'\n"
-                            "Note: Deduced type is '%3%'")
-                            % func->name
-                            % func->ret_type->to_string()
-                            % type::get_unit_type()->to_string()
+                            "  Return type of function '%1%' mismatch\n"
+                            "  Note: Specified type is '%2%'\n"
+                            "  Note: Deduced type is '%3%'"
+                        ) % func->name
+                          % func->ret_type->to_string()
+                          % type::get_unit_type()->to_string()
                     );
             }
             func->ret_type = type::get_unit_type();
@@ -397,7 +404,7 @@ public:
         }
 
         if (is_query_function && *func->ret_type != type::get_builtin_type("bool", type::no_opt)) {
-            semantic_error(func, boost::format("function '%1%' must return bool because it includes '?' in its name") % func->name);
+            semantic_error(func, boost::format("  Function '%1%' must return bool because it includes '?' in its name") % func->name);
         }
     }
     // }}}
@@ -464,7 +471,7 @@ public:
 
         auto const maybe_var_symbol = boost::apply_visitor(scope::var_symbol_resolver{name}, current_scope);
         if (!maybe_var_symbol) {
-            semantic_error(var, boost::format("Symbol '%1%' is not found") % name);
+            semantic_error(var, boost::format("  Symbol '%1%' is not found") % name);
             return;
         }
 
@@ -555,7 +562,7 @@ public:
         recursive_walker();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
         if (arr_lit->element_exprs.empty() && !arr_lit->type) {
-            semantic_error(arr_lit, "Empty array must be typed by ':'");
+            semantic_error(arr_lit, "  Empty array must be typed by ':'");
             return;
         }
 
@@ -564,7 +571,7 @@ public:
                 arr_lit->element_exprs,
                 [&](auto const& e){ return arg0_type != type_of(e); })
             ) {
-            semantic_error(arr_lit, boost::format("All types of array elements must be '%1%'") % arg0_type.to_string());
+            semantic_error(arr_lit, boost::format("  All types of array elements must be '%1%'") % arg0_type.to_string());
             return;
         }
 
@@ -581,7 +588,7 @@ public:
                         arr_lit->element_exprs,
                         [arg0_size](auto const& e){ return *(*type::get<type::array_type>(type_of(e)))->size != arg0_size; }
                     )) {
-                    semantic_error(arr_lit, "All array elements in an array must be the same length");
+                    semantic_error(arr_lit, "  All array elements in an array must be the same length");
                     return;
                 }
 
@@ -591,7 +598,7 @@ public:
                 )) {
                 // Note:
                 // Some elements' types don't have its length and at least one element's type has its length
-                semantic_error(arr_lit, "Some array elements have fixed length and others don't have");
+                semantic_error(arr_lit, "  Some array elements have fixed length and others don't have");
                 return;
             }
         }
@@ -603,7 +610,7 @@ public:
     void visit(ast::node::tuple_literal const& tuple_lit, Walker const& recursive_walker)
     {
         if (tuple_lit->element_exprs.size() == 1) {
-            semantic_error(tuple_lit, "Size of tuple should not be 1");
+            semantic_error(tuple_lit, "  Size of tuple should not be 1");
         }
         recursive_walker();
         auto const type = type::make<type::tuple_type>();
@@ -620,7 +627,7 @@ public:
         recursive_walker();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
         if (dict_lit->value.empty() && !dict_lit->type) {
-            semantic_error(dict_lit, "Empty dictionary must be typed by ':'");
+            semantic_error(dict_lit, "  Empty dictionary must be typed by ':'");
             return;
         }
 
@@ -636,9 +643,11 @@ public:
             ) {
             semantic_error(
                     dict_lit,
-                    boost::format("Type of keys or values mismatches\nNote: Key type is '%1%' and value type is '%2%'")
-                    % key_type_elem0.to_string()
-                    % value_type_elem0.to_string()
+                    boost::format(
+                        "  Type of keys or values mismatches\n"
+                        "  Note: Key type is '%1%' and value type is '%2%'"
+                    ) % key_type_elem0.to_string()
+                      % value_type_elem0.to_string()
                 );
             return;
         }
@@ -681,7 +690,7 @@ public:
                 && index_type != type::get_builtin_type("uint", type::no_opt)) {
                 semantic_error(
                         access,
-                        boost::format("Index of array must be int or uint but actually '%1%'")
+                        boost::format("  Index of array must be int or uint but actually '%1%'")
                             % index_type.to_string()
                     );
                 return;
@@ -695,7 +704,7 @@ public:
                     (!has<int>((*maybe_primary_literal)->value)
                      && !has<uint>((*maybe_primary_literal)->value))
                ) {
-                semantic_error(access, "Index of tuple must be int or uint literal");
+                semantic_error(access, "  Index of tuple must be int or uint literal");
                 return;
             }
 
@@ -703,7 +712,13 @@ public:
             auto const out_of_bounds
                 = [this, &access](auto const i)
                 {
-                    semantic_error(access, boost::format("Index access is out of bounds\nNote: Index is %1%") % i);
+                    semantic_error(
+                            access,
+                            boost::format(
+                                "  Index access is out of bounds\n"
+                                "  Note: Index is %1%"
+                            ) % i
+                        );
                 };
             if (auto const maybe_int_lit = get_as<int>(literal)) {
                 auto const idx = *maybe_int_lit;
@@ -726,9 +741,11 @@ public:
             if (index_type != dict_type->key_type) {
                 semantic_error(
                     access,
-                    boost::format("Index type of dictionary mismatches\nNote: Expected '%1%' but actually '%2%'")
-                    % dict_type->key_type.to_string()
-                    % index_type.to_string()
+                    boost::format(
+                        "  Index type of dictionary mismatches\n"
+                        "  Note: Expected '%1%' but actually '%2%'"
+                    ) % dict_type->key_type.to_string()
+                      % index_type.to_string()
                 );
                 return;
             }
@@ -736,7 +753,7 @@ public:
         } else {
             semantic_error(
                 access,
-                boost::format("'%1%' type value is not accessible by index.") % child_type.to_string()
+                boost::format("  '%1%' type value is not accessible by index.") % child_type.to_string()
             );
         }
     }
@@ -760,10 +777,13 @@ public:
         if (lhs_type != rhs_type) {
             semantic_error(
                     bin_expr,
-                    boost::format("Type mismatch in binary operator '%1%'\nNote: Type of lhs is %2%\nNote: Type of rhs is %3%")
-                        % bin_expr->op
-                        % lhs_type.to_string()
-                        % rhs_type.to_string()
+                    boost::format(
+                        "  Type mismatch in binary operator '%1%'\n"
+                        "  Note: Type of lhs is %2%\n"
+                        "  Note: Type of rhs is %3%"
+                    ) % bin_expr->op
+                      % lhs_type.to_string()
+                      % rhs_type.to_string()
                     );
             return;
         }
@@ -774,7 +794,13 @@ public:
             bin_expr->type = type::get_builtin_type("bool", type::no_opt);
         } else if (bin_expr->op == "&&" || bin_expr->op == "||") {
             if (lhs_type != type::get_builtin_type("bool", type::no_opt)) {
-                semantic_error(bin_expr, boost::format("Opeartor '%1%' only takes bool type operand\nNote: Operand type is '%2%'") % bin_expr->op % lhs_type.to_string());
+                semantic_error(
+                        bin_expr,
+                        boost::format(
+                            "  Opeartor '%1%' only takes bool type operand\n"
+                            "  Note: Operand type is '%2%'"
+                        ) % bin_expr->op % lhs_type.to_string()
+                    );
             }
             bin_expr->type = type::get_builtin_type("bool", type::no_opt);
         } else if (bin_expr->op == ".." || bin_expr->op == "...") {
@@ -802,7 +828,13 @@ public:
 
         if (unary->op == "!") {
             if (operand_type != type::get_builtin_type("bool", type::no_opt)) {
-                semantic_error(unary, boost::format("Opeartor '%1%' only takes bool type operand\nNote: Operand type is '%2%'") % unary->op % operand_type.to_string());
+                semantic_error(
+                        unary,
+                        boost::format(
+                            "  Opeartor '%1%' only takes bool type operand\n"
+                            "  Note: Operand type is '%2%'"
+                        ) % unary->op % operand_type.to_string()
+                    );
             }
             unary->type = type::get_builtin_type("bool", type::no_opt);
         } else {
@@ -824,12 +856,25 @@ public:
         }
 
         if (condition_type != type::get_builtin_type("bool", type::no_opt)) {
-            semantic_error(if_, boost::format("Type of condition in if expression must be bool\nNote: Type of condition is '%1%'") % condition_type.to_string());
+            semantic_error(
+                    if_,
+                    boost::format(
+                        "  Type of condition in if expression must be bool\n"
+                        "  Note: Type of condition is '%1%'"
+                    ) % condition_type.to_string()
+                );
             return;
         }
 
         if (then_type != else_type) {
-            semantic_error(if_, boost::format("Type mismatch between type of then clause and else clause\nNote: Type of then clause is '%1%'\nNote: Type of else clause is '%2%'") % then_type.to_string() % else_type.to_string());
+            semantic_error(
+                    if_,
+                    boost::format(
+                        "  Type mismatch between type of then clause and else clause\n"
+                        "  Note: Type of then clause is '%1%'\n"
+                        "  Note: Type of else clause is '%2%'"
+                    ) % then_type.to_string() % else_type.to_string()
+                );
             return;
         }
 
@@ -840,7 +885,7 @@ public:
     boost::optional<std::string> visit_invocation(Node const& node, std::string const& func_name, ArgTypes const& arg_types)
     {
         if (func_name.back() == '!') {
-            throw not_implemented_error{node, __FILE__, __func__, __LINE__, "function invocation with monad"};
+            throw not_implemented_error{node, __FILE__, __func__, __LINE__, "  function invocation with monad"};
         }
 
         // Note:
@@ -855,7 +900,7 @@ public:
                 );
 
         if (!maybe_func) {
-            return (boost::format("Function for '%1%' is not found") % make_func_signature(func_name, arg_types)).str();
+            return (boost::format("  Function for '%1%' is not found") % make_func_signature(func_name, arg_types)).str();
         }
 
         auto func = *maybe_func;
@@ -882,7 +927,7 @@ public:
         }
 
         if (!func->ret_type) {
-            return (boost::format("Cannot deduce the return type of function '%1%'") % func->to_string()).str();
+            return (boost::format("  Cannot deduce the return type of function '%1%'") % func->to_string()).str();
         }
 
         node->type = *func->ret_type;
@@ -909,7 +954,8 @@ public:
         if (!maybe_func_type) {
             semantic_error(
                     invocation,
-                    "Only function type can be called\nNote: The type '" + child_type.to_string() + "' is not a function"
+                    "  Only function type can be called\n"
+                    "  Note: The type '" + child_type.to_string() + "' is not a function"
                 );
             return;
         }
@@ -919,7 +965,7 @@ public:
         if (!func_type->ref) {
             semantic_error(
                     invocation,
-                    func_type->to_string() + " is an invalid function reference"
+                    "  " + func_type->to_string() + " is an invalid function reference"
                 );
             return;
         }
@@ -961,7 +1007,7 @@ public:
 
         auto const actual_type = type_of(typed->child_expr);
         if (actual_type != calculated_type) {
-            semantic_error(typed, boost::format("Type mismatch.  Specified '%1%' but actually typed to '%2%'") % typed->type % actual_type);
+            semantic_error(typed, boost::format("  Type mismatch.  Specified '%1%' but actually typed to '%2%'") % typed->type % actual_type);
             return;
         }
 
@@ -1020,7 +1066,7 @@ public:
     {
         obj->type = calculate_from_type_nodes(obj->obj_type);
         if (!obj->type) {
-            semantic_error(obj, "Invalid type for object construction");
+            semantic_error(obj, "  Invalid type for object construction");
             return;
         }
 
@@ -1073,10 +1119,12 @@ public:
                     if (param->type != t) {
                         semantic_error(
                                 param,
-                                boost::format("Type of '%1%' mismatches\nNote: Type of '%1%' is '%2%' but the range requires '%3%'")
-                                    % param->name
-                                    % param->type.to_string()
-                                    % type::to_string(t)
+                                boost::format(
+                                    "  Type of '%1%' mismatches\n"
+                                    "  Note: Type of '%1%' is '%2%' but the range requires '%3%'"
+                                ) % param->name
+                                  % param->type.to_string()
+                                  % type::to_string(t)
                             );
                     }
                 } else {
@@ -1092,7 +1140,14 @@ public:
                 if (auto const maybe_elem_tuple_type = type::get<type::tuple_type>(elem_type)) {
                     auto const& elem_tuple_type = *maybe_elem_tuple_type;
                     if (elem_tuple_type->element_types.size() != for_->iter_vars.size()) {
-                        semantic_error(for_, boost::format("Number of variables and elements of range in 'for' statement mismatches\nNote: %1% variables but %2% elements") % for_->iter_vars.size() % elem_tuple_type->element_types.size());
+                        semantic_error(
+                                for_,
+                                boost::format(
+                                    "  Number of variables and elements of range in 'for' statement mismatches\n"
+                                    "  Note: %1% variables but %2% elements"
+                                ) % for_->iter_vars.size()
+                                  % elem_tuple_type->element_types.size()
+                            );
                         return;
                     }
 
@@ -1102,7 +1157,7 @@ public:
 
                 } else {
                     if (for_->iter_vars.size() != 1) {
-                        semantic_error(for_, "Number of variable here in 'for' statement must be 1");
+                        semantic_error(for_, "  Number of variable here in 'for' statement must be 1");
                         return;
                     }
                     substitute_param_type(for_->iter_vars[0], elem_type);
@@ -1116,13 +1171,13 @@ public:
         } else if (auto const maybe_dict_range_type = type::get<type::dict_type>(range_t)) {
             auto const& dict_range_type = *maybe_dict_range_type;
             if (for_->iter_vars.size() != 2) {
-                semantic_error(for_, boost::format("2 iteration variable is needed to iterate dictionary '%1%'") % dict_range_type->to_string());
+                semantic_error(for_, boost::format("  2 iteration variable is needed to iterate dictionary '%1%'") % dict_range_type->to_string());
                 return;
             }
             substitute_param_type(for_->iter_vars[0], dict_range_type->key_type);
             substitute_param_type(for_->iter_vars[1], dict_range_type->value_type);
         } else {
-            semantic_error(for_, boost::format("Range to iterate in for statement must be range, array or dictionary but actually '%1%'") % range_t.to_string());
+            semantic_error(for_, boost::format("  Range to iterate in for statement must be range, array or dictionary but actually '%1%'") % range_t.to_string());
         }
 
         recursive_walker(for_->body_stmts);
@@ -1134,7 +1189,7 @@ public:
             [this](auto const& e)
             {
                 if (e->type != type::get_builtin_type("bool", type::no_opt)) {
-                    semantic_error(e, boost::format("Type of condition must be bool but actually '%1%'") % e->type.to_string());
+                    semantic_error(e, boost::format("  Type of condition must be bool but actually '%1%'") % e->type.to_string());
                 }
             }
             , expr
@@ -1195,7 +1250,7 @@ public:
                             {
                                 semantic_error(
                                     node,
-                                    boost::format("Type of 'when' condition must be '%1%' but actually '%2%'")
+                                    boost::format("  Type of 'when' condition must be '%1%' but actually '%2%'")
                                         % switcher_type.to_string()
                                         % t.to_string()
                                     );
@@ -1220,7 +1275,7 @@ public:
                     return;
                 }
                 if (!v->symbol.lock()->type) {
-                    semantic_error(init, boost::format("Type of '%1%' can't be deduced") % v->name);
+                    semantic_error(init, boost::format("  Type of '%1%' can't be deduced") % v->name);
                 }
             }
             return;
@@ -1253,10 +1308,12 @@ public:
                     if (symbol->type != t) {
                         semantic_error(
                                 init,
-                                boost::format("Types mismatch on substituting '%1%'\nNote: Type of '%1%' is '%2%' but rhs type is '%3%'")
-                                    % symbol->name
-                                    % symbol->type.to_string()
-                                    % type::to_string(t)
+                                boost::format(
+                                    "  Types mismatch on substituting '%1%'\n"
+                                    "  Note: Type of '%1%' is '%2%' but rhs type is '%3%'"
+                                ) % symbol->name
+                                  % symbol->type.to_string()
+                                  % type::to_string(t)
                             );
                     }
                 } else {
@@ -1280,13 +1337,26 @@ public:
             if (rhs_exprs.size() == 1) {
                 auto maybe_rhs_type = type::get<type::tuple_type>(type_of(rhs_exprs[0]));
                 if (!maybe_rhs_type) {
-                    semantic_error(init, boost::format("Rhs type of initialization here must be tuple\nNote: Rhs type is %1%") % type_of(rhs_exprs[0]).to_string());
+                    semantic_error(
+                            init,
+                            boost::format(
+                                "  Rhs type of initialization here must be tuple\n"
+                                "  Note: Rhs type is %1%"
+                            ) % type_of(rhs_exprs[0]).to_string()
+                        );
                     return;
                 }
 
                 auto const rhs_type = *maybe_rhs_type;
                 if (rhs_type->element_types.size() != init->var_decls.size()) {
-                    semantic_error(init, boost::format("Size of elements in lhs and rhs mismatch\nNote: Size of lhs is %1%, size of rhs is %2%") % init->var_decls.size() % rhs_type->element_types.size());
+                    semantic_error(
+                            init,
+                            boost::format(
+                                "  Size of elements in lhs and rhs mismatch\n"
+                                "  Note: Size of lhs is %1%, size of rhs is %2%"
+                            ) % init->var_decls.size()
+                              % rhs_type->element_types.size()
+                        );
                     return;
                 }
 
@@ -1296,7 +1366,14 @@ public:
                             , init->var_decls);
             } else {
                 if (init->var_decls.size() != rhs_exprs.size()) {
-                    semantic_error(init, boost::format("Size of elements in lhs and rhs mismatch\nNote: Size of lhs is %1%, size of rhs is %2%") % init->var_decls.size() % rhs_exprs.size());
+                    semantic_error(
+                            init,
+                            boost::format(
+                                "  Size of elements in lhs and rhs mismatch\n"
+                                "  Note: Size of lhs is %1%, size of rhs is %2%"
+                            ) % init->var_decls.size()
+                              % rhs_exprs.size()
+                        );
                     return;
                 }
 
@@ -1331,7 +1408,7 @@ public:
 
             auto const the_var_ref = var_ref_getter_for_lhs_of_assign{}.visit(lhs);
             if (!the_var_ref) {
-                semantic_error(assign, "Lhs of assignment must be variable access, index access or member access.");
+                semantic_error(assign, "  Lhs of assignment must be variable access, index access or member access.");
                 return;
             }
 
@@ -1347,7 +1424,7 @@ public:
 
             auto const var_sym = the_var_ref->symbol.lock();
             if (var_sym->immutable) {
-                semantic_error(assign, boost::format("Can't assign to immutable variable '%1%'") % var_sym->name);
+                semantic_error(assign, boost::format("  Can't assign to immutable variable '%1%'") % var_sym->name);
                 return;
             }
         }
@@ -1364,9 +1441,11 @@ public:
                 if (t1 != t2) {
                     semantic_error(
                             assign,
-                            boost::format("Types mismatch on assignment\nNote: Type of lhs is '%1%', type of rhs is '%2%'")
-                                % type::to_string(t1)
-                                % type::to_string(t2)
+                            boost::format(
+                                "  Types mismatch on assignment\n"
+                                "  Note: Type of lhs is '%1%', type of rhs is '%2%'"
+                            ) % type::to_string(t1)
+                              % type::to_string(t2)
                         );
                 }
             };
@@ -1387,7 +1466,7 @@ public:
                 auto const rhs_type = type_of(assign->rhs_exprs[0]);
                 check_types(assignee_type, rhs_type);
             } else {
-                semantic_error(assign, "Assigning multiple values to lhs tuple value is not permitted.");
+                semantic_error(assign, "  Assigning multiple values to lhs tuple value is not permitted.");
                 return;
             }
         } else {
@@ -1395,7 +1474,7 @@ public:
                 auto const assigner_type = type_of(assign->rhs_exprs[0]);
                 auto const maybe_tuple_type = type::get<type::tuple_type>(assigner_type);
                 if (!maybe_tuple_type) {
-                    semantic_error(assign, boost::format("Assigner's type here must be tuple but actually '%1%'") % assigner_type.to_string());
+                    semantic_error(assign, boost::format("  Assigner's type here must be tuple but actually '%1%'") % assigner_type.to_string());
                     return;
                 }
 
@@ -1403,7 +1482,14 @@ public:
                               , (*maybe_tuple_type)->element_types);
             } else {
                 if (assign->assignees.size() != assign->rhs_exprs.size()) {
-                    semantic_error(assign, boost::format("Size of assignees and assigners mismatches\nNote: Size of assignee is %1%, size of assigner is %2%") % assign->assignees.size() % assign->rhs_exprs.size());
+                    semantic_error(
+                            assign,
+                            boost::format(
+                                "  Size of assignees and assigners mismatches\n"
+                                "  Note: Size of assignee is %1%, size of assigner is %2%"
+                            ) % assign->assignees.size()
+                              % assign->rhs_exprs.size()
+                        );
                     return;
                 }
 
