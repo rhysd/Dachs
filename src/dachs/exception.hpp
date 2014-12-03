@@ -21,16 +21,16 @@ public:
         : std::runtime_error(
                 (
                     boost::format(
-                            c.red("Error") + " in line:%1%, col:%2%\n%3% is not implemented yet.\n"
-                            "Note: You can contribute to Dachs with implementing this feature. "
-                            "Clone https://github.com/rhysd/Dachs and "
-                            "see %4%, %5%(), line:%6%, ")
-                        % node->line
-                        % node->col
-                        % what_feature
-                        % file
-                        % func
-                        % line
+                            c.red("Error") + " in line:%1%, col:%2%\n" +
+                            c.bold("  %3% is not implemented yet.\n") +
+                            "  Note: You can contribute to Dachs with implementing this feature. "
+                            "Clone https://github.com/rhysd/Dachs and see %4%, %5%(), line:%6%"
+                        ) % node->line
+                          % node->col
+                          % what_feature
+                          % file
+                          % func
+                          % line
                 ).str()
             )
     {}
@@ -44,14 +44,14 @@ public:
         : std::runtime_error(
                 (
                     boost::format(
-                            c.red("Error") + ": %1% is not implemented yet.\n"
+                            c.red("Error") + '\n' +
+                            c.bold("  %1% is not implemented yet.\n") +
                             "  Note: You can contribute to Dachs with implementing this feature. "
-                            "Clone https://github.com/rhysd/Dachs and "
-                            "see %2%, %3%(), line:%4%, ")
-                        % what_feature
-                        % file
-                        % func
-                        % line
+                            "Clone https://github.com/rhysd/Dachs and see %2%, %3%(), line:%4%"
+                        ) % what_feature
+                          % file
+                          % func
+                          % line
                 ).str()
             )
     {}
@@ -84,7 +84,7 @@ struct code_generation_error final : public std::runtime_error {
         ) noexcept
         : std::runtime_error(
                 c.red("Error\n")
-                + msg + "\n"
+                + c.bold(msg) + "\n"
                 "  1 error generated in " + generator_name
             )
     {}

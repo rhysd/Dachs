@@ -1062,11 +1062,11 @@ public:
             // _2 : end of string to parse
             // _3 : iterator at failed point
             // _4 : what failed?
-            std::cerr << phx::val(c.red("Syntax error") + " in ")
+            std::cerr << phx::val(c.red("Error") + " in ")
                       << phx::bind([](auto const begin, auto const err_pos) {
                               return (boost::format("line:%1%, col:%2%") % spirit::get_line(err_pos) % spirit::get_column(begin, err_pos)).str();
                           }, _1, _3) << '\n'
-                      << "Expected " << _4
+                      << c.bold("Expected ", false) << _4 << c.reset()
                       << "\n\n"
                       << phx::bind([this /*for 'c'*/](auto const begin, auto const end, auto const err_itr) {
                               return std::string{

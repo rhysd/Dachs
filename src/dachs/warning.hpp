@@ -15,14 +15,14 @@ template<class Message>
 inline void output_warning(Message const& msg, std::ostream &ost = std::cerr)
 {
     helper::colorizer c;
-    ost << c.yellow("Warning") << '\n' << msg << "\n\n";
+    ost << c.yellow("Warning") << '\n' << c.bold(msg) << "\n\n";
 }
 
 template<class Message>
 inline void output_warning(std::size_t const line, std::size_t const col, Message const& msg, std::ostream &ost = std::cerr)
 {
     helper::colorizer c;
-    ost << c.yellow("Warning") << " at line:" << line << ", col:" << col << '\n' << msg << "\n\n";
+    ost << c.yellow("Warning") << " at line:" << line << ", col:" << col << '\n' << c.bold(msg) << "\n\n";
 }
 
 template<class Node, class Message>
