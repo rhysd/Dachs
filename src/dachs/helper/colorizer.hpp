@@ -13,15 +13,15 @@ namespace helper {
 template<class String>
 class basic_colorizer {
 
-    enum class color {
-        yellow,
-        green,
-        gray,
-        red,
-        cyan,
-        purple,
-        blue,
-        none,
+    enum class color : unsigned int {
+        gray = 90u,
+        red = 91u,
+        green = 92u,
+        yellow = 93u,
+        blue = 94u,
+        purple = 95u,
+        cyan = 96u,
+        none = 0u,
     };
 
     enum class brightness {
@@ -29,23 +29,8 @@ class basic_colorizer {
         dark,
     };
 
-    unsigned int color_table(color const c) const noexcept
-    {
-        switch(c) {
-        case color::gray:   return 90u;
-        case color::red:    return 91u;
-        case color::green:  return 92u;
-        case color::yellow: return 93u;
-        case color::blue:   return 94u;
-        case color::purple: return 95u;
-        case color::cyan:   return 96u;
-        case color::none:
-        default:            return 0u;
-        }
-    }
-
     std::string start_sequence(brightness const b, color const c) const noexcept {
-        auto code = color_table(c);
+        auto code = static_cast<unsigned int>(c);
         if(b == brightness::dark && code >= 60u) {
             code -= 60u;
         }
@@ -63,34 +48,19 @@ class basic_colorizer {
 
 public:
 
-    String yellow(String const& target, bool const end_seq=true, brightness const b=brightness::light) const noexcept
-    {
-        return colorize(color::yellow, target, end_seq, b);
+#define DEFINE_COLORIZE(c) \
+    String c(String const& target, bool const end_seq=true, brightness const b=brightness::light) const noexcept \
+    { \
+        return colorize(color::c, target, end_seq, b); \
     }
-    String green(String const& target, bool const end_seq=true, brightness const b=brightness::light) const noexcept
-    {
-        return colorize(color::green, target, end_seq, b);
-    }
-    String gray(String const& target, bool const end_seq=true, brightness const b=brightness::light) const noexcept
-    {
-        return colorize(color::gray, target, end_seq, b);
-    }
-    String red(String const& target, bool const end_seq=true, brightness const b=brightness::light) const noexcept
-    {
-        return colorize(color::red, target, end_seq, b);
-    }
-    String cyan(String const& target, bool const end_seq=true, brightness const b=brightness::light) const noexcept
-    {
-        return colorize(color::cyan, target, end_seq, b);
-    }
-    String purple(String const& target, bool const end_seq=true, brightness const b=brightness::light) const noexcept
-    {
-        return colorize(color::purple, target, end_seq, b);
-    }
-    String blue(String const& target, bool const end_seq=true, brightness const b=brightness::light) const noexcept
-    {
-        return colorize(color::blue, target, end_seq, b);
-    }
+    DEFINE_COLORIZE(yellow)
+    DEFINE_COLORIZE(green)
+    DEFINE_COLORIZE(gray)
+    DEFINE_COLORIZE(red)
+    DEFINE_COLORIZE(cyan)
+    DEFINE_COLORIZE(purple)
+    DEFINE_COLORIZE(blue)
+#undef DEFINE_COLORIZE
 
     String reset() const noexcept
     {
