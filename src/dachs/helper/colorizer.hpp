@@ -78,6 +78,15 @@ private:
         }
     }
 
+    String attribute(attr const a, String const& raw, bool const ends_seq) const noexcept
+    {
+        if (enabled) {
+            return seq(a) + raw + (ends_seq ? seq(attr::none) : "");
+        } else {
+            return raw;
+        }
+    }
+
 public:
 
 #define DEFINE_COLORIZE(c) \
@@ -92,6 +101,19 @@ public:
     DEFINE_COLORIZE(cyan)
     DEFINE_COLORIZE(purple)
     DEFINE_COLORIZE(blue)
+
+#define DEFINE_ATTR(a) \
+    String a(String const& target, bool const ends_seq=true) \
+    { \
+        return attribute(attr::a, target, ends_seq); \
+    }
+    DEFINE_ATTR(bold)
+    DEFINE_ATTR(underscore)
+    DEFINE_ATTR(blink)
+    DEFINE_ATTR(reverse)
+    DEFINE_ATTR(concealed)
+
+#undef DEFINE_ATTR
 #undef DEFINE_COLORIZE
 
     String reset() const noexcept
