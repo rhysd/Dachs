@@ -101,34 +101,34 @@ private:
 
 public:
 
-#define DEFINE_COLORIZE(c) \
+#define DACHS_COLORIZER_DEFINE_COLORIZE(c) \
     template<class S> \
     String c(S const& target, bool const end_seq=true, attr const a=attr::none, brightness const b=brightness::light) const noexcept \
     { \
         return colorize(color::c, target, end_seq, b, a); \
     }
-    DEFINE_COLORIZE(yellow)
-    DEFINE_COLORIZE(green)
-    DEFINE_COLORIZE(gray)
-    DEFINE_COLORIZE(red)
-    DEFINE_COLORIZE(cyan)
-    DEFINE_COLORIZE(purple)
-    DEFINE_COLORIZE(blue)
+    DACHS_COLORIZER_DEFINE_COLORIZE(yellow)
+    DACHS_COLORIZER_DEFINE_COLORIZE(green)
+    DACHS_COLORIZER_DEFINE_COLORIZE(gray)
+    DACHS_COLORIZER_DEFINE_COLORIZE(red)
+    DACHS_COLORIZER_DEFINE_COLORIZE(cyan)
+    DACHS_COLORIZER_DEFINE_COLORIZE(purple)
+    DACHS_COLORIZER_DEFINE_COLORIZE(blue)
 
-#define DEFINE_ATTR(a) \
+#define DACHS_COLORIZER_DEFINE_ATTR(a) \
     template<class S> \
     String a(S const& target, bool const ends_seq=true) const noexcept \
     { \
         return attribute(attr::a, target, ends_seq); \
     }
-    DEFINE_ATTR(bold)
-    DEFINE_ATTR(underscore)
-    DEFINE_ATTR(blink)
-    DEFINE_ATTR(reverse)
-    DEFINE_ATTR(concealed)
+    DACHS_COLORIZER_DEFINE_ATTR(bold)
+    DACHS_COLORIZER_DEFINE_ATTR(underscore)
+    DACHS_COLORIZER_DEFINE_ATTR(blink)
+    DACHS_COLORIZER_DEFINE_ATTR(reverse)
+    DACHS_COLORIZER_DEFINE_ATTR(concealed)
 
-#undef DEFINE_ATTR
-#undef DEFINE_COLORIZE
+#undef DACHS_COLORIZER_DEFINE_ATTR
+#undef DACHS_COLORIZER_DEFINE_COLORIZE
 
     String reset() const noexcept
     {
