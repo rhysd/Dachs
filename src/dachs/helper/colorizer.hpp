@@ -12,6 +12,7 @@ namespace helper {
 
 template<class String>
 class basic_colorizer {
+public:
 
     enum class color : unsigned int {
         gray = 90u,
@@ -29,29 +30,60 @@ class basic_colorizer {
         dark,
     };
 
-    std::string start_sequence(brightness const b, color const c) const noexcept {
+    enum class attr : unsigned int {
+        bold = 1u,
+        underscore = 4u,
+        blink = 5u,
+        reverse = 7u,
+        concealed = 8u,
+        none = 0u,
+    };
+
+private:
+
+    template<class Code>
+    std::string seq(Code const code) const noexcept
+    {
+        return "\033[" + std::to_string(static_cast<unsigned int>(code)) + 'm';
+    }
+
+    std::string start_sequence(brightness const b, color const c) const noexcept
+    {
         auto code = static_cast<unsigned int>(c);
         if(b == brightness::dark && code >= 60u) {
             code -= 60u;
         }
-        return "\033[" + std::to_string(code) + 'm';
+        return seq(code);
     };
 
-    String colorize(color const c, String const& target, bool const end_sequence, brightness const b) const noexcept
+    String build_sequence(color const c, String const& raw, bool const ends_seq, brightness const b, attr const a) const noexcept
+    {
+        std::string result = start_sequence(b, c);
+        if (a != attr::none) {
+            result += seq(a);
+        }
+        result += raw;
+        if (ends_seq) {
+            result += seq(color::none);
+        }
+        return result;
+    }
+
+    String colorize(color const c, String const& raw, bool const ends_seq, brightness const b, attr const a) const noexcept
     {
         if (enabled) {
-            return start_sequence(b, c) + target + (end_sequence ? "\033[0m" : "");
+            return build_sequence(c, raw, ends_seq, b, a);
         } else {
-            return target;
+            return raw;
         }
     }
 
 public:
 
 #define DEFINE_COLORIZE(c) \
-    String c(String const& target, bool const end_seq=true, brightness const b=brightness::light) const noexcept \
+    String c(String const& target, bool const end_seq=true, attr const a=attr::none, brightness const b=brightness::light) const noexcept \
     { \
-        return colorize(color::c, target, end_seq, b); \
+        return colorize(color::c, target, end_seq, b, a); \
     }
     DEFINE_COLORIZE(yellow)
     DEFINE_COLORIZE(green)
@@ -64,7 +96,7 @@ public:
 
     String reset() const noexcept
     {
-        return enabled ? start_sequence(brightness::light, color::none) : "";
+        return enabled ? seq(color::none) : "";
     }
 
 public:
