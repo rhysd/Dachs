@@ -4,6 +4,8 @@
 #include <map>
 #include <string>
 
+#include <boost/format.hpp>
+
 namespace dachs {
 namespace helper {
 
@@ -78,6 +80,11 @@ private:
         }
     }
 
+    String colorize(color const c, boost::format const& fmt, bool const ends_seq, brightness const b, attr const a) const noexcept
+    {
+        return colorize(c, fmt.str(), ends_seq, b, a);
+    }
+
     String attribute(attr const a, String const& raw, bool const ends_seq) const noexcept
     {
         if (enabled) {
@@ -87,10 +94,16 @@ private:
         }
     }
 
+    String attribute(attr const a, boost::format const& fmt, bool const ends_seq) const noexcept
+    {
+        return attribute(a, fmt.str(), ends_seq);
+    }
+
 public:
 
 #define DEFINE_COLORIZE(c) \
-    String c(String const& target, bool const end_seq=true, attr const a=attr::none, brightness const b=brightness::light) const noexcept \
+    template<class S> \
+    String c(S const& target, bool const end_seq=true, attr const a=attr::none, brightness const b=brightness::light) const noexcept \
     { \
         return colorize(color::c, target, end_seq, b, a); \
     }
@@ -103,7 +116,8 @@ public:
     DEFINE_COLORIZE(blue)
 
 #define DEFINE_ATTR(a) \
-    String a(String const& target, bool const ends_seq=true) \
+    template<class S> \
+    String a(S const& target, bool const ends_seq=true) const noexcept \
     { \
         return attribute(attr::a, target, ends_seq); \
     }
