@@ -90,7 +90,7 @@ auto get_command_options(ArgPtr arg)
     } cmdopts;
 
     std::string const debug_str = "--debug";
-    std::string const disable_color_str = "--disable_color";
+    std::string const disable_color_str = "--disable-color";
 
     for (; *arg; ++arg) {
         if (boost::algorithm::starts_with(*arg, "--libdir=")) {
@@ -143,7 +143,7 @@ int main(int const, char const* const argv[])
     auto const show_usage =
         [argv]()
         {
-            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj] [--debug] [--libdir={path}] {file}\n";
+            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj] [--debug] [--libdir={path}] [--disable-color] {file}\n";
         };
 
     // TODO: Use Boost.ProgramOptions
