@@ -45,9 +45,17 @@ struct backtrace_printer {
         std::free(frames);
     }
 
-    backtrace_frame parse_frame(char const* const frame) const
+    std::string demangle(char const* name) const noexcept
     {
-#if defined(__GLIBCPP__) || defined(__GLIBCXX__)
+#if BOOST_VERSION >= 105600
+        return boost::core::demangle(name);
+#else
+        return name;
+#endif
+    }
+
+    backtrace_frame parse_frame_libstdcpp(char const* const frame) const
+    {
         std::string detail = frame;
         char const* start;
         char const* last;
@@ -73,7 +81,7 @@ struct backtrace_printer {
             };
 
         std::string const objname = tokenize_until('(');
-        std::string const demangled = tokenize_until(')');
+        std::string const demangled = demangle(tokenize_until(')').c_str());
 
         if (advance_last_until('[')) {
             start = ++last;
@@ -82,7 +90,10 @@ struct backtrace_printer {
         std::string const address = tokenize_until(']');
 
         return {objname, address, demangled, detail};
-#else
+    }
+
+    backtrace_frame parse_frame_libcxx(char const* const frame) const
+    {
         char const* current = frame;
 
         auto const skip_white
@@ -113,12 +124,15 @@ struct backtrace_printer {
         skip_white();
         std::string detail = current;
 
-#   if BOOST_VERSION >= 105600
-        auto const demangled = boost::core::demangle(get_token());
-#   else
-        auto const demangled = get_token();
-#   endif
-        return {objname, address, demangled, detail};
+        return {objname, address, demangle(get_token().c_str()), detail};
+    }
+
+    backtrace_frame parse_frame(char const* const frame) const
+    {
+#if defined(__GLIBCPP__) || defined(__GLIBCXX__)
+        return parse_frame_libstdcpp(frame);
+#else
+        return parse_frame_libcxx(frame);
 #endif
     }
 
