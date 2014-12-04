@@ -1,0 +1,38 @@
+func should(subject, verb)
+    # !!Below causes a bug!!
+    # if subject.verb
+
+    if verb(subject)
+        println("OK")
+    else
+        println("NG")
+    end
+end
+
+func equal(x)
+    ret -> y in x == y
+end
+
+func equal(adverb, x)
+    ret -> y in adverb(x == y)
+end
+
+func be_even(x)
+    ret x % 2 == 0
+end
+
+func not(x)
+    ret !x
+end
+
+func main
+    42.should equal(42)
+    42.should equal(32)
+
+    42.should be_even
+    41.should be_even
+
+    # !!Below causes a bug!!
+    # 42.should not.equal(32)
+    # 42.should not.equal(42)
+end
