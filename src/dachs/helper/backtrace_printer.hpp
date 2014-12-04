@@ -156,12 +156,15 @@ struct backtrace_printer {
     template<class Out = std::ostream>
     void dump_backtrace(Out &out = std::cerr) const
     {
+        out << "###################\n"
+            << "#    Backtrace    #\n"
+            << "###################\n";
         each_frame_with_index(
             [&](std::size_t const i, auto const& f)
             {
                 out << '[' << i << "] " << f.demangled << '\n'
-                    << "  " << f.object << " (" << f.address << ')' << '\n'
-                    << "  " << f.detail << '\n';
+                    << "  " << "object: " << f.object << " (" << f.address << ')' << '\n'
+                    << "  " << "detail: " << f.detail << '\n';
             }
         );
     }
@@ -169,12 +172,15 @@ struct backtrace_printer {
     template<class Out = std::ostream>
     void dump_pretty_backtrace(Out &out = std::cerr) const
     {
+        out << "###################\n"
+            << "#    Backtrace    #\n"
+            << "###################\n";
         each_frame_with_index(
             [&](std::size_t const i, auto const& f)
             {
                 out << c.green('[' + std::to_string(i) + "] " + f.demangled) << '\n'
-                    << "  " << f.object << " (" << f.address << ')' << '\n'
-                    << "  " << f.detail << '\n';
+                    << "  " << c.yellow("object: ") << f.object << " (" << f.address << ')' << '\n'
+                    << "  " << c.yellow("detail: ") << f.detail << '\n';
             }
         );
     }

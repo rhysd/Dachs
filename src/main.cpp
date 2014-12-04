@@ -24,7 +24,7 @@ static void signal_handler(int s)
     dachs::helper::colorizer c;
     helper::backtrace_printer<> printer{c};
 
-    std::cout << c.red("Caught deadly signal " + std::to_string(s)) << std::endl;
+    std::cout << c.red("Caught deadly signal " + std::to_string(s)) << "\n\n";
     printer.dump_pretty_backtrace();
 
     std::cerr << std::endl;
