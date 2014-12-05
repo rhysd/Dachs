@@ -1001,13 +1001,23 @@ public:
     template<class Walker>
     void visit(ast::node::typed_expr const& typed, Walker const& recursive_walker)
     {
-        auto const calculated_type = calculate_from_type_nodes(typed->specified_type);
+        auto const specified_type = calculate_from_type_nodes(typed->specified_type);
+
+        if (auto const maybe_child_array = get_as<ast::node::array_literal>(typed->child_expr)) {
+            auto const& child_array = *maybe_child_array;
+            if (child_array->element_exprs.empty() && type::is_a<type::array_type>(specified_type)) {
+                child_array->type = specified_type;
+                typed->type = specified_type;
+                return;
+            }
+        // } else if (auto const maybe_child_dict = ...) {
+        }
 
         recursive_walker();
 
         auto const actual_type = type_of(typed->child_expr);
-        if (actual_type != calculated_type) {
-            semantic_error(typed, boost::format("  Type mismatch.  Specified '%1%' but actually typed to '%2%'") % typed->type % actual_type);
+        if (actual_type != specified_type) {
+            semantic_error(typed, boost::format("  Types mismatch; specified '%1%' but actually typed to '%2%'") % specified_type.to_string() % actual_type.to_string());
             return;
         }
 
