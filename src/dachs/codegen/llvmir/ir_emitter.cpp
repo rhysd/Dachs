@@ -113,7 +113,7 @@ class llvm_ir_emitter {
         // Dump builder's debug information and context's information
         throw code_generation_error{
                 "LLVM IR generator",
-                (boost::format(" in line:%1%:col:%2%\n  %3%") % n->line % n->col % msg).str()
+                (boost::format(" in line:%1%:col:%2%\n  %3%\n") % n->line % n->col % msg).str()
             };
     }
 
