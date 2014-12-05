@@ -363,6 +363,10 @@ BOOST_AUTO_TEST_CASE(array)
             # Members
             a.size
             a2.size
+
+            # Empty array literals
+            a14 := [] : [int]
+            a15 := [] : [float]
         end
 
         func foo()
