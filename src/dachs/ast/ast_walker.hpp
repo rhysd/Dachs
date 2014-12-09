@@ -307,11 +307,20 @@ public:
         ));
     }
 
+    void walk(node::class_definition &cd)
+    {
+        visitor.visit(cd, walker_for(
+            cd->instance_vars,
+            cd->methods
+        ));
+    }
+
     void walk(node::inu &p)
     {
         visitor.visit(p, walker_for(
             p->functions,
-            p->global_constants
+            p->global_constants,
+            p->classes
         ));
     }
 

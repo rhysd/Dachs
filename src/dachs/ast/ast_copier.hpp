@@ -250,6 +250,16 @@ public:
                 );
     }
 
+    auto copy(node::class_definition const& cd) const
+    {
+        return copy_node<node::class_definition>(
+                    cd,
+                    cd->name,
+                    copy(cd->instance_vars),
+                    copy(cd->methods)
+                );
+    }
+
     auto copy(node::lambda_expr const& le) const
     {
         return copy_node<node::lambda_expr>(le, copy(le->def));

@@ -25,6 +25,7 @@ enum class qualifier {
 enum class func_kind {
     func,
     proc,
+    method,
 };
 
 std::string to_string(if_kind const o);
@@ -99,6 +100,7 @@ struct postfix_if_stmt;
 struct let_stmt;
 struct statement_block;
 struct function_definition;
+struct class_definition;
 struct inu;
 
 }
@@ -167,6 +169,7 @@ DACHS_DEFINE_NODE_PTR(postfix_if_stmt);
 DACHS_DEFINE_NODE_PTR(let_stmt);
 DACHS_DEFINE_NODE_PTR(statement_block);
 DACHS_DEFINE_NODE_PTR(function_definition);
+DACHS_DEFINE_NODE_PTR(class_definition);
 DACHS_DEFINE_NODE_PTR(inu);
 #undef DACHS_DEFINE_NODE_PTR
 
