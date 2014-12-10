@@ -1923,6 +1923,52 @@ BOOST_AUTO_TEST_CASE(do_block2)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(clazz)
+{
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        class foo
+        end
+
+        class foo; end
+
+        class foo
+            var1
+            var2
+
+            var3 : int
+        end
+
+        class foo
+            func method1
+            end
+
+            func method2(a, b)
+            end
+        end
+
+        class foo
+            var1
+            var2 : float
+
+            func method1(x)
+                println(x)
+            end
+
+            func method2(x, y)
+                method1(x+y)
+            end
+        end
+
+        func main
+        end
+    )"));
+
+    CHECK_PARSE_THROW(R"(
+        # ' is not available for class name
+        class foo'
+        end
+    )");
+}
 
 BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)
 {
