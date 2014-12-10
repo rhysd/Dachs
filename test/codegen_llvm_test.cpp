@@ -2,14 +2,16 @@
 #define BOOST_DYN_LINK
 #define BOOST_TEST_MAIN
 
+#include "test_helper.hpp"
+
+#include <string>
+
 #include "dachs/ast/ast.hpp"
 #include "dachs/parser/parser.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/semantic_analysis.hpp"
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
 #include "dachs/exception.hpp"
-
-#include <string>
 
 #include <boost/test/included/unit_test.hpp>
 

@@ -11,9 +11,19 @@
 #include <boost/range/algorithm/for_each.hpp>
 #include <boost/range/adaptors.hpp>
 
+#include "dachs/helper/colorizer.hpp"
+
+struct initializer_before_all_tests {
+    initializer_before_all_tests()
+    {
+        dachs::helper::colorizer::enabled = false;
+    }
+};
+
+BOOST_GLOBAL_FIXTURE(initializer_before_all_tests);
+
 namespace dachs {
 namespace test {
-namespace parser {
 
 namespace fs = boost::filesystem;
 using boost::adaptors::filtered;
@@ -38,38 +48,6 @@ void check_all_cases_in_directory(std::string const& dir_name, Predicate const& 
     );
 }
 
-inline
-void check_no_throw_in_all_cases_in_directory(std::string const& dir_name)
-{
-    dachs::syntax::parser parser;
-    check_all_cases_in_directory(dir_name, [&parser](fs::path const& p){
-                std::cout << "testing " << p.c_str() << std::endl;
-                BOOST_CHECK_NO_THROW(
-                    parser.parse(
-                        *dachs::helper::read_file<std::string>(p.c_str())
-                        , "test_file"
-                    )
-                );
-            });
-}
-
-inline
-void check_throw_in_all_cases_in_directory(std::string const& dir_name)
-{
-    dachs::syntax::parser parser;
-    check_all_cases_in_directory(dir_name, [&parser](fs::path const& p){
-                std::cout << "testing " << p.c_str() << std::endl;
-                BOOST_CHECK_THROW(
-                    parser.parse(
-                        *dachs::helper::read_file<std::string>(p.c_str())
-                        , "test_file"
-                    )
-                    , dachs::parse_error
-                );
-            });
-}
-
-} // namespace parser
 } // namespace test
 } // namespace dachs
 

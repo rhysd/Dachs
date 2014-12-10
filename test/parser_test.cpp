@@ -2,17 +2,18 @@
 #define BOOST_DYN_LINK
 #define BOOST_TEST_MAIN
 
+#include "test_helper.hpp"
+
 #include "dachs/parser/parser.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/ast/ast_walker.hpp"
 #include "dachs/helper/util.hpp"
-#include "test_helper.hpp"
 
 #include <string>
 
 #include <boost/test/included/unit_test.hpp>
 
-using namespace dachs::test::parser;
+using namespace dachs::test;
 
 // NOTE: use global variable to avoid executing heavy construction of parser
 static dachs::syntax::parser p;
@@ -80,6 +81,39 @@ inline void parse_and_validate(std::string const& code)
 }
 
 #define CHECK_PARSE_THROW(...) BOOST_CHECK_THROW(p.parse((__VA_ARGS__), "test_file"), dachs::parse_error)
+
+inline
+void check_no_throw_in_all_cases_in_directory(std::string const& dir_name)
+{
+    dachs::syntax::parser parser;
+    check_all_cases_in_directory(dir_name, [&parser](fs::path const& p){
+                std::cout << "testing " << p.c_str() << std::endl;
+                BOOST_CHECK_NO_THROW(
+                    parser.parse(
+                        *dachs::helper::read_file<std::string>(p.c_str())
+                        , "test_file"
+                    )
+                );
+            });
+}
+
+inline
+void check_throw_in_all_cases_in_directory(std::string const& dir_name)
+{
+    dachs::syntax::parser parser;
+    check_all_cases_in_directory(dir_name, [&parser](fs::path const& p){
+                std::cout << "testing " << p.c_str() << std::endl;
+                BOOST_CHECK_THROW(
+                    parser.parse(
+                        *dachs::helper::read_file<std::string>(p.c_str())
+                        , "test_file"
+                    )
+                    , dachs::parse_error
+                );
+            });
+}
+
+
 
 BOOST_AUTO_TEST_SUITE(parser)
 
