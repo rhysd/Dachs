@@ -35,7 +35,13 @@ class binary_generator final {
         if (dot_pos == std::string::npos) {
             throw code_generation_error{"LLVM IR generator", "Invalid file name: Extension is not found."};
         }
-        return file_name.substr(0, dot_pos);
+
+        auto const slash_pos = file_name.rfind('/', dot_pos);
+        if (slash_pos == std::string::npos || slash_pos+1 >= file_name.size()) {
+            return file_name.substr(0, dot_pos);
+        }
+
+        return file_name.substr(slash_pos+1, dot_pos - slash_pos - 1);
     }
 
     std::string generate_object(llvm::Module &module)
