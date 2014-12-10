@@ -875,13 +875,15 @@ struct function_definition final : public statement {
     scope::weak_func_scope scope;
     boost::optional<type::type> ret_type;
     std::vector<node::function_definition> instantiated; // Note: This is not a part of AST!
+    bool is_public = true;
 
     function_definition(symbol::func_kind const k
                       , std::string const& n
                       , decltype(params) const& p
                       , decltype(return_type) const& ret
                       , node::statement_block const& block
-                      , decltype(ensure_body) const& ensure) noexcept
+                      , decltype(ensure_body) const& ensure
+                      , bool const is_public = true) noexcept
         : statement()
         , kind(k)
         , name(n)
@@ -889,8 +891,11 @@ struct function_definition final : public statement {
         , return_type(ret)
         , body(block)
         , ensure_body(ensure)
+        , is_public(is_public)
     {}
 
+    // Note:
+    // For lambda expression and do-end block
     function_definition(decltype(params) const& p, node::statement_block const& b) noexcept
         : statement()
         , kind(symbol::func_kind::func)
@@ -915,7 +920,7 @@ struct function_definition final : public statement {
 
     std::string to_string() const noexcept override
     {
-        return "FUNC_DEFINITION: " + symbol::to_string(kind) + ' ' + name;
+        return "FUNC_DEFINITION: " + symbol::to_string(kind) + ' ' + name + ' ' + (is_public ? "(public)" : "(private)");
     }
 };
 
