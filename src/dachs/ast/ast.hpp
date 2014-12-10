@@ -921,7 +921,7 @@ struct function_definition final : public statement {
 
 struct class_definition final : public statement {
     std::string name;
-    std::vector<node::initialize_stmt> instance_vars;
+    std::vector<node::variable_decl> instance_vars;
     std::vector<node::function_definition> methods;
 
     class_definition(
@@ -945,8 +945,15 @@ struct inu final : public base {
     std::vector<node::initialize_stmt> global_constants;
     std::vector<node::class_definition> classes;
 
-    inu(decltype(functions) const& fs, decltype(global_constants) const& gs) noexcept
-        : base(), functions(fs), global_constants(gs)
+    inu(
+        decltype(functions) const& fs,
+        decltype(global_constants) const& gs,
+        decltype(classes) const& cs
+    ) noexcept
+        : base()
+        , functions(fs)
+        , global_constants(gs)
+        , classes(cs)
     {}
 
     std::string to_string() const noexcept override

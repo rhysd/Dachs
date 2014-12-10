@@ -384,6 +384,13 @@ public:
             + visit_optional_node(fd->ensure_body, indent+lead, "   ");
     }
 
+    String visit(node::class_definition const& cd, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(cd, indent)
+            + visit_nodes(cd->instance_vars, indent+lead, cd->methods.empty())
+            + visit_nodes(cd->methods, indent+lead, true);
+    }
+
     template<class... Args>
     String visit(boost::variant<Args...> const& v, String const& indent, char const* const lead) const noexcept
     {

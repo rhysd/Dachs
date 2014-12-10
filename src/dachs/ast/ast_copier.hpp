@@ -267,7 +267,7 @@ public:
 
     auto copy(node::inu const& p) const
     {
-        return copy_node<node::inu>(p, copy(p->functions), copy(p->global_constants));
+        return copy_node<node::inu>(p, copy(p->functions), copy(p->global_constants), copy(p->classes));
     }
 
 };

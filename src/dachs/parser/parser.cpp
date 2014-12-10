@@ -49,6 +49,7 @@ using qi::_5;
 using qi::_6;
 using qi::_a;
 using qi::_b;
+using qi::_c;
 using qi::_val;
 using qi::lit;
 using qi::string;
@@ -148,7 +149,17 @@ struct strict_real_policies_disallowing_trailing_dot final
 };
 
 template<class Iterator>
-class grammar final : public qi::grammar<Iterator, ast::node::inu(), comment_skipper<Iterator>, qi::locals<std::vector<ast::node::function_definition>, std::vector<ast::node::initialize_stmt>>> {
+class grammar final
+    : public qi::grammar<
+        Iterator,
+        ast::node::inu(),
+        comment_skipper<Iterator>,
+        qi::locals<
+            std::vector<ast::node::function_definition>,
+            std::vector<ast::node::initialize_stmt>,
+            std::vector<ast::node::class_definition>
+        >
+    > {
     template<class Value, class... Extra>
     using rule = qi::rule<Iterator, Value, comment_skipper<Iterator>, Extra...>;
     helper::colorizer c;
@@ -183,10 +194,11 @@ public:
                     (
                         function_definition[phx::push_back(_a, _1)]
                       | constant_definition[phx::push_back(_b, _1)]
+                      | class_definition[phx::push_back(_c, _1)]
                     ) % sep
                 ) > -sep > (qi::eol | qi::eoi)
             ) [
-                _val = make_node_ptr<ast::node::inu>(_a, _b)
+                _val = make_node_ptr<ast::node::inu>(_a, _b, _c)
             ];
 
         character_literal
@@ -988,6 +1000,39 @@ public:
                 _val = make_node_ptr<ast::node::initialize_stmt>(_1, _2)
             ];
 
+        class_name
+            = (
+                qi::lexeme[
+                    (qi::alpha | qi::char_('_'))[_val += _1]
+                    >> *(alnum | qi::char_('_'))[_val += _1]
+                ]
+            );
+
+        instance_variable_decl
+            = (
+                variable_name >> -(
+                    (-qi::eol >> ':') > -qi::eol > qualified_type
+                )
+            ) [
+                _val = make_node_ptr<ast::node::variable_decl>(true, _1, _2)
+            ];
+
+        method_definition
+            = function_definition /*TODO: Temporary*/;
+
+        class_definition
+            = (
+                DACHS_KWD("class") > class_name
+                > *(
+                    sep >> (
+                        (instance_variable_decl - "end" - "func" - "proc" - "ctor")[phx::push_back(_a, _1)]
+                      | method_definition[phx::push_back(_b, _1)]
+                    )
+                ) > sep > "end"
+            )[
+                _val = make_node_ptr<ast::node::class_definition>(_1, _a, _b)
+            ];
+
     #undef DACHS_KWD
     #undef DACHS_KWD_STRICT
 
@@ -1049,6 +1094,7 @@ public:
             , let_stmt
             , do_stmt
             , function_definition
+            , class_definition
             , constant_decl
             , constant_definition
             , do_block
@@ -1059,6 +1105,8 @@ public:
             , func_body_stmt_block
             , lambda_expr_oneline
             , lambda_expr_do_end
+            , instance_variable_decl
+            , method_definition
         );
 
         qi::on_error<qi::fail>(
@@ -1142,6 +1190,7 @@ public:
         do_stmt.name("do statement");
         compound_stmt.name("compound statement");
         function_definition.name("function definition");
+        class_definition.name("class definition");
         constant_decl.name("constant declaration");
         constant_definition.name("constant definition");
         do_block.name("do-end block");
@@ -1162,6 +1211,9 @@ public:
         postfix_if_return_stmt.name("return statement in postfix if statement");
         lambda_expr_oneline.name("\"in\" lambda expression");
         lambda_expr_do_end.name("\"do-end\" lambda expression");
+        instance_variable_decl.name("declaration of instance variable");
+        method_definition.name("method definition");
+        class_name.name("name of class");
         // }}}
     }
 
@@ -1176,7 +1228,12 @@ private:
 #define DACHS_DEFINE_RULE(n) rule<ast::node::n()> n
 #define DACHS_DEFINE_RULE_WITH_LOCALS(n, ...) rule<ast::node::n(), qi::locals< __VA_ARGS__ >> n
 
-    DACHS_DEFINE_RULE_WITH_LOCALS(inu, std::vector<ast::node::function_definition>, std::vector<ast::node::initialize_stmt>);
+    DACHS_DEFINE_RULE_WITH_LOCALS(
+            inu,
+            std::vector<ast::node::function_definition>,
+            std::vector<ast::node::initialize_stmt>,
+            std::vector<ast::node::class_definition>
+        );
     DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE(object_construct);
     DACHS_DEFINE_RULE(if_stmt);
@@ -1192,6 +1249,7 @@ private:
     DACHS_DEFINE_RULE(let_stmt);
     DACHS_DEFINE_RULE(compound_stmt);
     DACHS_DEFINE_RULE(function_definition);
+    DACHS_DEFINE_RULE_WITH_LOCALS(class_definition, std::vector<ast::node::variable_decl>, std::vector<ast::node::function_definition>);
 
     rule<char()> character_literal;
     rule<double()> float_literal;
@@ -1199,9 +1257,9 @@ private:
     rule<unsigned int()> uinteger_literal;
     rule<bool()> boolean_literal;
     rule<std::string()> string_literal;
-    rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
+    rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init, instance_variable_decl;
     rule<ast::node::initialize_stmt()> constant_definition;
-    rule<ast::node::function_definition()> do_block, lambda_expr_do_end;
+    rule<ast::node::function_definition()> do_block, lambda_expr_do_end, method_definition;
     rule<ast::node::statement_block()> do_stmt;
 
     rule<ast::node::any_expr()>
@@ -1259,7 +1317,7 @@ private:
                                      , case_when_stmt_block
                                      , func_body_stmt_block
                                      ;
-    rule<std::string()> called_function_name, function_name, func_def_name, variable_name, type_name, unary_operator, binary_operator, assign_operator;
+    rule<std::string()> called_function_name, function_name, func_def_name, variable_name, type_name, unary_operator, binary_operator, assign_operator, class_name;
     rule<qi::unused_type()/*TMP*/> func_precondition;
     decltype(return_stmt) postfix_if_return_stmt;
 
