@@ -1017,14 +1017,28 @@ public:
                 )
             );
 
+        instance_variable_decl
+            = (
+                variable_name >> -(
+                    (-qi::eol >> ':') > -qi::eol > qualified_type
+                )
+            ) [
+                _val = make_node_ptr<ast::node::variable_decl>(true, _1, _2)
+            ];
+
         instance_variable_decls
             = access_specifier[_a = _1] >> (
                 (
-                    variable_name >> -(
-                        (-qi::eol >> ':') > -qi::eol > qualified_type
-                    )
+                    instance_variable_decl
                 ) [
-                    phx::push_back(_val, make_node_ptr<ast::node::variable_decl>(true, _1, _2, _a))
+                    phx::bind(
+                        [](auto &decls, auto const& decl, bool const access)
+                        {
+                            decl->accessibility = access;
+                            decls.push_back(std::move(decl));
+                        }
+                        , _val, _1, _a
+                    )
                 ]
             ) % (-qi::eol >> ',');
 
@@ -1136,6 +1150,7 @@ public:
             , lambda_expr_oneline
             , lambda_expr_do_end
             , method_definition
+            , instance_variable_decl
         );
 
         qi::on_error<qi::fail>(
@@ -1240,7 +1255,8 @@ public:
         postfix_if_return_stmt.name("return statement in postfix if statement");
         lambda_expr_oneline.name("\"in\" lambda expression");
         lambda_expr_do_end.name("\"do-end\" lambda expression");
-        instance_variable_decls.name("declaration of instance variable");
+        instance_variable_decl.name("declaration of instance variable");
+        instance_variable_decls.name("declarations of instance variable");
         method_definition.name("method definition");
         class_name.name("name of class");
         access_specifier.name("access_specifier");
@@ -1287,7 +1303,7 @@ private:
     rule<unsigned int()> uinteger_literal;
     rule<bool()> boolean_literal;
     rule<std::string()> string_literal;
-    rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
+    rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init, instance_variable_decl;
     rule<ast::node::initialize_stmt()> constant_definition;
     rule<ast::node::function_definition()> do_block, lambda_expr_do_end;
     rule<ast::node::statement_block()> do_stmt;
