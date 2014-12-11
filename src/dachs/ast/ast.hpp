@@ -638,17 +638,44 @@ struct variable_decl final : public base {
     std::string name;
     boost::optional<node::any_type> maybe_type;
     dachs::symbol::weak_var_symbol symbol;
+    boost::optional<bool> accessibility = boost::none;
 
     template<class T>
     variable_decl(T const& var,
                   std::string const& name,
-                  decltype(maybe_type) const& type) noexcept
-        : is_var(var), name(name), maybe_type(type)
+                  decltype(maybe_type) const& type,
+                  boost::optional<bool> accessibility = boost::none
+                ) noexcept
+        : is_var(var)
+        , name(name)
+        , maybe_type(type)
+        , accessibility(accessibility)
     {}
+
+    bool is_instance_var() const noexcept
+    {
+        return accessibility;
+    }
+
+    bool is_public() const noexcept
+    {
+        // Note:
+        // At the moment, all non-method functions are public.
+        return accessibility ? *accessibility : true;
+    }
 
     std::string to_string() const noexcept override
     {
-        return "VARIABLE_DECL: " + name + " (" + (is_var ? "mutable)" : "immutable)");
+        return "VARIABLE_DECL: "
+            + name + " ("
+            + (is_var ? "mutable" : "immutable")
+            + (
+                accessibility ? (
+                    *accessibility ?
+                        ", public"
+                      : ", private"
+                ) : ""
+            ) + ')';
     }
 };
 

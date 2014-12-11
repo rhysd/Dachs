@@ -1008,7 +1008,7 @@ public:
                 ]
             );
 
-        accessibility
+        access_specifier
             = (
                 qi::eps[_val = true]
                 >> -(
@@ -1019,16 +1019,16 @@ public:
 
         instance_variable_decl
             = (
-                variable_name >> -(
+                access_specifier >> variable_name >> -(
                     (-qi::eol >> ':') > -qi::eol > qualified_type
                 )
             ) [
-                _val = make_node_ptr<ast::node::variable_decl>(true, _1, _2)
+                _val = make_node_ptr<ast::node::variable_decl>(true, _2, _3, _1)
             ];
 
         method_definition
             = (
-                accessibility[_a = _1] >> function_definition[_val = _1]
+                access_specifier[_a = _1] >> function_definition[_val = _1]
             )[
                 phx::bind(
                     [](auto const& node, bool const is_public)
@@ -1234,7 +1234,7 @@ public:
         instance_variable_decl.name("declaration of instance variable");
         method_definition.name("method definition");
         class_name.name("name of class");
-        accessibility.name("accessibility");
+        access_specifier.name("access_specifier");
         // }}}
     }
 
@@ -1282,7 +1282,7 @@ private:
     rule<ast::node::initialize_stmt()> constant_definition;
     rule<ast::node::function_definition()> do_block, lambda_expr_do_end;
     rule<ast::node::statement_block()> do_stmt;
-    rule<bool()> accessibility;
+    rule<bool()> access_specifier;
     rule<ast::node::function_definition(), qi::locals<bool>> method_definition;
 
     rule<ast::node::any_expr()>
