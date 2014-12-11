@@ -65,7 +65,7 @@ namespace detail {
     template<class Iterator>
     inline auto line_pos_iterator(Iterator i)
     {
-        return boost::spirit::line_pos_iterator<Iterator>(i);
+        return boost::spirit::line_pos_iterator<Iterator>{i};
     }
 
     template<class Node>
@@ -1017,14 +1017,16 @@ public:
                 )
             );
 
-        instance_variable_decl
-            = (
-                access_specifier >> variable_name >> -(
-                    (-qi::eol >> ':') > -qi::eol > qualified_type
-                )
-            ) [
-                _val = make_node_ptr<ast::node::variable_decl>(true, _2, _3, _1)
-            ];
+        instance_variable_decls
+            = access_specifier[_a = _1] >> (
+                (
+                    variable_name >> -(
+                        (-qi::eol >> ':') > -qi::eol > qualified_type
+                    )
+                ) [
+                    phx::push_back(_val, make_node_ptr<ast::node::variable_decl>(true, _1, _2, _a))
+                ]
+            ) % (-qi::eol >> ',');
 
         method_definition
             = (
@@ -1046,7 +1048,15 @@ public:
                 > *(
                     sep >> (
                         method_definition[phx::push_back(_b, _1)]
-                      | (instance_variable_decl - "end")[phx::push_back(_a, _1)]
+                      | (instance_variable_decls - "end")[
+                            phx::bind(
+                                [](auto &vars, auto const& newcomers)
+                                {
+                                    vars.insert(std::end(vars), std::begin(newcomers), std::end(newcomers));
+                                }
+                                , _a, _1
+                            )
+                        ]
                     )
                 ) > sep > "end"
             )[
@@ -1125,7 +1135,6 @@ public:
             , func_body_stmt_block
             , lambda_expr_oneline
             , lambda_expr_do_end
-            , instance_variable_decl
             , method_definition
         );
 
@@ -1231,7 +1240,7 @@ public:
         postfix_if_return_stmt.name("return statement in postfix if statement");
         lambda_expr_oneline.name("\"in\" lambda expression");
         lambda_expr_do_end.name("\"do-end\" lambda expression");
-        instance_variable_decl.name("declaration of instance variable");
+        instance_variable_decls.name("declaration of instance variable");
         method_definition.name("method definition");
         class_name.name("name of class");
         access_specifier.name("access_specifier");
@@ -1278,12 +1287,13 @@ private:
     rule<unsigned int()> uinteger_literal;
     rule<bool()> boolean_literal;
     rule<std::string()> string_literal;
-    rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init, instance_variable_decl;
+    rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
     rule<ast::node::initialize_stmt()> constant_definition;
     rule<ast::node::function_definition()> do_block, lambda_expr_do_end;
     rule<ast::node::statement_block()> do_stmt;
     rule<bool()> access_specifier;
     rule<ast::node::function_definition(), qi::locals<bool>> method_definition;
+    rule<std::vector<ast::node::variable_decl>(), qi::locals<bool>> instance_variable_decls;
 
     rule<ast::node::any_expr()>
           primary_literal

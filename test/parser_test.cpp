@@ -1973,6 +1973,24 @@ BOOST_AUTO_TEST_CASE(clazz)
           - var1
           - var2
           - var3 : int
+
+            var1, var2, var3 : int
+          + var1, var2, var3 : int
+          - var1, var3 : int, var2
+          + var3 : int, var1, var2
+
+            var1
+          , var2
+          , var3 : int
+
+          + var1
+          , var2
+          , var3 : int
+
+          - var1
+          , var3 : int
+          , var2
+
         end
     )"));
 
