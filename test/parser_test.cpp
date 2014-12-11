@@ -1959,26 +1959,39 @@ BOOST_AUTO_TEST_CASE(do_block2)
 
 BOOST_AUTO_TEST_CASE(clazz)
 {
+    // Instance variables
     BOOST_CHECK_NO_THROW(parse_and_validate(R"(
-        class foo
-        end
-
-        class foo; end
-
         class foo
             var1
             var2
 
             var3 : int
         end
+    )"));
 
+    // Methods
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
         class foo
             func method1
             end
 
-            func method2(a, b)
+          + func method2(a, b)
+            end
+
+          - func method2(a, b)
             end
         end
+
+        func main
+        end
+    )"));
+
+    // Integration
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        class foo
+        end
+
+        class foo; end
 
         class foo
             var1

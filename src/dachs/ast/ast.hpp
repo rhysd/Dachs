@@ -875,15 +875,17 @@ struct function_definition final : public statement {
     scope::weak_func_scope scope;
     boost::optional<type::type> ret_type;
     std::vector<node::function_definition> instantiated; // Note: This is not a part of AST!
-    bool is_public = true;
+    boost::optional<bool> accessibility = boost::none;
 
-    function_definition(symbol::func_kind const k
-                      , std::string const& n
-                      , decltype(params) const& p
-                      , decltype(return_type) const& ret
-                      , node::statement_block const& block
-                      , decltype(ensure_body) const& ensure
-                      , bool const is_public = true) noexcept
+    function_definition(
+            symbol::func_kind const k
+          , std::string const& n
+          , decltype(params) const& p
+          , decltype(return_type) const& ret
+          , node::statement_block const& block
+          , decltype(ensure_body) const& ensure
+          , boost::optional<bool> const accessibility = boost::none
+    ) noexcept
         : statement()
         , kind(k)
         , name(n)
@@ -891,7 +893,7 @@ struct function_definition final : public statement {
         , return_type(ret)
         , body(block)
         , ensure_body(ensure)
-        , is_public(is_public)
+        , accessibility(accessibility)
     {}
 
     // Note:
@@ -918,9 +920,30 @@ struct function_definition final : public statement {
         return false;
     }
 
+    bool is_method() const noexcept
+    {
+        return accessibility;
+    }
+
+    bool is_public() const noexcept
+    {
+        // Note:
+        // At the moment, all non-method functions are public.
+        return accessibility ? *accessibility : true;
+    }
+
     std::string to_string() const noexcept override
     {
-        return "FUNC_DEFINITION: " + symbol::to_string(kind) + ' ' + name + ' ' + (is_public ? "(public)" : "(private)");
+        return "FUNC_DEFINITION: "
+            + symbol::to_string(kind)
+            + ' ' + name
+            + (
+                accessibility ?
+                    (*accessibility ?
+                        " (public)"
+                      : " (private)")
+                  : ""
+            );
     }
 };
 

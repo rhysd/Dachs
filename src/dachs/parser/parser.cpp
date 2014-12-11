@@ -1008,6 +1008,15 @@ public:
                 ]
             );
 
+        accessibility
+            = (
+                qi::eps[_val = true]
+                >> -(
+                    lit("+")[_val = true]
+                  | lit("-")[_val = false]
+                )
+            );
+
         instance_variable_decl
             = (
                 variable_name >> -(
@@ -1018,15 +1027,26 @@ public:
             ];
 
         method_definition
-            = function_definition /*TODO: Temporary*/;
+            = (
+                accessibility[_a = _1] >> function_definition[_val = _1]
+            )[
+                phx::bind(
+                    [](auto const& node, bool const is_public)
+                    {
+                        node->accessibility = is_public;
+                    }
+                  , _val
+                  , _a
+                )
+            ];
 
         class_definition
             = (
                 DACHS_KWD("class") > class_name
                 > *(
                     sep >> (
-                        (instance_variable_decl - "end" - "func" - "proc" - "ctor")[phx::push_back(_a, _1)]
-                      | method_definition[phx::push_back(_b, _1)]
+                        method_definition[phx::push_back(_b, _1)]
+                      | (instance_variable_decl - "end")[phx::push_back(_a, _1)]
                     )
                 ) > sep > "end"
             )[
@@ -1214,6 +1234,7 @@ public:
         instance_variable_decl.name("declaration of instance variable");
         method_definition.name("method definition");
         class_name.name("name of class");
+        accessibility.name("accessibility");
         // }}}
     }
 
@@ -1259,8 +1280,10 @@ private:
     rule<std::string()> string_literal;
     rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init, instance_variable_decl;
     rule<ast::node::initialize_stmt()> constant_definition;
-    rule<ast::node::function_definition()> do_block, lambda_expr_do_end, method_definition;
+    rule<ast::node::function_definition()> do_block, lambda_expr_do_end;
     rule<ast::node::statement_block()> do_stmt;
+    rule<bool()> accessibility;
+    rule<ast::node::function_definition(), qi::locals<bool>> method_definition;
 
     rule<ast::node::any_expr()>
           primary_literal
