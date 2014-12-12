@@ -51,8 +51,6 @@ using qi::_a;
 using qi::_b;
 using qi::_c;
 using qi::_val;
-using qi::lit;
-using qi::string;
 using qi::alnum;
 using qi::lexeme;
 // }}}
@@ -139,6 +137,24 @@ inline auto as_vector(Holder && h)
             }, std::forward<Holder>(h));
 }
 
+// Literal parser literal
+inline auto operator"" _l(char const* s, std::size_t)
+{
+    return qi::lit(s);
+}
+
+// Parser literal
+inline auto operator"" _p(char const c)
+{
+    return qi::char_(c);
+}
+
+// Parser literal
+inline auto operator"" _p(char const* s, std::size_t)
+{
+    return qi::string(s);
+}
+
 // }}}
 
 template<class FloatType>
@@ -206,13 +222,13 @@ public:
                 '\''
                 > ((qi::char_ - ascii::cntrl - '\\' - '\'')[_val = _1]
                 | ('\\' > (
-                          qi::char_('b')[_val = '\b']
-                        | qi::char_('f')[_val = '\f']
-                        | qi::char_('n')[_val = '\n']
-                        | qi::char_('r')[_val = '\r']
-                        | qi::char_('t')[_val = '\t']
-                        | qi::char_('\\')[_val = '\\']
-                        | qi::char_('\'')[_val = '\'']
+                          'b'_p[_val = '\b']
+                        | 'f'_p[_val = '\f']
+                        | 'n'_p[_val = '\n']
+                        | 'r'_p[_val = '\r']
+                        | 't'_p[_val = '\t']
+                        | '\\'_p[_val = '\\']
+                        | '\''_p[_val = '\'']
                     ))
                 ) > '\''
             ];
@@ -232,13 +248,13 @@ public:
                 qi::lexeme['"' > *(
                     (qi::char_ - '"' - '\\' - ascii::cntrl)[_val += _1] |
                     ('\\' >> (
-                          qi::char_('b')[_val += '\b']
-                        | qi::char_('f')[_val += '\f']
-                        | qi::char_('n')[_val += '\n']
-                        | qi::char_('r')[_val += '\r']
-                        | qi::char_('t')[_val += '\t']
-                        | qi::char_('\\')[_val += '\\']
-                        | qi::char_('"')[_val += '"']
+                          'b'_p[_val += '\b']
+                        | 'f'_p[_val += '\f']
+                        | 'n'_p[_val += '\n']
+                        | 'r'_p[_val += '\r']
+                        | 't'_p[_val += '\t']
+                        | '\\'_p[_val += '\\']
+                        | '"'_p[_val += '"']
                         | (qi::char_ - ascii::cntrl)[_val += _1]
                     ))
                 ) > '"']
@@ -317,21 +333,21 @@ public:
         called_function_name
             =
                 qi::lexeme[
-                    (qi::alpha | qi::char_('_'))[_val += _1]
-                    >> *(alnum | qi::char_('_'))[_val += _1]
-                    >> -qi::char_('?')[_val += _1]
-                    >> -qi::char_('\'')[_val += _1]
-                    >> -qi::char_('!')[_val += _1]
+                    (qi::alpha | '_'_p)[_val += _1]
+                    >> *(alnum | '_'_p)[_val += _1]
+                    >> -'?'_p[_val += _1]
+                    >> -'\''_p[_val += _1]
+                    >> -'!'_p[_val += _1]
                 ]
             ;
 
         function_name
             =
                 qi::lexeme[
-                    (qi::alpha | qi::char_('_'))[_val += _1]
-                    >> *(alnum | qi::char_('_'))[_val += _1]
-                    >> -qi::char_('?')[_val += _1]
-                    >> -qi::char_('\'')[_val += _1]
+                    (qi::alpha | '_'_p)[_val += _1]
+                    >> *(alnum | '_'_p)[_val += _1]
+                    >> -'?'_p[_val += _1]
+                    >> -'\''_p[_val += _1]
                 ]
             ;
 
@@ -343,9 +359,9 @@ public:
         variable_name
             = (
                 qi::lexeme[
-                    (qi::alpha | qi::char_('_'))[_val += _1]
-                    >> *(alnum | qi::char_('_'))[_val += _1]
-                    >> -qi::char_('\'')
+                    (qi::alpha | '_'_p)[_val += _1]
+                    >> *(alnum | '_'_p)[_val += _1]
+                    >> -'\''_p
                 ]
             );
 
@@ -366,7 +382,7 @@ public:
 
         parameter
             = (
-                -DACHS_KWD_STRICT(qi::matches[lit("var")])
+                -DACHS_KWD_STRICT(qi::matches["var"_l])
                 >> variable_name
                 >> -(
                     -qi::eol >> ':' >> -qi::eol >> qualified_type
@@ -442,7 +458,7 @@ public:
 
         do_block
             = (
-                DACHS_KWD_STRICT(lit("do")) >> -(
+                DACHS_KWD_STRICT("do"_l) >> -(
                     '|' >> (parameter % comma) >> '|'
                 ) >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
             ) [
@@ -484,34 +500,34 @@ public:
 
         unary_operator
             =
-                string("+")
-              | string("-")
-              | string("~")
-              | string("!")
+                "+"_p
+              | "-"_p
+              | "~"_p
+              | "!"_p
             ;
 
         binary_operator
             =
-                string("...")
-              | string("..")
-              | string(">>")
-              | string("<<")
-              | string("<=")
-              | string(">=")
-              | string("==")
-              | string("!=")
-              | string("&&")
-              | string("||")
-              | string("*")
-              | string("/")
-              | string("%")
-              | string("+")
-              | string("-")
-              | string("<")
-              | string(">")
-              | string("&")
-              | string("^")
-              | string("|")
+                "..."_p
+              | ".."_p
+              | ">>"_p
+              | "<<"_p
+              | "<="_p
+              | ">="_p
+              | "=="_p
+              | "!="_p
+              | "&&"_p
+              | "||"_p
+              | "*"_p
+              | "/"_p
+              | "%"_p
+              | "+"_p
+              | "-"_p
+              | "<"_p
+              | ">"_p
+              | "&"_p
+              | "^"_p
+              | "|"_p
             ;
 
         unary_expr
@@ -540,9 +556,9 @@ public:
                 cast_expr[_val = _1] >>
                 *(
                     -qi::eol >> (
-                        string("*")
-                      | string("/")
-                      | string("%")
+                        "*"_p
+                      | "/"_p
+                      | "%"_p
                     ) >> -qi::eol >> cast_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
@@ -554,8 +570,8 @@ public:
                 mult_expr[_val = _1] >>
                 *(
                     -qi::eol >> (
-                        string("+")
-                      | string("-")
+                        "+"_p
+                      | "-"_p
                     ) >> -qi::eol >> mult_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
@@ -567,8 +583,8 @@ public:
                 additive_expr[_val = _1] >>
                 *(
                     -qi::eol >> (
-                        string("<<")
-                      | string(">>")
+                        "<<"_p
+                      | ">>"_p
                     ) >> -qi::eol >> additive_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
@@ -580,10 +596,10 @@ public:
                 shift_expr[_val = _1] >>
                 *(
                     -qi::eol >> (
-                        string("<=")
-                      | string(">=")
-                      | string("<")
-                      | string(">")
+                        "<="_p
+                      | ">="_p
+                      | "<"_p
+                      | ">"_p
                     ) >> -qi::eol >> shift_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
@@ -595,8 +611,8 @@ public:
                 relational_expr[_val = _1] >>
                 *(
                     -qi::eol >> (
-                        string("==")
-                      | string("!=")
+                        "=="_p
+                      | "!="_p
                     ) >> -qi::eol >> relational_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
@@ -658,8 +674,8 @@ public:
                 logical_or_expr[_val = _1] >>
                 -(
                     -qi::eol >> (
-                        string("...")
-                      | string("..")
+                        "..."_p
+                      | ".."_p
                     ) >> -qi::eol >> logical_or_expr
                 )[
                     _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
@@ -749,19 +765,19 @@ public:
 
         assign_operator
             =
-                string("=")
-              | string("*=")
-              | string("/=")
-              | string("%=")
-              | string("+=")
-              | string("-=")
-              | string("<<=")
-              | string(">>=")
-              | string("&=")
-              | string("^=")
-              | string("|=")
-              | string("&&=")
-              | string("||=")
+                "="_p
+              | "*="_p
+              | "/="_p
+              | "%="_p
+              | "+="_p
+              | "-="_p
+              | "<<="_p
+              | ">>="_p
+              | "&="_p
+              | "^="_p
+              | "|="_p
+              | "&&="_p
+              | "||="_p
             ;
 
         assignment_stmt
@@ -773,7 +789,7 @@ public:
 
         variable_decl
             = (
-                -DACHS_KWD_STRICT(qi::matches[lit("var")])
+                -DACHS_KWD_STRICT(qi::matches["var"_l])
                 >> variable_name >> -(
                     // Note: In this paren, > can't be used because of :=
                     -qi::eol >> ':' >> -qi::eol >> qualified_type
@@ -784,7 +800,7 @@ public:
 
         variable_decl_without_init
             = (
-                DACHS_KWD_STRICT(lit("var"))
+                DACHS_KWD_STRICT("var"_l)
                 >> variable_name >> -qi::eol >> ':' >> -qi::eol >> qualified_type
             ) [
                 _val = make_node_ptr<ast::node::variable_decl>(true, _1, _2)
@@ -1003,8 +1019,8 @@ public:
         class_name
             = (
                 qi::lexeme[
-                    (qi::alpha | qi::char_('_'))[_val += _1]
-                    >> *(alnum | qi::char_('_'))[_val += _1]
+                    (qi::alpha | '_'_p)[_val += _1]
+                    >> *(alnum | '_'_p)[_val += _1]
                 ]
             );
 
@@ -1012,8 +1028,8 @@ public:
             = (
                 qi::eps[_val = true]
                 >> -(
-                    lit("+")[_val = true]
-                  | lit("-")[_val = false]
+                    "+"_l[_val = true]
+                  | "-"_l[_val = false]
                 )
             );
 
