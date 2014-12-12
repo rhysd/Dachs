@@ -1023,24 +1023,16 @@ public:
                     (-qi::eol >> ':') > -qi::eol > qualified_type
                 )
             ) [
-                _val = make_node_ptr<ast::node::variable_decl>(true, _1, _2)
+                _val = make_node_ptr<ast::node::variable_decl>(true, _1, _2, qi::_r1)
             ];
 
         instance_variable_decls
-            = access_specifier[_a = _1] >> (
-                (
-                    instance_variable_decl
-                ) [
-                    phx::bind(
-                        [](auto &decls, auto const& decl, bool const access)
-                        {
-                            decl->accessibility = access;
-                            decls.push_back(std::move(decl));
-                        }
-                        , _val, _1, _a
-                    )
-                ]
-            ) % (-qi::eol >> ',');
+            = (
+                qi::omit[access_specifier[_a = _1]]
+                >> (
+                    instance_variable_decl(_a)
+                ) % (-qi::eol >> ',')
+            );
 
         method_definition
             = (
@@ -1061,15 +1053,11 @@ public:
                 DACHS_KWD("class") > class_name
                 > *(
                     sep >> (
-                        method_definition[phx::push_back(_b, _1)]
+                        method_definition[
+                            phx::push_back(_b, _1)
+                        ]
                       | (instance_variable_decls - "end")[
-                            phx::bind(
-                                [](auto &vars, auto const& newcomers)
-                                {
-                                    vars.insert(std::end(vars), std::begin(newcomers), std::end(newcomers));
-                                }
-                                , _a, _1
-                            )
+                            phx::insert(_a, phx::end(_a), phx::begin(_1), phx::end(_1))
                         ]
                     )
                 ) > sep > "end"
@@ -1303,13 +1291,14 @@ private:
     rule<unsigned int()> uinteger_literal;
     rule<bool()> boolean_literal;
     rule<std::string()> string_literal;
-    rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init, instance_variable_decl;
+    rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
     rule<ast::node::initialize_stmt()> constant_definition;
     rule<ast::node::function_definition()> do_block, lambda_expr_do_end;
     rule<ast::node::statement_block()> do_stmt;
     rule<bool()> access_specifier;
     rule<ast::node::function_definition(), qi::locals<bool>> method_definition;
     rule<std::vector<ast::node::variable_decl>(), qi::locals<bool>> instance_variable_decls;
+    rule<ast::node::variable_decl(bool)> instance_variable_decl;
 
     rule<ast::node::any_expr()>
           primary_literal
