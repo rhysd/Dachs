@@ -123,6 +123,10 @@ public:
 
     auto get_param_sym(ast::node::parameter const& param)
     {
+        if (!param->name.empty() && param->name[0] == '@') {
+            semantic_error(param, "  '@' can't be used for parameter's name. It's for instance variables.");
+        }
+
         // Note:
         // When the param's name is "_", it means unused.
         // Unique number (the address of 'param') is used instead of "_" as its name.

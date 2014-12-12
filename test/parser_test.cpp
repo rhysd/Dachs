@@ -2040,6 +2040,25 @@ BOOST_AUTO_TEST_CASE(clazz)
         class foo'
         end
     )");
+
+    // Instance variable access
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        class foo
+            aaa, bbb
+
+            # ctor(@aaa, b)
+            #     @bbb = @aaa + b
+            # end
+
+            func foo(a, b)
+                @aaa = 42
+            end
+
+            func bar(a, b)
+                println(@aaa)
+            end
+        end
+    )"));
 }
 
 BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)

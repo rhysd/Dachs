@@ -143,6 +143,11 @@ inline auto operator"" _l(char const* s, std::size_t)
     return qi::lit(s);
 }
 
+inline auto operator"" _l(char const c)
+{
+    return qi::lit(c);
+}
+
 // Parser literal
 inline auto operator"" _p(char const c)
 {
@@ -333,7 +338,8 @@ public:
         called_function_name
             =
                 qi::lexeme[
-                    (qi::alpha | '_'_p)[_val += _1]
+                    -('@'_p[_val += _1])
+                    >> (qi::alpha | '_'_p)[_val += _1]
                     >> *(alnum | '_'_p)[_val += _1]
                     >> -'?'_p[_val += _1]
                     >> -'\''_p[_val += _1]
@@ -359,7 +365,8 @@ public:
         variable_name
             = (
                 qi::lexeme[
-                    (qi::alpha | '_'_p)[_val += _1]
+                    -('@'_p[_val += _1])
+                    >> (qi::alpha | '_'_p)[_val += _1]
                     >> *(alnum | '_'_p)[_val += _1]
                     >> -'\''_p
                 ]
@@ -383,7 +390,7 @@ public:
         parameter
             = (
                 -DACHS_KWD_STRICT(qi::matches["var"_l])
-                >> variable_name
+                >> variable_name // '@' reveals in constructors
                 >> -(
                     -qi::eol >> ':' >> -qi::eol >> qualified_type
                 )
@@ -489,7 +496,7 @@ public:
                 primary_expr[_val = _1] >> *(
                       (-qi::eol >> '.' >> -qi::eol >> var_ref >> '(' >> -(typed_expr % comma) >> trailing_comma >> ')' >> -do_block)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, as_vector(_2), _3)]
                     | (-qi::eol >> '.' >> -qi::eol >> var_ref >> (typed_expr - "do") % comma >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2, _3)]
-                    | (-qi::eol >> '.' >> -qi::eol >> var_ref >> !(lit('+') | '-') >> (typed_expr - "do") % comma)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2)]
+                    | (-qi::eol >> '.' >> -qi::eol >> var_ref >> !('+'_l | '-') >> (typed_expr - "do") % comma)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2)]
                     | (-qi::eol >> '.' >> -qi::eol >> (var_ref - "do") >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_2, _1, _val)]
                     | (-qi::eol >> '.' >> -qi::eol >> called_function_name)[_val = make_node_ptr<ast::node::ufcs_invocation>(_val, _1)]
                     | ('[' >> -qi::eol >> typed_expr >> -qi::eol >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]
@@ -1370,8 +1377,17 @@ private:
                                      , if_else_stmt_block
                                      , case_when_stmt_block
                                      , func_body_stmt_block
-                                     ;
-    rule<std::string()> called_function_name, function_name, func_def_name, variable_name, type_name, unary_operator, binary_operator, assign_operator, class_name;
+                                    ;
+    rule<std::string()> called_function_name
+                      , function_name
+                      , func_def_name
+                      , variable_name
+                      , type_name
+                      , unary_operator
+                      , binary_operator
+                      , assign_operator
+                      , class_name
+                    ;
     rule<qi::unused_type()/*TMP*/> func_precondition;
     decltype(return_stmt) postfix_if_return_stmt;
 

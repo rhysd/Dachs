@@ -173,6 +173,19 @@ BOOST_AUTO_TEST_CASE(do_)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(clazz)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(@aaa)
+            @aaa.println
+        end
+
+        func main
+            foo(42)
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(lambda_return_type_deduction)
 {
     CHECK_NO_THROW_SEMANTIC_ERROR(R"(
@@ -337,6 +350,5 @@ BOOST_AUTO_TEST_CASE(edge_case_in_UFCS_function_invocation)
         end
     )");
 }
-
 
 BOOST_AUTO_TEST_SUITE_END()
