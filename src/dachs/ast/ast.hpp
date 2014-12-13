@@ -893,6 +893,9 @@ struct statement_block final : public base {
 };
 
 struct function_definition final : public statement {
+
+    struct ctor_tag {};
+
     symbol::func_kind kind;
     std::string name;
     std::vector<node::parameter> params;
@@ -929,6 +932,18 @@ struct function_definition final : public statement {
         : statement()
         , kind(symbol::func_kind::func)
         , name("")
+        , params(p)
+        , return_type(boost::none)
+        , body(b)
+        , ensure_body(boost::none)
+    {}
+
+    // Note:
+    // For constructor
+    function_definition(ctor_tag, decltype(params) const& p, node::statement_block const& b) noexcept
+        : statement()
+        , kind(symbol::func_kind::func) // Note: New kind 'ctor' should be added?
+        , name("dachs.init")
         , params(p)
         , return_type(boost::none)
         , body(b)
