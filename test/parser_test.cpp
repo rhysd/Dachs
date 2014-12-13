@@ -2035,6 +2035,25 @@ BOOST_AUTO_TEST_CASE(clazz)
         end
     )"));
 
+    // Constructors
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        class foo
+            init
+            end
+
+            init(a, b)
+            end
+
+            init(@aaa)
+            end
+
+            init(@bbb)
+                @aaa = @bbb + 42
+                println("ctor")
+            end
+        end
+    )"));
+
     CHECK_PARSE_THROW(R"(
         # ' is not available for class name
         class foo'

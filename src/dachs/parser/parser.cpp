@@ -1074,7 +1074,7 @@ public:
         constructor
             = (
                 DACHS_KWD("init") > function_param_decls > sep
-                > stmt_block_before_end
+                > stmt_block_before_end > -sep
                 > "end"
             ) [
                 _val = make_node_ptr<ast::node::function_definition>(ast::node_type::function_definition::ctor_tag{}, _1, _2)
