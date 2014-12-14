@@ -80,8 +80,7 @@ public:
     {
         return indent(i) + c.green("CLASS_SCOPE: ") + cl->name
             + visit_symbols(cl->member_var_symbols, i+1, "SYMBOL: ")
-            + visit_scopes(cl->member_func_scopes, i+1)
-            + visit_scopes(cl->inherited_class_scopes, i+1);
+            + visit_scopes(cl->member_func_scopes, i+1);
     }
 };
 

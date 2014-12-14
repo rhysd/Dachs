@@ -264,6 +264,11 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         return boost::algorithm::starts_with(name, "lambda.");
     }
 
+    bool is_ctor() const noexcept
+    {
+        return name == "dachs.ctor";
+    }
+
     std::string to_string() const noexcept;
 
     boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
@@ -303,8 +308,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
 
 struct class_scope final : public basic_scope, public symbol_node::basic_symbol {
     std::vector<scope::func_scope> member_func_scopes;
-    std::vector<symbol::member_var_symbol> member_var_symbols;
-    std::vector<scope::class_scope> inherited_class_scopes;
+    std::vector<symbol::var_symbol> member_var_symbols;
 
     // std::vector<type> for instanciated types (if this isn't template, it should contains only one element)
 
@@ -319,7 +323,7 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
         return define_symbol(member_func_scopes, new_func);
     }
 
-    bool define_member_var_symbols(symbol::member_var_symbol const& new_var) noexcept
+    bool define_member_var_symbols(symbol::var_symbol const& new_var) noexcept
     {
         return define_symbol(member_var_symbols, new_var);
     }

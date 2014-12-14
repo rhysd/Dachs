@@ -60,16 +60,6 @@ struct var_symbol final : public basic_symbol {
     var_symbol(var_symbol const&) = default;
 };
 
-struct member_var_symbol final : public basic_symbol {
-    using basic_symbol::basic_symbol;
-
-    scope::class_scope its_class;
-
-    member_var_symbol(std::string const& name, scope::class_scope c, bool const is_builtin = false) noexcept
-        : basic_symbol(name, is_builtin), its_class(c)
-    {}
-};
-
 } // namespace symbol_node
 
 namespace symbol {
@@ -78,7 +68,6 @@ namespace symbol {
    using n = std::shared_ptr<symbol_node::n>; \
    using weak_##n = std::weak_ptr<symbol_node::n>
 DACHS_DEFINE_SYMBOL(var_symbol);
-DACHS_DEFINE_SYMBOL(member_var_symbol);
 #undef DACHS_DEFINE_SYMBOL
 
 using dachs::helper::make;
