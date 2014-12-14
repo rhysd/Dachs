@@ -387,8 +387,8 @@ public:
     String visit(node::class_definition const& cd, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(cd, indent)
-            + visit_nodes(cd->instance_vars, indent+lead, cd->methods.empty())
-            + visit_nodes(cd->methods, indent+lead, true);
+            + visit_nodes(cd->instance_vars, indent+lead, cd->member_funcs.empty())
+            + visit_nodes(cd->member_funcs, indent+lead, true);
     }
 
     template<class... Args>

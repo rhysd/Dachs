@@ -311,7 +311,7 @@ public:
     {
         visitor.visit(cd, walker_for(
             cd->instance_vars,
-            cd->methods
+            cd->member_funcs
         ));
     }
 

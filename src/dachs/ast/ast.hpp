@@ -992,16 +992,16 @@ struct function_definition final : public statement {
 struct class_definition final : public statement {
     std::string name;
     std::vector<node::variable_decl> instance_vars;
-    std::vector<node::function_definition> methods;
+    std::vector<node::function_definition> member_funcs;
 
     class_definition(
             std::string const& n,
             decltype(instance_vars) const& v,
-            decltype(methods) const& m
+            decltype(member_funcs) const& m
     ) noexcept
         : name(n)
         , instance_vars(v)
-        , methods(m)
+        , member_funcs(m)
     {}
 
     std::string to_string() const noexcept override

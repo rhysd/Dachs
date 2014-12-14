@@ -1282,7 +1282,7 @@ public:
         lambda_expr_do_end.name("\"do-end\" lambda expression");
         instance_variable_decl.name("declaration of instance variable");
         instance_variable_decls.name("declarations of instance variable");
-        method_definition.name("method definition");
+        method_definition.name("member function definition");
         class_name.name("name of class");
         access_specifier.name("access_specifier");
         // }}}
