@@ -993,6 +993,7 @@ struct class_definition final : public statement {
     std::string name;
     std::vector<node::variable_decl> instance_vars;
     std::vector<node::function_definition> member_funcs;
+    scope::class_scope scope;
 
     class_definition(
             std::string const& n,

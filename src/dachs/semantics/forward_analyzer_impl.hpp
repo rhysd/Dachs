@@ -247,6 +247,15 @@ public:
     }
 
     // TODO: class scopes and member function scopes
+    template<class Walker>
+    void visit(ast::node::class_definition const& class_def, Walker const& recursive_walker)
+    {
+        auto new_class = scope::make<scope::class_scope>(class_def, current_scope, class_def->name);
+        class_def->scope = new_class;
+        // TODO: new_class->type = ...
+
+        with_new_scope(std::move(new_class), recursive_walker);
+    }
 
     template<class T, class Walker>
     void visit(T const&, Walker const& walker)
