@@ -256,7 +256,7 @@ public:
                     cd,
                     cd->name,
                     copy(cd->instance_vars),
-                    copy(cd->methods)
+                    copy(cd->member_funcs)
                 );
     }
 
