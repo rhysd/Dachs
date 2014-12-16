@@ -170,7 +170,7 @@ struct strict_real_policies_disallowing_trailing_dot final
 };
 
 template<class Iterator>
-class grammar final
+class dachs_grammar final
     : public qi::grammar<
         Iterator,
         ast::node::inu(),
@@ -186,8 +186,8 @@ class grammar final
     helper::colorizer c;
 
 public:
-    grammar(Iterator const code_begin) noexcept
-        : grammar::base_type(inu)
+    dachs_grammar(Iterator const code_begin) noexcept
+        : dachs_grammar::base_type(inu)
     {
 
         // XXX:
@@ -1288,7 +1288,7 @@ public:
         // }}}
     }
 
-    ~grammar()
+    ~dachs_grammar()
     {}
 
 private:
@@ -1447,11 +1447,11 @@ ast::ast parser::parse(std::string const& code, std::string const& file_name) co
     using iterator_type = decltype(itr);
     auto const begin = itr;
     auto const end = detail::line_pos_iterator(std::end(code));
-    grammar<iterator_type> spiritual_parser(begin);
+    dachs_grammar<iterator_type> dachs_parser(begin);
     comment_skipper<iterator_type> skipper;
     ast::node::inu root;
 
-    if (!qi::phrase_parse(itr, end, spiritual_parser, skipper, root) || itr != end) {
+    if (!qi::phrase_parse(itr, end, dachs_parser, skipper, root) || itr != end) {
         throw parse_error{spirit::get_line(itr), spirit::get_column(begin, itr)};
     }
 
