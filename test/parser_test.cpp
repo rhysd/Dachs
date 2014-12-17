@@ -132,11 +132,11 @@ BOOST_AUTO_TEST_CASE(comment)
             }#
 
             #{
-                } coner case 1
+                } corner case 1
             }#
 
             #{
-                } # coner case 2
+                } # corner case 2
             }#
 
             #
@@ -154,6 +154,13 @@ BOOST_AUTO_TEST_CASE(comment)
             func main
             end
         )");
+
+    CHECK_PARSE_THROW(R"(
+            #{
+                Non-closed block comment
+                occurs parse error.
+        )");
+
 }
 
 BOOST_AUTO_TEST_CASE(function)
