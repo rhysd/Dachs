@@ -32,6 +32,7 @@ using helper::variant::apply_lambda;
 class forward_symbol_analyzer {
 
     scope::any_scope current_scope;
+    boost::optional<ast::node::class_definition> current_class_def;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -280,7 +281,10 @@ public:
         class_def->scope = new_class;
         // TODO: new_class->type = ...
 
+        auto const tmp = current_class_def;
+        current_class_def = class_def;
         with_new_scope(std::move(new_class), recursive_walker);
+        current_class_def = std::move(tmp);
     }
 
     template<class T, class Walker>
