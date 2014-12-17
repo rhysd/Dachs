@@ -121,15 +121,30 @@ BOOST_AUTO_TEST_CASE(comment)
 {
     BOOST_CHECK_NO_THROW(parse_and_validate(R"(
             # line comment
-            # block comment #
             # escapable \# hoge huga
+
+            #{
+                This is a block comment
+            }#
+
+            #{
+                Escaped \}# is skipped
+            }#
+
+            #{
+                } coner case 1
+            }#
+
+            #{
+                } # coner case 2
+            }#
 
             #
             # main function
             #
-            func main(#tsura#poyo)
+            func main(#{tsura}# poyo)
                 expr # poyo
-                #hoge# this_is_expr
+                foo := #{hoge}# this_is_expr
             end
         )"));
 

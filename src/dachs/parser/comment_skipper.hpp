@@ -16,10 +16,18 @@ public:
         : comment_skipper::base_type(comment)
     {
         comment
-            = ascii::blank
-            | ('#' >> *(
-                "\\#" | (qi::char_ - qi::eol - '#')
-            ) >> -(qi::lit('#')));
+            = (
+                ascii::blank
+              | (
+                  "#{" >> *(
+                      "\\}" | (
+                          (qi::char_ - (qi::lexeme['}' >> &(qi::lit('#'))]))
+                        )
+                    ) >> "}#"
+              ) | (
+                    '#' >> *(qi::char_ - qi::eol)
+              )
+            );
     }
 private:
     qi::rule<Iterator> comment;
