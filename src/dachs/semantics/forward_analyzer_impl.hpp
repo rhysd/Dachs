@@ -6,6 +6,8 @@
 #include <cassert>
 
 #include <boost/format.hpp>
+#include <boost/variant/static_visitor.hpp>
+#include <boost/variant/apply_visitor.hpp>
 
 #include "dachs/semantics/analyzer_common.hpp"
 #include "dachs/semantics/forward_analyzer.hpp"
@@ -105,18 +107,42 @@ public:
             new_func->ret_type = ret_type;
         }
 
-        if (auto maybe_global_scope = get_as<scope::global_scope>(current_scope)) {
-            auto& global_scope = *maybe_global_scope;
-            auto const new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name, true /*immutable*/);
-            new_func_var->type = new_func->type;
-            new_func_var->is_global = true;
-            global_scope->define_function(new_func);
-            global_scope->define_global_function_constant(new_func_var);
-        } else if (auto maybe_local_scope = get_as<scope::local_scope>(current_scope)) {
-            (*maybe_local_scope)->define_unnamed_func(new_func);
-        } else {
-            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-        }
+        struct func_definer : boost::static_visitor<void> {
+
+            scope::func_scope const& new_func;
+            ast::node::function_definition const& func_def;
+
+            func_definer(scope::func_scope const& f, ast::node::function_definition const& d)
+                : new_func(f), func_def(d)
+            {}
+
+            result_type operator()(scope::global_scope const& s) const
+            {
+                auto const new_func_var = symbol::make<symbol::var_symbol>(func_def, func_def->name, true /*immutable*/);
+                new_func_var->type = new_func->type;
+                new_func_var->is_global = true;
+                s->define_function(new_func);
+                s->define_global_function_constant(new_func_var);
+            }
+
+            result_type operator()(scope::local_scope const& s) const
+            {
+                s->define_unnamed_func(new_func);
+            }
+
+            result_type operator()(scope::class_scope const& s) const
+            {
+                s->define_member_func(new_func);
+            }
+
+            [[noreturn]]
+            result_type operator()(scope::func_scope const&) const
+            {
+                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+            }
+        } definer{new_func, func_def};
+
+        boost::apply_visitor(definer, current_scope);
 
         with_new_scope(std::move(new_func), recursive_walker);
     }
