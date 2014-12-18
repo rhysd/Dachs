@@ -446,6 +446,10 @@ public:
             if (!visit_decl(*maybe_local)) {
                 return;
             }
+        } else if (auto maybe_class = get_as<scope::class_scope>(current_scope)) {
+            if (!visit_decl(*maybe_class)) {
+                return;
+            }
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
@@ -1523,6 +1527,13 @@ public:
         }
 
         return resolver.get_captures();
+    }
+
+    template<class Walker>
+    void visit(ast::node::class_definition const& class_def, Walker const& recursive_walker)
+    {
+        assert(!class_def->scope.expired());
+        with_new_scope(class_def->scope.lock(), recursive_walker);
     }
 
     // TODO: member variable accesses
