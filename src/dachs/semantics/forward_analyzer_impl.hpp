@@ -26,6 +26,7 @@ namespace detail {
 
 using std::size_t;
 using helper::variant::get_as;
+using helper::variant::has;
 using helper::variant::apply_lambda;
 
 // Walk to analyze functions, classes and member variables symbols to make forward reference possible
@@ -279,12 +280,63 @@ public:
     {
         auto new_class = scope::make<scope::class_scope>(class_def, current_scope, class_def->name);
         class_def->scope = new_class;
-        // TODO: new_class->type = ...
 
-        auto const tmp = current_class_def;
-        current_class_def = class_def;
-        with_new_scope(std::move(new_class), recursive_walker);
-        current_class_def = std::move(tmp);
+        auto maybe_global_scope = get_as<scope::global_scope>(current_scope);
+        if (!maybe_global_scope) {
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        }
+
+        (*maybe_global_scope)->define_class(new_class);
+
+        {
+            auto const tmp = current_class_def;
+            current_class_def = class_def;
+            with_new_scope(std::move(new_class), recursive_walker);
+            current_class_def = std::move(tmp);
+        }
+
+        // TODO:
+        //      1. Parse member variable declarations
+        //      2. Check the un-typed variable declarations and make them as templates
+        //      3. Generate class type from the declarations (if there's no template
+        //         variable declarations, the class will be a normal class, otherwise,
+        //         the class will be class template)
+        // TODO: new_class->type = ...
+    }
+
+    template<class Walker>
+    void visit(ast::node::variable_decl const& var_decl, Walker const& recursive_walker)
+    {
+        recursive_walker();
+
+        auto const maybe_class = get_as<scope::class_scope>(current_scope);
+        if (!maybe_class) {
+            return;
+        }
+
+        // Note:
+        // Below process is for member variables
+
+        auto const& scope = *maybe_class;
+        auto const mem_var_symbol = symbol::make<symbol::var_symbol>(var_decl, var_decl->name, !var_decl->is_var);
+
+        if (var_decl->maybe_type) {
+            mem_var_symbol->type =
+                boost::apply_visitor(
+                    type_calculator_from_type_nodes{current_scope},
+                    *var_decl->maybe_type
+                );
+        } else {
+            mem_var_symbol->type =
+                type::make<type::template_type>(var_decl);
+        }
+
+        var_decl->symbol = mem_var_symbol;
+
+        if (!scope->define_member_var_symbol(mem_var_symbol)) {
+            failed++;
+            return;
+        }
     }
 
     template<class T, class Walker>

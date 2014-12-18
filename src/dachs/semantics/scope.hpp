@@ -323,7 +323,7 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
         return define_symbol(member_func_scopes, new_func);
     }
 
-    bool define_member_var_symbols(symbol::var_symbol const& new_var) noexcept
+    bool define_member_var_symbol(symbol::var_symbol const& new_var) noexcept
     {
         return define_symbol(member_var_symbols, new_var);
     }

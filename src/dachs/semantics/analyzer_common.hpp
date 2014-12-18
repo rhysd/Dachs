@@ -63,7 +63,7 @@ public:
 
             auto const ret = type::make<type::class_type>(t->template_name, *c);
             for (auto const& instantiated : t->instantiated_templates) {
-                ret->holder_types.push_back(apply_recursively(instantiated));
+                ret->template_types.push_back(apply_recursively(instantiated));
             }
             return ret;
         }
