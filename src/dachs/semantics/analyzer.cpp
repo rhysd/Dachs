@@ -156,6 +156,7 @@ class symbol_analyzer {
     std::vector<ast::node::lambda_expr> lambdas;
     size_t failed = 0u;
     std::unordered_set<ast::node::function_definition> already_visited_functions;
+    std::unordered_set<ast::node::class_definition> already_visited_classes;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -253,16 +254,21 @@ class symbol_analyzer {
         return name + '(' + boost::algorithm::join(arg_types | transformed([](auto const& t){ return t.to_string(); }), ",") + ')';
     }
 
+    bool already_visited(ast::node::function_definition const& f) const noexcept
+    {
+        return already_visited_functions.find(f) != std::end(already_visited_functions);
+    }
+
+    bool already_visited(ast::node::class_definition const& c) const noexcept
+    {
+        return already_visited_classes.find(c) != std::end(already_visited_classes);
+    }
+
 public:
 
     template<class Scope>
     explicit symbol_analyzer(Scope const& root, scope::global_scope const& global) noexcept
         : current_scope{root}, global{global}
-    {}
-
-    template<class Scope>
-    explicit symbol_analyzer(Scope const& root, scope::global_scope const& global, decltype(already_visited_functions) const& fs) noexcept
-        : current_scope{root}, global{global}, already_visited_functions(fs)
     {}
 
     size_t num_errors() const noexcept
@@ -281,7 +287,7 @@ public:
     template<class Walker>
     void visit(ast::node::function_definition const& func, Walker const& recursive_walker)
     {
-        if (already_visited_functions.find(func) != std::end(already_visited_functions)) {
+        if (already_visited(func)) {
             if (func->ret_type || func->kind == ast::symbol::func_kind::proc || func->is_template()) {
                 return;
             }
@@ -1532,6 +1538,11 @@ public:
     template<class Walker>
     void visit(ast::node::class_definition const& class_def, Walker const& recursive_walker)
     {
+        if (already_visited(class_def)) {
+            return;
+        }
+        already_visited_classes.insert(class_def);
+
         assert(!class_def->scope.expired());
         with_new_scope(class_def->scope.lock(), recursive_walker);
     }
