@@ -6,8 +6,10 @@
 #include <vector>
 #include <cstddef>
 #include <cassert>
+
 #include <boost/variant/variant.hpp>
 #include <boost/optional.hpp>
+#include <boost/algorithm/cxx11/any_of.hpp>
 
 #include "dachs/ast/ast_fwd.hpp"
 #include "dachs/semantics/scope_fwd.hpp"
@@ -201,6 +203,8 @@ namespace dachs {
 namespace ast {
 
 namespace node_type {
+
+using boost::algorithm::any_of;
 
 struct expression : public base {
     type::type type;
@@ -906,6 +910,7 @@ struct function_definition final : public statement {
     boost::optional<type::type> ret_type;
     std::vector<node::function_definition> instantiated; // Note: This is not a part of AST!
     boost::optional<bool> accessibility = boost::none;
+    boost::optional<bool> is_template_memo = boost::none;
 
     function_definition(
             symbol::func_kind const k
@@ -950,16 +955,21 @@ struct function_definition final : public statement {
         , ensure_body(boost::none)
     {}
 
-    bool is_template() const noexcept
+    bool is_template() noexcept
     {
-        for (auto const& p : params) {
-            assert(p->type);
-            if (p->type.is_template()) {
-                return true;
-            }
+        if (!is_template_memo) {
+            is_template_memo =
+                any_of(
+                    params,
+                    [](auto const& p)
+                    {
+                        assert(p->type);
+                        return p->type.is_template();
+                    }
+                );
         }
 
-        return false;
+        return *is_template_memo;
     }
 
     bool is_method() const noexcept
@@ -994,6 +1004,8 @@ struct class_definition final : public statement {
     std::vector<node::variable_decl> instance_vars;
     std::vector<node::function_definition> member_funcs;
     scope::weak_class_scope scope;
+    std::vector<node::class_definition> instantiated; // Note: This is not a part of AST.
+    boost::optional<bool> is_template_memo = boost::none;
 
     class_definition(
             std::string const& n,
@@ -1004,6 +1016,23 @@ struct class_definition final : public statement {
         , instance_vars(v)
         , member_funcs(m)
     {}
+
+    bool is_template() noexcept
+    {
+        if (!is_template_memo) {
+            is_template_memo =
+                any_of(
+                    instance_vars,
+                    [](auto const& i)
+                    {
+                        assert(i->type);
+                        return i->symbol.lock()->type.is_template();
+                    }
+                );
+        }
+
+        return *is_template_memo;
+    }
 
     std::string to_string() const noexcept override
     {
