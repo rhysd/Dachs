@@ -37,7 +37,7 @@ class forward_symbol_analyzer {
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
     template<class Scope, class Walker>
-    void with_new_scope(Scope && new_scope, Walker const& walker)
+    void introduce_scope_and_walk(Scope && new_scope, Walker const& walker)
     {
         auto const tmp_scope = current_scope;
         current_scope = new_scope;
@@ -71,7 +71,7 @@ public:
     {}
 
     template<class Walker>
-    void visit(ast::node::statement_block const& block, Walker const& recursive_walker)
+    void visit(ast::node::statement_block const& block, Walker const& w)
     {
         auto const new_local_scope = scope::make<scope::local_scope>(current_scope);
         block->scope = new_local_scope;
@@ -84,11 +84,11 @@ public:
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
-        with_new_scope(std::move(new_local_scope), recursive_walker);
+        introduce_scope_and_walk(std::move(new_local_scope), w);
     }
 
     template<class Walker>
-    void visit(ast::node::function_definition const& func_def, Walker const& recursive_walker)
+    void visit(ast::node::function_definition const& func_def, Walker const& w)
     {
         // Define scope
         auto new_func = scope::make<scope::func_scope>(func_def, current_scope, func_def->name);
@@ -148,7 +148,7 @@ public:
 
         boost::apply_visitor(definer, current_scope);
 
-        with_new_scope(std::move(new_func), recursive_walker);
+        introduce_scope_and_walk(std::move(new_func), w);
     }
 
     auto get_param_sym(ast::node::parameter const& param)
@@ -197,7 +197,7 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::parameter const& param, Walker const& recursive_walker)
+    void visit(ast::node::parameter const& param, Walker const& w)
     {
         if (auto maybe_func = get_as<scope::func_scope>(current_scope)) {
 
@@ -225,13 +225,13 @@ public:
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
 
-        recursive_walker();
+        w();
     }
 
     template<class Walker>
-    void visit(ast::node::for_stmt const& for_, Walker const& recursive_walker)
+    void visit(ast::node::for_stmt const& for_, Walker const& w)
     {
-        recursive_walker();
+        w();
 
         assert(!for_->body_stmts->scope.expired());
         auto const child_scope = for_->body_stmts->scope.lock();
@@ -247,7 +247,7 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::let_stmt const& let, Walker const& recursive_walker)
+    void visit(ast::node::let_stmt const& let, Walker const& w)
     {
         auto const new_local_scope = scope::make<scope::local_scope>(current_scope);
         let->scope = new_local_scope;
@@ -256,7 +256,7 @@ public:
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
-        with_new_scope(std::move(new_local_scope), recursive_walker);
+        introduce_scope_and_walk(std::move(new_local_scope), w);
     }
 
     template<class Walker>
@@ -267,18 +267,18 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::return_stmt const& ret, Walker const& recursive_walker)
+    void visit(ast::node::return_stmt const& ret, Walker const& w)
     {
         if ((ret->line == 0u) && (ret->col == 0u)) {
             assert(ret->ret_exprs.size() > 0u);
             apply_lambda([&ret](auto const& child){ ret->set_source_location(*child); }, ret->ret_exprs[0]);
         }
-        recursive_walker();
+        w();
     }
 
     // TODO: class scopes and member function scopes
     template<class Walker>
-    void visit(ast::node::class_definition const& class_def, Walker const& recursive_walker)
+    void visit(ast::node::class_definition const& class_def, Walker const& w)
     {
         auto new_class = scope::make<scope::class_scope>(class_def, current_scope, class_def->name);
         class_def->scope = new_class;
@@ -290,7 +290,7 @@ public:
 
         (*maybe_global_scope)->define_class(new_class);
 
-        with_new_scope(std::move(new_class), recursive_walker);
+        introduce_scope_and_walk(std::move(new_class), w);
 
         // TODO:
         //      1. Parse member variable declarations

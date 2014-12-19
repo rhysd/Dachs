@@ -91,9 +91,9 @@ struct recursive_function_return_type_resolver {
     }
 
     template<class Node, class Walker>
-    void visit(Node const&, Walker const& recursive_walker)
+    void visit(Node const&, Walker const& w)
     {
-        recursive_walker();
+        w();
     }
 };
 
@@ -161,7 +161,7 @@ class symbol_analyzer {
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
     template<class Scope, class Walker>
-    void with_new_scope(Scope const& new_scope, Walker const& walker)
+    void introduce_scope_and_walk(Scope const& new_scope, Walker const& walker)
     {
         auto const tmp_scope = current_scope;
         current_scope = new_scope;
@@ -278,14 +278,14 @@ public:
 
     // Push and pop current scope {{{
     template<class Walker>
-    void visit(ast::node::statement_block const& block, Walker const& recursive_walker)
+    void visit(ast::node::statement_block const& block, Walker const& w)
     {
         assert(!block->scope.expired());
-        with_new_scope(block->scope.lock(), recursive_walker);
+        introduce_scope_and_walk(block->scope.lock(), w);
     }
 
     template<class Walker>
-    void visit(ast::node::function_definition const& func, Walker const& recursive_walker)
+    void visit(ast::node::function_definition const& func, Walker const& w)
     {
         if (already_visited(func)) {
             if (func->ret_type || func->kind == ast::symbol::func_kind::proc || func->is_template()) {
@@ -335,7 +335,7 @@ public:
 
         assert(!func->scope.expired());
         auto scope = func->scope.lock();
-        with_new_scope(scope, recursive_walker);
+        introduce_scope_and_walk(scope, w);
 
         // Deduce return type
 
@@ -416,7 +416,7 @@ public:
     // }}}
 
     template<class Walker>
-    void visit(ast::node::variable_decl const& decl, Walker const& recursive_walker)
+    void visit(ast::node::variable_decl const& decl, Walker const& w)
     {
         auto const visit_decl =
             [this, &decl](auto &scope)
@@ -460,12 +460,12 @@ public:
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
 
-        recursive_walker();
+        w();
     }
     // }}}
 
     template<class Walker>
-    void visit(ast::node::var_ref const& var, Walker const& recursive_walker)
+    void visit(ast::node::var_ref const& var, Walker const& w)
     {
         assert(var->name != "");
 
@@ -518,7 +518,7 @@ public:
             var->type = sym->type;
         }
 
-        recursive_walker();
+        w();
     }
 
     template<class Walker>
@@ -567,9 +567,9 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::array_literal const& arr_lit, Walker const& recursive_walker)
+    void visit(ast::node::array_literal const& arr_lit, Walker const& w)
     {
-        recursive_walker();
+        w();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
         if (arr_lit->element_exprs.empty() && !arr_lit->type) {
             semantic_error(arr_lit, "  Empty array must be typed by ':'");
@@ -617,12 +617,12 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::tuple_literal const& tuple_lit, Walker const& recursive_walker)
+    void visit(ast::node::tuple_literal const& tuple_lit, Walker const& w)
     {
         if (tuple_lit->element_exprs.size() == 1) {
             semantic_error(tuple_lit, "  Size of tuple should not be 1");
         }
-        recursive_walker();
+        w();
         auto const type = type::make<type::tuple_type>();
         type->element_types.reserve(tuple_lit->element_exprs.size());
         for (auto const& e : tuple_lit->element_exprs) {
@@ -632,9 +632,9 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::dict_literal const& dict_lit, Walker const& recursive_walker)
+    void visit(ast::node::dict_literal const& dict_lit, Walker const& w)
     {
-        recursive_walker();
+        w();
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
         if (dict_lit->value.empty() && !dict_lit->type) {
             semantic_error(dict_lit, "  Empty dictionary must be typed by ':'");
@@ -680,9 +680,9 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::index_access const& access, Walker const& recursive_walker)
+    void visit(ast::node::index_access const& access, Walker const& w)
     {
-        recursive_walker();
+        w();
 
         auto const child_type = type_of(access->child);
         auto const index_type = type_of(access->index_expr);
@@ -769,9 +769,9 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::binary_expr const& bin_expr, Walker const& recursive_walker)
+    void visit(ast::node::binary_expr const& bin_expr, Walker const& w)
     {
-        recursive_walker();
+        w();
 
         auto const lhs_type = type_of(bin_expr->lhs);
         auto const rhs_type = type_of(bin_expr->rhs);
@@ -822,9 +822,9 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::unary_expr const& unary, Walker const& recursive_walker)
+    void visit(ast::node::unary_expr const& unary, Walker const& w)
     {
-        recursive_walker();
+        w();
 
         auto const operand_type = type_of(unary->expr);
 
@@ -853,9 +853,9 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::if_expr const& if_, Walker const& recursive_walker)
+    void visit(ast::node::if_expr const& if_, Walker const& w)
     {
-        recursive_walker();
+        w();
 
         auto const condition_type = type_of(if_->condition_expr);
         auto const then_type = type_of(if_->then_expr);
@@ -951,9 +951,9 @@ public:
     // function at first.  Add the function to the list which are already visited and check it at
     // function_definition node
     template<class Walker>
-    void visit(ast::node::func_invocation const& invocation, Walker const& recursive_walker)
+    void visit(ast::node::func_invocation const& invocation, Walker const& w)
     {
-        recursive_walker();
+        w();
 
         auto const child_type = type::type_of(invocation->child);
         if (!child_type) {
@@ -1009,7 +1009,7 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::typed_expr const& typed, Walker const& recursive_walker)
+    void visit(ast::node::typed_expr const& typed, Walker const& w)
     {
         auto const specified_type = calculate_from_type_nodes(typed->specified_type);
 
@@ -1023,7 +1023,7 @@ public:
         // } else if (auto const maybe_child_dict = ...) {
         }
 
-        recursive_walker();
+        w();
 
         auto const actual_type = type_of(typed->child_expr);
         if (actual_type != specified_type) {
@@ -1034,13 +1034,13 @@ public:
         typed->type = actual_type;
 
         // TODO:
-        // Use another visitor to set type and check types. Do not use recursive_walker().
+        // Use another visitor to set type and check types. Do not use w().
     }
 
     template<class Walker>
-    void visit(ast::node::cast_expr const& casted, Walker const& recursive_walker)
+    void visit(ast::node::cast_expr const& casted, Walker const& w)
     {
-        recursive_walker();
+        w();
         casted->type = calculate_from_type_nodes(casted->casted_type);
 
         // TODO:
@@ -1048,9 +1048,9 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::ufcs_invocation const& ufcs, Walker const& recursive_walker)
+    void visit(ast::node::ufcs_invocation const& ufcs, Walker const& w)
     {
-        recursive_walker();
+        w();
 
         // Check data member 'ufcs->member_name' of 'ufcs->child'.
         // Now, built-in data member is only available.
@@ -1082,7 +1082,7 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::object_construct const& obj, Walker const& recursive_walker)
+    void visit(ast::node::object_construct const& obj, Walker const& w)
     {
         obj->type = calculate_from_type_nodes(obj->obj_type);
         if (!obj->type) {
@@ -1090,16 +1090,16 @@ public:
             return;
         }
 
-        recursive_walker();
+        w();
         if (auto const err = detail::ctor_checker{}(obj->type, obj->args)) {
             semantic_error(obj, *err);
         }
     }
 
     template<class Walker>
-    void visit(ast::node::return_stmt const& ret, Walker const& recursive_walker)
+    void visit(ast::node::return_stmt const& ret, Walker const& w)
     {
-        recursive_walker();
+        w();
 
         if (ret->ret_exprs.size() == 1) {
             // When return statement has one expression, its return type is the same as it
@@ -1123,9 +1123,9 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::for_stmt const& for_, Walker const& recursive_walker)
+    void visit(ast::node::for_stmt const& for_, Walker const& w)
     {
-        recursive_walker(for_->iter_vars, for_->range_expr);
+        w(for_->iter_vars, for_->range_expr);
 
         auto const range_t = type_of(for_->range_expr);
         if (!range_t) {
@@ -1200,7 +1200,7 @@ public:
             semantic_error(for_, boost::format("  Range to iterate in for statement must be range, array or dictionary but actually '%1%'") % range_t.to_string());
         }
 
-        recursive_walker(for_->body_stmts);
+        w(for_->body_stmts);
     }
 
     void check_condition_expr(ast::node::any_expr const& expr)
@@ -1217,16 +1217,16 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::while_stmt const& while_, Walker const& recursive_walker)
+    void visit(ast::node::while_stmt const& while_, Walker const& w)
     {
-        recursive_walker();
+        w();
         check_condition_expr(while_->condition);
     }
 
     template<class Walker>
-    void visit(ast::node::if_stmt const& if_, Walker const& recursive_walker)
+    void visit(ast::node::if_stmt const& if_, Walker const& w)
     {
-        recursive_walker();
+        w();
         check_condition_expr(if_->condition);
         for (auto const& elseif : if_->elseif_stmts_list) {
             check_condition_expr(elseif.first);
@@ -1234,32 +1234,32 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::postfix_if_stmt const& postfix_if, Walker const& recursive_walker)
+    void visit(ast::node::postfix_if_stmt const& postfix_if, Walker const& w)
     {
-        recursive_walker();
+        w();
         check_condition_expr(postfix_if->condition);
     }
 
     template<class Walker>
-    void visit(ast::node::let_stmt const& let, Walker const& recursive_walker)
+    void visit(ast::node::let_stmt const& let, Walker const& w)
     {
         assert(!let->scope.expired());
-        with_new_scope(let->scope.lock(), recursive_walker);
+        introduce_scope_and_walk(let->scope.lock(), w);
     }
 
     template<class Walker>
-    void visit(ast::node::case_stmt const& case_, Walker const& recursive_walker)
+    void visit(ast::node::case_stmt const& case_, Walker const& w)
     {
-        recursive_walker();
+        w();
         for (auto const& when : case_->when_stmts_list) {
             check_condition_expr(when.first);
         }
     }
 
     template<class Walker>
-    void visit(ast::node::switch_stmt const& switch_, Walker const& recursive_walker)
+    void visit(ast::node::switch_stmt const& switch_, Walker const& w)
     {
-        recursive_walker();
+        w();
         auto const switcher_type = type_of(switch_->target_expr);
         for (auto const& when : switch_->when_stmts_list) {
             for (auto const& cond : when.first) {
@@ -1282,11 +1282,11 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::initialize_stmt const& init, Walker const& recursive_walker)
+    void visit(ast::node::initialize_stmt const& init, Walker const& w)
     {
         assert(init->var_decls.size() > 0);
 
-        recursive_walker();
+        w();
 
         if (!init->maybe_rhs_exprs) {
             for (auto const& v : init->var_decls) {
@@ -1406,11 +1406,11 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::assignment_stmt const& assign, Walker const& recursive_walker)
+    void visit(ast::node::assignment_stmt const& assign, Walker const& w)
     {
         ast::walk_topdown(assign->assignees, var_ref_marker_for_lhs_of_assign{});
 
-        recursive_walker();
+        w();
 
         // Note:
         // Do not check assignees' types because of '_' variable
@@ -1536,7 +1536,7 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::class_definition const& class_def, Walker const& recursive_walker)
+    void visit(ast::node::class_definition const& class_def, Walker const& w)
     {
         if (already_visited(class_def)) {
             return;
@@ -1544,7 +1544,7 @@ public:
         already_visited_classes.insert(class_def);
 
         assert(!class_def->scope.expired());
-        with_new_scope(class_def->scope.lock(), recursive_walker);
+        introduce_scope_and_walk(class_def->scope.lock(), w);
     }
 
     // TODO: member variable accesses
