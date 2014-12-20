@@ -160,12 +160,12 @@ class symbol_analyzer {
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
-    template<class Scope, class Walker>
-    void introduce_scope_and_walk(Scope const& new_scope, Walker const& walker)
+    template<class Scope, class Walker, class... Args>
+    void introduce_scope_and_walk(Scope const& new_scope, Walker const& walker, Args &... args)
     {
         auto const tmp_scope = current_scope;
         current_scope = new_scope;
-        walker();
+        walker(args...);
         current_scope = tmp_scope;
     }
 
@@ -415,6 +415,28 @@ public:
     }
     // }}}
 
+    bool visit_instance_var_decl(ast::node::variable_decl const& decl, scope::class_scope const& scope)
+    {
+        auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
+        decl->symbol = new_var;
+
+        // Set type if the type of variable is specified
+        if (decl->maybe_type) {
+            new_var->type
+                = calculate_from_type_nodes(*decl->maybe_type);
+        } else {
+            new_var->type
+                = type::make<type::template_type>(decl);;
+        }
+
+        if (!scope->define_variable(new_var)) {
+            failed++;
+            return false;
+        }
+
+        return true;
+    }
+
     template<class Walker>
     void visit(ast::node::variable_decl const& decl, Walker const& w)
     {
@@ -453,7 +475,7 @@ public:
                 return;
             }
         } else if (auto maybe_class = get_as<scope::class_scope>(current_scope)) {
-            if (!visit_decl(*maybe_class)) {
+            if (!visit_instance_var_decl(decl, *maybe_class)) {
                 return;
             }
         } else {
@@ -1543,8 +1565,15 @@ public:
         }
         already_visited_classes.insert(class_def);
 
+        introduce_scope_and_walk(class_def->scope.lock(), w, class_def->instance_vars);
+
+        if (class_def->is_template()) {
+            // Class templates are not actually instantiated
+            return;
+        }
+
         assert(!class_def->scope.expired());
-        introduce_scope_and_walk(class_def->scope.lock(), w);
+        introduce_scope_and_walk(class_def->scope.lock(), w, class_def->member_funcs);
     }
 
     // TODO: member variable accesses
