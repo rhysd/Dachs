@@ -1025,8 +1025,10 @@ struct class_definition final : public statement {
                     instance_vars,
                     [](auto const& i)
                     {
-                        assert(i->type);
-                        return i->symbol.lock()->type.is_template();
+                        assert(!i->symbol.expired());
+                        auto const sym = i->symbol.lock();
+                        assert(sym->type);
+                        return sym->type.is_template();
                     }
                 );
         }
