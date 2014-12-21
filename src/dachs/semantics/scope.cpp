@@ -3,6 +3,7 @@
 #include <iterator>
 
 #include <boost/range/adaptor/transformed.hpp>
+#include <boost/range/adaptor/filtered.hpp>
 #include <boost/range/algorithm/transform.hpp>
 #include <boost/range/numeric.hpp>
 #include <boost/algorithm/string/join.hpp>
@@ -15,6 +16,10 @@
 
 namespace dachs {
 namespace scope_node {
+
+using boost::adaptors::transformed;
+using boost::adaptors::filtered;
+
 namespace detail {
 
 template<class FuncScope, class ArgTypes>
@@ -133,8 +138,7 @@ std::string func_scope::to_string() const noexcept
     if (is_builtin) {
         return "func " + name + '('
             + boost::algorithm::join(
-                    params |
-                    boost::adaptors::transformed(
+                    params | transformed(
                         [](auto const& p)
                         {
                             return p->name;
@@ -147,7 +151,7 @@ std::string func_scope::to_string() const noexcept
     auto const def = get_ast_node();
     std::string ret = ast::symbol::to_string(def->kind) + ' ' + name + '(';
 
-    ret += boost::algorithm::join(def->params | boost::adaptors::transformed([](auto const& p){ return p->type.to_string(); }), ", ");
+    ret += boost::algorithm::join(def->params | transformed([](auto const& p){ return p->type.to_string(); }), ", ");
     ret += ')';
 
     if (def->ret_type) {
@@ -155,6 +159,15 @@ std::string func_scope::to_string() const noexcept
     }
 
     return ret;
+}
+
+boost::optional<scope::func_scope> class_scope::resolve_ctor(std::vector<type::type> const& arg_types) const
+{
+    return detail::get_overloaded_function(
+            member_func_scopes | filtered([](auto const& f){ return f->is_ctor(); }),
+            "dachs.init",
+            arg_types
+        );
 }
 
 } // namespace scope_node

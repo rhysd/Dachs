@@ -198,7 +198,7 @@ public:
         if (auto const maybe_func = get_as<scope::func_scope>(current_scope)) {
             auto const& func = *maybe_func;
 
-            if (func->name != "dachs.init" && param->is_instance_var_init()) {
+            if (!func->is_ctor() && param->is_instance_var_init()) {
                 semantic_error(param, "  Instance variable initializer '" + param->name + "' is not permitted here.");
             }
 
@@ -281,6 +281,14 @@ public:
         w();
     }
 
+    scope::func_scope generate_default_ctor() const noexcept
+    {
+        auto const default_ctor = scope::make<scope::func_scope>(nullptr, current_scope, "dachs.init", true);
+        default_ctor->body = scope::make<scope::local_scope>(default_ctor);
+        default_ctor->ret_type = type::get_unit_type();
+        return default_ctor;
+    }
+
     // TODO: class scopes and member function scopes
     template<class Walker>
     void visit(ast::node::class_definition const& class_def, Walker const& w)
@@ -303,7 +311,12 @@ public:
         //      3. Generate class type from the declarations (if there's no template
         //         variable declarations, the class will be a normal class, otherwise,
         //         the class will be class template)
-        // TODO: new_class->type = ...
+
+        // Note:
+        // Define default contructors.
+        if (!new_class->resolve_ctor({})) {
+            new_class->member_func_scopes.push_back(generate_default_ctor());
+        }
     }
 
     template<class T, class Walker>

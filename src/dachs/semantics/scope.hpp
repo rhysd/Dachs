@@ -266,7 +266,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
 
     bool is_ctor() const noexcept
     {
-        return name == "dachs.ctor";
+        return name == "dachs.init";
     }
 
     std::string to_string() const noexcept;
@@ -329,6 +329,7 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
     }
 
     // TODO: Resolve member functions and member variables
+    boost::optional<scope::func_scope> resolve_ctor(std::vector<type::type> const& arg_types) const;
 };
 
 } // namespace scope_node
