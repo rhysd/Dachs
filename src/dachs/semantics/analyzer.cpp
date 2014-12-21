@@ -426,7 +426,7 @@ public:
                 = calculate_from_type_nodes(*decl->maybe_type);
         } else {
             new_var->type
-                = type::make<type::template_type>(decl);;
+                = type::make<type::template_type>(decl);
         }
 
         if (!scope->define_variable(new_var)) {
@@ -484,7 +484,6 @@ public:
 
         w();
     }
-    // }}}
 
     template<class Walker>
     void visit(ast::node::var_ref const& var, Walker const& w)

@@ -353,6 +353,11 @@ struct parameter final : public base {
         : base(), is_var(v), name(n), param_type(t)
     {}
 
+    bool is_instance_var_init() const noexcept
+    {
+        return name.empty() || name.front() == '@';
+    }
+
     std::string to_string() const noexcept override
     {
         return "PARAMETER: " + name + " (" + (is_var ? "mutable)" : "immutable)");

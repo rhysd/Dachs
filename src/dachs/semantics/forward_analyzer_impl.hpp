@@ -153,10 +153,6 @@ public:
 
     auto get_param_sym(ast::node::parameter const& param)
     {
-        if (!param->name.empty() && param->name[0] == '@') {
-            semantic_error(param, "  '@' can't be used for parameter's name. It's for instance variables.");
-        }
-
         // Note:
         // When the param's name is "_", it means unused.
         // Unique number (the address of 'param') is used instead of "_" as its name.
@@ -199,7 +195,12 @@ public:
     template<class Walker>
     void visit(ast::node::parameter const& param, Walker const& w)
     {
-        if (auto maybe_func = get_as<scope::func_scope>(current_scope)) {
+        if (auto const maybe_func = get_as<scope::func_scope>(current_scope)) {
+            auto const& func = *maybe_func;
+
+            if (func->name != "dachs.init" && param->is_instance_var_init()) {
+                semantic_error(param, "  Instance variable initializer '" + param->name + "' is not permitted here.");
+            }
 
             auto const new_param_sym = get_param_sym(param);
 
@@ -207,12 +208,16 @@ public:
                 param->type = type::make<type::template_type>(param);
                 new_param_sym->type = param->type;
             }
-            if (!(*maybe_func)->define_param(new_param_sym)) {
+            if (!func->define_param(new_param_sym)) {
                 failed++;
                 return;
             }
 
         } else if (auto maybe_local = get_as<scope::local_scope>(current_scope)) {
+            if (param->is_instance_var_init()) {
+                semantic_error(param, "  Instance variable initializer '" + param->name + "' is not permitted here.");
+            }
+
             // Note:
             // Enter here when the param is a variable to iterate in 'for' statement
 
