@@ -61,6 +61,31 @@ class forward_symbol_analyzer {
             + '.' + std::to_string(n->length);
     }
 
+    template<class Funcs, class String>
+    std::size_t check_functions_duplication(Funcs const& functions, String const& situation) const
+    {
+        std::size_t failed = 0u;
+        auto const end = functions.cend();
+        for (auto left = functions.cbegin(); left != end; ++left) {
+            for (auto right = std::next(left); right != end; ++right) {
+                if (**right == **left) {
+                    auto const rhs_def = (*right)->get_ast_node();
+                    auto const lhs_def = (*left)->get_ast_node();
+                    output_semantic_error(
+                            rhs_def,
+                            boost::format(
+                                "  In %1%, '%2%' is redefined.\n"
+                                "  Note: Previous definition is at line:%3%, col:%4%"
+                            ) % situation % (*right)->to_string() % lhs_def->line % lhs_def->col
+                        );
+                    failed++;
+                }
+            }
+        }
+
+        return failed;
+    }
+
 public:
 
     size_t failed;
@@ -69,6 +94,15 @@ public:
     explicit forward_symbol_analyzer(Scope const& s) noexcept
         : current_scope(s), failed(0)
     {}
+
+    template<class Walker>
+    void visit(ast::node::inu const&, Walker const& w)
+    {
+        w();
+
+        auto const global = get_as<scope::global_scope>(current_scope);
+        failed += check_functions_duplication((*global)->functions, "global scope");
+    }
 
     template<class Walker>
     void visit(ast::node::statement_block const& block, Walker const& w)
@@ -312,6 +346,11 @@ public:
         //         variable declarations, the class will be a normal class, otherwise,
         //         the class will be class template)
 
+        failed += check_functions_duplication(
+                    new_class->member_func_scopes,
+                    "class scope '" + class_def->name + "'"
+                );
+
         // Note:
         // Define default contructors.
         if (!new_class->resolve_ctor({})) {
@@ -340,31 +379,6 @@ std::size_t dispatch_forward_analyzer(Node &node, Scope const& scope_root)
     return forward_resolver.failed;
 }
 
-template<class Scope>
-std::size_t check_functions_duplication(Scope const& scope_root)
-{
-    std::size_t failed = 0u;
-    auto const end = scope_root->functions.cend();
-    for (auto left = scope_root->functions.cbegin(); left != end; ++left) {
-        for (auto right = std::next(left); right != end; ++right) {
-            if (**right == **left) {
-                auto const rhs_def = (*right)->get_ast_node();
-                auto const lhs_def = (*left)->get_ast_node();
-                output_semantic_error(
-                        rhs_def,
-                        boost::format(
-                            "  '%1%' is redefined.\n"
-                            "  Note: Previous definition is at line:%2%, col:%3%"
-                        ) % (*right)->to_string() % lhs_def->line % lhs_def->col
-                    );
-                failed++;
-            }
-        }
-    }
-
-    return failed;
-}
-
 // TODO:
 // Consider class scope.  Now global scope is only considered.
 template<class Node, class Scope>
@@ -374,13 +388,6 @@ Scope analyze_ast_node_forward(Node &node, Scope const& scope_root)
         std::size_t const failed = dispatch_forward_analyzer(node, scope_root);
         if (failed > 0) {
             throw dachs::semantic_check_error{failed, "forward symbol resolution"};
-        }
-    }
-
-    {
-        std::size_t const failed = check_functions_duplication(scope_root);
-        if (failed > 0) {
-            throw dachs::semantic_check_error{failed, "function duplication check"};
         }
     }
 
