@@ -86,6 +86,21 @@ class forward_symbol_analyzer {
         return failed;
     }
 
+    void check_init_statements_in_ctor(ast::node::class_definition const& class_def)
+    {
+        for (auto const& f : class_def->member_funcs) {
+            assert(!f->scope.expired());
+            auto const s = f->scope.lock();
+            if (s->is_ctor()) {
+                for (auto const& stmt : f->body->value) {
+                    if (!has<ast::node::initialize_stmt>(stmt)) {
+                        semantic_error(f, "  Only initialize statement is permitted in constructor.");
+                    }
+                }
+            }
+        }
+    }
+
 public:
 
     size_t failed;
@@ -356,6 +371,8 @@ public:
         if (!new_class->resolve_ctor({})) {
             new_class->member_func_scopes.push_back(generate_default_ctor());
         }
+
+        check_init_statements_in_ctor(class_def);
     }
 
     template<class T, class Walker>
