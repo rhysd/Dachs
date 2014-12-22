@@ -989,6 +989,11 @@ struct function_definition final : public statement {
         return accessibility ? *accessibility : true;
     }
 
+    bool is_ctor() const noexcept
+    {
+        return name == "dachs.init";
+    }
+
     std::string to_string() const noexcept override
     {
         return "FUNC_DEFINITION: "
