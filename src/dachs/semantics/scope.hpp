@@ -51,6 +51,10 @@ struct basic_scope {
     virtual ~basic_scope() noexcept
     {}
 
+    using maybe_func_t = boost::optional<scope::func_scope>;
+    using maybe_class_t = boost::optional<scope::class_scope>;
+    using maybe_var_t = boost::optional<symbol::var_symbol>;
+
     template<class Symbol>
     bool define_symbol(std::vector<Symbol> &container, Symbol const& symbol)
     {
@@ -66,45 +70,44 @@ struct basic_scope {
 
     // TODO resolve member variables and member functions
 
-    virtual boost::optional<scope::func_scope>
-    resolve_func(std::string const& name, std::vector<type::type> const& args) const
+    virtual maybe_func_t resolve_func(std::string const& name, std::vector<type::type> const& args) const
     {
         // TODO:
         // resolve_func() now searches function scopes directly.
         // But it should search variables, check the result is funcref type, then resolve function overloads.
         return apply_lambda(
                 [&](auto const& s)
-                    -> boost::optional<scope::func_scope>
+                    -> maybe_func_t
                 {
                     return s.lock()->resolve_func(name, args);
                 }, enclosing_scope);
     }
 
-    virtual boost::optional<scope::class_scope> resolve_class(std::string const& name) const
+    virtual maybe_class_t resolve_class(std::string const& name) const
     {
         return apply_lambda(
                 [&name](auto const& s)
-                    -> boost::optional<scope::class_scope>
+                    -> maybe_class_t
                 {
                     return s.lock()->resolve_class(name);
                 }, enclosing_scope);
     }
 
-    virtual boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const
+    virtual maybe_var_t resolve_var(std::string const& name) const
     {
         return apply_lambda(
                 [&name](auto const& s)
-                    -> boost::optional<symbol::var_symbol>
+                    -> maybe_var_t
                 {
                     return s.lock()->resolve_var(name);
                 }, enclosing_scope);
     }
 
-    virtual boost::optional<symbol::var_symbol> resolve_receiver() const
+    virtual maybe_var_t resolve_receiver() const
     {
         return apply_lambda(
                 [](auto const& s)
-                    -> boost::optional<symbol::var_symbol>
+                    -> maybe_var_t
                 {
                     return s.lock()->resolve_receiver();
                 }, enclosing_scope);
@@ -114,7 +117,7 @@ struct basic_scope {
     {
         auto const maybe_shadowing_var = apply_lambda(
                 [&new_var](auto const& s)
-                    -> boost::optional<symbol::var_symbol>
+                    -> maybe_var_t
                 {
                     return s.lock()->resolve_var(new_var->name);
                 }, enclosing_scope);
@@ -174,15 +177,14 @@ struct global_scope final : public basic_scope {
         return define_symbol(classes, new_class);
     }
 
-    boost::optional<scope::func_scope>
-    resolve_func(std::string const& name, std::vector<type::type> const& args) const override;
+    maybe_func_t resolve_func(std::string const& name, std::vector<type::type> const& args) const override;
 
-    boost::optional<scope::class_scope> resolve_class(std::string const& name) const override
+    maybe_class_t resolve_class(std::string const& name) const override
     {
         return helper::find_if(classes, [&name](auto const& c){ return c->name == name; });
     }
 
-    boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
+    maybe_var_t resolve_var(std::string const& name) const override
     {
         return helper::find_if(const_symbols, [&name](auto const& v){ return v->name == name; });
     }
@@ -214,7 +216,7 @@ struct local_scope final : public basic_scope {
         return define_symbol(unnamed_funcs, new_func);
     }
 
-    boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
+    maybe_var_t resolve_var(std::string const& name) const override
     {
         auto const target_var = helper::find_if(local_vars, [&name](auto const& v){ return v->name == name; });
         return target_var ?
@@ -271,7 +273,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
 
     std::string to_string() const noexcept;
 
-    boost::optional<symbol::var_symbol> resolve_var(std::string const& name) const override
+    maybe_var_t resolve_var(std::string const& name) const override
     {
         auto const target_var = helper::find_if(params, [&name](auto const& v){ return v->name == name; });
         return target_var ?
@@ -282,7 +284,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
                         }, enclosing_scope);
     }
 
-    boost::optional<symbol::var_symbol> resolve_receiver() const override
+    maybe_var_t resolve_receiver() const override
     {
         if (params.empty()) {
             return boost::none;
@@ -328,8 +330,10 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
         return define_symbol(member_var_symbols, new_var);
     }
 
+    
+
     // TODO: Resolve member functions and member variables
-    boost::optional<scope::func_scope> resolve_ctor(std::vector<type::type> const& arg_types) const;
+    maybe_func_t resolve_ctor(std::vector<type::type> const& arg_types) const;
 };
 
 } // namespace scope_node

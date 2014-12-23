@@ -64,8 +64,7 @@ std::size_t get_overloaded_function_score(FuncScope const& func, ArgTypes const&
 }
 
 template<class Funcs, class Types>
-boost::optional<scope::func_scope>
-get_overloaded_function(Funcs const& candidates, std::string const& name, Types const& arg_types)
+auto get_overloaded_function(Funcs const& candidates, std::string const& name, Types const& arg_types)
 {
     boost::optional<scope::func_scope> result = boost::none;
 
@@ -87,8 +86,7 @@ get_overloaded_function(Funcs const& candidates, std::string const& name, Types 
 
 } // namespace detail
 
-boost::optional<scope::func_scope>
-global_scope::resolve_func(std::string const& name, std::vector<type::type> const& arg_types) const
+global_scope::maybe_func_t global_scope::resolve_func(std::string const& name, std::vector<type::type> const& arg_types) const
 {
     return detail::get_overloaded_function(functions, name, arg_types);
 }
@@ -161,7 +159,7 @@ std::string func_scope::to_string() const noexcept
     return ret;
 }
 
-boost::optional<scope::func_scope> class_scope::resolve_ctor(std::vector<type::type> const& arg_types) const
+class_scope::maybe_func_t class_scope::resolve_ctor(std::vector<type::type> const& arg_types) const
 {
     return detail::get_overloaded_function(
             member_func_scopes | filtered([](auto const& f){ return f->is_ctor(); }),
