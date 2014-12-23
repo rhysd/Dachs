@@ -186,6 +186,8 @@ public:
             {
                 // TODO:
                 // Add a member variable of the member function
+                // TODO:
+                // Add a member function variable
                 s->define_member_func(new_func);
             }
 
@@ -409,6 +411,7 @@ public:
     {
         auto new_class = scope::make<scope::class_scope>(class_def, current_scope, class_def->name);
         class_def->scope = new_class;
+        new_class->type = type::make<type::class_type>(new_class);
 
         auto maybe_global_scope = get_as<scope::global_scope>(current_scope);
         if (!maybe_global_scope) {
@@ -438,6 +441,11 @@ public:
         }
 
         check_init_statements_in_ctor(class_def);
+
+        auto const new_class_var = symbol::make<symbol::var_symbol>(class_def, class_def->name, true /*immutable*/);
+        new_class_var->type = new_class->type;
+        new_class_var->is_global = true;
+        (*maybe_global_scope)->define_variable(new_class_var);
     }
 
     template<class T, class Walker>

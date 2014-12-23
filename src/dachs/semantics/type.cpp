@@ -134,5 +134,9 @@ std::string template_type::to_string() const noexcept
     }
 }
 
+class_type::class_type(scope::class_scope const& s) noexcept
+    : named_type(s->name), ref(s)
+{}
+
 } // namespace type_node
 } // namespace dachs

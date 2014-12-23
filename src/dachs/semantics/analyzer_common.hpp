@@ -56,16 +56,14 @@ public:
         if (builtin) {
             return *builtin;
         } else {
+            // TODO:
+            // Template types must be considered.
             auto const c = boost::apply_visitor(class_resolver{t->template_name}, current_scope);
             if (!c) {
                 return {};
             }
 
-            auto const ret = type::make<type::class_type>(t->template_name, *c);
-            for (auto const& instantiated : t->instantiated_templates) {
-                ret->template_types.push_back(apply_recursively(instantiated));
-            }
-            return ret;
+            return type::make<type::class_type>(*c);
         }
     }
 

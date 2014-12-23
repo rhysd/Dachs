@@ -311,29 +311,23 @@ struct builtin_type final : public named_type {
 
 // This class may not be needed because class from class template is instanciated at the point on resolving a symbol of class templates
 struct class_type final : public named_type {
-    std::vector<type::any_type> template_types;
-    scope::class_scope symbol;
+    scope::weak_class_scope ref;
 
-    class_type(std::string const& n, scope::class_scope const& s) noexcept
-        : named_type(n), symbol(s)
-    {}
+    explicit class_type(scope::class_scope const& s) noexcept;
 
     std::string to_string() const noexcept override
     {
-        if (template_types.empty()) {
-            return name;
+        if (ref.expired()) {
+            return "<class:UNKNOWN>";
         } else {
-            return name + '(' +
-                join(template_types | transformed([](auto const& t){
-                            return t.to_string();
-                        }), ",")
-                + ')';
+            return "<class:" + name + '>';
         }
     }
 
     bool operator==(class_type const& rhs) const noexcept
     {
-        return name == rhs.name && boost::equal(template_types, rhs.template_types);
+        assert(!ref.expired() && !rhs.ref.expired());
+        return ref.lock() == rhs.ref.lock();
     }
 
     template<class T>

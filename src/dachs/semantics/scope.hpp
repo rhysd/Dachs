@@ -169,6 +169,9 @@ struct global_scope final : public basic_scope {
     // is already done by define_function()
     void define_global_function_constant(symbol::var_symbol const& new_var) noexcept
     {
+        // TODO:
+        // The same name variable as the function can be defined now.
+        // It should be detected and error should be raised.
         const_symbols.push_back(new_var);
     }
 
