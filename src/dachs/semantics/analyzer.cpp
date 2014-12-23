@@ -415,28 +415,6 @@ public:
     }
     // }}}
 
-    bool visit_instance_var_decl(ast::node::variable_decl const& decl, scope::class_scope const& scope)
-    {
-        auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
-        decl->symbol = new_var;
-
-        // Set type if the type of variable is specified
-        if (decl->maybe_type) {
-            new_var->type
-                = calculate_from_type_nodes(*decl->maybe_type);
-        } else {
-            new_var->type
-                = type::make<type::template_type>(decl);
-        }
-
-        if (!scope->define_variable(new_var)) {
-            failed++;
-            return false;
-        }
-
-        return true;
-    }
-
     template<class Walker>
     void visit(ast::node::variable_decl const& decl, Walker const& w)
     {
@@ -475,9 +453,8 @@ public:
                 return;
             }
         } else if (auto maybe_class = get_as<scope::class_scope>(current_scope)) {
-            if (!visit_instance_var_decl(decl, *maybe_class)) {
-                return;
-            }
+            // Note:
+            // Do nothing because they are already analyzed in forward_analyzer.
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }

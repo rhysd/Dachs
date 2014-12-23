@@ -74,7 +74,7 @@ struct capture_checker : boost::static_visitor<bool> {
     bool operator()(scope::weak_class_scope const& clazz_) const
     {
         auto const clazz = clazz_.lock();
-        for (auto const& m : clazz->member_var_symbols) {
+        for (auto const& m : clazz->instance_var_symbols) {
             if (*query == *m) {
                 return false;
             }

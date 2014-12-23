@@ -310,7 +310,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
 
 struct class_scope final : public basic_scope, public symbol_node::basic_symbol {
     std::vector<scope::func_scope> member_func_scopes;
-    std::vector<symbol::var_symbol> member_var_symbols;
+    std::vector<symbol::var_symbol> instance_var_symbols;
 
     // std::vector<type> for instanciated types (if this isn't template, it should contains only one element)
 
@@ -327,12 +327,17 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
 
     bool define_variable(symbol::var_symbol const& new_var) noexcept
     {
-        return define_symbol(member_var_symbols, new_var);
+        return define_symbol(instance_var_symbols, new_var);
     }
 
-    
+    maybe_var_t resolve_instance_var(std::string const& name) const
+    {
+        return helper::find_if(instance_var_symbols, [&name](auto const& i){ return i->name == name; });
+    }
 
-    // TODO: Resolve member functions and member variables
+    // TODO
+    maybe_func_t resolve_member_func(std::string const& name, std::vector<type::type> const& args) const;
+
     maybe_func_t resolve_ctor(std::vector<type::type> const& arg_types) const;
 };
 

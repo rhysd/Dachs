@@ -244,16 +244,79 @@ public:
     }
 
     template<class Walker>
+    void visit(ast::node::variable_decl const& decl, Walker const& w)
+    {
+        auto const maybe_class = get_as<scope::class_scope>(current_scope);
+        if (!maybe_class) {
+            return;
+        }
+
+        // Note:
+        // Visit only class's instance variables because type of instance variables can be determined here.
+        auto const& scope = *maybe_class;
+
+        auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
+        decl->symbol = new_var;
+
+        // Set type if the type of variable is specified
+        if (decl->maybe_type) {
+            new_var->type
+                = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, *decl->maybe_type);
+        } else {
+            new_var->type
+                = type::make<type::template_type>(decl);
+        }
+
+        if (!scope->define_variable(new_var)) {
+            failed++;
+        }
+
+        w();
+    }
+
+    void check_init_instance_param(
+            ast::node::parameter const& param,
+            scope::func_scope const& member_func_scope,
+            symbol::var_symbol const& param_sym)
+    {
+        if (!member_func_scope->is_ctor()) {
+            semantic_error(param, "  Instance variable initializer '" + param->name + "' is not permitted here.");
+        }
+
+        auto const maybe_weak_scope = get_as<scope::weak_class_scope>(member_func_scope->enclosing_scope);
+        assert(maybe_weak_scope);
+        auto const& scope = maybe_weak_scope->lock();
+
+        auto const instance_var = scope->resolve_instance_var(param->name.substr(1)/*Omit '@'*/);
+        if (!instance_var) {
+            semantic_error(param, boost::format("  Instance variable '%1%' in parameter doesn't exist in class '%2%'.") % param->name % scope->name);
+            return;
+        }
+
+        if (param_sym->type) {
+            if (param_sym->type != (*instance_var)->type) {
+                semantic_error(param,
+                        boost::format(
+                            "  Type of instance variable '%1%' in parameter doesn't match.\n"
+                            "  Note: The parameter type is '%2%' but the instance variable's type is actually '%3%'."
+                        ) % param->name % param_sym->type.to_string() % (*instance_var)->type.to_string()
+                    );
+            }
+        } else {
+            param_sym->type = (*instance_var)->type;
+        }
+    }
+
+    template<class Walker>
     void visit(ast::node::parameter const& param, Walker const& w)
     {
         if (auto const maybe_func = get_as<scope::func_scope>(current_scope)) {
             auto const& func = *maybe_func;
-
-            if (!func->is_ctor() && param->is_instance_var_init()) {
-                semantic_error(param, "  Instance variable initializer '" + param->name + "' is not permitted here.");
-            }
-
             auto const new_param_sym = get_param_sym(param);
+
+            if (param->is_instance_var_init()) {
+                check_init_instance_param(param, func, new_param_sym);
+            }
 
             if (!param->param_type) {
                 param->type = type::make<type::template_type>(param);
