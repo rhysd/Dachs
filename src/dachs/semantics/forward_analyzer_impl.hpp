@@ -423,7 +423,10 @@ public:
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
 
-        (*maybe_global_scope)->define_class(new_class);
+        if (!(*maybe_global_scope)->define_class(new_class)) {
+            ++failed;
+            return;
+        }
 
         introduce_scope_and_walk(std::move(new_class), w);
 
