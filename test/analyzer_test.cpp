@@ -173,19 +173,6 @@ BOOST_AUTO_TEST_CASE(do_)
     )");
 }
 
-BOOST_AUTO_TEST_CASE(clazz)
-{
-    CHECK_THROW_SEMANTIC_ERROR(R"(
-        func foo(@aaa)
-            @aaa.println
-        end
-
-        func main
-            foo(42)
-        end
-    )");
-}
-
 BOOST_AUTO_TEST_CASE(lambda_return_type_deduction)
 {
     CHECK_NO_THROW_SEMANTIC_ERROR(R"(
@@ -350,5 +337,168 @@ BOOST_AUTO_TEST_CASE(edge_case_in_UFCS_function_invocation)
         end
     )");
 }
+
+BOOST_AUTO_TEST_SUITE(class_definition)
+    BOOST_AUTO_TEST_CASE(instance_var_init_outside_class)
+    {
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            func foo(@aaa)
+                @aaa.println
+            end
+
+            func main
+                foo(42)
+            end
+        )");
+    }
+
+    BOOST_AUTO_TEST_CASE(non_exist_instance_var_init)
+    {
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                init(@unknown)
+                end
+            end
+
+            func main
+            end
+        )");
+    }
+
+    BOOST_AUTO_TEST_CASE(instance_var_init_type_mismatch)
+    {
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                foo : int
+                init(@bar : char)
+                end
+            end
+
+            func main
+            end
+        )");
+    }
+
+    BOOST_AUTO_TEST_CASE(member_func_duplication)
+    {
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                func foo(a : int)
+                end
+
+                func foo(a : int)
+                end
+            end
+
+            func main
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                func foo(a : int, b)
+                end
+
+                func foo(a : int, b)
+                end
+            end
+
+            func main
+            end
+        )");
+
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                func foo(a : int, b : char)
+                end
+
+                func foo(a : int, b)
+                end
+            end
+
+            class Foo2
+                func foo(a : int, b)
+                end
+
+                func foo(a, b)
+                end
+            end
+
+            func main
+            end
+        )");
+    }
+
+    BOOST_AUTO_TEST_CASE(class_duplication)
+    {
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+            end
+
+            class Foo
+            end
+
+            func main
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                foo : int
+            end
+
+            class Foo
+                bar
+            end
+
+            func main
+            end
+        )");
+    }
+
+    BOOST_AUTO_TEST_CASE(non_initialize_stmt_in_ctor)
+    {
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                foo
+                init
+                    @foo := 42
+                    @foo.println
+                end
+            end
+
+            func main
+            end
+        )");
+
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                foo, bar
+
+                init
+                    @foo := 42
+                    @bar := 3.14
+                end
+            end
+
+            func main
+            end
+        )");
+    }
+
+BOOST_AUTO_TEST_CASE(clazz)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(@aaa)
+            @aaa.println
+        end
+
+        func main
+            foo(42)
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
