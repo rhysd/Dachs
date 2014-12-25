@@ -282,11 +282,16 @@ public:
             symbol::var_symbol const& param_sym)
     {
         if (!member_func_scope->is_ctor()) {
-            semantic_error(param, "  Instance variable initializer '" + param->name + "' is not permitted here.");
+            semantic_error(param, "  Instance variable initializer '" + param->name + "' is only permitted in constructor's parameter.");
+            return;
         }
 
         auto const maybe_weak_scope = get_as<scope::weak_class_scope>(member_func_scope->enclosing_scope);
-        assert(maybe_weak_scope);
+        if (!maybe_weak_scope) {
+            semantic_error(param, "  Instance variable initializer '" + param->name + "' is not permitted outside class definition.");
+            return;
+        }
+
         auto const& scope = maybe_weak_scope->lock();
 
         auto const instance_var = scope->resolve_instance_var(param->name.substr(1)/*Omit '@'*/);

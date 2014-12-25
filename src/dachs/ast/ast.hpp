@@ -355,7 +355,7 @@ struct parameter final : public base {
 
     bool is_instance_var_init() const noexcept
     {
-        return name.empty() || name.front() == '@';
+        return !name.empty() && name.front() == '@';
     }
 
     std::string to_string() const noexcept override
