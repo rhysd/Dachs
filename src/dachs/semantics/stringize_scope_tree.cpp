@@ -78,7 +78,7 @@ public:
 
     std::string visit(class_scope const& cl, size_t const i) const
     {
-        return indent(i) + c.green("CLASS_SCOPE: ") + cl->name
+        return indent(i) + c.green("CLASS_SCOPE: ") + cl->to_string()
             + visit_symbols(cl->instance_var_symbols, i+1, "SYMBOL: ")
             + visit_scopes(cl->member_func_scopes, i+1);
     }

@@ -168,6 +168,23 @@ class_scope::maybe_func_t class_scope::resolve_ctor(std::vector<type::type> cons
         );
 }
 
+std::string class_scope::to_string() const noexcept
+{
+    auto const templates_str
+        = '(' +
+        boost::algorithm::join(
+            instance_var_symbols
+                | filtered(
+                    [](auto const& s){ return type::is_a<type::template_type>(s->type); }
+                ) | transformed(
+                    [](auto const& s){ return s->type.to_string(); }
+                )
+            , ", ")
+        + ')';
+
+    return templates_str == "()" ? name : (name + templates_str);
+}
+
 } // namespace scope_node
 
 } // namespace dachs

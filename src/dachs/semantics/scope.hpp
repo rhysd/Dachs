@@ -342,6 +342,8 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
     maybe_func_t resolve_member_func(std::string const& name, std::vector<type::type> const& args) const;
 
     maybe_func_t resolve_ctor(std::vector<type::type> const& arg_types) const;
+
+    std::string to_string() const noexcept;
 };
 
 } // namespace scope_node
