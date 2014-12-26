@@ -1,5 +1,7 @@
 #include <cassert>
+
 #include <boost/optional.hpp>
+#include <boost/variant/static_visitor.hpp>
 
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/type.hpp"
@@ -125,10 +127,16 @@ boost::optional<ast::node::parameter> template_type::get_ast_node_as_parameter()
     return ast::node::get_shared_as<ast::node::parameter>(ast_node);
 }
 
+boost::optional<ast::node::variable_decl> template_type::get_ast_node_as_var_decl() const noexcept
+{
+    return ast::node::get_shared_as<ast::node::variable_decl>(ast_node);
+}
+
 std::string template_type::to_string() const noexcept
 {
-    if (auto maybe_param = get_ast_node_as_parameter()) {
-        return "<template:" + (*maybe_param)->to_string() + ">";
+    auto const node = ast_node.get_shared();
+    if (node) {
+        return "<template:" + std::to_string(node->line) + ":" + std::to_string(node->col) + ">";
     } else {
         return "<template:UNKNOWN>";
     }

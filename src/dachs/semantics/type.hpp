@@ -665,16 +665,23 @@ struct template_type final : public basic_type {
     {}
 
     boost::optional<ast::node::parameter> get_ast_node_as_parameter() const noexcept;
+    boost::optional<ast::node::variable_decl> get_ast_node_as_var_decl() const noexcept;
     std::string to_string() const noexcept override;
 
     bool operator==(template_type const& rhs)
     {
         auto const left_ast_as_param = get_ast_node_as_parameter();
         auto const right_ast_as_param = rhs.get_ast_node_as_parameter();
-
         if (left_ast_as_param && right_ast_as_param) {
             // Compare two shared_ptr.  Return true when both point the same node.
             return *left_ast_as_param == *right_ast_as_param;
+        }
+
+        auto const left_ast_as_var_decl = get_ast_node_as_var_decl();
+        auto const right_ast_as_var_decl = rhs.get_ast_node_as_var_decl();
+        if (left_ast_as_var_decl && right_ast_as_var_decl) {
+            // Compare two shared_ptr.  Return true when both point the same node.
+            return *left_ast_as_var_decl == *right_ast_as_var_decl;
         }
 
         // TODO: Add more possible nodes: instance variables
