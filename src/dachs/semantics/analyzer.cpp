@@ -1530,7 +1530,7 @@ public:
             root->functions.push_back(std::move(l->def));
         }
 
-        return resolver.get_captures();
+        return std::move(resolver).get_captures();
     }
 
     template<class Walker>

@@ -383,9 +383,14 @@ class lambda_resolver {
 
 public:
 
-    lambda_captures_type get_captures() const
+    lambda_captures_type &get_captures() &
     {
         return captures;
+    }
+
+    lambda_captures_type get_captures() &&
+    {
+        return std::move(captures);
     }
 
     template<class Walker>
