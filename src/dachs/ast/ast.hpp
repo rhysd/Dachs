@@ -425,6 +425,8 @@ struct func_invocation final : public expression {
 struct object_construct final : public expression {
     node::any_type obj_type;
     std::vector<node::any_expr> args;
+    scope::weak_class_scope constructed_class_scope;
+    scope::weak_func_scope callee_ctor_scope;
 
     object_construct(node::any_type const& t,
                      decltype(args) const& args) noexcept

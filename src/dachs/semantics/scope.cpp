@@ -93,7 +93,7 @@ global_scope::maybe_func_t global_scope::resolve_func(std::string const& name, s
 
 ast::node::function_definition func_scope::get_ast_node() const noexcept
 {
-    auto maybe_func_def = ast::node::get_shared_as<ast::node::function_definition>(ast_node);
+    auto const maybe_func_def = ast::node::get_shared_as<ast::node::function_definition>(ast_node);
     assert(maybe_func_def);
     return *maybe_func_def;
 }
@@ -166,6 +166,13 @@ class_scope::maybe_func_t class_scope::resolve_ctor(std::vector<type::type> cons
             "dachs.init",
             arg_types
         );
+}
+
+ast::node::class_definition class_scope::get_ast_node() const noexcept
+{
+    auto const maybe_func_def = ast::node::get_shared_as<ast::node::class_definition>(ast_node);
+    assert(maybe_func_def);
+    return *maybe_func_def;
 }
 
 std::string class_scope::to_string() const noexcept

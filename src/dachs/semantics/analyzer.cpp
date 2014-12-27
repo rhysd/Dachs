@@ -158,6 +158,8 @@ class symbol_analyzer {
     std::unordered_set<ast::node::function_definition> already_visited_functions;
     std::unordered_set<ast::node::class_definition> already_visited_classes;
 
+    using class_instantiation_type_map_type = std::unordered_map<std::string, type::type>;
+
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
     template<class Scope, class Walker, class... Args>
@@ -176,6 +178,30 @@ class symbol_analyzer {
         failed++;
     }
 
+    scope::any_scope enclosing_scope_of(scope::any_scope const& scope)
+    {
+        return apply_lambda(
+                    [this](auto const& s) -> scope::any_scope
+                    {
+                        return enclosing_scope_of(s);
+                    }
+                    , scope
+                );
+    }
+
+    template<class Scope>
+    scope::any_scope enclosing_scope_of(Scope const& scope)
+    {
+        return apply_lambda(
+                    [](auto const& s) -> scope::any_scope
+                    {
+                        assert(!s.expired());
+                        return s.lock();
+                    },
+                    scope->enclosing_scope
+                );
+    }
+
     // TODO:
     // Share this function in func_scope and member_func_scope
     template<class FuncDefNode>
@@ -189,10 +215,7 @@ class symbol_analyzer {
 
         auto instantiated_func_def = ast::copy_ast(func_template_def);
         auto const enclosing_scope
-            = apply_lambda(
-                    [](auto const& s) -> scope::any_scope { assert(!s.expired()); return s.lock(); },
-                    func_template_def->scope.lock()->enclosing_scope
-                );
+            = enclosing_scope_of(func_template_def->scope.lock());
 
         // Note: No need to check functions duplication
         // Note: Type of parameters are analyzed here
@@ -1079,6 +1102,78 @@ public:
         }
     }
 
+    auto generate_instantiation_map(scope::class_scope const& scope) const
+    {
+        std::unordered_map<std::string, type::type> map;
+        for (auto const& s : scope->instance_var_symbols) {
+            if (s->type.is_template()) {
+                map[s->name] = type::type{};
+            }
+        }
+        return map;
+    }
+
+    template<class ClassDef, class CtorArgTypes>
+    scope::class_scope instantiate_class_template_construct(
+            ClassDef const& class_template_def,
+            scope::func_scope const& ctor_scope,
+            CtorArgTypes const& arg_types
+        )
+    {
+        assert(class_template_def->is_template());
+        auto const template_scope = class_template_def->scope.lock();
+        auto const instantiation_map = generate_instantiation_map(template_scope);
+
+        // TODO:
+        // Check the instantiation map can instantiate class from the class template
+
+        auto instantiated_class_def = ast::copy_ast(class_template_def);
+        failed += dispatch_forward_analyzer(instantiated_class_def, enclosing_scope_of(class_template_def->scope.lock()));
+        assert(!instantiated_class_def->scope.expired());
+
+        // TODO:
+        // Copy AST and replace the instantiated types with template types by instantiation map
+
+        // TODO:
+        // register the class as instantiated class of the template
+
+        return instantiated_class_def->scope.lock();
+    }
+
+    void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
+    {
+        auto maybe_class_scope = apply_lambda([&](auto const& s){ return s->resolve_class(type->name); }, current_scope);
+
+        if (!maybe_class_scope) {
+            semantic_error(obj, "  Class '" + type->name +"' is not found");
+            return;
+        }
+
+        std::vector<type::type> arg_types;
+        arg_types.reserve(obj->args.size()+1);
+        boost::transform(obj->args, std::back_inserter(arg_types), [](auto const& a){ return type_of(a); });
+        for (auto const& t : arg_types) {
+            if (!t) {
+                return;
+            }
+        }
+
+        auto scope = *maybe_class_scope; // Copy is intended.
+        auto const maybe_ctor = scope->resolve_ctor(arg_types);
+        if (!maybe_ctor) {
+            semantic_error(obj,"  No matching constructor to construct class '" + scope->to_string() + "'");
+            return;
+        }
+
+        if (scope->is_template()) {
+            scope = instantiate_class_template_construct(scope->get_ast_node(), *maybe_ctor, arg_types);
+        }
+
+        obj->constructed_class_scope = scope;
+        // TODO:
+        // obj->callee_ctor_scope =
+    }
+
     template<class Walker>
     void visit(ast::node::object_construct const& obj, Walker const& w)
     {
@@ -1089,7 +1184,10 @@ public:
         }
 
         w();
-        if (auto const err = detail::ctor_checker{}(obj->type, obj->args)) {
+
+        if (auto const maybe_class_type = type::get<type::class_type>(obj->type)) {
+            visit_class_construct(obj, *maybe_class_type);
+        } else if (auto const err = detail::ctor_checker{}(obj->type, obj->args)) {
             semantic_error(obj, *err);
         }
     }

@@ -34,6 +34,21 @@ namespace scope_node {
 
 using dachs::helper::variant::apply_lambda;
 
+namespace detail {
+
+template<class Symbols>
+bool includes_template(Symbols const& ss)
+{
+    for (auto const& s : ss) {
+        if (s->type.is_template()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace detail
+
 struct basic_scope {
     // Note:
     // I don't use base class pointer to check the parent is alive or not.
@@ -254,12 +269,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
 
     bool is_template() const noexcept
     {
-        for (auto const& p : params) {
-            if (p->type.is_template()) {
-                return true;
-            }
-        }
-        return false;
+        return detail::includes_template(params);
     }
 
     ast::node::function_definition get_ast_node() const noexcept;
@@ -338,10 +348,16 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
         return helper::find_if(instance_var_symbols, [&name](auto const& i){ return i->name == name; });
     }
 
+    bool is_template() const noexcept
+    {
+        return detail::includes_template(instance_var_symbols);
+    }
+
     // TODO
     maybe_func_t resolve_member_func(std::string const& name, std::vector<type::type> const& args) const;
 
     maybe_func_t resolve_ctor(std::vector<type::type> const& arg_types) const;
+    ast::node::class_definition get_ast_node() const noexcept;
 
     std::string to_string() const noexcept;
 };
