@@ -220,6 +220,8 @@ public:
         return helper::variant::apply_lambda(lambda, value);
     }
 
+    bool is_default_constructible() const noexcept;
+
     template<class T>
     friend bool is_a(any_type const&);
 
@@ -258,6 +260,7 @@ using type::traits::is_type;
 
 struct basic_type {
     virtual std::string to_string() const noexcept = 0;
+    virtual bool is_default_constructible() const noexcept = 0;
     virtual ~basic_type() noexcept
     {}
 };
@@ -304,6 +307,11 @@ struct builtin_type final : public named_type {
         static_assert(is_type<T>::value, "builtin_type::operator!=(): rhs is not a type.");
         return !(*this == rhs);
     }
+
+    bool is_default_constructible() const noexcept override
+    {
+        return true;
+    }
 };
 
 // This class may not be needed because class from class template is instanciated at the point on resolving a symbol of class templates
@@ -340,6 +348,8 @@ struct class_type final : public named_type {
         static_assert(is_type<T>::value, "class_type::operator!=(): rhs is not a type.");
         return !(*this == rhs);
     }
+
+    bool is_default_constructible() const noexcept override;
 };
 
 struct tuple_type final : public basic_type {
@@ -380,7 +390,7 @@ struct tuple_type final : public basic_type {
         return !(*this == rhs);
     }
 
-    bool is_default_constructible() override noexcept
+    bool is_default_constructible() const noexcept override
     {
         return true;
     }
@@ -427,7 +437,7 @@ struct func_type final : public basic_type {
         return !(*this == rhs);
     }
 
-    bool is_default_constructible() override noexcept
+    bool is_default_constructible() const noexcept override
     {
         return false;
     }
@@ -460,6 +470,11 @@ struct generic_func_type : public basic_type {
     }
 
     std::string to_string() const noexcept override;
+
+    bool is_default_constructible() const noexcept override
+    {
+        return false;
+    }
 };
 
 struct dict_type final : public basic_type {
@@ -499,6 +514,11 @@ struct dict_type final : public basic_type {
         static_assert(is_type<T>::value, "dict_type::operator!=(): rhs is not a type.");
         return !(*this == rhs);
     }
+
+    bool is_default_constructible() const noexcept override
+    {
+        return true;
+    }
 };
 
 struct range_type final : public basic_type {
@@ -536,6 +556,11 @@ struct range_type final : public basic_type {
     {
         static_assert(is_type<T>::value, "range_type::operator!=(): rhs is not a type.");
         return !(*this == rhs);
+    }
+
+    bool is_default_constructible() const noexcept override
+    {
+        return true;
     }
 };
 
@@ -584,6 +609,11 @@ struct array_type final : public basic_type {
         static_assert(is_type<T>::value, "array_type::operator!=(): rhs is not a type.");
         return !(*this == rhs);
     }
+
+    bool is_default_constructible() const noexcept override
+    {
+        return true;
+    }
 };
 
 struct qualified_type final : public basic_type {
@@ -623,6 +653,12 @@ struct qualified_type final : public basic_type {
     {
         static_assert(is_type<T>::value, "qualified_type::operator!=(): rhs is not a type.");
         return !(*this == rhs);
+    }
+
+    bool is_default_constructible() const noexcept override
+    {
+        // TODO: TEMPORARY
+        return contained_type.is_default_constructible();
     }
 };
 
@@ -672,6 +708,11 @@ struct template_type final : public basic_type {
     {
         static_assert(is_type<T>::value, "qualified_type::operator!=(): rhs is not a type.");
         return !(*this == rhs);
+    }
+
+    bool is_default_constructible() const noexcept override
+    {
+        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
     }
 };
 

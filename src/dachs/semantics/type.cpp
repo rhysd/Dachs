@@ -90,6 +90,12 @@ bool any_type::operator==(any_type const& rhs) const noexcept
             }, value, rhs.value);
 }
 
+bool any_type::is_default_constructible() const noexcept
+{
+    return apply_lambda([](auto const& t){ return t ? t->is_default_constructible() : false; });
+}
+
+
 } // namespace type
 
 namespace type_node {
@@ -145,6 +151,12 @@ std::string template_type::to_string() const noexcept
 class_type::class_type(scope::class_scope const& s) noexcept
     : named_type(s->name), ref(s)
 {}
+
+bool class_type::is_default_constructible() const noexcept
+{
+    assert(!ref.expired());
+    return ref.lock()->resolve_ctor({});
+}
 
 } // namespace type_node
 } // namespace dachs
