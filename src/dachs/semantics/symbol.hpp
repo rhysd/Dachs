@@ -58,6 +58,11 @@ struct var_symbol final : public basic_symbol {
     {}
 
     var_symbol(var_symbol const&) = default;
+
+    bool is_instance_var() const noexcept
+    {
+        return !name.empty() && name.front() == '@';
+    }
 };
 
 } // namespace symbol_node

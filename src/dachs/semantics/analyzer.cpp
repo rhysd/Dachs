@@ -1102,34 +1102,16 @@ public:
         }
     }
 
-    auto generate_instantiation_map(scope::class_scope const& scope) const
-    {
-        std::unordered_map<std::string, type::type> map;
-        for (auto const& s : scope->instance_var_symbols) {
-            if (s->type.is_template()) {
-                map[s->name] = type::type{};
-            }
-        }
-        return map;
-    }
-
-    template<class ClassDef, class CtorArgTypes>
+    template<class ClassDef, class CtorArgTypes, class InstantiationMap>
     scope::class_scope instantiate_class_template_construct(
             ClassDef const& class_template_def,
             scope::func_scope const& ctor_scope,
-            CtorArgTypes const& arg_types
+            CtorArgTypes const& arg_types,
+            InstantiationMap const& template_instantiation
         )
     {
         assert(class_template_def->is_template());
         auto const template_scope = class_template_def->scope.lock();
-        auto const instantiation_map = generate_instantiation_map(template_scope);
-
-        // TODO:
-        // Check the instantiation map can instantiate class from the class template
-
-        auto instantiated_class_def = ast::copy_ast(class_template_def);
-        failed += dispatch_forward_analyzer(instantiated_class_def, enclosing_scope_of(class_template_def->scope.lock()));
-        assert(!instantiated_class_def->scope.expired());
 
         // TODO:
         // Copy AST and replace the instantiated types with template types by instantiation map
@@ -1137,7 +1119,59 @@ public:
         // TODO:
         // register the class as instantiated class of the template
 
-        return instantiated_class_def->scope.lock();
+        return class_template_def->scope.lock();
+    }
+
+    auto generate_instantiation_map(scope::class_scope const& scope) const
+    {
+        std::unordered_map<std::string, type::type> map;
+        for (auto const& s : scope->instance_var_symbols) {
+            assert(s->type);
+            if (s->type.is_template()) {
+                map[s->name] = type::type{};
+            } else {
+                map[s->name] = s->type;
+            }
+        }
+
+        return map;
+    }
+
+    template<class Map, class Types>
+    boost::optional<Map> check_template_instantiation_with_ctor(Map &&map, scope::func_scope const& ctor, Types const& arg_types) const
+    {
+        assert(ctor->name == "dachs.init");
+        auto const ctor_def = ctor->get_ast_node();
+
+        // Note:
+        // Prameter types are already checked in forward analyzer
+        for (auto const& p : ctor_def->params) {
+            if (p->is_instance_var_init()) {
+                auto const i = map.find(p->name.substr(1u)/* omit '@' */);
+                assert(i != std::end(map));
+                auto &instance_var_type = i->second;
+
+                if (!instance_var_type) {
+                    instance_var_type = p->type;
+                } else if (instance_var_type != p->type){
+                    semantic_error(
+                            p, boost::format(
+                                "  Type of parameter '%1%' mismatches.\n"
+                                "  Note: Tried to instantiate with type '%2%' but it was actually '%3%'"
+                            ) % p->name % instance_var_type.to_string() % p->type.to_string()
+                        );
+                    return boost::none;
+                }
+            }
+        }
+
+        // TODO:
+        // Get instantiated template type parameters from initializer statements in the ctor
+
+        // TODO:
+        // Check all variables' types are determined.
+
+        return std::forward<Map>(map);
     }
 
     void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
@@ -1164,9 +1198,24 @@ public:
             semantic_error(obj,"  No matching constructor to construct class '" + scope->to_string() + "'");
             return;
         }
+        auto const& ctor = *maybe_ctor;
+
+        // TODO:
+        // Instantiate constructor template
+
+        auto const instantiation_success = check_template_instantiation_with_ctor(generate_instantiation_map(scope), ctor, arg_types);
+        if (!instantiation_success) {
+            // Note:
+            // Error message was already omitted in check_template_instantiation_with_ctor()
+            return;
+        }
+        auto const& template_instantiation = *instantiation_success;
+
+        // TODO:
+        // Check the instantiation map can instantiate class from the class template
 
         if (scope->is_template()) {
-            scope = instantiate_class_template_construct(scope->get_ast_node(), *maybe_ctor, arg_types);
+            scope = instantiate_class_template_construct(scope->get_ast_node(), ctor, arg_types, template_instantiation);
         }
 
         obj->constructed_class_scope = scope;

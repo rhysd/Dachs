@@ -453,7 +453,9 @@ public:
         auto const new_class_var = symbol::make<symbol::var_symbol>(class_def, class_def->name, true /*immutable*/);
         new_class_var->type = new_class->type;
         new_class_var->is_global = true;
-        (*maybe_global_scope)->define_variable(new_class_var);
+        if (!(*maybe_global_scope)->define_variable(new_class_var)) {
+            ++failed;
+        }
     }
 
     template<class T, class Walker>
