@@ -30,7 +30,6 @@ struct builtin_type;
 struct class_type;
 struct tuple_type;
 struct func_type;
-struct proc_type;
 struct generic_func_type;
 struct dict_type;
 struct array_type;
@@ -47,7 +46,6 @@ DACHS_DEFINE_TYPE(builtin_type);
 DACHS_DEFINE_TYPE(class_type);
 DACHS_DEFINE_TYPE(tuple_type);
 DACHS_DEFINE_TYPE(func_type);
-DACHS_DEFINE_TYPE(proc_type);
 DACHS_DEFINE_TYPE(generic_func_type);
 DACHS_DEFINE_TYPE(dict_type);
 DACHS_DEFINE_TYPE(array_type);
@@ -91,7 +89,6 @@ class any_type {
                     , class_type
                     , tuple_type
                     , func_type
-                    , proc_type
                     , generic_func_type
                     , dict_type
                     , array_type
@@ -382,16 +379,22 @@ struct tuple_type final : public basic_type {
         static_assert(is_type<T>::value, "tuple_type::operator!=(): rhs is not a type.");
         return !(*this == rhs);
     }
+
+    bool is_default_constructible() override noexcept
+    {
+        return true;
+    }
 };
 
 struct func_type final : public basic_type {
     std::vector<type::any_type> param_types;
     type::any_type return_type;
+    ast::symbol::func_kind kind = ast::symbol::func_kind::func;
 
     func_type() = default;
 
-    func_type(decltype(param_types) && p, type::any_type && r) noexcept
-        : param_types(std::forward<decltype(p)>(p)), return_type(std::forward<type::any_type>(r))
+    func_type(decltype(param_types) && p, type::any_type && r, decltype(kind) const k = ast::symbol::func_kind::func) noexcept
+        : param_types(std::forward<decltype(p)>(p)), return_type(std::forward<type::any_type>(r)), kind(k)
     {}
 
     std::string to_string() const noexcept override
@@ -423,43 +426,10 @@ struct func_type final : public basic_type {
         static_assert(is_type<T>::value, "func_type::operator!=(): rhs is not a type.");
         return !(*this == rhs);
     }
-};
 
-struct proc_type final : public basic_type {
-    std::vector<type::any_type> param_types;
-
-    proc_type() = default;
-
-    explicit proc_type(decltype(param_types) && p) noexcept
-        : param_types(std::forward<decltype(p)>(p))
-    {}
-
-    std::string to_string() const noexcept override
+    bool is_default_constructible() override noexcept
     {
-        return "proc (" +
-            join(param_types | transformed([](auto const& t){
-                        return t.to_string();
-                    }), ",")
-            + ')';
-    }
-
-    bool operator==(proc_type const& rhs) const noexcept
-    {
-        return boost::equal(param_types, rhs.param_types);
-    }
-
-    template<class T>
-    bool operator==(T const&) const noexcept
-    {
-        static_assert(is_type<T>::value, "proc_type::operator==(): rhs is not a type.");
         return false;
-    }
-
-    template<class T>
-    bool operator!=(T const& rhs) const noexcept
-    {
-        static_assert(is_type<T>::value, "proc_type::operator!=(): rhs is not a type.");
-        return !(*this == rhs);
     }
 };
 

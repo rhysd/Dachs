@@ -122,7 +122,7 @@ public:
                     apply_recursively(*(t->ret_type))
                 )};
         } else {
-            return {type::make<type::proc_type>(std::move(param_types))};
+            return {type::make<type::func_type>(std::move(param_types), type::get_unit_type(), ast::symbol::func_kind::proc)};
         }
     }
 };
