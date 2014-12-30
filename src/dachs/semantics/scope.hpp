@@ -333,9 +333,10 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
         , basic_symbol(ast_node, name, is_builtin)
     {}
 
-    bool define_member_func(scope::func_scope const& new_func) noexcept
+    void define_member_func(scope::func_scope const& new_func) noexcept
     {
-        return define_symbol(member_func_scopes, new_func);
+        // Do not check because of overload
+        member_func_scopes.push_back(new_func);
     }
 
     bool define_variable(symbol::var_symbol const& new_var) noexcept

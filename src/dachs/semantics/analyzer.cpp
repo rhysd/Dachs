@@ -209,7 +209,7 @@ class symbol_analyzer {
     instantiate_function_from_template(
             FuncDefNode const& func_template_def,
             std::vector<type::type> const& arg_types
-        ) noexcept
+        )
     {
         assert(func_template_def->is_template());
 
@@ -455,6 +455,10 @@ public:
                 if (decl->maybe_type) {
                     new_var->type
                         = calculate_from_type_nodes(*decl->maybe_type);
+                }
+
+                if (decl->is_instance_var()) {
+                    return true;
                 }
 
                 if (!scope->define_variable(new_var)) {
@@ -1127,21 +1131,16 @@ public:
         std::unordered_map<std::string, type::type> map;
         for (auto const& s : scope->instance_var_symbols) {
             assert(s->type);
-            if (s->type.is_template()) {
-                map[s->name] = type::type{};
-            } else {
-                map[s->name] = s->type;
-            }
+            map[s->name] = s->type.is_template() ? type::type{} : s->type;
         }
 
         return map;
     }
 
-    template<class Map, class Types>
-    boost::optional<Map> check_template_instantiation_with_ctor(Map &&map, scope::func_scope const& ctor, Types const& arg_types) const
+    template<class Map>
+    boost::optional<Map> check_template_instantiation_with_ctor(Map &&map, scope::func_scope const& ctor, ast::node::function_definition const& ctor_def)
     {
         assert(ctor->name == "dachs.init");
-        auto const ctor_def = ctor->get_ast_node();
 
         // Note:
         // Prameter types are already checked in forward analyzer
@@ -1198,12 +1197,15 @@ public:
             semantic_error(obj,"  No matching constructor to construct class '" + scope->to_string() + "'");
             return;
         }
-        auto const& ctor = *maybe_ctor;
 
-        // TODO:
-        // Instantiate constructor template
+        auto ctor = *maybe_ctor;
+        auto ctor_def = ctor->get_ast_node();
 
-        auto const instantiation_success = check_template_instantiation_with_ctor(generate_instantiation_map(scope), ctor, arg_types);
+        if (ctor_def->is_template()) {
+            std::tie(ctor_def, ctor) = instantiate_function_from_template(ctor_def, arg_types);
+        }
+
+        auto const instantiation_success = check_template_instantiation_with_ctor(generate_instantiation_map(scope), ctor, ctor_def);
         if (!instantiation_success) {
             // Note:
             // Error message was already omitted in check_template_instantiation_with_ctor()
