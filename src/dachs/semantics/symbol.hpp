@@ -61,7 +61,7 @@ struct var_symbol final : public basic_symbol {
 
     bool is_instance_var() const noexcept
     {
-        return !name.empty() && name.front() == '@';
+        return !name.empty() && (name.front() == '@');
     }
 };
 

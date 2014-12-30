@@ -202,8 +202,6 @@ class symbol_analyzer {
                 );
     }
 
-    // TODO:
-    // Share this function in func_scope and member_func_scope
     template<class FuncDefNode>
     std::pair<FuncDefNode, scope::func_scope>
     instantiate_function_from_template(
@@ -455,10 +453,6 @@ public:
                 if (decl->maybe_type) {
                     new_var->type
                         = calculate_from_type_nodes(*decl->maybe_type);
-                }
-
-                if (decl->is_instance_var()) {
-                    return true;
                 }
 
                 if (!scope->define_variable(new_var)) {
@@ -1212,9 +1206,6 @@ public:
             return;
         }
         auto const& template_instantiation = *instantiation_success;
-
-        // TODO:
-        // Check the instantiation map can instantiate class from the class template
 
         if (scope->is_template()) {
             scope = instantiate_class_template_construct(scope->get_ast_node(), ctor, arg_types, template_instantiation);
