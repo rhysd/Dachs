@@ -1135,34 +1135,66 @@ public:
     boost::optional<Map> check_template_instantiation_with_ctor(Map &&map, scope::func_scope const& ctor, ast::node::function_definition const& ctor_def)
     {
         assert(ctor->name == "dachs.init");
+        assert(!ctor_def->is_template());
+
+        auto const check_instance_var_type
+            = [&, this](auto const& var_node, auto const& var_sym)
+            {
+                auto const i = map.find(var_sym->name.substr(1u)/* omit '@' */);
+                assert(i != std::end(map));
+                auto &var_type = i->second;
+
+                if (!var_type) {
+                    var_type = var_sym->type;
+                } else if (var_type != var_sym->type){
+                    semantic_error(
+                            var_node, boost::format(
+                                "  Type of instance variable '%1%' mismatches.\n"
+                                "  Note: Tried to substitute type '%2%' but it was actually type '%3%'"
+                            ) % var_sym->name % var_type.to_string() % var_sym->type.to_string()
+                        );
+                    return false;
+                }
+
+                return true;
+            };
 
         // Note:
-        // Prameter types are already checked in forward analyzer
+        // Parameter types are already checked in forward analyzer
         for (auto const& p : ctor_def->params) {
             if (p->is_instance_var_init()) {
-                auto const i = map.find(p->name.substr(1u)/* omit '@' */);
-                assert(i != std::end(map));
-                auto &instance_var_type = i->second;
-
-                if (!instance_var_type) {
-                    instance_var_type = p->type;
-                } else if (instance_var_type != p->type){
-                    semantic_error(
-                            p, boost::format(
-                                "  Type of parameter '%1%' mismatches.\n"
-                                "  Note: Tried to instantiate with type '%2%' but it was actually '%3%'"
-                            ) % p->name % instance_var_type.to_string() % p->type.to_string()
-                        );
+                if (!check_instance_var_type(p, p->param_symbol.lock())) {
                     return boost::none;
                 }
             }
         }
 
-        // TODO:
-        // Get instantiated template type parameters from initializer statements in the ctor
+        for (auto const& stmt : ctor_def->body->value) {
+            auto const init = *get_as<ast::node::initialize_stmt>(stmt);
+            for (auto const& decl : init->var_decls) {
+                if (decl->is_instance_var()) {
+                    if (!check_instance_var_type(decl, decl->symbol.lock())) {
+                        return boost::none;
+                    }
+                }
+            }
+        }
 
-        // TODO:
-        // Check all variables' types are determined.
+        for (auto const& i : map) {
+            if (!i.second) {
+                auto const class_name
+                    = (*get_as<scope::class_scope>(enclosing_scope_of(ctor)))->name;
+                semantic_error(
+                        ctor_def,
+                        boost::format(
+                            "  Failed to instantiate class template '%1%'\n"
+                            "  Type of instance variable '%2%' can't be determined\n"
+                            "  Note: Used contructor is at line:%3%, col:%4%"
+                        ) % class_name % i.first % ctor_def->line % ctor_def->col
+                    );
+                return boost::none;
+            }
+        }
 
         return std::forward<Map>(map);
     }
