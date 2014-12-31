@@ -1201,13 +1201,6 @@ public:
 
     void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
     {
-        auto maybe_class_scope = apply_lambda([&](auto const& s){ return s->resolve_class(type->name); }, current_scope);
-
-        if (!maybe_class_scope) {
-            semantic_error(obj, "  Class '" + type->name +"' is not found");
-            return;
-        }
-
         std::vector<type::type> arg_types;
         arg_types.reserve(obj->args.size()+1);
         boost::transform(obj->args, std::back_inserter(arg_types), [](auto const& a){ return type_of(a); });
@@ -1217,7 +1210,18 @@ public:
             }
         }
 
+        auto maybe_class_scope = apply_lambda([&](auto const& s){ return s->resolve_class(type->name); }, current_scope);
+
+        if (!maybe_class_scope) {
+            semantic_error(obj, "  Class '" + type->name +"' is not found");
+            return;
+        }
+
         auto scope = *maybe_class_scope; // Copy is intended.
+        if (scope->is_template()) {
+            // Copy class definition AST
+        }
+
         auto const maybe_ctor = scope->resolve_ctor(arg_types);
         if (!maybe_ctor) {
             semantic_error(obj,"  No matching constructor to construct class '" + scope->to_string() + "'");

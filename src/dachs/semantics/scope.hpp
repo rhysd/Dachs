@@ -190,9 +190,11 @@ struct global_scope final : public basic_scope {
         const_symbols.push_back(new_var);
     }
 
-    bool define_class(scope::class_scope const& new_class) noexcept
+    void define_class(scope::class_scope const& new_class) noexcept
     {
-        return define_symbol(classes, new_class);
+        // Note:
+        // Do not check the duplication of class here because it will be checked after in forward analyzer.
+        classes.push_back(new_class);
     }
 
     maybe_func_t resolve_func(std::string const& name, std::vector<type::type> const& args) const override;

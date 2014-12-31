@@ -86,6 +86,29 @@ class forward_symbol_analyzer {
         return failed;
     }
 
+    template<class ClassDefs>
+    std::size_t check_classes_duplication(ClassDefs const& classes) const
+    {
+        std::size_t failed = 0u;
+        auto const end = classes.cend();
+        for (auto left = classes.cbegin(); left != end; ++left) {
+            for (auto right = std::next(left); right != end; ++right) {
+                if ((*right)->name == (*left)->name) {
+                    output_semantic_error(
+                            *right,
+                            boost::format(
+                                "  Class '%1%' is redefined.\n"
+                                "  Note: Previous definition is at line:%2%, col:%3%"
+                            ) % (*right)->name % (*left)->line % (*left)->col
+                        );
+                    failed++;
+                }
+            }
+        }
+
+        return failed;
+    }
+
     bool check_init_statements_in_ctor(ast::node::class_definition const& class_def)
     {
         bool failed = false;
@@ -113,12 +136,13 @@ public:
     {}
 
     template<class Walker>
-    void visit(ast::node::inu const&, Walker const& w)
+    void visit(ast::node::inu const& inu, Walker const& w)
     {
         w();
 
         auto const global = get_as<scope::global_scope>(current_scope);
         failed += check_functions_duplication((*global)->functions, "global scope");
+        failed += check_classes_duplication(inu->classes);
     }
 
     template<class Walker>
@@ -423,19 +447,9 @@ public:
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
 
-        if (!(*maybe_global_scope)->define_class(new_class)) {
-            ++failed;
-            return;
-        }
+        (*maybe_global_scope)->define_class(new_class);
 
         introduce_scope_and_walk(std::move(new_class), w);
-
-        // TODO:
-        //      1. Parse member variable declarations
-        //      2. Check the un-typed variable declarations and make them as templates
-        //      3. Generate class type from the declarations (if there's no template
-        //         variable declarations, the class will be a normal class, otherwise,
-        //         the class will be class template)
 
         failed += check_functions_duplication(
                     new_class->member_func_scopes,
