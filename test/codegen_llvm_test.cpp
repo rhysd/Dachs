@@ -1823,6 +1823,17 @@ BOOST_AUTO_TEST_CASE(some_samples)
     )");
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func new_year(y)
+            "A happy new year ".print
+            y.println
+        end
+
+        func main
+            2015.new_year
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func fib(n)
             case n
             when 0, 1
