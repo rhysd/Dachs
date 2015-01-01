@@ -24,7 +24,7 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
             auto func_var_sym = symbol::make<symbol::var_symbol>(nullptr, "print", true, true);
             func_var_sym->type = type::make<type::generic_func_type>(print_func);
             func_var_sym->is_global = true;
-            scope_root->define_global_function_constant(std::move(func_var_sym));
+            scope_root->force_define_constant(std::move(func_var_sym));
         }
 
         {
@@ -40,7 +40,7 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
             auto func_var_sym = symbol::make<symbol::var_symbol>(nullptr, "println", true, true);
             func_var_sym->type = type::make<type::generic_func_type>(println_func);
             func_var_sym->is_global = true;
-            scope_root->define_global_function_constant(std::move(func_var_sym));
+            scope_root->force_define_constant(std::move(func_var_sym));
         }
 
         // Operators

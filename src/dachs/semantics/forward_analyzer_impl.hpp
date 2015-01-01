@@ -198,7 +198,7 @@ public:
                 new_func_var->type = new_func->type;
                 new_func_var->is_global = true;
                 s->define_function(new_func);
-                s->define_global_function_constant(new_func_var);
+                s->force_define_constant(new_func_var);
             }
 
             result_type operator()(scope::local_scope const& s) const
@@ -467,9 +467,11 @@ public:
         auto const new_class_var = symbol::make<symbol::var_symbol>(class_def, class_def->name, true /*immutable*/);
         new_class_var->type = new_class->type;
         new_class_var->is_global = true;
-        if (!(*maybe_global_scope)->define_variable(new_class_var)) {
-            ++failed;
-        }
+
+        // Note:
+        // Do not check the duplication of the variable because it is
+        // checked by class duplication check.
+        (*maybe_global_scope)->define_variable(new_class_var);
     }
 
     template<class T, class Walker>

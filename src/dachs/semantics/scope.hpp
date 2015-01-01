@@ -182,7 +182,7 @@ struct global_scope final : public basic_scope {
     // Note:
     // Do not check duplication because of overloaded functions.  Check for overloaded functions
     // is already done by define_function()
-    void define_global_function_constant(symbol::var_symbol const& new_var) noexcept
+    void force_define_constant(symbol::var_symbol const& new_var) noexcept
     {
         // TODO:
         // The same name variable as the function can be defined now.
