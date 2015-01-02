@@ -13,6 +13,7 @@
 #include <boost/algorithm/string/join.hpp>
 #include <boost/range/algorithm/transform.hpp>
 #include <boost/range/adaptor/transformed.hpp>
+#include <boost/range/adaptor/filtered.hpp>
 
 #include "dachs/exception.hpp"
 #include "dachs/ast/ast.hpp"
@@ -43,6 +44,7 @@ using helper::variant::get_as;
 using helper::variant::has;
 using helper::variant::apply_lambda;
 using boost::adaptors::transformed;
+using boost::adaptors::filtered;
 
 struct return_types_gatherer {
     std::vector<type::type> result_types;
@@ -1199,6 +1201,120 @@ public:
         return std::forward<Map>(map);
     }
 
+    template<class InstantiationMap>
+    boost::optional<ast::node::class_definition>
+    already_instantiated(ast::node::class_definition const& def, InstantiationMap const& map) const
+    {
+        auto const equals_to_def
+            = [&](auto const& instantiated_def)
+            {
+                for (auto const& decl : instantiated_def->instance_vars) {
+                    assert(!decl->symbol.expired());
+                    auto const& t = decl->symbol.lock()->type;
+                    auto const i = map.find(decl->name);
+                    assert(i != std::end(map));
+                    if (i->second != t) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+        for (auto const& i : def->instantiated) {
+            if (equals_to_def(i)) {
+                return i;
+            }
+        }
+
+        return boost::none;
+    }
+
+    template<class InstantiationMap>
+    ast::node::class_definition prepare_class_definition_from_template(ast::node::class_definition const& def, InstantiationMap const& map)
+    {
+        if (auto const i = already_instantiated(def, map)) {
+            return *i;
+        } else {
+            auto copied_def = ast::copy_ast(def);
+            auto const enclosing_scope = enclosing_scope_of(def->scope.lock());
+            failed += dispatch_forward_analyzer(copied_def, enclosing_scope);
+            assert(!copied_def->scope.expired());
+
+            def->instantiated.push_back(copied_def);
+
+            return copied_def;
+        }
+    }
+
+    template<class InstantiationMap>
+    void substitute_class_template_params(
+            ast::node::class_definition const& def,
+            scope::class_scope const& scope,
+            InstantiationMap const& map
+        ) const
+    {
+        auto const find_from_map
+            = [&map](auto const& predicate){ return helper::find_if(map, predicate); };
+
+        for (auto const& s
+                : scope->instance_var_symbols
+                | filtered([](auto const& s){ return s->type.is_template(); })
+            ) {
+            // Note:
+            // Replace instance variable's template type with instantiated type
+            auto const var = find_from_map([&s](auto const& v){ return v.first == s->name; });
+            assert(var && !var->second.is_template());
+
+            s->type = var->second;
+        }
+
+        for (auto const& ctor
+                : def->member_funcs
+                | filtered([](auto const& d){ return d->is_ctor(); })
+            ) {
+            for (auto const& p
+                    : ctor->params
+                    | filtered([](auto const& p){ return p->is_instance_var_init(); })) {
+                auto const var = find_from_map([&p](auto const& v){ return p->name == ('@' + v.first); });
+                assert(var && !var->second.is_template());
+
+                p->type = var->second;
+                assert(!p->param_symbol.expired());
+                p->param_symbol.lock()->type = var->second;
+            }
+        }
+    }
+
+    template<class CtorArgTypes, class InstantiationMap>
+    std::pair<scope::class_scope, scope::func_scope/* ctor */>
+    instantiate_class_template(
+            ast::node::class_definition const& class_template_def,
+             scope::func_scope const& ctor_scope,
+             CtorArgTypes const& arg_types,
+             InstantiationMap const& template_instantiation
+         )
+     {
+        assert(class_template_def->is_template());
+        auto instantiated_def = prepare_class_definition_from_template(class_template_def, template_instantiation);
+        assert(!instantiated_def->scope.expired());
+        auto const instantiated_scope = instantiated_def->scope.lock();
+
+        substitute_class_template_params(instantiated_def, instantiated_scope, template_instantiation);
+
+        {
+            auto saved_current_scope = current_scope;
+            current_scope = enclosing_scope_of(instantiated_scope);
+            ast::walk_topdown(instantiated_def, *this);
+            already_visited_classes.insert(instantiated_def);
+            current_scope = std::move(saved_current_scope);
+        }
+
+        // TODO:
+        // Instantiate constructor again for the instantiated class
+
+        return {instantiated_def->scope.lock(), ctor_scope};
+     }
+
     void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
     {
         std::vector<type::type> arg_types;
@@ -1244,12 +1360,11 @@ public:
         auto const& template_instantiation = *instantiation_success;
 
         if (scope->is_template()) {
-            scope = instantiate_class_template_construct(scope->get_ast_node(), ctor, arg_types, template_instantiation);
+            std::tie(scope, ctor) = instantiate_class_template(scope->get_ast_node(), ctor, arg_types, template_instantiation);
         }
 
         obj->constructed_class_scope = scope;
-        // TODO:
-        // obj->callee_ctor_scope =
+        obj->callee_ctor_scope = ctor;
     }
 
     template<class Walker>

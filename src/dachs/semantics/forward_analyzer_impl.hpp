@@ -471,7 +471,7 @@ public:
         // Note:
         // Do not check the duplication of the variable because it is
         // checked by class duplication check.
-        (*maybe_global_scope)->define_variable(new_class_var);
+        (*maybe_global_scope)->force_define_constant(new_class_var);
     }
 
     template<class T, class Walker>
