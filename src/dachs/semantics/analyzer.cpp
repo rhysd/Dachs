@@ -1230,23 +1230,6 @@ public:
     }
 
     template<class InstantiationMap>
-    ast::node::class_definition prepare_class_definition_from_template(ast::node::class_definition const& def, InstantiationMap const& map)
-    {
-        if (auto const i = already_instantiated(def, map)) {
-            return *i;
-        } else {
-            auto copied_def = ast::copy_ast(def);
-            auto const enclosing_scope = enclosing_scope_of(def->scope.lock());
-            failed += dispatch_forward_analyzer(copied_def, enclosing_scope);
-            assert(!copied_def->scope.expired());
-
-            def->instantiated.push_back(copied_def);
-
-            return copied_def;
-        }
-    }
-
-    template<class InstantiationMap>
     void substitute_class_template_params(
             ast::node::class_definition const& def,
             scope::class_scope const& scope,
@@ -1285,34 +1268,53 @@ public:
         }
     }
 
+    template<class InstantiationMap>
+    ast::node::class_definition prepare_class_definition_from_template(ast::node::class_definition const& def, InstantiationMap const& map)
+    {
+        if (auto const i = already_instantiated(def, map)) {
+            return *i;
+        }
+
+        auto copied_def = ast::copy_ast(def);
+        auto const enclosing_scope = enclosing_scope_of(def->scope.lock());
+        failed += dispatch_forward_analyzer(copied_def, enclosing_scope);
+        assert(!copied_def->scope.expired());
+
+        def->instantiated.push_back(copied_def);
+
+        auto const copied_scope = copied_def->scope.lock();
+
+        substitute_class_template_params(copied_def, copied_scope, map);
+
+        {
+            auto saved_current_scope = current_scope;
+            current_scope = enclosing_scope_of(copied_scope);
+            ast::walk_topdown(copied_def, *this);
+            already_visited_classes.insert(copied_def);
+            current_scope = std::move(saved_current_scope);
+        }
+
+        return copied_def;
+    }
+
     template<class CtorArgTypes, class InstantiationMap>
     std::pair<scope::class_scope, scope::func_scope/* ctor */>
     instantiate_class_template(
-            ast::node::class_definition const& class_template_def,
+            ast::node::class_definition const& template_def,
              scope::func_scope const& ctor_scope,
              CtorArgTypes const& arg_types,
              InstantiationMap const& template_instantiation
          )
      {
-        assert(class_template_def->is_template());
-        auto instantiated_def = prepare_class_definition_from_template(class_template_def, template_instantiation);
+        assert(template_def->is_template());
+        auto instantiated_def = prepare_class_definition_from_template(template_def, template_instantiation);
         assert(!instantiated_def->scope.expired());
         auto const instantiated_scope = instantiated_def->scope.lock();
-
-        substitute_class_template_params(instantiated_def, instantiated_scope, template_instantiation);
-
-        {
-            auto saved_current_scope = current_scope;
-            current_scope = enclosing_scope_of(instantiated_scope);
-            ast::walk_topdown(instantiated_def, *this);
-            already_visited_classes.insert(instantiated_def);
-            current_scope = std::move(saved_current_scope);
-        }
 
         // TODO:
         // Instantiate constructor again for the instantiated class
 
-        return {instantiated_def->scope.lock(), ctor_scope};
+        return {instantiated_scope, ctor_scope};
      }
 
     void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
