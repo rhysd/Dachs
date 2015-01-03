@@ -1290,7 +1290,6 @@ public:
             auto saved_current_scope = current_scope;
             current_scope = enclosing_scope_of(copied_scope);
             ast::walk_topdown(copied_def, *this);
-            already_visited_classes.insert(copied_def);
             current_scope = std::move(saved_current_scope);
         }
 
@@ -1311,10 +1310,17 @@ public:
         assert(!instantiated_def->scope.expired());
         auto const instantiated_scope = instantiated_def->scope.lock();
 
-        // TODO:
-        // Instantiate constructor again for the instantiated class
+        // Note:
+        // Re-resolve contructor for the instantiated class.
+        auto const maybe_ctor_from_instantiated = instantiated_scope->resolve_ctor(arg_types);
+        assert(maybe_ctor_from_instantiated);
+        auto ctor_from_instantiated = *maybe_ctor_from_instantiated;
 
-        return {instantiated_scope, ctor_scope};
+        if (ctor_from_instantiated->is_template()) {
+            std::tie(std::ignore, ctor_from_instantiated) = instantiate_function_from_template(ctor_from_instantiated->get_ast_node(), arg_types);
+        }
+
+        return {instantiated_scope, ctor_from_instantiated};
      }
 
     void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
