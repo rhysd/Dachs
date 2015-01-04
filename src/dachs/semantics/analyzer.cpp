@@ -19,7 +19,6 @@
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/ast_walker.hpp"
 #include "dachs/ast/ast_copier.hpp"
-#include "dachs/semantics/analyzer_common.hpp"
 #include "dachs/semantics/analyzer.hpp"
 #include "dachs/semantics/forward_analyzer_impl.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -45,6 +44,7 @@ using helper::variant::has;
 using helper::variant::apply_lambda;
 using boost::adaptors::transformed;
 using boost::adaptors::filtered;
+using type::type_of;
 
 struct return_types_gatherer {
     std::vector<type::type> result_types;
@@ -260,16 +260,13 @@ class symbol_analyzer {
         return std::make_pair(instantiated_func_def, instantiated_func_scope);
     }
 
-    type::type calculate_from_type_nodes(ast::node::any_type const& n) noexcept
+    type::type from_type_node(ast::node::any_type const& n) noexcept
     {
-        auto const ret = boost::apply_visitor(
-                type_calculator_from_type_nodes{current_scope},
-                n
-            );
-        if (!ret) {
+        auto const type = type::from_ast(n, current_scope);
+        if (!type) {
             apply_lambda([this](auto const& t){ semantic_error(t, "  Invalid type '" + t->to_string() + '\''); }, n);
         }
-        return ret;
+        return type;
     }
 
     std::string make_func_signature(std::string const& name, std::vector<type::type> const& arg_types) const
@@ -454,7 +451,7 @@ public:
                 // Set type if the type of variable is specified
                 if (decl->maybe_type) {
                     new_var->type
-                        = calculate_from_type_nodes(*decl->maybe_type);
+                        = from_type_node(*decl->maybe_type);
                 }
 
                 if (!scope->define_variable(new_var)) {
@@ -1032,7 +1029,7 @@ public:
     template<class Walker>
     void visit(ast::node::typed_expr const& typed, Walker const& w)
     {
-        auto const specified_type = calculate_from_type_nodes(typed->specified_type);
+        auto const specified_type = from_type_node(typed->specified_type);
 
         if (auto const maybe_child_array = get_as<ast::node::array_literal>(typed->child_expr)) {
             auto const& child_array = *maybe_child_array;
@@ -1062,7 +1059,7 @@ public:
     void visit(ast::node::cast_expr const& casted, Walker const& w)
     {
         w();
-        casted->type = calculate_from_type_nodes(casted->casted_type);
+        casted->type = from_type_node(casted->casted_type);
 
         // TODO:
         // Find cast function and get its result type
@@ -1100,26 +1097,6 @@ public:
         if (error) {
             semantic_error(ufcs, *error);
         }
-    }
-
-    template<class ClassDef, class CtorArgTypes, class InstantiationMap>
-    scope::class_scope instantiate_class_template_construct(
-            ClassDef const& class_template_def,
-            scope::func_scope const& ctor_scope,
-            CtorArgTypes const& arg_types,
-            InstantiationMap const& template_instantiation
-        )
-    {
-        assert(class_template_def->is_template());
-        auto const template_scope = class_template_def->scope.lock();
-
-        // TODO:
-        // Copy AST and replace the instantiated types with template types by instantiation map
-
-        // TODO:
-        // register the class as instantiated class of the template
-
-        return class_template_def->scope.lock();
     }
 
     auto generate_instantiation_map(scope::class_scope const& scope) const
@@ -1300,7 +1277,6 @@ public:
     std::pair<scope::class_scope, scope::func_scope/* ctor */>
     instantiate_class_template(
             ast::node::class_definition const& template_def,
-             scope::func_scope const& ctor_scope,
              CtorArgTypes const& arg_types,
              InstantiationMap const& template_instantiation
          )
@@ -1368,7 +1344,7 @@ public:
         auto const& template_instantiation = *instantiation_success;
 
         if (scope->is_template()) {
-            std::tie(scope, ctor) = instantiate_class_template(scope->get_ast_node(), ctor, arg_types, template_instantiation);
+            std::tie(scope, ctor) = instantiate_class_template(scope->get_ast_node(), arg_types, template_instantiation);
         }
 
         obj->constructed_class_scope = scope;
@@ -1378,7 +1354,7 @@ public:
     template<class Walker>
     void visit(ast::node::object_construct const& obj, Walker const& w)
     {
-        obj->type = calculate_from_type_nodes(obj->obj_type);
+        obj->type = from_type_node(obj->obj_type);
         if (!obj->type) {
             semantic_error(obj, "  Invalid type for object construction");
             return;

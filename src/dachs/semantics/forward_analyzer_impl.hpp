@@ -9,7 +9,6 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
 
-#include "dachs/semantics/analyzer_common.hpp"
 #include "dachs/semantics/forward_analyzer.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/type.hpp"
@@ -178,7 +177,7 @@ public:
         // Note:
         // Get return type for checking duplication of overloaded function
         if (func_def->return_type) {
-            auto ret_type = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, *func_def->return_type);
+            auto const ret_type = type::from_ast(*func_def->return_type, current_scope);
             func_def->ret_type = ret_type;
             new_func->ret_type = ret_type;
         }
@@ -209,9 +208,7 @@ public:
             result_type operator()(scope::class_scope const& s) const
             {
                 // TODO:
-                // Add a member variable of the member function
-                // TODO:
-                // Add a member function variable
+                // Add a instance variable of the member function
                 s->define_member_func(new_func);
             }
 
@@ -248,11 +245,7 @@ public:
         if (param->param_type) {
             // XXX:
             // type_calculator requires class information which should be analyzed forward.
-            param->type =
-                boost::apply_visitor(
-                    type_calculator_from_type_nodes{current_scope},
-                    *param->param_type
-                );
+            param->type = type::from_ast(*param->param_type, current_scope);
             if (!param->type) {
                 semantic_error(
                         param,
@@ -287,7 +280,7 @@ public:
         // Set type if the type of variable is specified
         if (decl->maybe_type) {
             new_var->type
-                = boost::apply_visitor(type_calculator_from_type_nodes{current_scope}, *decl->maybe_type);
+                = type::from_ast(*decl->maybe_type, current_scope);
         } else {
             new_var->type
                 = type::make<type::template_type>(decl);

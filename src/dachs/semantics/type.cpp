@@ -7,10 +7,13 @@
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/fatal.hpp"
+#include "dachs/helper/variant.hpp"
 
 namespace dachs {
 namespace type {
 namespace detail {
+
+using helper::variant::apply_lambda;
 
 static std::vector<builtin_type> const builtin_types
     = {
@@ -22,6 +25,101 @@ static std::vector<builtin_type> const builtin_types
         make<builtin_type>("string"),
         make<builtin_type>("symbol"),
     };
+
+class node_to_type_translator
+    : public boost::static_visitor<any_type> {
+
+    scope::any_scope const& current_scope;
+
+    template<class T>
+    any_type apply_recursively(T const& t) const noexcept
+    {
+        return boost::apply_visitor(*this, t);
+    }
+
+public:
+
+    explicit node_to_type_translator(scope::any_scope const& c)
+        : current_scope(c)
+    {}
+
+    any_type operator()(ast::node::primary_type const& t) const noexcept
+    {
+        auto const builtin = get_builtin_type(t->template_name.c_str());
+        if (builtin) {
+            return *builtin;
+        } else {
+            // TODO:
+            // Template types must be considered.
+            auto const c = apply_lambda([&t](auto const& s){ return s->resolve_class(t->template_name); }, current_scope);
+            if (!c) {
+                return {};
+            }
+
+            return make<class_type>(*c);
+        }
+    }
+
+    any_type operator()(ast::node::array_type const& t) const noexcept
+    {
+        return make<array_type>(
+                    apply_recursively(t->elem_type)
+                );
+    }
+
+    any_type operator()(ast::node::tuple_type const& t) const noexcept
+    {
+        auto const ret = make<tuple_type>();
+        ret->element_types.reserve(t->arg_types.size());
+        for (auto const& arg : t->arg_types) {
+            ret->element_types.push_back(apply_recursively(arg));
+        }
+        return ret;
+    }
+
+    any_type operator()(ast::node::dict_type const& t) const noexcept
+    {
+        return make<dict_type>(
+                    apply_recursively(t->key_type),
+                    apply_recursively(t->value_type)
+                );
+    }
+
+    any_type operator()(ast::node::qualified_type const& t) const noexcept
+    {
+        qualifier new_qualifier;
+        switch (t->qualifier) {
+        case ast::symbol::qualifier::maybe:
+            new_qualifier = qualifier::maybe;
+            break;
+        default:
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        }
+
+        return make<qualified_type>(
+                    new_qualifier, apply_recursively(t->type)
+               );
+    }
+
+    any_type operator()(ast::node::func_type const& t) const noexcept
+    {
+        std::vector<any_type> param_types;
+        param_types.reserve(t->arg_types.size());
+        for (auto const& a : t->arg_types) {
+            param_types.push_back(apply_recursively(a));
+        }
+
+        if (t->ret_type) {
+            return {make<func_type>(
+                    std::move(param_types),
+                    apply_recursively(*(t->ret_type))
+                )};
+        } else {
+            return {make<func_type>(std::move(param_types), get_unit_type(), ast::symbol::func_kind::proc)};
+        }
+    }
+};
+
 
 } // namespace detail
 
@@ -95,6 +193,10 @@ bool any_type::is_default_constructible() const noexcept
     return apply_lambda([](auto const& t){ return t ? t->is_default_constructible() : false; });
 }
 
+any_type from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept
+{
+    return boost::apply_visitor(detail::node_to_type_translator{current}, t);
+}
 
 } // namespace type
 

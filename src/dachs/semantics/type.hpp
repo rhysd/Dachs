@@ -739,6 +739,8 @@ inline any_type type_of(Variant const& v) noexcept
     return apply_lambda([](auto const& n){ return n->type; }, v);
 }
 
+any_type from_ast(ast::node::any_type const&, scope::any_scope const& current) noexcept;
+
 } // namespace type
 
 } // namespace dachs
