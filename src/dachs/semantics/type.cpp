@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cstddef>
 
 #include <boost/optional.hpp>
 #include <boost/variant/static_visitor.hpp>
@@ -8,12 +9,14 @@
 #include "dachs/semantics/scope.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
+#include "dachs/helper/make.hpp"
 
 namespace dachs {
 namespace type {
 namespace detail {
 
 using helper::variant::apply_lambda;
+using std::size_t;
 
 static std::vector<builtin_type> const builtin_types
     = {
@@ -120,6 +123,145 @@ public:
     }
 };
 
+class type_to_node_translator
+    : public boost::static_visitor<ast::node::any_type> {
+
+    ast::location_type location;
+
+    template<class Ptr, class... Args>
+    Ptr make(Args &&... args) const
+    {
+        auto const node = helper::make<Ptr>(std::forward<Args>(args)...);
+        set_location(node);
+        return node;
+    }
+
+    template<class Node>
+    void set_location(Node &n) const noexcept
+    {
+        n->set_source_location(location);
+    }
+
+    template<class T>
+    result_type apply_recursively(T const& t) const noexcept
+    {
+        return boost::apply_visitor(*this, t);
+    }
+
+    auto prepare_vector(size_t const size) const
+    {
+        std::vector<result_type> v;
+        v.reserve(size);
+        return v;
+    }
+
+    template<class... Args>
+    auto prepare_vector(std::vector<Args...> const& hint) const
+    {
+        return prepare_vector(hint.size());
+    }
+
+public:
+
+    explicit type_to_node_translator(ast::location_type && l) noexcept
+        : location(std::move(l))
+    {}
+
+    result_type operator()(builtin_type const& t) const
+    {
+        return make<ast::node::primary_type>(t->name);
+    }
+
+    result_type operator()(class_type const& t) const
+    {
+        assert(!t->ref.expired());
+        auto const scope = t->ref.lock();
+        auto instantiated = prepare_vector(scope->instance_var_symbols);
+        for (auto const& i : scope->instance_var_symbols) {
+            instantiated.push_back(apply_recursively(i->type));
+        }
+
+        return make<ast::node::primary_type>(scope->name, instantiated);
+    }
+
+    result_type operator()(tuple_type const& t) const
+    {
+        auto elem_type_nodes = prepare_vector(t->element_types);
+        for (auto const& e : t->element_types) {
+            elem_type_nodes.push_back(apply_recursively(e));
+        }
+
+        return make<ast::node::tuple_type>(elem_type_nodes);
+    }
+
+    result_type operator()(func_type const& t) const
+    {
+        auto param_type_nodes = prepare_vector(t->param_types);
+        for (auto const& p : t->param_types) {
+            param_type_nodes.push_back(apply_recursively(p));
+        }
+
+        return make<ast::node::func_type>(param_type_nodes, apply_recursively(t->return_type));
+    }
+
+    result_type operator()(generic_func_type const& t) const
+    {
+        assert(t->ref);
+        auto const scope = t->ref->lock();
+        auto param_type_nodes = prepare_vector(scope->params);
+        for (auto const& p : scope->params) {
+            param_type_nodes.push_back(apply_recursively(p->type));
+        }
+
+        if (scope->ret_type) {
+            return make<ast::node::func_type>(param_type_nodes, apply_recursively(*scope->ret_type));
+        } else {
+            return make<ast::node::func_type>(param_type_nodes);
+        }
+    }
+
+    result_type operator()(dict_type const& t) const
+    {
+        return make<ast::node::dict_type>(
+                    apply_recursively(t->key_type),
+                    apply_recursively(t->value_type)
+                );
+    }
+
+    result_type operator()(array_type const& t) const
+    {
+        return make<ast::node::array_type>(apply_recursively(t->element_type));
+    }
+
+    result_type operator()(range_type const& t) const
+    {
+        // TODO
+        std::vector<result_type> elem_type_node = {apply_recursively(t->element_type)};
+        return make<ast::node::primary_type>("range", elem_type_node);
+    }
+
+    result_type operator()(qualified_type const& t) const
+    {
+        switch (t->qualifier) {
+        case qualifier::maybe:
+            return make<ast::node::qualified_type>(ast::symbol::qualifier::maybe, apply_recursively(t->contained_type));
+        default:
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        }
+    }
+
+    result_type operator()(template_type const&) const
+    {
+        assert(false && "AST node for template type doesn't exist");
+        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+    }
+
+    template<class Temp>
+    result_type operator()(Temp const&) const noexcept
+    {
+        return {};
+    }
+};
 
 } // namespace detail
 
@@ -196,6 +338,11 @@ bool any_type::is_default_constructible() const noexcept
 any_type from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept
 {
     return boost::apply_visitor(detail::node_to_type_translator{current}, t);
+}
+
+ast::node::any_type to_ast(any_type const& t, ast::location_type && location) noexcept
+{
+    return boost::apply_visitor(detail::type_to_node_translator{std::move(location)}, t);
 }
 
 } // namespace type

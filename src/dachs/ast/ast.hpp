@@ -555,6 +555,10 @@ struct primary_type final : public base {
         : base(), template_name(tmpl), instantiated_templates(instantiated)
     {}
 
+    primary_type(std::string const& tmpl) noexcept
+        : base(), template_name(tmpl), instantiated_templates()
+    {}
+
     bool is_template() const noexcept
     {
         return !instantiated_templates.empty();

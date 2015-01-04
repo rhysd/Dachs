@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <type_traits>
+#include <tuple>
 #include <cassert>
 
 #include <boost/variant/variant.hpp>
@@ -10,6 +11,18 @@
 
 namespace dachs {
 namespace ast {
+
+namespace location {
+
+enum location_index {
+    line = 0,
+    col = 1,
+    length = 2,
+};
+
+} // namespace
+
+using location_type = std::tuple<std::size_t, std::size_t, std::size_t>;
 
 namespace symbol {
 
@@ -43,12 +56,24 @@ struct base {
         : id(generate_id())
     {}
 
+    void set_source_location(location_type const& l) noexcept
+    {
+        line = std::get<location::line>(l);
+        col = std::get<location::col>(l);
+        length = std::get<location::length>(l);
+    }
+
     template<class Node>
     void set_source_location(Node const& n) noexcept
     {
         line = n.line;
         col = n.col;
         length = n.length;
+    }
+
+    auto source_location() const noexcept
+    {
+        return std::make_tuple(line, col, length);
     }
 
     virtual ~base() noexcept
