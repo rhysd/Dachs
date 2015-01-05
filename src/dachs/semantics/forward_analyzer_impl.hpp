@@ -2,6 +2,7 @@
 #define      DACHS_SEMANTICS_FOWARD_ANALYZER_IMPL_HPP_INCLUDED
 
 #include <iterator>
+#include <algorithm>
 #include <cstddef>
 #include <cassert>
 
@@ -142,6 +143,28 @@ public:
         // is specified at parsing parameter
         w(inu->classes, inu->functions, inu->global_constants);
 
+        // Note:
+        // Add receiver object to member functions
+        for (auto const& class_def : inu->classes) {
+            // Note:
+            // Move all non-ctor member functions to global scope
+            for (auto const& member_func : class_def->member_funcs) {
+                if (!member_func->is_ctor()) {
+                    inu->functions.push_back(member_func);
+                }
+            }
+
+            auto &fs = class_def->member_funcs;
+            fs.erase(
+                    std::remove_if(
+                        std::begin(fs),
+                        std::end(fs),
+                        [](auto const& def){ return !def->is_ctor(); }
+                    ),
+                    std::end(fs)
+                );
+        }
+
         auto const global = get_as<scope::global_scope>(current_scope);
         failed += check_functions_duplication((*global)->functions, "global scope");
         failed += check_classes_duplication(inu->classes);
@@ -212,7 +235,22 @@ public:
             {
                 // TODO:
                 // Add a instance variable of the member function
-                s->define_member_func(new_func);
+
+                if (func_def->is_ctor()) {
+                    s->define_member_func(new_func);
+                } else {
+                    // Note:
+                    // Non-ctor member function is defined the same as free functions.
+                    auto const global_scope
+                        = get_as<scope::global_scope>(
+                                apply_lambda(
+                                    [](auto const& ws){ return ws.lock(); },
+                                    s->enclosing_scope
+                                )
+                            );
+                    assert(global_scope);
+                    (*this)(*global_scope);
+                }
             }
 
             [[noreturn]]
@@ -438,12 +476,14 @@ public:
         class_def->scope = new_class;
         new_class->type = type::make<type::class_type>(new_class);
 
-        auto maybe_global_scope = get_as<scope::global_scope>(current_scope);
-        if (!maybe_global_scope) {
-            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-        }
+        auto const maybe_global_scope = get_as<scope::global_scope>(current_scope);
+        assert(maybe_global_scope);
+        auto const& global = *maybe_global_scope;
 
-        (*maybe_global_scope)->define_class(new_class);
+        global->define_class(new_class);
+
+        // TODO:
+        // Add new parameter AST to non-ctor member functions
 
         introduce_scope_and_walk(std::move(new_class), w);
 
@@ -467,7 +507,7 @@ public:
         // Note:
         // Do not check the duplication of the variable because it is
         // checked by class duplication check.
-        (*maybe_global_scope)->force_define_constant(new_class_var);
+        global->force_define_constant(new_class_var);
     }
 
     template<class T, class Walker>
