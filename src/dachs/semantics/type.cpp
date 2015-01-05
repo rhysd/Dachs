@@ -255,12 +255,6 @@ public:
         assert(false && "AST node for template type doesn't exist");
         DACHS_RAISE_INTERNAL_COMPILATION_ERROR
     }
-
-    template<class Temp>
-    result_type operator()(Temp const&) const noexcept
-    {
-        return {};
-    }
 };
 
 } // namespace detail
@@ -333,6 +327,18 @@ bool any_type::operator==(any_type const& rhs) const noexcept
 bool any_type::is_default_constructible() const noexcept
 {
     return apply_lambda([](auto const& t){ return t ? t->is_default_constructible() : false; });
+}
+
+bool any_type::is_class_template() const noexcept
+{
+    auto const t = helper::variant::get_as<class_type>(value);
+    if (!t) {
+        return false;
+    }
+
+    auto const& c = *t;
+    assert(!c->ref.expired());
+    return c->ref.lock()->is_template();
 }
 
 any_type from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept

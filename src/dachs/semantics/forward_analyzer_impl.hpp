@@ -137,7 +137,10 @@ public:
     template<class Walker>
     void visit(ast::node::inu const& inu, Walker const& w)
     {
-        w();
+        // Note:
+        // Visit classes at first because class definitions are needed class type
+        // is specified at parsing parameter
+        w(inu->classes, inu->functions, inu->global_constants);
 
         auto const global = get_as<scope::global_scope>(current_scope);
         failed += check_functions_duplication((*global)->functions, "global scope");

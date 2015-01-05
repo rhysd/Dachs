@@ -191,6 +191,8 @@ public:
         return helper::variant::has<template_type>(value);
     }
 
+    bool is_class_template() const noexcept;
+
     bool is_builtin() const noexcept
     {
         return helper::variant::has<builtin_type>(value);

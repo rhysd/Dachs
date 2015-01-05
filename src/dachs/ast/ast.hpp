@@ -559,14 +559,9 @@ struct primary_type final : public base {
         : base(), template_name(tmpl), instantiated_templates()
     {}
 
-    bool is_template() const noexcept
-    {
-        return !instantiated_templates.empty();
-    }
-
     std::string to_string() const noexcept override
     {
-        return "PRIMARY_TYPE: " + template_name + " (" + (is_template() ? "template)" : "not template)");
+        return "PRIMARY_TYPE: " + template_name;
     }
 };
 

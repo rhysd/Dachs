@@ -45,14 +45,58 @@ std::size_t get_overloaded_function_score(FuncScope const& func, ArgTypes const&
             {
                 assert(arg_type);
                 if (type::is_a<type::template_type>(param->type)) {
+                    // Note:
                     // Function parameter is template.  It matches any types.
                     return 1u;
                 }
 
                 assert(param->type);
 
+                if (param->type.is_class_template() && type::is_a<type::class_type>(arg_type)) {
+                    auto const lhs_class = *type::get<type::class_type>(param->type);
+                    auto const rhs_class = *type::get<type::class_type>(arg_type);
+                    if (lhs_class->name == rhs_class->name) {
+                        // Note:
+                        // When the lhs parameter is class template and the rhs argument is
+                        // class which is instantiated from the same class template, they match
+                        // more strongly than simple template match and more weakly than the
+                        // perfect match.
+                        //   e.g.
+                        //      class Foo
+                        //          a
+                        //      end
+                        //
+                        //      func foo(a : Foo)
+                        //      end
+                        //
+                        //      func main
+                        //          foo(new Foo{42})  # Calls foo(Foo(int))
+                        //      end
+
+                        // Note:
+                        // This matching is used in a receiver of member function
+                        //
+                        //   e.g.
+                        //      class Foo
+                        //          a
+                        //
+                        //          func foo
+                        //          end
+                        //      end
+                        //
+                        //  The member function foo() is defined actually like below
+                        //
+                        //      func foo(self : Foo)
+                        //      end
+                        //
+                        //  Actually '(new Foo{42}).foo()' means calling foo(Foo(int)) by UFCS
+
+                        return 2u;
+                    }
+                }
+
                 if (param->type == arg_type) {
-                    return 2u;
+                    return 3u;
                 } else {
                     return 0u;
                 }
