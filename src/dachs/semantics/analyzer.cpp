@@ -211,7 +211,7 @@ class symbol_analyzer {
             std::vector<type::type> const& arg_types
         )
     {
-        assert(func_template_def->is_template());
+        assert(func_template_def->scope.lock()->is_template());
 
         auto instantiated_func_def = ast::copy_ast(func_template_def);
         auto const enclosing_scope
@@ -230,8 +230,9 @@ class symbol_analyzer {
                 [](auto &def_param, auto const& arg, auto &scope_param)
                 {
                     if (def_param->type.is_template()) {
-                        def_param->type = arg;
-                        scope_param->type = arg;
+                        def_param->type = scope_param->type = arg;
+                    } else if (def_param->type.is_class_template()) {
+                        def_param->type = scope_param->type = arg;
                     } else if (def_param->type != arg) {
                         // Note:
                         // Never reaches here because type mismatch is already detected in overload resolution
@@ -252,7 +253,18 @@ class symbol_analyzer {
             current_scope = std::move(saved_current_scope);
         }
 
-        assert(!instantiated_func_def->is_template());
+        // Note:
+        // Here, instantiated_func_scope->is_template() may return true because partially instantiating
+        // constructor is required to determine what class is instantiated from a class template, at getting
+        // the information for instantiate class template from constructor.
+        //  e.g.
+        //      class Foo; a; init(@a); end; end
+        //      func main; new Foo{42}; end
+        //
+        //  In above case, function 'dachs.init(Foo, int)' is instantiated at first to determine the
+        //  instantiated class 'Foo(int)'. The function is a template because the first receiver
+        //  parameter's type is class template.
+        assert((!arg_types.empty() && arg_types[0].is_class_template()) || !instantiated_func_scope->is_template());
 
         // Add instantiated function to function template node in AST
         func_template_def->instantiated.push_back(instantiated_func_def);
@@ -1114,7 +1126,6 @@ public:
     boost::optional<Map> check_template_instantiation_with_ctor(Map &&map, scope::func_scope const& ctor, ast::node::function_definition const& ctor_def)
     {
         assert(ctor->name == "dachs.init");
-        assert(!ctor_def->is_template());
 
         auto const check_instance_var_type
             = [&, this](auto const& var_node, auto const& var_sym)
@@ -1125,7 +1136,7 @@ public:
 
                 if (!var_type) {
                     var_type = var_sym->type;
-                } else if (var_type != var_sym->type){
+                } else if (var_type != var_sym->type) {
                     semantic_error(
                             var_node, boost::format(
                                 "  Type of instance variable '%1%' mismatches.\n"
@@ -1277,7 +1288,7 @@ public:
     std::pair<scope::class_scope, scope::func_scope/* ctor */>
     instantiate_class_template(
             ast::node::class_definition const& template_def,
-             CtorArgTypes const& arg_types,
+             CtorArgTypes && arg_types,
              InstantiationMap const& template_instantiation
          )
      {
@@ -1287,8 +1298,12 @@ public:
         auto const instantiated_scope = instantiated_def->scope.lock();
 
         // Note:
+        // replace type of receiver with instantiated class
+        arg_types[0] = instantiated_scope->type;
+
+        // Note:
         // Re-resolve contructor for the instantiated class.
-        auto const maybe_ctor_from_instantiated = instantiated_scope->resolve_ctor(arg_types);
+        auto const maybe_ctor_from_instantiated = instantiated_scope->resolve_func("dachs.init", arg_types);
         assert(maybe_ctor_from_instantiated);
         auto ctor_from_instantiated = *maybe_ctor_from_instantiated;
 
@@ -1301,13 +1316,16 @@ public:
 
     void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
     {
-        std::vector<type::type> arg_types;
+        std::vector<type::type> arg_types = {type};
         arg_types.reserve(obj->args.size()+1);
-        boost::transform(obj->args, std::back_inserter(arg_types), [](auto const& a){ return type_of(a); });
-        for (auto const& t : arg_types) {
+
+        for (auto const& a : obj->args) {
+            auto const t = type_of(a);
             if (!t) {
                 return;
             }
+
+            arg_types.push_back(t);
         }
 
         auto maybe_class_scope = apply_lambda([&](auto const& s){ return s->resolve_class(type->name); }, current_scope);
@@ -1318,11 +1336,8 @@ public:
         }
 
         auto scope = *maybe_class_scope; // Copy is intended.
-        if (scope->is_template()) {
-            // Copy class definition AST
-        }
 
-        auto const maybe_ctor = scope->resolve_ctor(arg_types);
+        auto const maybe_ctor = scope->resolve_func("dachs.init", arg_types);
         if (!maybe_ctor) {
             semantic_error(obj,"  No matching constructor to construct class '" + scope->to_string() + "'");
             return;
@@ -1331,8 +1346,11 @@ public:
         auto ctor = *maybe_ctor;
         auto ctor_def = ctor->get_ast_node();
 
-        if (ctor_def->is_template()) {
+        if (ctor->is_template()) {
             std::tie(ctor_def, ctor) = instantiate_function_from_template(ctor_def, arg_types);
+            // Note:
+            // The result of above instantiation will be function template.
+            // See comment in instantiate_function_from_template().
         }
 
         auto const instantiation_success = check_template_instantiation_with_ctor(generate_instantiation_map(scope), ctor, ctor_def);
@@ -1344,7 +1362,7 @@ public:
         auto const& template_instantiation = *instantiation_success;
 
         if (scope->is_template()) {
-            std::tie(scope, ctor) = instantiate_class_template(scope->get_ast_node(), arg_types, template_instantiation);
+            std::tie(scope, ctor) = instantiate_class_template(scope->get_ast_node(), std::move(arg_types), template_instantiation);
         }
 
         obj->constructed_class_scope = scope;

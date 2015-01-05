@@ -322,14 +322,7 @@ struct class_type final : public named_type {
 
     explicit class_type(scope::class_scope const& s) noexcept;
 
-    std::string to_string() const noexcept override
-    {
-        if (ref.expired()) {
-            return "<class:UNKNOWN>";
-        } else {
-            return "<class:" + name + '>';
-        }
-    }
+    std::string to_string() const noexcept override;
 
     bool operator==(class_type const& rhs) const noexcept
     {

@@ -139,30 +139,30 @@ public:
     void visit(ast::node::inu const& inu, Walker const& w)
     {
         // Note:
+        // Add receiver parameter to member functions' parameters here because this operation makes side effect to AST
+        // and it causes a problem when re-visiting class_definition to instantiate class template
+        // if this operation is done at visiting class_definition.
+        for (auto const& c : inu->classes) {
+            for (auto const& m : c->member_funcs) {
+                m->params.insert(std::begin(m->params), generate_receiver_node(c->name, *m));
+            }
+        }
+
+        // Note:
         // Visit classes at first because class definitions are needed class type
         // is specified at parsing parameter
         w(inu->classes, inu->functions, inu->global_constants);
 
         // Note:
-        // Add receiver object to member functions
-        for (auto const& class_def : inu->classes) {
-            // Note:
-            // Move all non-ctor member functions to global scope
-            for (auto const& member_func : class_def->member_funcs) {
-                if (!member_func->is_ctor()) {
-                    inu->functions.push_back(member_func);
-                }
-            }
-
-            auto &fs = class_def->member_funcs;
-            fs.erase(
-                    std::remove_if(
-                        std::begin(fs),
-                        std::end(fs),
-                        [](auto const& def){ return !def->is_ctor(); }
-                    ),
-                    std::end(fs)
+        // Move all member functions to global.
+        // (their function scopes are already defined in global scope at visiting their function_definition)
+        for (auto const& c : inu->classes) {
+            std::move(
+                    std::begin(c->member_funcs),
+                    std::end(c->member_funcs),
+                    std::back_inserter(inu->functions)
                 );
+            c->member_funcs.clear();
         }
 
         auto const global = get_as<scope::global_scope>(current_scope);
@@ -236,21 +236,14 @@ public:
                 // TODO:
                 // Add a instance variable of the member function
 
-                if (func_def->is_ctor()) {
-                    s->define_member_func(new_func);
-                } else {
-                    // Note:
-                    // Non-ctor member function is defined the same as free functions.
-                    auto const global_scope
-                        = get_as<scope::global_scope>(
-                                apply_lambda(
-                                    [](auto const& ws){ return ws.lock(); },
-                                    s->enclosing_scope
-                                )
-                            );
-                    assert(global_scope);
-                    (*this)(*global_scope);
-                }
+                // Note:
+                // All member functions are defined in global scope to resolve them by overload resolution.
+                auto const enclosing_scope
+                    = apply_lambda(
+                            [](auto const& ws) -> scope::any_scope { return ws.lock(); },
+                            s->enclosing_scope
+                        );
+                boost::apply_visitor(*this, enclosing_scope);
             }
 
             [[noreturn]]
@@ -468,6 +461,26 @@ public:
         return default_ctor;
     }
 
+    template<class String, class Location>
+    ast::node::parameter generate_receiver_node(String const& class_name, Location const& location) const noexcept
+    {
+        auto const receiver_type_node = helper::make<ast::node::primary_type>(class_name);
+        receiver_type_node->set_source_location(location);
+
+        auto const receiver_node
+            = helper::make<ast::node::parameter>(
+                    false/* is_var */,
+                    "self",
+                    ast::node::any_type{receiver_type_node}
+                );
+        receiver_node->set_source_location(location);
+
+        auto const receiver_sym = symbol::make<symbol::var_symbol>(receiver_node, receiver_node->name, !receiver_node->is_var);
+
+        receiver_node->param_type = receiver_type_node;
+        return receiver_node;
+    }
+
     // TODO: class scopes and member function scopes
     template<class Walker>
     void visit(ast::node::class_definition const& class_def, Walker const& w)
@@ -482,9 +495,6 @@ public:
 
         global->define_class(new_class);
 
-        // TODO:
-        // Add new parameter AST to non-ctor member functions
-
         introduce_scope_and_walk(std::move(new_class), w);
 
         failed += check_functions_duplication(
@@ -492,11 +502,9 @@ public:
                     "class scope '" + class_def->name + "'"
                 );
 
-        // Note:
-        // Define default contructors.
-        if (!new_class->resolve_ctor({})) {
-            new_class->member_func_scopes.push_back(generate_default_ctor());
-        }
+        // TODO:
+        // If all member are default constructible and no constructor is defined,
+        // define default constructor implicitly with generate_default_ctor()
 
         check_init_statements_in_ctor(class_def);
 

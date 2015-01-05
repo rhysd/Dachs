@@ -407,6 +407,20 @@ class_type::class_type(scope::class_scope const& s) noexcept
     : named_type(s->name), ref(s)
 {}
 
+std::string class_type::to_string() const noexcept
+{
+    if (ref.expired()) {
+        return "<class:UNKNOWN>";
+    }
+
+    auto const scope = ref.lock();
+    if (scope->is_template()) {
+        return "<class template:" + name + ':' + helper::hex_string_of_ptr(scope.get()) + '>';
+    } else {
+        return "<class:" + name + ':' + helper::hex_string_of_ptr(scope.get()) + '>';
+    }
+}
+
 bool class_type::is_default_constructible() const noexcept
 {
     assert(!ref.expired());

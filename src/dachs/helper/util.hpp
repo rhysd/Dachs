@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <initializer_list>
 #include <unordered_map>
+#include <sstream>
 #include <boost/optional.hpp>
 #include <boost/range/algorithm/find.hpp>
 #include <boost/range/algorithm/find_if.hpp>
@@ -120,22 +121,30 @@ struct are_same<T, U, R...>
 {};
 
 template<class I>
-auto indices(I const i) noexcept
+inline auto indices(I const i) noexcept
 {
     return boost::irange<I>(0, i);
 }
 
 template<class I1, class I2>
-auto indices(I1 const i1, I2 const i2) noexcept
+inline auto indices(I1 const i1, I2 const i2) noexcept
 {
     assert(i1 <= i2);
     return boost::irange<I1>(i1, static_cast<I1>(i2));
 }
 
 template<class Key, class Value, class T>
-bool exists(std::unordered_map<Key, Value> const& m, T const& t) noexcept
+inline bool exists(std::unordered_map<Key, Value> const& m, T const& t) noexcept
 {
     return m.find(t) != std::end(m);
+}
+
+template<class T>
+inline std::string hex_string_of_ptr(T const* const t)
+{
+    std::stringstream s;
+    s << "0x" << std::hex << reinterpret_cast<std::uintptr_t>(t);
+    return s.str();
 }
 
 } // namespace helper

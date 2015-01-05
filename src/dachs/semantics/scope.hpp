@@ -9,6 +9,7 @@
 #include <boost/variant/variant.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/algorithm/cxx11/any_of.hpp>
 
 #include "dachs/warning.hpp"
 #include "dachs/semantics/scope_fwd.hpp"
@@ -33,21 +34,6 @@ using dachs::helper::make;
 namespace scope_node {
 
 using dachs::helper::variant::apply_lambda;
-
-namespace detail {
-
-template<class Symbols>
-bool includes_template(Symbols const& ss)
-{
-    for (auto const& s : ss) {
-        if (s->type.is_template()) {
-            return true;
-        }
-    }
-    return false;
-}
-
-} // namespace detail
 
 struct basic_scope {
     // Note:
@@ -271,7 +257,23 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
 
     bool is_template() const noexcept
     {
-        return detail::includes_template(params);
+        return boost::algorithm::any_of(
+                    params,
+                    [](auto const& p)
+                    {
+                        if (p->type.is_template()) {
+                            return true;
+                        }
+
+                        // Note:
+                        // If the type is class template, the function which has it is function template.
+                        if (auto const c = type::get<type::class_type>(p->type)) {
+                            return (*c)->ref.lock()->is_template();
+                        }
+
+                        return false;
+                    }
+                );
     }
 
     ast::node::function_definition get_ast_node() const noexcept;
@@ -353,7 +355,7 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
 
     bool is_template() const noexcept
     {
-        return detail::includes_template(instance_var_symbols);
+        return boost::algorithm::any_of(instance_var_symbols, [](auto const& s){ return s->type.is_template(); });
     }
 
     // TODO
