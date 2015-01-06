@@ -1386,6 +1386,7 @@ public:
 
         obj->constructed_class_scope = scope;
         obj->callee_ctor_scope = ctor;
+        obj->type = scope->type;
     }
 
     template<class Walker>
