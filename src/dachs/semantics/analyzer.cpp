@@ -208,14 +208,15 @@ class symbol_analyzer {
     std::pair<FuncDefNode, scope::func_scope>
     instantiate_function_from_template(
             FuncDefNode const& func_template_def,
+            scope::func_scope const& func_template_scope,
             std::vector<type::type> const& arg_types
         )
     {
-        assert(func_template_def->scope.lock()->is_template());
+        assert(func_template_scope->is_template());
 
         auto instantiated_func_def = ast::copy_ast(func_template_def);
         auto const enclosing_scope
-            = enclosing_scope_of(func_template_def->scope.lock());
+            = enclosing_scope_of(func_template_scope);
 
         // Note: No need to check functions duplication
         // Note: Type of parameters are analyzed here
@@ -955,7 +956,7 @@ public:
         auto func_def = func->get_ast_node();
 
         if (func->is_template()) {
-            std::tie(func_def, func) = instantiate_function_from_template(func_def, arg_types);
+            std::tie(func_def, func) = instantiate_function_from_template(func_def, func, arg_types);
             assert(!global->ast_root.expired());
         }
 
@@ -1308,7 +1309,7 @@ public:
         auto ctor_from_instantiated = *maybe_ctor_from_instantiated;
 
         if (ctor_from_instantiated->is_template()) {
-            std::tie(std::ignore, ctor_from_instantiated) = instantiate_function_from_template(ctor_from_instantiated->get_ast_node(), arg_types);
+            std::tie(std::ignore, ctor_from_instantiated) = instantiate_function_from_template(ctor_from_instantiated->get_ast_node(), ctor_from_instantiated, arg_types);
         }
 
         return {instantiated_scope, ctor_from_instantiated};
@@ -1346,8 +1347,11 @@ public:
         auto ctor = *maybe_ctor;
         auto ctor_def = ctor->get_ast_node();
 
-        if (ctor->is_template()) {
-            std::tie(ctor_def, ctor) = instantiate_function_from_template(ctor_def, arg_types);
+        // Note:
+        // Ignore if the parameter's type is class template or not because the class template is
+        // never resolved at this point. It will be resolved after the class is instantiated.
+        if (boost::algorithm::any_of(ctor->params, [](auto const& p){ return p->type.is_template(); })) {
+            std::tie(ctor_def, ctor) = instantiate_function_from_template(ctor_def, ctor, arg_types);
             // Note:
             // The result of above instantiation will be function template.
             // See comment in instantiate_function_from_template().
