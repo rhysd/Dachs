@@ -1083,9 +1083,29 @@ public:
     {
         w();
 
+        auto const child_type = type_of(ufcs->child);
+        if (!child_type) {
+            return;
+        }
+
+        if (auto const clazz = type::get<type::class_type>(child_type)) {
+            assert(!(*clazz)->ref.expired());
+            auto const scope = (*clazz)->ref.lock();
+
+            if (auto const instance_var
+                    = helper::find_if(
+                            scope->instance_var_symbols,
+                            [&ufcs](auto const& s){ return s->name == ufcs->member_name; }
+                        )
+            ) {
+                ufcs->type = (*instance_var)->type;
+                return;
+            }
+        }
+
         // Check data member 'ufcs->member_name' of 'ufcs->child'.
         // Now, built-in data member is only available.
-        auto const checked = check_member_var(ufcs);
+        auto const checked = check_member_var(ufcs, child_type);
         if (auto const error = get_as<std::string>(checked)) {
             semantic_error(ufcs, *error);
             return;
@@ -1101,11 +1121,6 @@ public:
         // Note:
         // Check function call
         // a.foo means foo(a)
-        auto const child_type = type::type_of(ufcs->child);
-        if (!child_type) {
-            return;
-        }
-
         auto const error = visit_invocation(ufcs, ufcs->member_name, std::vector<type::type>{{child_type}});
         if (error) {
             semantic_error(ufcs, *error);
