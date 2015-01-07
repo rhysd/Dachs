@@ -358,10 +358,11 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
         return boost::algorithm::any_of(instance_var_symbols, [](auto const& s){ return s->type.is_template(); });
     }
 
-    // TODO
-    maybe_func_t resolve_member_func(std::string const& name, std::vector<type::type> const& args) const;
+    maybe_func_t resolve_ctor(std::vector<type::type> const& arg_types) const
+    {
+        return resolve_func("dachs.init", arg_types);
+    }
 
-    maybe_func_t resolve_ctor(std::vector<type::type> const& arg_types) const;
     ast::node::class_definition get_ast_node() const noexcept;
 
     std::string to_string() const noexcept;

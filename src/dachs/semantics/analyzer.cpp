@@ -1319,7 +1319,7 @@ public:
 
         // Note:
         // Re-resolve contructor for the instantiated class.
-        auto const maybe_ctor_from_instantiated = instantiated_scope->resolve_func("dachs.init", arg_types);
+        auto const maybe_ctor_from_instantiated = instantiated_scope->resolve_ctor(arg_types);
         assert(maybe_ctor_from_instantiated);
         auto ctor_from_instantiated = *maybe_ctor_from_instantiated;
 
@@ -1353,7 +1353,7 @@ public:
 
         auto scope = *maybe_class_scope; // Copy is intended.
 
-        auto const maybe_ctor = scope->resolve_func("dachs.init", arg_types);
+        auto const maybe_ctor = scope->resolve_ctor(arg_types);
         if (!maybe_ctor) {
             semantic_error(obj,"  No matching constructor to construct class '" + scope->to_string() + "'");
             return;

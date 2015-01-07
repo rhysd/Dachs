@@ -203,15 +203,6 @@ std::string func_scope::to_string() const noexcept
     return ret;
 }
 
-class_scope::maybe_func_t class_scope::resolve_ctor(std::vector<type::type> const& arg_types) const
-{
-    return detail::get_overloaded_function(
-            member_func_scopes | filtered([](auto const& f){ return f->is_ctor(); }),
-            "dachs.init",
-            arg_types
-        );
-}
-
 ast::node::class_definition class_scope::get_ast_node() const noexcept
 {
     auto const maybe_func_def = ast::node::get_shared_as<ast::node::class_definition>(ast_node);
