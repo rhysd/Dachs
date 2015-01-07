@@ -335,6 +335,11 @@ struct var_ref final : public expression {
         return name == "_" && symbol.expired();
     }
 
+    bool is_instance_var() const noexcept
+    {
+        return !name.empty() && (name.front() == '@');
+    }
+
     std::string to_string() const noexcept override
     {
         return "VAR_REFERENCE: " + name;

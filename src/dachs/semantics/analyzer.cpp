@@ -1325,6 +1325,7 @@ public:
 
         if (ctor_from_instantiated->is_template()) {
             std::tie(std::ignore, ctor_from_instantiated) = instantiate_function_from_template(ctor_from_instantiated->get_ast_node(), ctor_from_instantiated, arg_types);
+            assert(!ctor_from_instantiated->is_template());
         }
 
         return {instantiated_scope, ctor_from_instantiated};

@@ -126,6 +126,22 @@ class forward_symbol_analyzer {
         return failed;
     }
 
+    template<class Location>
+    ast::node::var_ref generate_self_ref(Location const& location) const
+    {
+        auto const ref = helper::make<ast::node::var_ref>("self");
+        ref->set_source_location(location);
+        return ref;
+    }
+
+    ast::node::ufcs_invocation generate_self_member_access(ast::node::var_ref const& v) const
+    {
+        auto const self = generate_self_ref(*v);
+        auto const access = helper::make<ast::node::ufcs_invocation>(self, v->name.substr(1u));
+        access->set_source_location(*v);
+        return access;
+    }
+
 public:
 
     size_t failed;
@@ -516,6 +532,38 @@ public:
         // Do not check the duplication of the variable because it is
         // checked by class duplication check.
         global->force_define_constant(new_class_var);
+    }
+
+    template<class Walker>
+    void visit(ast::node::func_invocation const& invocation, Walker const& w)
+    {
+        // Note:
+        // Replace '@foo()' with 'self.foo()'
+        // This is necessary because replacing '@foo' with 'self.foo' makes
+        // (self.foo)() from @foo().  So, replacing '@foo()' with 'self.foo()'
+        // should be done before the replacement of '@foo'.
+        if (auto const v = get_as<ast::node::var_ref>(invocation->child)) {
+            auto const& var = *v;
+            if (var->is_instance_var()) {
+                var->name = var->name.substr(1u); // omit '@'
+                invocation->args.insert(std::begin(invocation->args), generate_self_ref(*invocation));
+            }
+        }
+
+        w();
+    }
+
+    template<class Walker>
+    void visit(ast::node::any_expr &expr, Walker const& w)
+    {
+        if (auto const v = get_as<ast::node::var_ref>(expr)) {
+            auto const& var = *v;
+            if (var->is_instance_var()) {
+                expr = generate_self_member_access(var);
+            }
+        }
+
+        w();
     }
 
     template<class T, class Walker>
