@@ -1819,6 +1819,12 @@ BOOST_AUTO_TEST_CASE(do_block)
             42.foo2(42) do blah end
 
             42.foo2 42 do blah end
+
+            # Edge case
+            a.b + 42
+            a.b(+42)
+            a.b - 42
+            a.b(-42)
         end
     )"));
 

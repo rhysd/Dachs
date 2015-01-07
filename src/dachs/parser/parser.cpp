@@ -447,16 +447,21 @@ public:
             ];
 
         // primary.name(...) [do-end]
-        // primary.name ... [do-end]
+        // primary.name ... do-end
+        // primary.name ...
         // primary.name [do-end]
         // primary[...]
         // primary(...)
         // primary ... do-end
         postfix_expr
             =
+                // Note:
+                // Third case doesn't permit using unary operator '+' and '-' in parameter because it is confusing if user intends to use binary operator '+' or '-'.
+                // (e.g. (a.b + 10) should not be treated as a.b(+10))
                 primary_expr[_val = _1] >> *(
                       (-qi::eol >> '.' >> -qi::eol >> var_ref >> '(' >> -(typed_expr % comma) >> trailing_comma >> ')' >> -do_block)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, as_vector(_2), _3)]
-                    | (-qi::eol >> '.' >> -qi::eol >> var_ref >> (typed_expr - "do") % comma >> -do_block)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2, _3)]
+                    | (-qi::eol >> '.' >> -qi::eol >> var_ref >> (typed_expr - "do") % comma >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2, _3)]
+                    | (-qi::eol >> '.' >> -qi::eol >> var_ref >> !(lit('+') | '-') >> (typed_expr - "do") % comma)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2)]
                     | (-qi::eol >> '.' >> -qi::eol >> (var_ref - "do") >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_2, _1, _val)]
                     | (-qi::eol >> '.' >> -qi::eol >> called_function_name)[_val = make_node_ptr<ast::node::ufcs_invocation>(_val, _1)]
                     | ('[' >> -qi::eol >> typed_expr >> -qi::eol >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]

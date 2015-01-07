@@ -25,7 +25,6 @@ static dachs::syntax::parser p;
         } while (false);
 
 BOOST_AUTO_TEST_SUITE(analyzer)
-BOOST_AUTO_TEST_SUITE(forward_analysis)
 
 BOOST_AUTO_TEST_CASE(symbol_duplication_ok)
 {
@@ -321,6 +320,21 @@ BOOST_AUTO_TEST_CASE(invocation_with_wrong_arguments)
     )");
 }
 
-BOOST_AUTO_TEST_SUITE_END()
+BOOST_AUTO_TEST_CASE(edge_case_in_UFCS_function_invocation)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo(r, a, b)
+        end
+
+        func main
+            a := [1, 2, 3]
+            a.size + 42u    # + is treated as binary operator
+            b := 42
+            b.foo +42 do
+            end
+        end
+    )");
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
