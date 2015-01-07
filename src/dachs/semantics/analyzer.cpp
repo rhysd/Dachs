@@ -358,7 +358,10 @@ public:
             return;
         }
 
-        if (func->is_template()) {
+        assert(!func->scope.expired());
+        auto scope = func->scope.lock();
+
+        if (scope->is_template()) {
             // XXX:
             // Visit only parameters if function template for overload resolution.
             // This is because type checking and symbol analysis are needed in
@@ -366,8 +369,6 @@ public:
             return;
         }
 
-        assert(!func->scope.expired());
-        auto scope = func->scope.lock();
         introduce_scope_and_walk(scope, w);
 
         // Deduce return type
@@ -1369,8 +1370,15 @@ public:
         if (boost::algorithm::any_of(ctor->params, [](auto const& p){ return p->type.is_template(); })) {
             std::tie(ctor_def, ctor) = instantiate_function_from_template(ctor_def, ctor, arg_types);
             // Note:
-            // The result of above instantiation will be function template.
+            // The result of above instantiation may be function template.
             // See comment in instantiate_function_from_template().
+            if (ctor->is_template()) {
+                // Note:
+                // If the receiver is class template, the body of ctor is not visited yet
+                // because the ctor is a template.  But initialize statements in the ctor
+                // is necessary to determine the class instantiation.  So visit it here.
+                ast::walk_topdown(ctor_def->body, *this);
+            }
         }
 
         auto const instantiation_success = check_template_instantiation_with_ctor(generate_instantiation_map(scope), ctor, ctor_def);
