@@ -899,41 +899,79 @@ public:
         }
     }
 
-    val emit_data_member(ast::node::ufcs_invocation const& ufcs)
+    val emit_lambda_capture_access(type::generic_func_type const& lambda, ast::node::ufcs_invocation const& ufcs)
+    {
+        auto const& indexed_by_introduced = semantics_ctx.lambda_captures.at(lambda).get<semantics::tags::introduced>();
+        auto const capture = indexed_by_introduced.find(ufcs);
+        auto *const child_val = emit(ufcs->child);
+
+        if (capture == boost::end(indexed_by_introduced)) {
+            // Note:
+            // If the capture map exists but no capture is found,
+            // it is non-captured lambda.
+            return llvm::ConstantStruct::getAnon(ctx.llvm_context, {});
+        }
+
+        return child_val->getType()->isStructTy() ?
+            ctx.builder.CreateExtractValue(child_val, capture->offset) :
+            ctx.builder.CreateStructGEP(child_val, capture->offset);
+    }
+
+    boost::optional<val> emit_instance_var_access(scope::class_scope const& scope, ast::node::ufcs_invocation const& ufcs)
     {
         auto *const child_val = emit(ufcs->child);
+
+        auto const offset_of
+            = [&scope](auto const& name)
+                -> boost::optional<size_t>
+            {
+                auto const& syms = scope->instance_var_symbols;
+                for (size_t i = 0; i < syms.size(); ++i) {
+                    if (name == syms[i]->name) {
+                        return i;
+                    }
+                }
+                return boost::none;
+            };
+
+        if (auto const maybe_idx = offset_of(ufcs->member_name)) {
+            auto const& idx = *maybe_idx;
+            assert(child_val->getType()->isPointerTy()
+                    && child_val->getType()->getPointerElementType()->isStructTy());
+            return ctx.builder.CreateStructGEP(child_val, idx);
+        }
+
+        return boost::none;
+    }
+
+    val emit_data_member(ast::node::ufcs_invocation const& ufcs)
+    {
 
         // Note:
         // When the UFCS invocation is generated for lambda capture access
         if (auto const g = type::get<type::generic_func_type>(type::type_of(ufcs->child))) {
             if (helper::exists(semantics_ctx.lambda_captures, *g)) {
-                auto const& indexed_by_introduced = semantics_ctx.lambda_captures.at(*g).get<semantics::tags::introduced>();
-                auto const capture = indexed_by_introduced.find(ufcs);
-
-                if (capture == boost::end(indexed_by_introduced)) {
-                    // Note:
-                    // If the capture map exists but no capture is found,
-                    // it is non-captured lambda.
-                    return llvm::ConstantStruct::getAnon(ctx.llvm_context, {});
-                }
-
-                return child_val->getType()->isStructTy() ?
-                    ctx.builder.CreateExtractValue(child_val, capture->offset) :
-                    ctx.builder.CreateStructGEP(child_val, capture->offset);
+                return emit_lambda_capture_access(*g, ufcs);
             }
         }
 
         // Note:
         // When accessing the data member.
         // Now, built-in data member is only available.
+        auto const child_type = type::type_of(ufcs->child);
+        if (auto const clazz = type::get<type::class_type>(child_type)) {
+            if (auto const v = emit_instance_var_access((*clazz)->ref.lock(), ufcs)) {
+                return *v;
+            }
+        }
 
         // Note:
         // Do not use get_operand() because GEP is emitted
         // in member_emitter internally.
         return check(
                 ufcs,
-                member_emitter.emit_var(
-                    child_val,
+                member_emitter.emit_builtin_instance_var(
+                    emit(ufcs->child),
                     ufcs->member_name,
                     type::type_of(ufcs->child)
                 ),

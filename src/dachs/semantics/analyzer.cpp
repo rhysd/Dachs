@@ -1093,12 +1093,7 @@ public:
             assert(!(*clazz)->ref.expired());
             auto const scope = (*clazz)->ref.lock();
 
-            if (auto const instance_var
-                    = helper::find_if(
-                            scope->instance_var_symbols,
-                            [&ufcs](auto const& s){ return s->name == ufcs->member_name; }
-                        )
-            ) {
+            if (auto const instance_var = scope->resolve_instance_var(ufcs->member_name)) {
                 ufcs->type = (*instance_var)->type;
                 return;
             }
