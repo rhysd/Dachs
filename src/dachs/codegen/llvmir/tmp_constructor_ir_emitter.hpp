@@ -84,6 +84,12 @@ class tmp_constructor_ir_emitter {
             }
         }
 
+        val operator()(type::class_type const& c)
+        {
+            // TODO
+            return nullptr;
+        }
+
         template<class T>
         val operator()(T const&)
         {

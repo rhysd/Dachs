@@ -2,11 +2,13 @@
 #define      DACHS_CODEGEN_LLVMIR_TYPE_IR_GENERATOR_HPP_INCLUDED
 
 #include <vector>
+#include <unordered_map>
 #include <cassert>
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/DerivedTypes.h>
 
+#include "dachs/ast/ast_fwd.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/semantics_context.hpp"
@@ -14,6 +16,7 @@
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
+#include "dachs/helper/util.hpp"
 
 namespace dachs {
 namespace codegen {
@@ -22,6 +25,7 @@ namespace llvmir {
 class type_ir_emitter {
     llvm::LLVMContext &context;
     semantics::lambda_captures_type lambda_captures;
+    std::unordered_map<scope::class_scope, llvm::StructType *const> class_table;
 
     template<class String>
     void error(String const& msg)
@@ -80,9 +84,31 @@ public:
         return result;
     }
 
-    llvm::Type *emit(type::class_type const&)
+    llvm::Type *emit(type::class_type const& t)
     {
-        throw not_implemented_error{__FILE__, __func__, __LINE__, "class type"};
+        assert(!t->ref.expired());
+        auto const scope = t->ref.lock();
+        assert(!scope->is_template());
+
+        auto const i = class_table.find(scope);
+        if (i != std::end(class_table)) {
+            return i->second;
+        }
+
+        std::vector<llvm::Type *> elem_types;
+        elem_types.reserve(scope->instance_var_symbols.size());
+        for (auto const& s : scope->instance_var_symbols) {
+            elem_types.push_back(emit(s->type));
+        }
+
+        auto *const result
+            = check(
+                    llvm::StructType::create(elem_types, scope->name),
+                    "class type"
+                );
+        class_table.insert({scope, result});
+
+        return result;
     }
 
     llvm::Type *emit(type::tuple_type const& t)

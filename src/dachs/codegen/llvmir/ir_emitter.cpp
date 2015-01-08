@@ -50,6 +50,7 @@
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/colorizer.hpp"
 #include "dachs/helper/each.hpp"
+#include "dachs/helper/util.hpp"
 
 namespace dachs {
 namespace codegen {
@@ -77,6 +78,7 @@ class llvm_ir_emitter {
     type_ir_emitter type_emitter;
     tmp_member_ir_emitter member_emitter;
     tmp_constructor_ir_emitter ctor_emitter;
+    std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
 
     auto push_loop(llvm::BasicBlock *loop_value)
     {
@@ -179,12 +181,11 @@ class llvm_ir_emitter {
         }
     }
 
-    void emit_func_prototype(ast::node::function_definition const& func_def)
+    void emit_func_prototype(ast::node::function_definition const& func_def, scope::func_scope const& scope)
     {
-        assert(!func_def->scope.expired());
+        assert(!scope->is_template());
         std::vector<llvm::Type *> param_type_irs;
         param_type_irs.reserve(func_def->params.size());
-        auto const scope = func_def->scope.lock();
 
         for (auto const& param_sym : scope->params) {
             auto *const t = type_emitter.emit(param_sym->type);
@@ -223,6 +224,19 @@ class llvm_ir_emitter {
         }
 
         func_table.emplace(scope, func_ir);
+    }
+
+    void emit_func_def_prototype(ast::node::function_definition const& def)
+    {
+        assert(!def->scope.expired());
+        auto const scope = def->scope.lock();
+        if (scope->is_template()) {
+            for (auto const& instantiated_func_def : def->instantiated) {
+                emit_func_def_prototype(instantiated_func_def);
+            }
+        } else {
+            emit_func_prototype(def, scope);
+        }
     }
 
     bool is_available_type_for_binary_expression(type::type const& lhs, type::type const& rhs) const noexcept
@@ -517,18 +531,6 @@ public:
 
         builtin_func_emitter.set_module(module);
 
-        auto const emit_func_def_prototype
-            = [&](auto const& def)
-            {
-                if (def->is_template()) {
-                    for (auto const& instantiated_func_def : def->instantiated) {
-                        emit_func_prototype(instantiated_func_def);
-                    }
-                } else {
-                    emit_func_prototype(def);
-                }
-            };
-
         // Note:
         // emit Function prototypes in advance for forward reference
         for (auto const& f : p->functions) {
@@ -591,7 +593,8 @@ public:
     // IR for the function prototype is already emitd in emit(ast::node::inu const&)
     void emit(ast::node::function_definition const& func_def)
     {
-        if (func_def->is_template()) {
+        auto const scope = func_def->scope.lock();
+        if (scope->is_template()) {
             for (auto const& i : func_def->instantiated) {
                 emit(i);
             }
@@ -599,7 +602,7 @@ public:
         }
 
         // Note: Already checked the scope is not empty
-        auto maybe_prototype_ir = lookup_func(func_def->scope.lock());
+        auto maybe_prototype_ir = lookup_func(scope);
         assert(maybe_prototype_ir);
         auto &prototype_ir = *maybe_prototype_ir;
         auto const block = llvm::BasicBlock::Create(ctx.llvm_context, "entry", prototype_ir);
