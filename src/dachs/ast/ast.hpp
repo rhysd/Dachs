@@ -461,7 +461,6 @@ struct ufcs_invocation final : public expression {
     node::any_expr child;
     std::string member_name;
     scope::weak_func_scope callee_scope;
-    bool is_data_access = false;
 
     ufcs_invocation(
             node::any_expr const& c,
