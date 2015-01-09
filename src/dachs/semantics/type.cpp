@@ -329,6 +329,17 @@ bool any_type::is_default_constructible() const noexcept
     return apply_lambda([](auto const& t){ return t ? t->is_default_constructible() : false; });
 }
 
+bool any_type::is_template() const noexcept
+{
+    if (auto const c = helper::variant::get_as<class_type>(value)) {
+        // Note: When the type is a class, check if it is class template
+        assert(!(*c)->ref.expired());
+        return (*c)->ref.lock()->is_template();
+    } else {
+        return helper::variant::has<template_type>(value);
+    }
+}
+
 bool any_type::is_class_template() const noexcept
 {
     auto const t = helper::variant::get_as<class_type>(value);

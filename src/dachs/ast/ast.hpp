@@ -966,22 +966,7 @@ struct function_definition final : public statement {
         , ensure_body(boost::none)
     {}
 
-    bool is_template() noexcept
-    {
-        if (!is_template_memo) {
-            is_template_memo =
-                any_of(
-                    params,
-                    [](auto const& p)
-                    {
-                        assert(p->type);
-                        return p->type.is_template();
-                    }
-                );
-        }
-
-        return *is_template_memo;
-    }
+    bool is_template() noexcept;
 
     bool is_method() const noexcept
     {

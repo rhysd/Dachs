@@ -9,6 +9,8 @@
 
 #include "dachs/ast/ast.hpp"
 #include "dachs/fatal.hpp"
+#include "dachs/semantics/scope.hpp"
+#include "dachs/semantics/type.hpp"
 
 namespace dachs {
 namespace ast {
@@ -35,7 +37,7 @@ std::string to_string(qualifier const o)
     }
 }
 
-std::string to_string(func_kind const o) 
+std::string to_string(func_kind const o)
 {
     switch(o) {
     case func_kind::func: return "func";
@@ -108,6 +110,19 @@ std::string primary_literal::to_string() const noexcept
     } v;
 
     return "PRIMARY_LITERAL: " + boost::apply_visitor(v, value);
+}
+
+bool function_definition::is_template() noexcept
+{
+    if (!is_template_memo) {
+        is_template_memo =
+            any_of(
+                params,
+                [](auto const& p){ return p->type.is_template(); }
+            );
+    }
+
+    return *is_template_memo;
 }
 
 } // namespace node_type

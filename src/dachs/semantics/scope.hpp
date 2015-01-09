@@ -259,20 +259,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     {
         return boost::algorithm::any_of(
                     params,
-                    [](auto const& p)
-                    {
-                        if (p->type.is_template()) {
-                            return true;
-                        }
-
-                        // Note:
-                        // If the type is class template, the function which has it is function template.
-                        if (auto const c = type::get<type::class_type>(p->type)) {
-                            return (*c)->ref.lock()->is_template();
-                        }
-
-                        return false;
-                    }
+                    [](auto const& p){ return p->type.is_template(); }
                 );
     }
 
