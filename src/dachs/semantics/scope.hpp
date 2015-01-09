@@ -114,6 +114,27 @@ struct basic_scope {
                 }, enclosing_scope);
     }
 
+    struct enclosing_func_resolver : boost::static_visitor<maybe_func_t> {
+        maybe_func_t operator()(scope::weak_func_scope const& f) const
+        {
+            return f.lock();
+        }
+
+        template<class S>
+        maybe_func_t operator()(S const& s) const
+        {
+            return s.lock()->get_enclosing_func();
+        }
+    };
+
+    virtual maybe_func_t get_enclosing_func() const
+    {
+        return boost::apply_visitor(
+                    enclosing_func_resolver{},
+                    enclosing_scope
+                );
+    }
+
     void check_shadowing_variable(symbol::var_symbol new_var) const
     {
         auto const maybe_shadowing_var = apply_lambda(
@@ -193,6 +214,11 @@ struct global_scope final : public basic_scope {
     maybe_var_t resolve_var(std::string const& name) const override
     {
         return helper::find_if(const_symbols, [&name](auto const& v){ return v->name == name; });
+    }
+
+    maybe_func_t get_enclosing_func() const override
+    {
+        return boost::none;
     }
 };
 

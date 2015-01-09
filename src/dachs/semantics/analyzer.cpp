@@ -297,6 +297,30 @@ class symbol_analyzer {
         return already_visited_classes.find(c) != std::end(already_visited_classes);
     }
 
+    template<class Predicate>
+    auto with_current_scope(Predicate const& p) const
+    {
+        return apply_lambda(
+                    p,
+                    current_scope
+                );
+    }
+
+    bool in_constructor() const
+    {
+        auto const f = with_current_scope([](auto const& s)
+                {
+                    return s->get_enclosing_func();
+                }
+            );
+
+        if (!f) {
+            return false;
+        }
+
+        return (*f)->is_ctor();
+    }
+
 public:
 
     template<class Scope>
@@ -452,11 +476,21 @@ public:
     template<class Walker>
     void visit(ast::node::variable_decl const& decl, Walker const& w)
     {
+        auto const in_ctor = in_constructor();
+
         auto const visit_decl =
-            [this, &decl](auto &scope)
+            [this, &decl, &in_ctor](auto &scope)
             {
                 if (decl->name == "_") {
                     return true;
+                }
+
+                if (decl->is_instance_var() && !in_ctor) {
+                    semantic_error(
+                                decl,
+                                "instance variable '" + decl->name + "' can be initialized in constructor only"
+                            );
+                    return false;
                 }
 
                 auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
@@ -934,11 +968,11 @@ public:
         // generic_func_type::ref is not available because it is not updated
         // even if overload functions are resolved.
         auto maybe_func =
-            apply_lambda(
+            with_current_scope(
                     [&](auto const& s)
                     {
                         return s->resolve_func(func_name, arg_types);
-                    }, current_scope
+                    }
                 );
 
         if (!maybe_func) {
@@ -1341,7 +1375,10 @@ public:
             arg_types.push_back(t);
         }
 
-        auto maybe_class_scope = apply_lambda([&](auto const& s){ return s->resolve_class(type->name); }, current_scope);
+        auto const maybe_class_scope
+            = with_current_scope(
+                    [&](auto const& s){ return s->resolve_class(type->name); }
+                );
 
         if (!maybe_class_scope) {
             semantic_error(obj, "  Class '" + type->name +"' is not found");

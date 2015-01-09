@@ -339,6 +339,24 @@ BOOST_AUTO_TEST_CASE(edge_case_in_UFCS_function_invocation)
 }
 
 BOOST_AUTO_TEST_SUITE(class_definition)
+    BOOST_AUTO_TEST_CASE(instance_variable_initialization_outside_ctor)
+    {
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            func main
+                @foo := 42
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            func foo(@hoge)
+            end
+
+            func main
+                foo(42)
+            end
+        )");
+    }
+
     BOOST_AUTO_TEST_CASE(instance_var_init_outside_class)
     {
         CHECK_THROW_SEMANTIC_ERROR(R"(
@@ -486,18 +504,18 @@ BOOST_AUTO_TEST_SUITE(class_definition)
         )");
     }
 
-BOOST_AUTO_TEST_CASE(clazz)
-{
-    CHECK_THROW_SEMANTIC_ERROR(R"(
-        func foo(@aaa)
-            @aaa.println
-        end
+    BOOST_AUTO_TEST_CASE(clazz)
+    {
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            func foo(@aaa)
+                @aaa.println
+            end
 
-        func main
-            foo(42)
-        end
-    )");
-}
+            func main
+                foo(42)
+            end
+        )");
+    }
 
 BOOST_AUTO_TEST_SUITE_END()
 
