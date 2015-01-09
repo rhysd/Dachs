@@ -77,7 +77,7 @@ class llvm_ir_emitter {
     std::stack<llvm::BasicBlock *> loop_stack; // Loop stack for continue and break statements
     type_ir_emitter type_emitter;
     tmp_member_ir_emitter member_emitter;
-    tmp_constructor_ir_emitter ctor_emitter;
+    tmp_constructor_ir_emitter builtin_ctor_emitter;
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
 
     auto push_loop(llvm::BasicBlock *loop_value)
@@ -333,7 +333,7 @@ public:
         , file(f)
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , member_emitter(ctx)
-        , ctor_emitter(ctx, type_emitter)
+        , builtin_ctor_emitter(ctx, type_emitter)
     {}
 
     // Note:
@@ -706,7 +706,7 @@ public:
     }
 
     template<class Node, class Scope>
-    val emit_non_builtin_callee(Node const& n, Scope const& scope)
+    llvm::Function *emit_non_builtin_callee(Node const& n, Scope const& scope)
     {
         if (scope->is_template()) {
             // XXX:
@@ -722,7 +722,7 @@ public:
     }
 
     template<class Node, class Scope, class Exprs>
-    val emit_callee(Node const& n, Scope const& scope, Exprs const& args)
+    llvm::Function *emit_callee(Node const& n, Scope const& scope, Exprs const& args)
     {
         if (scope->is_builtin) {
             std::vector<type::type> param_types;
@@ -923,10 +923,10 @@ public:
 
         auto const offset_of
             = [&scope](auto const& name)
-                -> boost::optional<size_t>
+                -> boost::optional<unsigned>
             {
                 auto const& syms = scope->instance_var_symbols;
-                for (size_t i = 0; i < syms.size(); ++i) {
+                for (unsigned i = 0; i < syms.size(); ++i) {
                     if (name == syms[i]->name) {
                         return i;
                     }
@@ -934,11 +934,12 @@ public:
                 return boost::none;
             };
 
+        // TODO:
+        // Now the parameter type of class is not a pointer but itself.  It will be pointer because Dachs has reference semantics.
+
         if (auto const maybe_idx = offset_of(ufcs->member_name)) {
             auto const& idx = *maybe_idx;
-            assert(child_val->getType()->isPointerTy()
-                    && child_val->getType()->getPointerElementType()->isStructTy());
-            return ctx.builder.CreateStructGEP(child_val, idx);
+            return ctx.builder.CreateExtractValue(child_val, {idx});
         }
 
         return boost::none;
@@ -1497,6 +1498,27 @@ public:
         return nullptr; // Note: Required to avoid compiler warning.
     }
 
+    val emit_class_object_construct(ast::node::object_construct const& obj, type::class_type const& t, std::vector<val> && arg_values)
+    {
+        auto const type_ir = type_emitter.emit(t);
+        assert(type_ir);
+        auto const obj_val = ctx.builder.CreateAlloca(type_ir);
+
+        arg_values.insert(std::begin(arg_values), get_operand(obj_val));
+
+        assert(!obj->callee_ctor_scope.expired());
+        auto const ctor_scope = obj->callee_ctor_scope.lock();
+
+        // TODO
+        // Call ctor
+        ctx.builder.CreateCall(
+                emit_non_builtin_callee(obj, ctor_scope),
+                arg_values
+            );
+
+        return obj_val;
+    }
+
     val emit(ast::node::object_construct const& obj)
     {
         std::vector<val> arg_vals;
@@ -1504,7 +1526,11 @@ public:
             arg_vals.push_back(get_operand(emit(e)));
         }
 
-        return check(obj, ctor_emitter.emit(obj->type, arg_vals), "object construction");
+        if (auto const c = type::get<type::class_type>(obj->type)) {
+            return emit_class_object_construct(obj, *c, std::move(arg_vals));
+        }
+
+        return check(obj, builtin_ctor_emitter.emit(obj->type, arg_vals), "object construction");
     }
 
     template<class T>
