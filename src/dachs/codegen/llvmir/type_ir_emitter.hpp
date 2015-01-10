@@ -25,7 +25,7 @@ namespace llvmir {
 class type_ir_emitter {
     llvm::LLVMContext &context;
     semantics::lambda_captures_type lambda_captures;
-    std::unordered_map<scope::class_scope, llvm::StructType *const> class_table;
+    std::unordered_map<scope::class_scope, llvm::PointerType *const> class_table;
 
     template<class String>
     void error(String const& msg)
@@ -84,7 +84,7 @@ public:
         return result;
     }
 
-    llvm::Type *emit(type::class_type const& t)
+    llvm::PointerType *emit(type::class_type const& t)
     {
         assert(!t->ref.expired());
         auto const scope = t->ref.lock();
@@ -103,7 +103,9 @@ public:
 
         auto *const result
             = check(
-                    llvm::StructType::create(elem_types, scope->name),
+                    llvm::PointerType::getUnqual(
+                        llvm::StructType::create(elem_types, scope->name)
+                    ),
                     "class type"
                 );
         class_table.insert({scope, result});

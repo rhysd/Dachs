@@ -301,6 +301,7 @@ class llvm_ir_emitter {
                         }
                     );
             } else {
+                // Note: An exception is thrown
                 emitter.error(access, "Not a tuple value (in assignment statement)");
             }
         }
@@ -344,6 +345,18 @@ public:
     template<class T>
     val get_operand(T *const value) const
     {
+        // XXX:
+        // Too hacky.
+        // User defined class is treated with a pointer to its resource.
+        auto const *const type = value->getType();
+        if (type->isPointerTy()) {
+            if (auto const *const struct_ty = llvm::dyn_cast<llvm::StructType>(type->getPointerElementType())) {
+                if (struct_ty->hasName()) {
+                    return value;
+                }
+            }
+        }
+
         // XXX:
         // This condition is too ad hoc.
         if (llvm::isa<llvm::AllocaInst>(value) || llvm::isa<llvm::GetElementPtrInst>(value)) {
@@ -939,7 +952,7 @@ public:
 
         if (auto const maybe_idx = offset_of(ufcs->member_name)) {
             auto const& idx = *maybe_idx;
-            return ctx.builder.CreateExtractValue(child_val, {idx});
+            return ctx.builder.CreateStructGEP(child_val, idx);
         }
 
         return boost::none;
@@ -1500,7 +1513,7 @@ public:
 
     val emit_class_object_construct(ast::node::object_construct const& obj, type::class_type const& t, std::vector<val> && arg_values)
     {
-        auto const type_ir = type_emitter.emit(t);
+        auto const type_ir = type_emitter.emit(t)->getPointerElementType();
         assert(type_ir);
         auto const obj_val = ctx.builder.CreateAlloca(type_ir);
 
@@ -1509,8 +1522,6 @@ public:
         assert(!obj->callee_ctor_scope.expired());
         auto const ctor_scope = obj->callee_ctor_scope.lock();
 
-        // TODO
-        // Call ctor
         ctx.builder.CreateCall(
                 emit_non_builtin_callee(obj, ctor_scope),
                 arg_values
