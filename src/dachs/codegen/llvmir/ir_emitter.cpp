@@ -1516,6 +1516,12 @@ public:
         auto const type_ir = type_emitter.emit(t)->getPointerElementType();
         assert(type_ir);
         auto const obj_val = ctx.builder.CreateAlloca(type_ir);
+        ctx.builder.CreateMemSet(
+                obj_val,
+                ctx.builder.getInt8(0u),
+                ctx.data_layout->getTypeAllocSize(type_ir),
+                ctx.data_layout->getPrefTypeAlignment(type_ir)
+            );
 
         arg_values.insert(std::begin(arg_values), get_operand(obj_val));
 
