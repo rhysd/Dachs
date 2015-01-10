@@ -127,7 +127,10 @@ public:
 
     llvm::ArrayType *emit_fixed_array(type::array_type const& a)
     {
-        assert(a->size);
+        if (!a->size) {
+            error("Failed to emit size of array type " + a->to_string());
+        }
+
         return llvm::ArrayType::get(emit(a->element_type), *a->size);
     }
 
