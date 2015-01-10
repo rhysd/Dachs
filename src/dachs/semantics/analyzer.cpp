@@ -1081,10 +1081,14 @@ public:
 
         if (auto const maybe_child_array = get_as<ast::node::array_literal>(typed->child_expr)) {
             auto const& child_array = *maybe_child_array;
-            if (child_array->element_exprs.empty() && type::is_a<type::array_type>(specified_type)) {
-                child_array->type = specified_type;
-                typed->type = specified_type;
-                return;
+            if (child_array->element_exprs.empty()) {
+                if (auto const a = type::get<type::array_type>(specified_type)) {
+                    auto const& the_type = *a;
+                    the_type->size = 0u;
+                    child_array->type = the_type;
+                    typed->type = the_type;
+                    return;
+                }
             }
         // } else if (auto const maybe_child_dict = ...) {
         }
