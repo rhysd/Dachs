@@ -61,6 +61,15 @@ class forward_symbol_analyzer {
             + '.' + std::to_string(n->length);
     }
 
+    template<class Predicate>
+    auto with_current_scope(Predicate const& p) const
+    {
+        return apply_lambda(
+                    p,
+                    current_scope
+                );
+    }
+
     template<class Funcs, class String>
     std::size_t check_functions_duplication(Funcs const& functions, String const& situation) const
     {
@@ -312,17 +321,12 @@ public:
         return new_param_sym;
     }
 
-    template<class Walker>
-    void visit(ast::node::variable_decl const& decl, Walker const& w)
+    void visit_class_var_decl(ast::node::variable_decl const& decl, scope::class_scope const& scope)
     {
-        auto const maybe_class = get_as<scope::class_scope>(current_scope);
-        if (!maybe_class) {
+        if (decl->is_instance_var()) {
+            semantic_error(decl, "  '@' is not needed to declare instance variable here");
             return;
         }
-
-        // Note:
-        // Visit only class's instance variables because type of instance variables can be determined here.
-        auto const& scope = *maybe_class;
 
         auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
         decl->symbol = new_var;
@@ -338,6 +342,36 @@ public:
 
         if (!scope->define_variable(new_var)) {
             failed++;
+        }
+
+    }
+
+    void visit_instance_var_init_decl(ast::node::variable_decl const& decl)
+    {
+        auto const f = with_current_scope(
+                    [](auto const& s){ return s->get_enclosing_func(); }
+                );
+
+        if (!f || !(*f)->is_ctor()) {
+            semantic_error(
+                    decl,
+                    "  Instance variable '" + decl->name + "' can be defined only in constructor"
+                );
+            return;
+        }
+
+        auto const& ctor = *f;
+        assert(!ctor->params.empty() && (ctor->params[0]->name == "self"));
+        decl->self_symbol = ctor->params[0];
+    }
+
+    template<class Walker>
+    void visit(ast::node::variable_decl const& decl, Walker const& w)
+    {
+        if (auto const maybe_class = get_as<scope::class_scope>(current_scope)) {
+            visit_class_var_decl(decl, *maybe_class);
+        } else if (decl->is_instance_var()) {
+            visit_instance_var_init_decl(decl);
         }
 
         w();

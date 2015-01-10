@@ -654,6 +654,7 @@ struct variable_decl final : public base {
     boost::optional<node::any_type> maybe_type;
     dachs::symbol::weak_var_symbol symbol;
     boost::optional<bool> accessibility = boost::none;
+    dachs::symbol::weak_var_symbol self_symbol;
 
     template<class T>
     variable_decl(T const& var,

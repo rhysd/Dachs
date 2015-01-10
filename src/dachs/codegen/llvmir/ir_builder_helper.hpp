@@ -205,10 +205,10 @@ public:
         assert(from);
         assert(to);
         assert(to->getType()->isPointerTy());
-        auto *const t = from->getType();
+        auto *const from_type = from->getType();
 
-        if (is_aggregate_ptr(t)) {
-            auto *const aggregate_type = t->getPointerElementType();
+        if (is_aggregate_ptr(from_type)) {
+            auto *const aggregate_type = from_type->getPointerElementType();
             // Note:
             // memcpy is shallow copy
             ctx.builder.CreateMemCpy(

@@ -578,7 +578,7 @@ public:
         assert(!param->param_symbol.expired());
 
         auto const param_sym = param->param_symbol.lock();
-        if (!param_sym->immutable) {
+        if (!param_sym->immutable && !param_sym->is_instance_var()) {
             // Note:
             // The parameter is already registered as register value for variable table in emit_func_prototype()
             // So at first we delete the value and re-register it as allocated value
@@ -602,6 +602,37 @@ public:
 
     }
 
+    template<class Node>
+    void emit_instance_var_init_params(scope::func_scope const& ctor, Node const& node)
+    {
+        assert(!ctor->params.empty() && (ctor->params[0]->name == "self"));
+        assert(type::is_a<type::class_type>(ctor->params[0]->type));
+
+        auto helper = get_ir_helper(node);
+
+        auto const& self_sym = ctor->params[0];
+        assert(type::is_a<type::class_type>(self_sym->type));
+        auto const receiver_type = *type::get<type::class_type>(self_sym->type);
+        assert(!receiver_type->ref.expired());
+        auto const clazz = receiver_type->ref.lock();
+
+        auto *const self_val = var_table.lookup_value(self_sym);
+        assert(self_val);
+
+        for (auto const& p : ctor->params) {
+            if (p->is_instance_var()) {
+                auto *const initializer_val = var_table.lookup_value(p);
+                assert(initializer_val);
+
+                auto const offset = clazz->get_instance_var_offset_of(p->name.substr(1u)/* omit '@' */);
+                assert(offset);
+                auto *const dest_val = ctx.builder.CreateStructGEP(self_val, *offset);
+                assert(dest_val);
+                helper.create_deep_copy(initializer_val, dest_val);
+            }
+        }
+    }
+
     // Note:
     // IR for the function prototype is already emitd in emit(ast::node::inu const&)
     void emit(ast::node::function_definition const& func_def)
@@ -623,6 +654,10 @@ public:
 
         for (auto const& p : func_def->params) {
             emit(p);
+        }
+
+        if (scope->is_ctor()) {
+            emit_instance_var_init_params(scope, func_def);
         }
 
         emit(func_def->body);
@@ -1149,7 +1184,32 @@ public:
                 assert(!decl->symbol.expired());
 
                 auto const sym = decl->symbol.lock();
-                if (decl->is_var) {
+                if (!decl->self_symbol.expired()) {
+
+                    // Note:
+                    // When the instance variable declaration in constructor,
+                    // it should initialize the instance variable of 'self' object.
+
+                    auto const self_sym = decl->self_symbol.lock();
+                    assert(type::is_a<type::class_type>(self_sym->type));
+                    auto const receiver_type = *type::get<type::class_type>(self_sym->type);
+                    assert(!receiver_type->ref.expired());
+                    auto const clazz = receiver_type->ref.lock();
+
+                    auto const offset
+                        = clazz->get_instance_var_offset_of(decl->name.substr(1u));
+                    assert(offset);
+
+                    auto const self_val = var_table.lookup_value(self_sym);
+                    assert(self_val);
+                    assert(self_val->getType()->isPointerTy());
+
+                    auto *const dest_val = ctx.builder.CreateStructGEP(self_val, *offset);
+                    assert(dest_val);
+
+                    helper.create_deep_copy(value, dest_val);
+
+                } else if (decl->is_var) {
                     auto *const allocated = helper.alloc_and_deep_copy(value, sym->name);
                     var_table.insert(std::move(sym), allocated);
                 } else {

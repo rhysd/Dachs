@@ -376,6 +376,17 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
         return resolve_func("dachs.init", arg_types);
     }
 
+    boost::optional<size_t> get_instance_var_offset_of(std::string const& name) const noexcept
+    {
+        for (auto offset = 0u; offset < instance_var_symbols.size(); ++offset) {
+            if (name == instance_var_symbols[offset]->name) {
+                return offset;
+            }
+        }
+
+        return boost::none;
+    }
+
     ast::node::class_definition get_ast_node() const noexcept;
 
     std::string to_string() const noexcept;
