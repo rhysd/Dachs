@@ -191,7 +191,7 @@ public:
     {
         auto *const allocated
             = check(
-                create_alloca(from, nullptr/*TODO*/, name)
+                create_alloca(from, nullptr, name)
                 , "alloc and deep copy"
             );
 
@@ -226,12 +226,8 @@ public:
                     }
 
                     auto *const ptr_to_elem = ctx.builder.CreateStructGEP(from, idx);
-                    ctx.builder.CreateStore(
-                            alloc_and_deep_copy(
-                                ctx.builder.CreateLoad(ptr_to_elem)
-                            )
-                            , ptr_to_elem
-                        );
+                    auto *const ptr_to_dest_elem = ctx.builder.CreateStructGEP(to, idx);
+                    create_deep_copy(ptr_to_elem, ptr_to_dest_elem);
                 }
 
             } else if (auto *const array_type = llvm::dyn_cast<llvm::ArrayType>(aggregate_type)) {
@@ -240,12 +236,8 @@ public:
                 if (elem_type->isPointerTy()) {
                     for (uint64_t const idx : irange(uint64_t{0u}, array_type->getNumElements())) {
                         auto *const ptr_to_elem = ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx);
-                        ctx.builder.CreateStore(
-                                alloc_and_deep_copy(
-                                    ctx.builder.CreateLoad(ptr_to_elem)
-                                ),
-                                ptr_to_elem
-                            );
+                        auto *const ptr_to_dest_elem = ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx);
+                        create_deep_copy(ptr_to_elem, ptr_to_dest_elem);
                     }
                 }
 

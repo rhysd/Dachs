@@ -104,7 +104,7 @@ public:
         auto *const result
             = check(
                     llvm::PointerType::getUnqual(
-                        llvm::StructType::create(elem_types, scope->name)
+                        llvm::StructType::create(elem_types, "class." + scope->name)
                     ),
                     "class type"
                 );

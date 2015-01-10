@@ -51,6 +51,7 @@
 #include "dachs/helper/colorizer.hpp"
 #include "dachs/helper/each.hpp"
 #include "dachs/helper/util.hpp"
+#include "dachs/helper/llvm.hpp"
 
 namespace dachs {
 namespace codegen {
@@ -60,6 +61,7 @@ namespace detail {
 
 using helper::variant::apply_lambda;
 using helper::variant::get_as;
+using helper::dump;
 using boost::adaptors::transformed;
 using boost::algorithm::all_of;
 
@@ -1185,6 +1187,7 @@ public:
 
                 auto const sym = decl->symbol.lock();
                 if (!decl->self_symbol.expired()) {
+                    assert(decl->is_instance_var());
 
                     // Note:
                     // When the instance variable declaration in constructor,
