@@ -306,7 +306,7 @@ class symbol_analyzer {
                 );
     }
 
-    bool in_constructor() const
+    boost::optional<scope::func_scope> enclosing_ctor() const
     {
         auto const f = with_current_scope([](auto const& s)
                 {
@@ -314,11 +314,11 @@ class symbol_analyzer {
                 }
             );
 
-        if (!f) {
-            return false;
+        if (!f || !(*f)->is_ctor()) {
+            return boost::none;
         }
 
-        return (*f)->is_ctor();
+        return f;
     }
 
 public:
@@ -476,21 +476,35 @@ public:
     template<class Walker>
     void visit(ast::node::variable_decl const& decl, Walker const& w)
     {
-        auto const in_ctor = in_constructor();
+        auto const maybe_ctor = enclosing_ctor();
 
         auto const visit_decl =
-            [this, &decl, &in_ctor](auto &scope)
+            [this, &decl, &maybe_ctor](auto &scope)
             {
                 if (decl->name == "_") {
                     return true;
                 }
 
-                if (decl->is_instance_var() && !in_ctor) {
-                    semantic_error(
-                                decl,
-                                "instance variable '" + decl->name + "' can be initialized in constructor only"
-                            );
-                    return false;
+                if (decl->is_instance_var()) {
+                    if (!maybe_ctor) {
+                        semantic_error(
+                                    decl,
+                                    "  Instance variable '" + decl->name + "' can be initialized only in constructor"
+                                );
+                        return false;
+                    }
+
+                    auto const& ctor = *maybe_ctor;
+                    assert((ctor->params[0]->name == "self") && type::is_a<type::class_type>(ctor->params[0]->type));
+                    auto const receiver = *type::get<type::class_type>(ctor->params[0]->type);
+                    auto const receiver_scope = receiver->ref.lock();
+                    if (!receiver_scope->resolve_instance_var(decl->name.substr(1u))) {
+                        semantic_error(
+                                    decl,
+                                    "  Instance variable '" + decl->name + "' is not defined in class '" + receiver_scope->to_string() + "'"
+                                );
+                        return false;
+                    }
                 }
 
                 auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
@@ -1213,7 +1227,8 @@ public:
             auto const init = *get_as<ast::node::initialize_stmt>(stmt);
             for (auto const& decl : init->var_decls) {
                 if (decl->is_instance_var()) {
-                    if (!check_instance_var_type(decl, decl->symbol.lock())) {
+                    if (decl->symbol.expired()
+                            || !check_instance_var_type(decl, decl->symbol.lock())) {
                         return boost::none;
                     }
                 }

@@ -343,7 +343,6 @@ public:
         if (!scope->define_variable(new_var)) {
             failed++;
         }
-
     }
 
     void visit_instance_var_init_decl(ast::node::variable_decl const& decl)
@@ -355,7 +354,7 @@ public:
         if (!f || !(*f)->is_ctor()) {
             semantic_error(
                     decl,
-                    "  Instance variable '" + decl->name + "' can be defined only in constructor"
+                    "  Instance variable '" + decl->name + "' can be initialized only in constructor"
                 );
             return;
         }
