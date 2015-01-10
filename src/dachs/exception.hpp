@@ -83,7 +83,7 @@ struct code_generation_error final : public std::runtime_error {
             helper::colorizer const c = helper::colorizer{}
         ) noexcept
         : std::runtime_error(
-                c.red("Error")
+                c.red("Error\n")
                 + c.bold(msg) + "\n"
                 "1 error generated in " + generator_name
             )

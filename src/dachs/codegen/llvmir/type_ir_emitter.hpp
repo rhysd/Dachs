@@ -78,7 +78,7 @@ public:
         }
 
         if (!result) {
-            error("Failed to emit a builtin type: " + builtin->to_string());
+            error("  Failed to emit a builtin type: " + builtin->to_string());
         }
 
         return result;
@@ -128,7 +128,7 @@ public:
     llvm::ArrayType *emit_fixed_array(type::array_type const& a)
     {
         if (!a->size) {
-            error("Failed to emit size of array type " + a->to_string());
+            error("  Failed to emit size of array type " + a->to_string());
         }
 
         return llvm::ArrayType::get(emit(a->element_type), *a->size);
