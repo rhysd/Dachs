@@ -123,28 +123,33 @@ struct var_ref_marker_for_lhs_of_assign {
 struct var_ref_getter_for_lhs_of_assign {
 
     template<class... Args>
-    ast::node::var_ref visit(boost::variant<Args...> const& v)
+    ast::node::var_ref visit(boost::variant<Args...> const& v) const
     {
         return apply_lambda([this](auto const& n){ return visit(n); }, v);
     }
 
-    ast::node::var_ref visit(ast::node::var_ref const& ref)
+    ast::node::var_ref visit(ast::node::var_ref const& ref) const
     {
         return ref;
     }
 
-    ast::node::var_ref visit(ast::node::index_access const& access)
+    ast::node::var_ref visit(ast::node::index_access const& access) const
     {
         return visit(access->child);
     }
 
-    ast::node::var_ref visit(ast::node::typed_expr const& typed)
+    ast::node::var_ref visit(ast::node::typed_expr const& typed) const
     {
         return visit(typed->child_expr);
     }
 
+    ast::node::var_ref visit(ast::node::ufcs_invocation const& ufcs) const
+    {
+        return visit(ufcs->child);
+    }
+
     template<class T>
-    ast::node::var_ref visit(T const&)
+    ast::node::var_ref visit(T const&) const
     {
         return nullptr;
     }

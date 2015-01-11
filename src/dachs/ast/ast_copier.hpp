@@ -95,7 +95,7 @@ public:
 
     auto copy(node::parameter const& p) const
     {
-        return copy_node<node::parameter>(p, p->is_var, p->name, copy(p->param_type));
+        return copy_node<node::parameter>(p, p->is_var, p->name, copy(p->param_type), p->is_receiver);
     }
 
     auto copy(node::func_invocation const& fc) const

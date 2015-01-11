@@ -352,10 +352,16 @@ struct parameter final : public base {
     boost::optional<node::any_type> param_type;
     dachs::symbol::weak_var_symbol param_symbol;
     type::type type;
+    bool is_receiver;
 
     template<class T>
-    parameter(T const& v, std::string const& n, decltype(param_type) const& t) noexcept
-        : base(), is_var(v), name(n), param_type(t)
+    parameter(
+            T const& v,
+            std::string const& n,
+            decltype(param_type) const& t,
+            bool const r = false
+    ) noexcept
+        : base(), is_var(v), name(n), param_type(t), is_receiver(r)
     {}
 
     bool is_instance_var_init() const noexcept

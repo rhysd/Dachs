@@ -518,9 +518,10 @@ public:
 
         auto const receiver_node
             = helper::make<ast::node::parameter>(
-                    false/* is_var */,
+                    true/* is_var */,
                     "self",
-                    ast::node::any_type{receiver_type_node}
+                    ast::node::any_type{receiver_type_node},
+                    true/* is_receiver  */
                 );
         receiver_node->set_source_location(location);
 

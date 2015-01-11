@@ -308,6 +308,23 @@ class llvm_ir_emitter {
             }
         }
 
+        val emit(ast::node::ufcs_invocation const& ufcs)
+        {
+            auto const receiver_type = type::get<type::class_type>(type::type_of(ufcs->child));
+            if (!receiver_type) {
+                return nullptr;
+            }
+
+            auto const receiver_val = emitter.emit(ufcs->child);
+            assert(receiver_val->getType()->isPointerTy() && receiver_val->getType()->getPointerElementType()->isStructTy());
+
+            assert(!(*receiver_type)->ref.expired());
+            auto const clazz = (*receiver_type)->ref.lock();
+            auto const offset = clazz->get_instance_var_offset_of(ufcs->member_name);
+            assert(offset);
+            return emitter.ctx.builder.CreateStructGEP(receiver_val, *offset);
+        }
+
         template<class... Args>
         val emit(boost::variant<Args...> const& v)
         {
@@ -576,32 +593,38 @@ public:
             return;
         }
 
-        auto helper = get_ir_helper(param);
         assert(!param->param_symbol.expired());
-
         auto const param_sym = param->param_symbol.lock();
-        if (!param_sym->immutable && !param_sym->is_instance_var()) {
-            // Note:
-            // The parameter is already registered as register value for variable table in emit_func_prototype()
-            // So at first we delete the value and re-register it as allocated value
-            auto const register_val = var_table.lookup_register_value(param_sym);
-            assert(register_val);
-            var_table.erase_register_value(param_sym);
-
-            assert(type_emitter.emit(param_sym->type) == register_val->getType());
-
-            auto const inst
-                = check(
-                    param,
-                    helper.alloc_and_deep_copy(register_val, param_sym->name),
-                    "allocation for variable parameter"
-                );
-
-            auto const result = var_table.insert(param_sym, inst);
-            assert(result);
-            (void) result;
+        if (param_sym->immutable
+         || param->is_receiver
+         || param_sym->is_instance_var()) {
+            return;
         }
 
+        // Note:
+        // Mutable parameters are copied not to affect the original value
+
+        auto helper = get_ir_helper(param);
+
+        // Note:
+        // The parameter is already registered as register value for variable table in emit_func_prototype()
+        // So at first we delete the value and re-register it as allocated value
+        auto const register_val = var_table.lookup_register_value(param_sym);
+        assert(register_val);
+        var_table.erase_register_value(param_sym);
+
+        assert(type_emitter.emit(param_sym->type) == register_val->getType());
+
+        auto const inst
+            = check(
+                param,
+                helper.alloc_and_deep_copy(register_val, param_sym->name),
+                "allocation for variable parameter"
+            );
+
+        auto const result = var_table.insert(param_sym, inst);
+        assert(result);
+        (void) result;
     }
 
     template<class Node>
