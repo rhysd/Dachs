@@ -266,14 +266,22 @@ public:
             );
 
         integer_literal
-            = (
-                qi::int_
-            );
+            = qi::lexeme[
+                ("0x" >> qi::hex)
+              | ("0b" >> qi::bin)
+              | ("0o" >> qi::oct)
+              | qi::int_
+            ];
 
         uinteger_literal
-            = (
-                qi::lexeme[(qi::uint_ >> 'u') > !(qi::alnum | '_')]
-            );
+            = qi::lexeme[
+                ((
+                    ("0x" >> qi::hex)
+                  | ("0b" >> qi::bin)
+                  | ("0o" >> qi::oct)
+                  | qi::uint_ 
+                ) >> 'u') > !(qi::alnum | '_')
+            ];
 
         array_literal
             = (
