@@ -156,8 +156,13 @@ bool func_scope::operator==(func_scope const& rhs) const noexcept
         auto const& right_type = boost::get<1>(t)->type;
 
         if (left_type.is_template() && right_type.is_template()) {
-            // Both sides are template
-            continue;
+            if (left_type.is_class_template()
+                    && right_type.is_class_template()
+                    && (left_type != right_type)) {
+                return false;
+            } else {
+                continue;
+            }
         } else if (!left_type.is_template() && !right_type.is_template()) {
             // Both sides are not template
             if (left_type != right_type) {
