@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <utility>
+#include <cstddef>
 
 #include <boost/optional.hpp>
 #include <boost/variant/variant.hpp>
@@ -16,13 +17,25 @@ namespace dachs {
 namespace ast {
 namespace detail {
 
+using std::size_t;
+
+template<class T>
+auto location_of(T const& node) noexcept
+{
+    return node.source_location();
+}
+
+template<class T>
+auto location_of(std::shared_ptr<T> const& node) noexcept
+{
+    return node->source_location();
+}
+
 template<class Node, class SourceNode, class... Args>
 inline Node copy_node(SourceNode const& node, Args &&... args)
 {
     auto copied = helper::make<Node>(std::forward<Args>(args)...);
-    copied->line = node->line;
-    copied->col = node->col;
-    copied->length = node->length;
+    copied->set_source_location(location_of(node));
     return copied;
 }
 
@@ -105,7 +118,7 @@ public:
 
     auto copy(node::object_construct const& oc) const
     {
-        return copy_node<node::object_construct>(oc, copy(oc->obj_type), copy(oc->args));
+        return copy_node<node::object_construct>(oc, *oc);
     }
 
     auto copy(node::index_access const& ia) const

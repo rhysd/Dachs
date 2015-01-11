@@ -444,6 +444,8 @@ struct object_construct final : public expression {
         : expression(), obj_type(t), args(args)
     {}
 
+    object_construct(object_construct const&) = default;
+
     std::string to_string() const noexcept override
     {
         return "OBJECT_CONSTRUCT";
