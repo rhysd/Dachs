@@ -515,6 +515,206 @@ BOOST_AUTO_TEST_SUITE(class_definition)
                 foo(42)
             end
         )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                @foo : int
+            end
+
+            func main
+                a := new Foo
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            func main
+                for @i in [1, 2, 3]
+                end
+            end
+        )");
+    }
+
+    BOOST_AUTO_TEST_CASE(no_matching_ctor)
+    {
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+            end
+
+            func main
+                f := new Foo
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                a
+
+                init(@a)
+                end
+            end
+
+            func main
+                f := new Foo{1, 2}
+            end
+        )");
+    }
+
+    BOOST_AUTO_TEST_CASE(undefined_class)
+    {
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            func main
+                new Foo
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            func foo(a : Foo)
+            end
+
+            func main
+            end
+        )");
+    }
+
+    BOOST_AUTO_TEST_CASE(undefined_instance_variable)
+    {
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                a
+
+                init(@a, @b)
+                end
+            end
+
+            func main
+                f := new Foo{1, 2}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                init
+                end
+
+                func foo
+                    @a
+                end
+            end
+
+            func main
+                f := new Foo
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                init
+                end
+            end
+
+            func main
+                f := new Foo
+                f.a
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                init
+                end
+            end
+
+            func main
+                f := new Foo
+                f.a()
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                init
+                    @aa := 42
+                end
+            end
+
+            func main
+                f := new Foo
+            end
+        )");
+    }
+
+    BOOST_AUTO_TEST_CASE(invalid_ctor)
+    {
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                foo
+
+                init
+                    @foo := 42
+                    @foo := 31
+                end
+            end
+
+            func main
+                f := new Foo
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                a : int
+
+                init(@a : char)
+                end
+            end
+
+            func main
+                f := new Foo{'a'}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                init
+                    42 # it is not an initialization
+                end
+            end
+
+            func main
+                f := new Foo
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                a : int
+
+                init
+                    @a := 'a'
+                end
+            end
+
+            func main
+                f := new Foo
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            # Class template
+            class Foo
+                a : int
+                b
+
+                init
+                    @a := 'a'
+                    @b := 42
+                end
+            end
+
+            func main
+                f := new Foo
+            end
+        )");
     }
 
 BOOST_AUTO_TEST_SUITE_END()
