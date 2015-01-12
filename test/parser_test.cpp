@@ -529,6 +529,13 @@ BOOST_AUTO_TEST_CASE(literals)
             1u #unsigned
             10u
 
+            0b010101
+            0b010101u
+            0x123abc
+            0x123abcu
+            0o01234567
+            0o01234567u
+
             # array
             [1, 10, 100, 1000, 10000]
             [
@@ -606,6 +613,10 @@ BOOST_AUTO_TEST_CASE(literals)
             {3.14 => :pi}
         end
         )"));
+
+    CHECK_PARSE_THROW("func main; 0xabcdefgh end");
+    CHECK_PARSE_THROW("func main; 0b010121 end");
+    CHECK_PARSE_THROW("func main; 0o45678 end");
 
     BOOST_CHECK_NO_THROW(parse_and_validate(R"(
             func main
