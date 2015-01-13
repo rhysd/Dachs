@@ -1218,6 +1218,8 @@ public:
                 return true;
             };
 
+        std::unordered_set<ast::node::parameter> checked;
+
         // Note:
         // Parameter types are already checked in forward analyzer
         for (auto const& p : ctor_def->params) {
@@ -1225,6 +1227,7 @@ public:
                 if (!check_instance_var_type(p, p->param_symbol.lock())) {
                     return boost::none;
                 }
+                checked.insert(p);
             }
         }
 
@@ -1232,6 +1235,22 @@ public:
             auto const init = *get_as<ast::node::initialize_stmt>(stmt);
             for (auto const& decl : init->var_decls) {
                 if (decl->is_instance_var()) {
+                    auto const dup = helper::find_if(checked, [&n = decl->name](auto const& d){ return d->name == n; });
+                    if (dup) {
+                        // Note:
+                        // This check is necessary because the duplication of symbol names
+                        // between parameter and initialize statement doesn't occur an error
+                        // though a warning is raised.
+                        semantic_error(
+                                decl,
+                                boost::format(
+                                    "  Instance variable '%1%' is initialized twice or more times.\n"
+                                    "  Note: Instance variable can only be initialized once.\n"
+                                    "  Note: First initialization is at line:%2%, col:%3%."
+                                ) % decl->name % (*dup)->line % (*dup)->col
+                            );
+                        return boost::none;
+                    }
                     if (decl->symbol.expired()
                             || !check_instance_var_type(decl, decl->symbol.lock())) {
                         return boost::none;

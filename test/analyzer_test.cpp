@@ -728,6 +728,19 @@ BOOST_AUTO_TEST_SUITE(class_definition)
                 f := new Foo
             end
         )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                a
+                init(@a)
+                    @a := 42
+                end
+            end
+
+            func main
+                f := new Foo{42}
+            end
+        )");
     }
 
 BOOST_AUTO_TEST_SUITE_END()
