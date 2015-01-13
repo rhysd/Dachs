@@ -641,6 +641,20 @@ BOOST_AUTO_TEST_SUITE(class_definition)
                 f := new Foo
             end
         )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                a
+
+                init(@a)
+                    @aa := 42
+                end
+            end
+
+            func main
+                f := new Foo{42}
+            end
+        )");
     }
 
     BOOST_AUTO_TEST_CASE(invalid_ctor)
@@ -739,6 +753,49 @@ BOOST_AUTO_TEST_SUITE(class_definition)
 
             func main
                 f := new Foo{42}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                a : int
+                init(@a)
+                    @a := 42
+                end
+            end
+
+            func main
+                f := new Foo{42}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                a
+
+                init
+                end
+            end
+
+            func main
+                new Foo
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                a : int
+                b
+
+                init(a, @b)
+                end
+
+                init(a, @b)
+                end
+            end
+
+            func main
+                new Foo{42, 3.14}
             end
         )");
     }
