@@ -700,6 +700,19 @@ BOOST_AUTO_TEST_SUITE(class_definition)
         )");
 
         CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                a : int
+
+                init(@a : char)
+                end
+            end
+
+            func main
+                f := new Foo{'a'}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
             # Class template
             class Foo
                 a : int

@@ -1421,9 +1421,16 @@ public:
         auto ctor_def = ctor->get_ast_node();
 
         // Note:
+        // If the constructor is not visited yet, visit it first to analyze initializations
+        // in the body of constructor.
+        if (!already_visited(ctor_def)) {
+            ast::walk_topdown(ctor_def, *this);
+        }
+
+        // Note:
         // Ignore if the parameter's type is class template or not because the class template is
         // never resolved at this point. It will be resolved after the class is instantiated.
-        if (boost::algorithm::any_of(ctor->params, [](auto const& p){ return p->type.is_template(); })) {
+        if (ctor->is_template()) {
             std::tie(ctor_def, ctor) = instantiate_function_from_template(ctor_def, ctor, arg_types);
             // Note:
             // The result of above instantiation may be function template.
