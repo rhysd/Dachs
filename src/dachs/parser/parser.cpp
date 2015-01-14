@@ -193,8 +193,7 @@ public:
         // XXX:
         // Use macro instead of user-defined literal because rvalue of Boost.Spirit
         // parser must be copied by boost::proto::deep_copy. Or it causes SEGV.
-        #define DACHS_KWD(...) (qi::lexeme[(__VA_ARGS__) >> !(qi::alnum | '_')])
-        #define DACHS_KWD_STRICT(...) (&(qi::lexeme[(__VA_ARGS__) >> !(qi::alnum | '_')]) >> (__VA_ARGS__))
+        #define DACHS_KWD(...) ((__VA_ARGS__) >> !qi::no_skip[qi::alnum | '_'])
 
         sep = +(';' ^ qi::eol);
 
@@ -397,7 +396,7 @@ public:
 
         parameter
             = (
-                -DACHS_KWD_STRICT(qi::matches["var"_l])
+                -DACHS_KWD(qi::matches["var"_l])
                 >> variable_name // '@' reveals in constructors
                 >> -(
                     -qi::eol >> ':' >> -qi::eol >> qualified_type
@@ -473,7 +472,7 @@ public:
 
         do_block
             = (
-                DACHS_KWD_STRICT("do"_l) >> -(
+                DACHS_KWD("do"_l) >> -(
                     '|' >> (parameter % comma) >> '|'
                 ) >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
             ) [
@@ -804,7 +803,7 @@ public:
 
         variable_decl
             = (
-                -DACHS_KWD_STRICT(qi::matches["var"_l])
+                -DACHS_KWD(qi::matches["var"_l])
                 >> variable_name >> -(
                     // Note: In this paren, > can't be used because of :=
                     -qi::eol >> ':' >> -qi::eol >> qualified_type
@@ -815,7 +814,7 @@ public:
 
         variable_decl_without_init
             = (
-                DACHS_KWD_STRICT("var"_l)
+                DACHS_KWD("var"_l)
                 >> variable_name >> -qi::eol >> ':' >> -qi::eol >> qualified_type
             ) [
                 _val = make_node_ptr<ast::node::variable_decl>(true, _1, _2)
@@ -1109,7 +1108,6 @@ public:
             ];
 
     #undef DACHS_KWD
-    #undef DACHS_KWD_STRICT
 
         // Set callback to get the position of node and show obvious compile error {{{
         detail::set_position_getter_on_success(
