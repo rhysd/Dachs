@@ -444,6 +444,18 @@ struct object_construct final : public expression {
         : expression(), obj_type(t), args(args)
     {}
 
+    template<class CS, class FS>
+    object_construct(node::any_type const& t,
+                     decltype(args) const& args,
+                     CS const& clazz,
+                     FS const& ctor ) noexcept
+        : expression()
+        , obj_type(t)
+        , args(args)
+        , constructed_class_scope(clazz)
+        , callee_ctor_scope(ctor)
+    {}
+
     object_construct(object_construct const&) = default;
 
     std::string to_string() const noexcept override

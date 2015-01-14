@@ -118,7 +118,7 @@ public:
 
     auto copy(node::object_construct const& oc) const
     {
-        return copy_node<node::object_construct>(oc, *oc);
+        return copy_node<node::object_construct>(oc, copy(oc->obj_type), copy(oc->args), oc->constructed_class_scope, oc->callee_ctor_scope);
     }
 
     auto copy(node::index_access const& ia) const
