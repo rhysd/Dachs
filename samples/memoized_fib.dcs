@@ -1,0 +1,45 @@
+class MemoizedFib
+    buf
+
+    init(@buf)
+    end
+
+    func calc(n)
+        if n <= 1u
+            ret 1u
+        end
+
+        if @buf[n] == 0u
+            @buf[n] = @calc(n-1u) + @calc(n-2u)
+        end
+
+        ret @buf[n]
+    end
+
+    func reset
+        var i := 0u
+        for i < @buf.size
+            @buf[i] = 0u
+            i += 1u
+        end
+    end
+
+    func dump_memo
+        var i := 0u
+        for i < @buf.size
+            i.print
+            " -> ".print
+            @buf[i].println
+            i += 1u
+        end
+    end
+end
+
+
+func main
+    fib := new MemoizedFib{new [uint]{1000u}}
+
+    # Note:
+    # The result is wrong because the result is too big for 64bit unsigned integer
+    fib.calc(1000u).println
+end
