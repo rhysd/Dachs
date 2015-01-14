@@ -488,13 +488,18 @@ public:
                     )
             ];
 
+        var_ref_before_space
+            =
+                var_ref >> qi::no_skip[&' '_l]
+            ;
+
         // primary.name(...) [do-end]
         // primary.name ... do-end
         // primary.name ...
         // primary.name [do-end]
+        // primary ... do-end
         // primary[...]
         // primary(...)
-        // primary ... do-end
         postfix_expr
             =
                 // Note:
@@ -502,13 +507,13 @@ public:
                 // (e.g. (a.b + 10) should not be treated as a.b(+10))
                 primary_expr[_val = _1] >> *(
                       (-qi::eol >> '.' >> -qi::eol >> var_ref >> '(' >> -(typed_expr % comma) >> trailing_comma >> ')' >> -do_block)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, as_vector(_2), _3)]
-                    | (-qi::eol >> '.' >> -qi::eol >> var_ref >> (typed_expr - "do") % comma >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2, _3)]
-                    | (-qi::eol >> '.' >> -qi::eol >> var_ref >> !('+'_l | '-') >> (typed_expr - "do") % comma)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2)]
+                    | (-qi::eol >> '.' >> -qi::eol >> var_ref_before_space >> (typed_expr - "do") % comma >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2, _3)]
+                    | (-qi::eol >> '.' >> -qi::eol >> var_ref_before_space >> !('+'_l | '-') >> (typed_expr - "do") % comma)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2)]
                     | (-qi::eol >> '.' >> -qi::eol >> (var_ref - "do") >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_2, _1, _val)]
                     | (-qi::eol >> '.' >> -qi::eol >> called_function_name)[_val = make_node_ptr<ast::node::ufcs_invocation>(_val, _1)]
+                    | (qi::no_skip[&' '_l] >> (typed_expr - "do") % comma >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_val, _1, _2)]
                     | ('[' >> -qi::eol >> typed_expr >> -qi::eol >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]
                     | ('(' >> -qi::eol >> -(typed_expr % comma) >> trailing_comma >> ')' >> -do_block)[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1), _2)]
-                    | ((typed_expr - "do") % comma >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_val, _1, _2)]
                 )
             ;
 
@@ -1128,6 +1133,7 @@ public:
             , symbol_literal
             , dict_literal
             , var_ref
+            , var_ref_before_space
             , parameter
             , object_construct
             , postfix_expr
@@ -1221,6 +1227,7 @@ public:
         symbol_literal.name("symbol literal");
         dict_literal.name("dictionary literal");
         var_ref.name("variable reference");
+        var_ref.name("variable reference before space");
         parameter.name("parameter");
         object_construct.name("object contruction");
         unary_operator.name("unary operator");
@@ -1366,6 +1373,7 @@ private:
         , range_expr
         , if_expr
         , typed_expr
+        , var_ref_before_space
     ;
 
     rule<ast::node::any_expr(), qi::locals<std::vector<ast::node::any_expr>>> tuple_literal;

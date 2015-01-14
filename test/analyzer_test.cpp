@@ -817,4 +817,35 @@ BOOST_AUTO_TEST_SUITE(class_definition)
 
 BOOST_AUTO_TEST_SUITE_END()
 
+BOOST_AUTO_TEST_CASE(non_paren_func_calls_edge_cases)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class Foo
+            a
+
+            init(@a)
+            end
+
+            func b(x)
+                @a[0]
+            end
+        end
+
+        func c(x, b)
+        end
+
+        func main
+            f := new Foo{[42]}
+            f.a[0]  # Index access
+            f.b [0] # UFCS invocation
+
+            c [0] do # Function invocation with do-end block
+                println("foo")
+            end
+        end
+    )");
+}
+
+
+
 BOOST_AUTO_TEST_SUITE_END()
