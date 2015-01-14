@@ -273,6 +273,21 @@ BOOST_AUTO_TEST_CASE(no_main)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(uninitialized_variable_use)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            i
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            i := i
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(invocation_with_wrong_arguments)
 {
     CHECK_THROW_SEMANTIC_ERROR(R"(

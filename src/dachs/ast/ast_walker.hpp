@@ -210,16 +210,16 @@ public:
     void walk(node::initialize_stmt &is)
     {
         visitor.visit(is, walker_for(
-            is->var_decls,
-            is->maybe_rhs_exprs
+            is->maybe_rhs_exprs,
+            is->var_decls
         ));
     }
 
     void walk(node::assignment_stmt &as)
     {
         visitor.visit(as, walker_for(
-            as->assignees,
-            as->rhs_exprs
+            as->rhs_exprs,
+            as->assignees
         ));
     }
 
