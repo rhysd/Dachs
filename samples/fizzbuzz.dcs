@@ -1,14 +1,16 @@
 func fizzbuzz(n)
     case
-    when n % 15 == 0 then ret "fizzbuzz"
-    when n % 3 == 0  then ret "fizz"
-    when n % 5 == 0  then ret "buzz"
-    else                  ret n as string
+    when n % 15 == 0 then println("fizzbuzz")
+    when n % 3 == 0  then println("fizz")
+    when n % 5 == 0  then println("buzz")
+    else                  println(n)
     end
 end
 
 func main
-    for i in 1..100
-        print(fizzbuzz + '\n')
+    var i := 1
+    for i <= 100
+        fizzbuzz(i)
+        i += 1
     end
 end

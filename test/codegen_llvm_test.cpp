@@ -15,6 +15,8 @@
 
 #include <boost/test/included/unit_test.hpp>
 
+using namespace dachs::test;
+
 static dachs::syntax::parser p;
 
 #define CHECK_NO_THROW_CODEGEN_ERROR(...) do { \
@@ -2162,5 +2164,15 @@ BOOST_AUTO_TEST_CASE(some_samples)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(samples)
+{
+    auto const dir = DACHS_ROOT_DIR "/test/assets/samples";
+    check_all_cases_in_directory(dir, [](fs::path const& path){
+                std::cout << "testing " << path.c_str() << std::endl;
+                CHECK_NO_THROW_CODEGEN_ERROR(
+                    *dachs::helper::read_file<std::string>(path.c_str())
+                );
+            });
+}
 
 BOOST_AUTO_TEST_SUITE_END()
