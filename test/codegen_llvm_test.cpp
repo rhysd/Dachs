@@ -1819,6 +1819,22 @@ BOOST_AUTO_TEST_CASE(return_stmt_in_the_middle_of_basic_block)
 BOOST_AUTO_TEST_CASE(class_definition)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            init
+            end
+        end
+
+        class Y
+            init
+            end
+        end
+
+        func main
+            x := new X
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
         class Foo
             a : int
             init(@a)
