@@ -251,13 +251,7 @@ class symbol_analyzer {
             );
 
         // Last, symnol analyzer visits
-        {
-            auto saved_current_scope = current_scope;
-            current_scope = enclosing_scope;
-            ast::walk_topdown(instantiated_func_def, *this);
-            already_visited_functions.insert(instantiated_func_def);
-            current_scope = std::move(saved_current_scope);
-        }
+        walk_recursively_with(enclosing_scope, instantiated_func_def); // XXX: Check if it failed
 
         // Note:
         // Here, instantiated_func_scope->is_template() may return true because partially instantiating
@@ -324,6 +318,38 @@ class symbol_analyzer {
         }
 
         return f;
+    }
+
+    // Note:
+    // @return : true if the walk was success
+    template<class Node>
+    bool walk_recursively(Node && node)
+    {
+        auto const saved_failed = failed;
+        ast::walk_topdown(std::forward<Node>(node), *this);
+        return failed <= saved_failed;
+    }
+
+    template<class Scope, class Node>
+    bool walk_recursively_with(Scope const& scope, Node && node)
+    {
+        auto saved_current_scope = current_scope;
+        current_scope = scope;
+        auto const result = walk_recursively(std::forward<Node>(node));
+        current_scope = std::move(saved_current_scope);
+        return result;
+    }
+
+    template<class Node>
+    bool walk_recursively_with_weak(scope::enclosing_scope_type const& scope, Node && node)
+    {
+        return apply_lambda(
+                [&node, this]
+                (auto const& ws)
+                {
+                    return walk_recursively_with(ws.lock(), std::forward<Node>(node));
+                }, scope
+            );
     }
 
 public:
@@ -753,7 +779,7 @@ public:
     template<class Walker>
     void visit(ast::node::lambda_expr const& lambda, Walker const&)
     {
-        ast::walk_topdown(lambda->def, *this);
+        walk_recursively(lambda->def);
 
         assert(!lambda->def->scope.expired());
         auto const lambda_scope = lambda->def->scope.lock();
@@ -1015,10 +1041,15 @@ public:
         }
 
         if (!func_def->ret_type) {
-            auto saved_current_scope = current_scope;
-            current_scope = global; // enclosing scope of function scope is always global scope
-            ast::walk_topdown(func_def, *this);
-            current_scope = std::move(saved_current_scope);
+            // Note:
+            // enclosing scope of function scope is always global scope
+            if (!walk_recursively_with(global, func_def)) {
+                return (
+                    boost::format(
+                        "  Failed to analyze function '%1%' defined at line:%2%, col:%3%"
+                    ) % func->to_string() % func_def->line % func_def->col
+                ).str();
+            }
         }
 
         if (!func->ret_type) {
@@ -1363,12 +1394,7 @@ public:
 
         substitute_class_template_params(copied_def, copied_scope, map);
 
-        {
-            auto saved_current_scope = current_scope;
-            current_scope = enclosing_scope_of(copied_scope);
-            ast::walk_topdown(copied_def, *this);
-            current_scope = std::move(saved_current_scope);
-        }
+        walk_recursively_with(enclosing_scope_of(copied_scope), copied_def);
 
         return copied_def;
     }
@@ -1443,7 +1469,14 @@ public:
         // If the constructor is not visited yet, visit it first to analyze initializations
         // in the body of constructor.
         if (!already_visited(ctor_def)) {
-            ast::walk_topdown(ctor_def, *this);
+            if (!walk_recursively_with(enclosing_scope_of(ctor), ctor_def)) {
+                semantic_error(
+                        obj,
+                        boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")
+                            % ctor->to_string() % ctor_def->line % ctor_def->col
+                    );
+                return;
+            }
         }
 
         // Note:
@@ -1455,11 +1488,23 @@ public:
             // The result of above instantiation may be function template.
             // See comment in instantiate_function_from_template().
             if (ctor->is_template()) {
+                assert(scope->is_template());
+                // TODO:
+                // Temporarily replace the known instance variables' types
+
+                std::cout << ctor->to_string() << std::endl;
                 // Note:
                 // If the receiver is class template, the body of ctor is not visited yet
                 // because the ctor is a template.  But initialize statements in the ctor
                 // is necessary to determine the class instantiation.  So visit it here.
-                ast::walk_topdown(ctor_def->body, *this);
+                if (!walk_recursively_with(ctor->body, ctor_def->body)) {
+                    semantic_error(
+                            obj,
+                            boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")
+                                % ctor->to_string() % ctor_def->line % ctor_def->col
+                            );
+                    return;
+                }
             }
         }
 
