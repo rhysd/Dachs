@@ -4,8 +4,10 @@ cmake_install.cmake
 Makefile
 Testing
 CTestTestfile.cmake
-build/
+build/*
 *.o
 *.ll
 *.bc
 *.s
+
+!build/Rakefile

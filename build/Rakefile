@@ -1,0 +1,35 @@
+
+# My environment
+
+require 'rbconfig'
+NUM_CPU =
+  case RbConfig::CONFIG['target_os'].downcase
+  when /linux/ then 4
+  when /darwin/ then 8
+  else 4
+  end
+
+task all: [:build, :test]
+
+task :cmake do |t, a|
+  type =
+    if a.includes "release"
+      "Release"
+    else
+      ""
+    end
+
+  system "cmake .. -DCMAKE_BUILD_TYPE=#{type}"
+end
+
+task :build do
+  system "make -j#{NUM_CPU}"
+end
+
+task b: [:build]
+
+task :test do
+  system "ctest -j#{NUM_CPU}"
+end
+
+task t: [:test]
