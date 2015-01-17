@@ -28,24 +28,22 @@ namespace test {
 namespace fs = boost::filesystem;
 using boost::adaptors::filtered;
 
-inline
-auto traverse_directory_range(std::string const& dir_name)
-{
-    fs::path const p = dir_name;
-    return boost::make_iterator_range(fs::directory_iterator{p}, fs::directory_iterator{});
-}
-
 template<class Predicate>
 inline
 void check_all_cases_in_directory(std::string const& dir_name, Predicate const& predicate)
 {
-    boost::for_each(
-        traverse_directory_range(dir_name)
-            | filtered([](auto const& d){
-                    return !fs::is_directory(d);
-                })
-        , predicate
-    );
+    // Note:
+    // I can't use Boost.Range adaptors because directory_iterator doesn't meet forward traversal.
+    for (auto const& entry
+            : boost::make_iterator_range(
+                fs::directory_iterator{fs::path{dir_name}},
+                fs::directory_iterator{}
+            )
+    ) {
+        if (!fs::is_directory(entry)) {
+            predicate(entry);
+        }
+    }
 }
 
 } // namespace test

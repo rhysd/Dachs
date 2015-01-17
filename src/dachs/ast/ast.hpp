@@ -991,7 +991,7 @@ struct function_definition final : public statement {
 
     bool is_method() const noexcept
     {
-        return accessibility;
+        return accessibility != boost::none;
     }
 
     bool is_public() const noexcept
