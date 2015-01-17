@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <tuple>
 #include <set>
+#include <algorithm>
 
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
@@ -14,6 +15,7 @@
 #include <boost/range/algorithm/transform.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/adaptor/filtered.hpp>
+#include <boost/scope_exit.hpp>
 
 #include "dachs/exception.hpp"
 #include "dachs/ast/ast.hpp"
@@ -1430,6 +1432,37 @@ public:
         return {instantiated_scope, ctor_from_instantiated};
      }
 
+    template<class InstanceVars, class CtorParams, class Scope, class Body>
+    bool walk_ctor_body_to_infer_class_template(InstanceVars const& vars, CtorParams const& params, Scope const& enclosing, Body &body)
+    {
+        std::unordered_map<std::string, type::type> saved;
+
+        for (auto const& p : params | filtered([](auto const& p){ return p->is_instance_var(); })) {
+            auto const i
+                = std::find_if(
+                        std::begin(vars), std::end(vars),
+                        [n = p->name.substr(1u)](auto const& v){ return n == v->name; }
+                    );
+            if (i == std::end(vars)) {
+                continue;
+            }
+
+            saved[(*i)->name] = (*i)->type;
+            (*i)->type = p->type;
+        }
+
+        BOOST_SCOPE_EXIT_ALL(&vars, &saved) {
+            for (auto const& v : vars) {
+                auto const s = saved.find(v->name);
+                if (s != std::end(saved)) {
+                    v->type = s->second;
+                }
+            }
+        };
+
+        return walk_recursively_with(enclosing, body);
+    }
+
     void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
     {
         std::vector<type::type> arg_types = {type};
@@ -1489,15 +1522,11 @@ public:
             // See comment in instantiate_function_from_template().
             if (ctor->is_template()) {
                 assert(scope->is_template());
-                // TODO:
-                // Temporarily replace the known instance variables' types
-
-                std::cout << ctor->to_string() << std::endl;
                 // Note:
                 // If the receiver is class template, the body of ctor is not visited yet
                 // because the ctor is a template.  But initialize statements in the ctor
                 // is necessary to determine the class instantiation.  So visit it here.
-                if (!walk_recursively_with(ctor->body, ctor_def->body)) {
+                if (!walk_ctor_body_to_infer_class_template(scope->instance_var_symbols, ctor->params, ctor->body, ctor_def->body)) {
                     semantic_error(
                             obj,
                             boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")

@@ -1998,6 +1998,30 @@ BOOST_AUTO_TEST_CASE(class_definition)
             f.m2(f.m1(f.a))
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class Foo
+            a, b
+
+            init(@b)
+                @a := @b + @b
+            end
+        end
+
+        func main
+            do
+                f := new Foo{42}
+                f.a.println
+                f.b.println
+            end
+
+            do
+                f := new Foo{3.14}
+                f.a.println
+                f.b.println
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(some_samples)
