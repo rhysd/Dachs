@@ -42,6 +42,10 @@ template<class T>
 struct is_shared_ptr_impl<std::shared_ptr<T>> : std::true_type
 {};
 
+template<bool...>
+struct bools
+{};
+
 } // namespace detail
 
 template<class T>
@@ -100,24 +104,18 @@ inline auto zipped(Ranges &... ranges /*lvalue references*/)
 }
 
 template<class... Args>
-struct are_same;
-
-template<class T>
-struct are_same<T> : std::true_type
-{};
-
-template<class T, class U>
-struct are_same<T, U> : std::is_same<T, U>
-{};
-
-template<class T, class U, class... R>
-struct are_same<T, U, R...>
-    : std::conditional<
-        std::is_same<T, U>::value,
-        are_same<T, R...>,
-        std::false_type
-      >::type
-{};
+struct are_same
+{
+    static constexpr bool value
+        = std::is_same<
+            detail::bools<
+                Args::value...
+            >,
+            detail::bools<
+                (Args::value, true)...
+            >
+        >::value;
+};
 
 template<class I>
 inline auto indices(I const i) noexcept
