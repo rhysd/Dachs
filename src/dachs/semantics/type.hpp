@@ -691,14 +691,14 @@ struct template_type final : public basic_type {
     template<class T>
     bool operator==(T const&) const noexcept
     {
-        static_assert(is_type<T>::value, "qualified_type::operator==(): rhs is not a type.");
+        static_assert(is_type<T>::value, "template_type::operator==(): rhs is not a type.");
         return false;
     }
 
     template<class T>
     bool operator!=(T const& rhs) const noexcept
     {
-        static_assert(is_type<T>::value, "qualified_type::operator!=(): rhs is not a type.");
+        static_assert(is_type<T>::value, "template_type::operator!=(): rhs is not a type.");
         return !(*this == rhs);
     }
 

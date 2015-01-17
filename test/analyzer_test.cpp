@@ -815,6 +815,46 @@ BOOST_AUTO_TEST_SUITE(class_definition)
         )");
     }
 
+    BOOST_AUTO_TEST_CASE(function_duplication_check_for_class_template_param)
+    {
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+                class Foo
+                    func foo(i)
+                    end
+
+                    func foo2(i : int)
+                    end
+
+                    func foo3(i)
+                    end
+
+                    func foo3(i : int)
+                    end
+
+                    func foo3(i : Foo)
+                    end
+                end
+
+                func foo(f, i)
+                end
+
+                func foo2(f, i)
+                end
+
+                func foo3(f, i)
+                end
+
+                func foo3(f, i : int)
+                end
+
+                func foo3(f, i : Foo)
+                end
+
+                func main
+                end
+            )");
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_CASE(non_paren_func_calls_edge_cases)

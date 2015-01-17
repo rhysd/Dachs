@@ -155,21 +155,18 @@ bool func_scope::operator==(func_scope const& rhs) const noexcept
         auto const& left_type = boost::get<0>(t)->type;
         auto const& right_type = boost::get<1>(t)->type;
 
-        if (left_type.is_template() && right_type.is_template()) {
-            if (left_type.is_class_template()
-                    && right_type.is_class_template()
-                    && (left_type != right_type)) {
-                return false;
-            } else {
-                continue;
-            }
-        } else if (!left_type.is_template() && !right_type.is_template()) {
-            // Both sides are not template
+        // Note: Do not consider class template
+        auto const lhs_is_template = type::is_a<type::template_type>(left_type);
+        auto const rhs_is_template = type::is_a<type::template_type>(right_type);
+
+        if (lhs_is_template && rhs_is_template) {
+            continue;
+        } else if (!lhs_is_template && !rhs_is_template) {
             if (left_type != right_type) {
                 return false;
             }
         } else {
-            // One side is template and other side is not a template
+            // Note: One side is template and other side is not a template
             return false;
         }
     }
