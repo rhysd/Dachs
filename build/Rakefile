@@ -9,6 +9,9 @@ NUM_CPU =
   else 4
   end
 
+
+task default: :all
+
 task all: [:build, :test]
 
 task :cmake do |t, a|
@@ -26,10 +29,10 @@ task :build do
   system "make -j#{NUM_CPU}"
 end
 
-task b: [:build]
+task b: :build
 
 task :test do
   system "ctest -j#{NUM_CPU}"
 end
 
-task t: [:test]
+task t: :test
