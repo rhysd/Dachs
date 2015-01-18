@@ -855,6 +855,108 @@ BOOST_AUTO_TEST_SUITE(class_definition)
             )");
     }
 
+    BOOST_AUTO_TEST_CASE(class_member_accessibility)
+    {
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+                # class template
+                class Foo
+                    a
+                  - b
+
+                    init(@a, @b)
+                    end
+
+                    func foo
+                        @a.println
+                        @b.println
+                        self.a.println
+                        self.b.println
+                    end
+                end
+
+                func main
+                    f := new Foo{42, 3.14}
+                    f.a.println
+                    f.foo()
+                end
+            )");
+
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+                # class template
+                class Foo
+                    a : int
+                  - b : float
+
+                    init(@a, @b)
+                    end
+
+                    func foo
+                        @a.println
+                        @b.println
+                        self.a.println
+                        self.b.println
+                    end
+                end
+
+                func main
+                    f := new Foo{42, 3.14}
+                    f.a.println
+                    f.foo()
+                end
+            )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+                class Foo
+                  - a
+
+                    init(@a)
+                    end
+                end
+
+                func main
+                    f := new Foo{42}
+                    f.a
+                end
+            )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+                class Foo
+                  - a : int
+
+                    init(@a)
+                    end
+                end
+
+                func main
+                    f := new Foo{42}
+                    f.a
+                end
+            )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+                class Foo
+                  - a : int
+
+                    init(@a)
+                    end
+                end
+
+                class Other
+                    init
+                    end
+
+                    func foo(f)
+                        f.a
+                    end
+                end
+
+                func main
+                    f := new Foo{42}
+                    a := new Other
+                    a.foo(f)
+                end
+            )");
+    }
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_CASE(non_paren_func_calls_edge_cases)

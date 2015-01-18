@@ -327,6 +327,8 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         return boost::none;
     }
 
+    boost::optional<scope::class_scope> get_receiver_class_scope() const;
+
     func_scope &operator=(func_scope const& rhs) = default;
 
     // Compare with rhs considering overloading

@@ -142,6 +142,24 @@ ast::node::function_definition func_scope::get_ast_node() const noexcept
     return *maybe_func_def;
 }
 
+boost::optional<scope::class_scope> func_scope::get_receiver_class_scope() const
+{
+    if (params.empty()) {
+        return boost::none;
+    }
+
+    auto const t = type::get<type::class_type>(params[0]->type);
+    if (!t) {
+        return boost::none;
+    }
+
+    if ((*t)->ref.expired()) {
+        return boost::none;
+    }
+
+    return (*t)->ref.lock();
+}
+
 // Note:
 // define_function() can't share the implementation with resolve_func()'s overload resolution because define_function() considers new function's template arguments
 bool func_scope::operator==(func_scope const& rhs) const noexcept

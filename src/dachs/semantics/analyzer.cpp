@@ -1185,6 +1185,34 @@ public:
 
             if (auto const instance_var = scope->resolve_instance_var(ufcs->member_name)) {
                 ufcs->type = (*instance_var)->type;
+
+                if (!(*instance_var)->is_public) {
+                    auto const f = with_current_scope([](auto const& s)
+                            {
+                                return s->get_enclosing_func();
+                            }
+                        );
+
+                    assert(f);
+
+                    auto const error
+                        = [&ufcs, &scope, this]()
+                        {
+                            semantic_error(
+                                    ufcs,
+                                    boost::format("  '%1%' is not accessible because of a private member of '%2%'")
+                                        % ufcs->member_name % scope->to_string()
+                                );
+                        };
+
+                    if (auto const c = (*f)->get_receiver_class_scope()) {
+                        if ((*c)->name != scope->name) {
+                            error();
+                        }
+                    } else {
+                        error();
+                    }
+                }
                 return;
             }
         }

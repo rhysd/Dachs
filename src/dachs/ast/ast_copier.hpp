@@ -192,7 +192,7 @@ public:
 
     auto copy(node::variable_decl const& vd) const
     {
-        return copy_node<node::variable_decl>(vd, vd->is_var, vd->name, copy(vd->maybe_type));
+        return copy_node<node::variable_decl>(vd, vd->is_var, vd->name, copy(vd->maybe_type), vd->accessibility);
     }
 
     auto copy(node::initialize_stmt const& is) const
@@ -259,7 +259,8 @@ public:
                     copy(fd->params),
                     copy(fd->return_type),
                     copy(fd->body),
-                    copy(fd->ensure_body)
+                    copy(fd->ensure_body),
+                    fd->accessibility
                 );
     }
 

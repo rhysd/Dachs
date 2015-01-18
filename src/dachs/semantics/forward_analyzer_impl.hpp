@@ -343,6 +343,8 @@ public:
         if (!scope->define_variable(new_var)) {
             failed++;
         }
+
+        new_var->is_public = decl->is_public();
     }
 
     void visit_instance_var_init_decl(ast::node::variable_decl const& decl)
