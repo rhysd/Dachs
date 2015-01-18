@@ -1,14 +1,24 @@
 
-# My environment
-
-require 'rbconfig'
+# Note:
+# facter gem doesn't work on my iMac
 NUM_CPU =
-  case RbConfig::CONFIG['target_os'].downcase
-  when /linux/ then 4
-  when /darwin/ then 8
-  else 4
+  case RbConfig::CONFIG['host_os']
+  when /darwin9/
+    `hwprefs cpu_count`.to_i
+  when /darwin/
+    ((`which hwprefs` != '') ? `hwprefs thread_count` : `sysctl -n hw.ncpu`).to_i
+  when /linux/
+    `cat /proc/cpuinfo | grep processor | wc -l`.to_i
+  when /freebsd/
+    `sysctl -n hw.ncpu`.to_i
+  when /mswin|mingw/
+    require 'win32ole'
+    wmi = WIN32OLE.connect("winmgmts://")
+    cpu = wmi.ExecQuery("select NumberOfCores from Win32_Processor") # TODO count hyper-threaded in this
+    cpu.to_enum.first.NumberOfCores
+  else
+    4
   end
-
 
 task default: :all
 
@@ -32,7 +42,11 @@ end
 task b: :build
 
 task :test do
-  system "ctest -j#{NUM_CPU}"
+  IO.popen("ctest -j#{NUM_CPU}").each_line do |l|
+    puts l.gsub(/(?<=Test #)(\d+: )(dachs-\S+)/, "\\1\033[96m\\2\033[0m")
+          .gsub(/(Passed)/, "\033[92m\\1\033[0m")
+          .gsub(/(\*+Failed)/, "\033[91m\\1\033[0m")
+  end
 end
 
 task t: :test
