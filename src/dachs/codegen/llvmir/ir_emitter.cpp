@@ -213,6 +213,7 @@ class llvm_ir_emitter {
                 scope->name == "main" ? "main" : scope->to_string(),
                 module
             );
+        func_ir->addFnAttr(llvm::Attribute::NoUnwind);
 
         check(func_def, func_type_ir, "function");
 
