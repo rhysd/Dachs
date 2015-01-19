@@ -284,43 +284,6 @@ public:
         introduce_scope_and_walk(std::move(new_func), w);
     }
 
-    auto get_param_sym(ast::node::parameter const& param)
-    {
-        // Note:
-        // When the param's name is "_", it means unused.
-        // Unique number (the address of 'param') is used instead of "_" as its name.
-        // This is because "_" variable should be ignored by symbol resolution and
-        // duplication check; it means that duplication of "_" must be permitted.
-        // Defining the symbol is not skipped because of overload resolution. Parameters
-        // must have its symbol and type for overloading the function.
-        auto const new_param_sym =
-            symbol::make<symbol::var_symbol>(
-                param,
-                param->name == "_" ? std::to_string(reinterpret_cast<size_t>(param.get())) : param->name,
-                !param->is_var
-            );
-        param->param_symbol = new_param_sym;
-
-        if (param->param_type) {
-            // XXX:
-            // type_calculator requires class information which should be analyzed forward.
-            param->type = type::from_ast(*param->param_type, current_scope);
-            if (!param->type) {
-                semantic_error(
-                        param,
-                        boost::format("  Invalid type '%1%' for parameter '%2%'")
-                            % apply_lambda([](auto const& t){
-                                    return t->to_string();
-                            }, *param->param_type)
-                            % param->name
-                    );
-            }
-            new_param_sym->type = param->type;
-        }
-
-        return new_param_sym;
-    }
-
     void visit_class_var_decl(ast::node::variable_decl const& decl, scope::class_scope const& scope)
     {
         if (decl->is_instance_var()) {
@@ -413,7 +376,45 @@ public:
             }
         } else {
             param_sym->type = (*instance_var)->type;
+            param->type = param_sym->type;
         }
+    }
+
+    auto get_param_sym(ast::node::parameter const& param)
+    {
+        // Note:
+        // When the param's name is "_", it means unused.
+        // Unique number (the address of 'param') is used instead of "_" as its name.
+        // This is because "_" variable should be ignored by symbol resolution and
+        // duplication check; it means that duplication of "_" must be permitted.
+        // Defining the symbol is not skipped because of overload resolution. Parameters
+        // must have its symbol and type for overloading the function.
+        auto const new_param_sym =
+            symbol::make<symbol::var_symbol>(
+                param,
+                param->name == "_" ? std::to_string(reinterpret_cast<size_t>(param.get())) : param->name,
+                !param->is_var
+            );
+        param->param_symbol = new_param_sym;
+
+        if (param->param_type) {
+            // XXX:
+            // type_calculator requires class information which should be analyzed forward.
+            param->type = type::from_ast(*param->param_type, current_scope);
+            if (!param->type) {
+                semantic_error(
+                        param,
+                        boost::format("  Invalid type '%1%' for parameter '%2%'")
+                            % apply_lambda([](auto const& t){
+                                    return t->to_string();
+                            }, *param->param_type)
+                            % param->name
+                    );
+            }
+            new_param_sym->type = param->type;
+        }
+
+        return new_param_sym;
     }
 
     template<class Walker>
@@ -425,12 +426,11 @@ public:
 
             if (param->is_instance_var_init()) {
                 check_init_instance_param(param, func, new_param_sym);
-            }
-
-            if (!param->param_type) {
+            } else if (!param->param_type) {
                 param->type = type::make<type::template_type>(param);
                 new_param_sym->type = param->type;
             }
+
             if (!func->define_param(new_param_sym)) {
                 failed++;
                 return;

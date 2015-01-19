@@ -1255,7 +1255,7 @@ public:
     template<class Map>
     boost::optional<Map> check_template_instantiation_with_ctor(Map &&map, scope::func_scope const& ctor, ast::node::function_definition const& ctor_def)
     {
-        assert(ctor->name == "dachs.init");
+        assert(ctor->is_ctor());
 
         auto const check_instance_var_type
             = [&, this](auto const& var_node, auto const& var_sym)
@@ -1280,13 +1280,14 @@ public:
             };
 
         std::unordered_set<ast::node::parameter> checked;
+        bool fail = false;
 
         // Note:
         // Parameter types are already checked in forward analyzer
         for (auto const& p : ctor_def->params) {
             if (p->is_instance_var_init()) {
                 if (!check_instance_var_type(p, p->param_symbol.lock())) {
-                    return boost::none;
+                    fail = true;
                 }
                 checked.insert(p);
             }
@@ -1310,33 +1311,36 @@ public:
                                     "  Note: First initialization is at line:%2%, col:%3%."
                                 ) % decl->name % (*dup)->line % (*dup)->col
                             );
-                        return boost::none;
-                    }
-                    if (decl->symbol.expired()
+                        fail = true;
+                    } else if (decl->symbol.expired()
                             || !check_instance_var_type(decl, decl->symbol.lock())) {
-                        return boost::none;
+                        fail = true;
                     }
                 }
             }
         }
 
-        for (auto const& i : map) {
-            if (!i.second) {
-                auto const class_name
-                    = (*get_as<scope::class_scope>(enclosing_scope_of(ctor)))->name;
-                semantic_error(
-                        ctor_def,
-                        boost::format(
-                            "  Failed to instantiate class template '%1%'\n"
-                            "  Type of instance variable '%2%' can't be determined\n"
-                            "  Note: Used contructor is at line:%3%, col:%4%"
-                        ) % class_name % i.first % ctor_def->line % ctor_def->col
-                    );
-                return boost::none;
-            }
+        for (auto const& i : map
+                | filtered([](auto const& i) -> bool { return !i.second; })
+        ) {
+            auto const class_name
+                = (*get_as<scope::class_scope>(enclosing_scope_of(ctor)))->name;
+            semantic_error(
+                    ctor_def,
+                    boost::format(
+                        "  Failed to instantiate class template '%1%'\n"
+                        "  Type of instance variable '%2%' can't be determined\n"
+                        "  Note: Used contructor is at line:%3%, col:%4%"
+                    ) % class_name % i.first % ctor_def->line % ctor_def->col
+                );
+            fail = true;
         }
 
-        return std::forward<Map>(map);
+        if (fail) {
+            return boost::none;
+        } else {
+            return std::forward<Map>(map);
+        }
     }
 
     template<class InstantiationMap>

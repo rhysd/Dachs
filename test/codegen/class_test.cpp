@@ -241,6 +241,20 @@ BOOST_AUTO_TEST_CASE(class_definition)
             end
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class Foo
+            b
+
+            init(@b : int)
+            end
+        end
+
+        func main
+            f := new Foo{42}
+            f.b.println
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
