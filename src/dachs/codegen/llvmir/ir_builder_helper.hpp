@@ -14,12 +14,13 @@
 namespace dachs {
 namespace codegen {
 namespace llvmir {
+namespace builder {
 
 using boost::adaptors::filtered;
 using boost::irange;
 
 template<class Node>
-class basic_ir_builder_helper {
+class block_branch_helper {
     using node_type = std::shared_ptr<Node>;
     using parent_ptr_type = decltype(std::declval<llvm::IRBuilder<>>().GetInsertBlock()->getParent());
 
@@ -47,27 +48,8 @@ class basic_ir_builder_helper {
         return v;
     }
 
-    template<class T>
-    inline bool is_aggregate_ptr(T const *const t) const noexcept
-    {
-        if (!t->isPointerTy()) {
-            return false;
-        }
-
-        auto *const elem_type = t->getPointerElementType();
-
-        if (auto const struct_type = llvm::dyn_cast<llvm::StructType>(elem_type)) {
-            if (struct_type->hasName()) {
-                // Note: User-defined type
-                return false;
-            }
-        }
-
-        return elem_type->isAggregateType();
-    }
-
 public:
-    basic_ir_builder_helper(node_type const& n, context &c) noexcept
+    block_branch_helper(node_type const& n, context &c) noexcept
         : node(n), ctx(c), parent(c.builder.GetInsertBlock()->getParent())
     {}
 
@@ -176,32 +158,57 @@ public:
         return the_block;
     }
 
+};
+
+class alloc_helper {
+    context &ctx;
+
+    template<class T>
+    bool is_aggregate_ptr(T const *const t) const noexcept
+    {
+        if (!t->isPointerTy()) {
+            return false;
+        }
+
+        auto *const elem_type = t->getPointerElementType();
+
+        if (auto const struct_type = llvm::dyn_cast<llvm::StructType>(elem_type)) {
+            if (struct_type->hasName()) {
+                // Note: User-defined type
+                return false;
+            }
+        }
+
+        return elem_type->isAggregateType();
+    }
+
+public:
+    explicit alloc_helper(context &c)
+        : ctx(c)
+    {}
+
     template<class FromValue, class String = char const* const>
     llvm::AllocaInst *create_alloca(FromValue *const from, llvm::Value *const array_size = nullptr, String const& name = "")
     {
         auto *const type = from->getType();
         // Note:
         // Absorb the difference between value types and reference types
-        return check(
-            ctx.builder.CreateAlloca(
+        return ctx.builder.CreateAlloca(
                 llvm::isa<llvm::AllocaInst>(from) || llvm::isa<llvm::GetElementPtrInst>(from) ?
                     type->getPointerElementType()
-                  : type
+                    : type
                 , array_size
                 , name
-            )
-            , "alloca instruction"
-        );
+            );
     }
 
     template<class String = char const* const>
     llvm::AllocaInst *alloc_and_deep_copy(llvm::Value *const from, String const& name = "")
     {
-        auto *const allocated
-            = check(
-                create_alloca(from, nullptr, name)
-                , "alloc and deep copy"
-            );
+        auto *const allocated = create_alloca(from, nullptr, name);
+        if (!allocated) {
+            return nullptr;
+        }
 
         create_deep_copy(from, allocated);
         return allocated;
@@ -260,8 +267,10 @@ public:
             ctx.builder.CreateStore(from, to);
         }
     }
+
 };
 
+} // namespace builder
 } // namespace llvmir
 } // namespace codegen
 } // namespace dachs

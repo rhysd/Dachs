@@ -81,6 +81,7 @@ class llvm_ir_emitter {
     tmp_member_ir_emitter member_emitter;
     tmp_constructor_ir_emitter builtin_ctor_emitter;
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
+    builder::alloc_helper allocator;
 
     auto push_loop(llvm::BasicBlock *loop_value)
     {
@@ -154,8 +155,8 @@ class llvm_ir_emitter {
     }
 
     template<class Node>
-    auto get_ir_helper(std::shared_ptr<Node> const& node) noexcept
-        -> basic_ir_builder_helper<Node>
+    auto bb_helper(std::shared_ptr<Node> const& node) noexcept
+        -> builder::block_branch_helper<Node>
     {
         return {node, ctx};
     }
@@ -356,6 +357,7 @@ public:
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , member_emitter(ctx)
         , builtin_ctor_emitter(ctx, type_emitter)
+        , allocator(ctx)
     {}
 
     // Note:
@@ -606,8 +608,6 @@ public:
         // Note:
         // Mutable parameters are copied not to affect the original value
 
-        auto helper = get_ir_helper(param);
-
         // Note:
         // The parameter is already registered as register value for variable table in emit_func_prototype()
         // So at first we delete the value and re-register it as allocated value
@@ -620,7 +620,7 @@ public:
         auto const inst
             = check(
                 param,
-                helper.alloc_and_deep_copy(register_val, param_sym->name),
+                allocator.alloc_and_deep_copy(register_val, param_sym->name),
                 "allocation for variable parameter"
             );
 
@@ -629,13 +629,10 @@ public:
         (void) result;
     }
 
-    template<class Node>
-    void emit_instance_var_init_params(scope::func_scope const& ctor, Node const& node)
+    void emit_instance_var_init_params(scope::func_scope const& ctor)
     {
         assert(!ctor->params.empty() && (ctor->params[0]->name == "self"));
         assert(type::is_a<type::class_type>(ctor->params[0]->type));
-
-        auto helper = get_ir_helper(node);
 
         auto const& self_sym = ctor->params[0];
         assert(type::is_a<type::class_type>(self_sym->type));
@@ -655,7 +652,7 @@ public:
                 assert(offset);
                 auto *const dest_val = ctx.builder.CreateStructGEP(self_val, *offset);
                 assert(dest_val);
-                helper.create_deep_copy(initializer_val, dest_val);
+                allocator.create_deep_copy(initializer_val, dest_val);
             }
         }
     }
@@ -684,7 +681,7 @@ public:
         }
 
         if (scope->is_ctor()) {
-            emit_instance_var_init_params(scope, func_def);
+            emit_instance_var_init_params(scope);
         }
 
         emit(func_def->body);
@@ -722,7 +719,7 @@ public:
 
     void emit(ast::node::if_stmt const& if_)
     {
-        auto helper = get_ir_helper(if_);
+        auto helper = bb_helper(if_);
 
         auto *then_block = helper.create_block_for_parent("if.then");
         auto *else_block = helper.create_block_for_parent("if.else");
@@ -958,7 +955,7 @@ public:
                         ctx.builder.CreateInBoundsGEP(
                             ty->isPointerTy() ?
                                 child_val :
-                                get_ir_helper(access).alloc_and_deep_copy(child_val),
+                                allocator.alloc_and_deep_copy(child_val),
                             (val [2]){
                                 ctx.builder.getInt32(0u),
                                 index_val->getType()->isIntegerTy(32u) ?
@@ -1078,7 +1075,7 @@ public:
 
     void emit(ast::node::while_stmt const& while_)
     {
-        auto helper = get_ir_helper(while_);
+        auto helper = bb_helper(while_);
 
         auto *const cond_block = helper.create_block_for_parent("while.cond");
         auto *const body_block = helper.create_block_for_parent("while.body");
@@ -1097,7 +1094,7 @@ public:
 
     void emit(ast::node::for_stmt const& for_)
     {
-        auto helper = get_ir_helper(for_);
+        auto helper = bb_helper(for_);
 
         // Note:
         // Now array is only supported
@@ -1107,7 +1104,11 @@ public:
             if (auto *const a = llvm::dyn_cast<llvm::ConstantArray>(range_val)) {
                 range_val = new llvm::GlobalVariable(*module, a->getType(), true, llvm::GlobalVariable::PrivateLinkage, a);
             } else {
-                range_val = helper.alloc_and_deep_copy(range_val);
+                range_val = check(
+                        for_,
+                        allocator.alloc_and_deep_copy(range_val),
+                        "allocation in for statement"
+                    );
             }
         }
 
@@ -1159,7 +1160,7 @@ public:
                 );
 
             if (allocated) {
-                helper.create_deep_copy(elem_ptr_val, allocated);
+                allocator.create_deep_copy(elem_ptr_val, allocated);
                 var_table.insert(sym.lock(), allocated);
             } else {
                 var_table.insert(sym.lock(), elem_ptr_val);
@@ -1193,7 +1194,6 @@ public:
             return;
         }
 
-        auto helper = get_ir_helper(init);
         auto const& rhs_exprs = *init->maybe_rhs_exprs;
         auto const initializee_size = init->var_decls.size();
         auto const initializer_size = rhs_exprs.size();
@@ -1235,10 +1235,11 @@ public:
                     auto *const dest_val = ctx.builder.CreateStructGEP(self_val, *offset);
                     assert(dest_val);
 
-                    helper.create_deep_copy(value, dest_val);
+                    allocator.create_deep_copy(value, dest_val);
 
                 } else if (decl->is_var) {
-                    auto *const allocated = helper.alloc_and_deep_copy(value, sym->name);
+                    auto *const allocated = allocator.alloc_and_deep_copy(value, sym->name);
+                    assert(allocated);
                     var_table.insert(std::move(sym), allocated);
                 } else {
                     // If the variable is immutable, do not copy rhs value
@@ -1298,7 +1299,6 @@ public:
     void emit(ast::node::assignment_stmt const& assign)
     {
         assert(assign->op.back() == '=');
-        auto helper = get_ir_helper(assign);
 
         // Load rhs value
         std::vector<val> rhs_values;
@@ -1364,7 +1364,7 @@ public:
                         );
                 }
 
-                helper.create_deep_copy(value_to_assign, lhs_value);
+                allocator.create_deep_copy(value_to_assign, lhs_value);
             };
 
         helper::each(assignment_emitter, assign->assignees, rhs_values);
@@ -1372,7 +1372,7 @@ public:
 
     void emit(ast::node::case_stmt const& case_)
     {
-        auto helper = get_ir_helper(case_);
+        auto helper = bb_helper(case_);
         auto *const end_block = helper.create_block("case.end");
 
         llvm::BasicBlock *else_block;
@@ -1415,7 +1415,7 @@ public:
      */
     void emit(ast::node::switch_stmt const& switch_)
     {
-        auto helper = get_ir_helper(switch_);
+        auto helper = bb_helper(switch_);
         auto *const end_block = helper.create_block("switch.end");
 
         auto *const target_val = get_operand(emit(switch_->target_expr));
@@ -1472,7 +1472,7 @@ public:
 
     val emit(ast::node::if_expr const& if_)
     {
-        auto helper = get_ir_helper(if_);
+        auto helper = bb_helper(if_);
 
         auto *const then_block = helper.create_block_for_parent("expr.if.then");
         auto *const else_block = helper.create_block_for_parent("expr.if.else");
@@ -1503,7 +1503,7 @@ public:
 
     void emit(ast::node::postfix_if_stmt const& postfix_if)
     {
-        auto helper = get_ir_helper(postfix_if);
+        auto helper = bb_helper(postfix_if);
 
         auto *const then_block = helper.create_block_for_parent("postfixif.then");
         auto *const end_block = helper.create_block_for_parent("postfixif.end");
