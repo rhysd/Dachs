@@ -1,6 +1,6 @@
-#include <string>
 #include <cstdio>
 #include <cstdint>
+#include <cstdarg>
 
 extern "C" {
     void __dachs_println_float__(double const d)
@@ -71,5 +71,13 @@ extern "C" {
     void __dachs_print_bool__(bool const b)
     {
         std::printf("%s", b ? "true" : "false");
+    }
+
+    void __dachs_printf__(char const* const fmt, ...)
+    {
+        va_list l;
+        va_start(l, fmt);
+        vprintf(fmt, l);
+        va_end(l);
     }
 }

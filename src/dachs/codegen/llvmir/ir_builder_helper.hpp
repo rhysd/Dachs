@@ -55,6 +55,14 @@ class basic_ir_builder_helper {
         }
 
         auto *const elem_type = t->getPointerElementType();
+
+        if (auto const struct_type = llvm::dyn_cast<llvm::StructType>(elem_type)) {
+            if (struct_type->hasName()) {
+                // Note: User-defined type
+                return false;
+            }
+        }
+
         return elem_type->isAggregateType();
     }
 
