@@ -32,11 +32,11 @@ task :cmake do |t, a|
       ""
     end
 
-  system "cmake .. -DCMAKE_BUILD_TYPE=#{type}"
+  raise unless system "cmake .. -DCMAKE_BUILD_TYPE=#{type}"
 end
 
 task :build do
-  system "make -j#{NUM_CPU}"
+  raise unless system "make -j#{NUM_CPU}"
 end
 
 task b: :build
@@ -47,6 +47,7 @@ task :test do
           .gsub(/(Passed)/, "\033[92m\\1\033[0m")
           .gsub(/(\*+Failed)/, "\033[91m\\1\033[0m")
   end
+  raise unless $?.success?
 end
 
 task t: :test
