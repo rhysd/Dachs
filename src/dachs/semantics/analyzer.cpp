@@ -1058,6 +1058,37 @@ public:
             return (boost::format("  Cannot deduce the return type of function '%1%'") % func->to_string()).str();
         }
 
+        // Note:
+        // Check function accessibility
+        if (!func_def->is_public()) {
+            auto const f = with_current_scope([](auto const& s)
+                    {
+                        return s->get_enclosing_func();
+                    }
+                );
+            auto const t = type::get<type::class_type>(func->params[0]->type);
+
+            assert(f);
+            assert(t);
+
+            auto const error
+                = [t=*t, &func, this]
+                {
+                    return (
+                            boost::format("  member function '%1%' is a private member of class '%2%'")
+                                % func->to_string() % t->name
+                        ).str();
+                };
+
+            if (auto const c = (*f)->get_receiver_class_scope()) {
+                if ((*t)->name != (*c)->name) {
+                    return error();
+                }
+            } else {
+                return error();
+            }
+        }
+
         node->type = *func->ret_type;
         node->callee_scope = func;
 

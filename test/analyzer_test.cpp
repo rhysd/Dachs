@@ -956,6 +956,138 @@ BOOST_AUTO_TEST_SUITE(class_definition)
                     a.foo(f)
                 end
             )");
+
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+                class Foo
+                    init
+                    end
+
+                    func foo
+                        @bar()
+                        println("foo")
+                    end
+
+                - func bar
+                        println("bar")
+                    end
+                end
+
+                class FooTemplate
+                    a
+
+                    init(@a)
+                    end
+
+                    func foo
+                        @bar()
+                        println("foo")
+                    end
+
+                - func bar
+                        println("bar")
+                    end
+                end
+
+                func main
+                    f := new Foo
+                    f.foo   # ufcs_invocation
+                    f.foo() # func_invocation
+
+                    f2 := new FooTemplate{42}
+                    f2.foo   # ufcs_invocation
+                    f2.foo() # func_invocation
+                end
+            )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+                class Foo
+                    init
+                    end
+
+                  - func foo
+                    end
+                end
+
+                func main
+                    f := new Foo
+                    f.foo
+                end
+            )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+                class Foo
+                    a
+
+                    init(@a)
+                    end
+
+                  - func foo
+                    end
+                end
+
+                func main
+                    f := new Foo{42}
+                    f.foo
+                end
+            )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+                class Foo
+                    init
+                    end
+
+                  - func foo
+                    end
+                end
+
+                func main
+                    f := new Foo
+                    f.foo
+                end
+            )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+                class Foo
+                    a
+
+                    init(@a)
+                    end
+
+                  - func foo
+                    end
+                end
+
+                func main
+                    f := new Foo{42}
+                    f.foo()
+                end
+            )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+                class Foo
+                    a
+
+                    init(@a)
+                    end
+
+                  - func foo
+                    end
+                end
+
+                class Other
+                    init
+                    end
+
+                    func foo(f)
+                        f.foo
+                    end
+                end
+
+                func main
+                    o := new Other
+                    o.foo(new Foo{42})
+                end
+            )");
     }
 BOOST_AUTO_TEST_SUITE_END()
 
