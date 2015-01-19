@@ -402,7 +402,7 @@ public:
             return;
         }
 
-        if (param_sym->type) {
+        if (param_sym->type && !(*instance_var)->type.is_template()) {
             if (param_sym->type != (*instance_var)->type) {
                 semantic_error(param,
                         boost::format(

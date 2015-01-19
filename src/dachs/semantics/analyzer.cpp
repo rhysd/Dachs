@@ -1463,6 +1463,12 @@ public:
     template<class InstanceVars, class CtorParams, class Scope, class Body>
     bool walk_ctor_body_to_infer_class_template(InstanceVars const& vars, CtorParams const& params, Scope const& enclosing, Body &body)
     {
+        // Note:
+        // Obtain the information for template instance variable types from the constructor.
+        // Types of instance variable which is initialized in parameter of ctor are already known.
+        // At first replace the known types with its template types and visit body of ctor recursively,
+        // then restore the template types not to affect the original AST of class template.
+
         std::unordered_map<std::string, type::type> saved;
 
         for (auto const& p : params | filtered([](auto const& p){ return p->is_instance_var(); })) {
