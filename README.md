@@ -3,6 +3,8 @@
 [![Build Status](https://travis-ci.org/rhysd/Dachs.svg?branch=master)](https://travis-ci.org/rhysd/Dachs)
 =========================================================================================================
 
+Dachs is a general-purpose programming language designed to be enjoyable, type-safe and simple.
+
 Goals :dog2:
 - Light to write (inspired by Ruby)
 - Strongly and statically typed
