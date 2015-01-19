@@ -323,6 +323,7 @@ class llvm_ir_emitter {
             auto const clazz = (*receiver_type)->ref.lock();
             auto const offset = clazz->get_instance_var_offset_of(ufcs->member_name);
             assert(offset);
+
             return emitter.ctx.builder.CreateStructGEP(receiver_val, *offset);
         }
 
@@ -993,7 +994,7 @@ public:
 
     boost::optional<val> emit_instance_var_access(scope::class_scope const& scope, ast::node::ufcs_invocation const& ufcs)
     {
-        auto *const child_val = emit(ufcs->child);
+        auto *const child_val = get_operand(emit(ufcs->child));
 
         auto const offset_of
             = [&scope](auto const& name)
