@@ -24,15 +24,8 @@ task default: :all
 
 task all: [:build, :test]
 
-task :cmake do |t, a|
-  type =
-    if a.includes "release"
-      "Release"
-    else
-      ""
-    end
-
-  raise unless system "cmake .. -DCMAKE_BUILD_TYPE=#{type}"
+task :cmake do
+  raise unless system "cmake .. -DCMAKE_BUILD_TYPE=#{ENV['TYPE']}"
 end
 
 task :build do
