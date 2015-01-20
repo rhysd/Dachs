@@ -1089,6 +1089,36 @@ BOOST_AUTO_TEST_SUITE(class_definition)
                 end
             )");
     }
+
+    BOOST_AUTO_TEST_CASE(non_exist_member)
+    {
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Template
+                a
+
+                init(@a)
+                end
+            end
+
+            func main
+                t := new Template{42}
+                t.foo
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class NonTemplate
+                init
+                end
+            end
+
+            func main
+                t := new NonTemplate
+                t.foo
+            end
+        )");
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_CASE(non_paren_func_calls_edge_cases)
