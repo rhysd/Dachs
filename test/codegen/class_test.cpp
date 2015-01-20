@@ -273,6 +273,43 @@ BOOST_AUTO_TEST_CASE(extension_method)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(class_in_class)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class Template
+            a
+
+            init(@a)
+            end
+
+            func foo
+                ret @a
+            end
+        end
+
+        class NonTemplate
+            a : int
+
+            init(@a)
+            end
+
+            func foo
+                ret @a
+            end
+        end
+
+        func main
+            tt := new Template{new Template{42}}
+            tt2 := new Template{new NonTemplate{42}}
+            ttt := new Template{new Template{new Template{42}}}
+
+            tt.foo.foo.println
+            tt2.foo.foo.println
+            ttt.foo.foo.foo.println
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(do_not_degrade)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
