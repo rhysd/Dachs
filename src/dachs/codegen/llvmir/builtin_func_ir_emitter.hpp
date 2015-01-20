@@ -11,6 +11,7 @@
 #include <llvm/IR/Value.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/Intrinsics.h>
 
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -97,6 +98,12 @@ public:
         return emit_builtin_func_prototype(println_func_table, "__dachs_println_", arg_type);
     }
 
+    llvm::Function *emit_read_cycle_counter_func()
+    {
+        assert(module);
+        return llvm::Intrinsic::getDeclaration(module, llvm::Intrinsic::readcyclecounter);
+    }
+
     llvm::Function *emit(std::string const& name, std::vector<type::type> const& arg_types)
     {
         if (name == "print") {
@@ -111,6 +118,8 @@ public:
                 assert(*maybe_arg_type);
                 return emit_println_func(*maybe_arg_type);
             }
+        } else if (name == "read_cycle_counter") {
+            return emit_read_cycle_counter_func();
         } // else ...
 
         return nullptr;
