@@ -202,6 +202,30 @@
 namespace dachs {
 namespace ast {
 
+namespace detail {
+
+inline void dump_location(location_type const& l) noexcept
+{
+    std::cout << "line:" << std::get<0>(l) << ", "
+              << "col:" << std::get<1>(l) << ", "
+              << "len:" << std::get<2>(l) << std::endl;
+}
+
+} // namespace detail
+
+namespace node {
+
+template<class... Nodes>
+inline location_type location_of(boost::variant<Nodes...> const& node) noexcept
+{
+    return helper::variant::apply_lambda(
+                [](auto const& n){ return n->source_location(); }
+                , node
+            );
+}
+
+} // namespace node
+
 namespace node_type {
 
 using boost::algorithm::any_of;
@@ -482,12 +506,24 @@ struct ufcs_invocation final : public expression {
     std::string member_name;
     scope::weak_func_scope callee_scope;
 
+    struct set_location_tag {};
+
     ufcs_invocation(
             node::any_expr const& c,
             std::string const& member_name
         ) noexcept
         : expression(), child(c), member_name(member_name)
     {}
+
+    ufcs_invocation(
+            node::any_expr const& c,
+            std::string const& member_name,
+            set_location_tag
+        ) noexcept
+        : ufcs_invocation(c, member_name)
+    {
+        set_source_location(node::location_of(c));
+    }
 
     std::string to_string() const noexcept override
     {
