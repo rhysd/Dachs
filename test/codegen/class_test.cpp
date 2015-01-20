@@ -349,6 +349,39 @@ BOOST_AUTO_TEST_CASE(do_not_degrade)
             f.b.println
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class Foo
+            a
+
+            init(@a)
+            end
+
+            init
+                @a := new Foo{42}
+            end
+        end
+
+        func main
+            f := new Foo
+            f.a.a.println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class Foo
+            a
+
+            init(@a)
+            end
+        end
+
+        func main
+            var f := new Foo{new Foo{42}}
+            f.a = new Foo{42}
+            f.a.a.println
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

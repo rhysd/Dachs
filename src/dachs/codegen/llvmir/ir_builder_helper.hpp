@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <algorithm>
+#include <cstddef>
 
 #include <boost/range/irange.hpp>
 #include <boost/range/adaptor/filtered.hpp>
@@ -214,6 +215,19 @@ public:
         return allocated;
     }
 
+    // Note:
+    // Pointer depth examples:
+    //      i8 : 0
+    //     *i8 : 1
+    //    **i8 : 2
+    template<class Type>
+    std::size_t pointer_depth(Type const* const type) const noexcept
+    {
+        return type->isPointerTy()
+            ? 1u + pointer_depth(type->getPointerElementType())
+            : 0u;
+    }
+
     template<class PtrTypeType>
     void create_deep_copy(llvm::Value *const from, PtrTypeType *const to)
     {
@@ -260,9 +274,12 @@ public:
                 DACHS_RAISE_INTERNAL_COMPILATION_ERROR
             }
 
-        } else if (llvm::isa<llvm::AllocaInst>(from) || llvm::isa<llvm::GetElementPtrInst>(from)) {
+        } else if ((llvm::isa<llvm::AllocaInst>(from) || llvm::isa<llvm::GetElementPtrInst>(from)) &&
+                   (pointer_depth(from_type) == pointer_depth(to->getType()))) {
+            // Note:
+            // When the src value should be loaded before storing to dest,
+            // pointer depth of src value must equal to one of dest value.
             ctx.builder.CreateStore(ctx.builder.CreateLoad(from), to);
-
         } else {
             ctx.builder.CreateStore(from, to);
         }
