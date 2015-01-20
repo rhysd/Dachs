@@ -34,8 +34,9 @@ static dachs::syntax::parser p;
         } while (false);
 
 BOOST_AUTO_TEST_SUITE(codegen_llvm)
+BOOST_AUTO_TEST_SUITE(class_definition)
 
-BOOST_AUTO_TEST_CASE(class_definition)
+BOOST_AUTO_TEST_CASE(empty)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         class X
@@ -52,7 +53,10 @@ BOOST_AUTO_TEST_CASE(class_definition)
             x := new X
         end
     )");
+}
 
+BOOST_AUTO_TEST_CASE(init_in_param_of_ctor)
+{
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         class Foo
             a : int
@@ -73,7 +77,10 @@ BOOST_AUTO_TEST_CASE(class_definition)
             b.a.println
         end
     )");
+}
 
+BOOST_AUTO_TEST_CASE(init_in_body_of_ctor)
+{
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         class Foo
             a : int
@@ -125,7 +132,10 @@ BOOST_AUTO_TEST_CASE(class_definition)
             a2 := new Foo
         end
     )");
+}
 
+BOOST_AUTO_TEST_CASE(general_method)
+{
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         class Foo
             a : int
@@ -181,26 +191,6 @@ BOOST_AUTO_TEST_CASE(class_definition)
             init
                 @a := 42
             end
-        end
-
-        func foo(r : Foo)
-            println(r.a)
-        end
-
-        func main
-            f := new Foo
-            foo(f)
-            f.foo
-        end
-    )");
-
-    CHECK_NO_THROW_CODEGEN_ERROR(R"(
-        class Foo
-            a
-
-            init
-                @a := 42
-            end
 
             func m1(a)
                 ret a as int * @a
@@ -217,7 +207,74 @@ BOOST_AUTO_TEST_CASE(class_definition)
             f.m2(f.m1(f.a))
         end
     )");
+}
 
+BOOST_AUTO_TEST_CASE(extension_method)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class Foo
+            a
+
+            init
+                @a := 42
+            end
+
+            func use_foo
+                self.foo
+                self.foo2
+            end
+        end
+
+        func foo(r : Foo)
+            println(r.a)
+        end
+
+        func foo2(r : Foo)
+            println(r.a)
+        end
+
+        func main
+            f := new Foo
+            f.foo
+            f.foo2
+            f.use_foo
+        end
+    )");
+
+    // Non-template
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class Foo
+            a : int
+
+            init
+                @a := 42
+            end
+
+            func use_foo
+                self.foo
+                self.foo2
+            end
+        end
+
+        func foo(r : Foo)
+            println(r.a)
+        end
+
+        func foo2(var r : Foo)
+            println(r.a)
+        end
+
+        func main
+            f := new Foo
+            f.foo
+            f.foo2
+            f.use_foo
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(do_not_degrade)
+{
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         class Foo
             a, b
@@ -257,5 +314,6 @@ BOOST_AUTO_TEST_CASE(class_definition)
     )");
 }
 
+BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE_END()
 
