@@ -5,10 +5,17 @@ class Xor128
     end
 
     init
-        @x := 123456789u
-        @y := 362436069u
-        @z := 521288629u
-        @w := 88675123u
+        @x := read_cycle_counter()
+        @y := read_cycle_counter()
+        @z := read_cycle_counter()
+        @w := read_cycle_counter()
+    end
+
+    func new_seed(seeds)
+        @x = seeds[0u % seeds.size]
+        @y = seeds[1u % seeds.size]
+        @z = seeds[2u % seeds.size]
+        @w = seeds[3u % seeds.size]
     end
 
     func gen
@@ -29,7 +36,16 @@ class LCG
     end
 
     init
-        @seed := 1
+        @seed := read_cycle_counter()
+    end
+
+    func new_seed(seeds)
+        @seed = 0
+        i := 0u
+        for i < seeds.size
+            @seed ^= seeds[i]
+            i += 1u
+        end
     end
 
     func gen
@@ -63,6 +79,25 @@ class Mt19937
         @upper_mask := 0x80000000u
         @lower_mask := 0x7fffffffu
         dummy := @init_by_array(seeds)
+    end
+
+    init
+        @mt := new [uint]{624u}
+        @mti := 625u
+        @n := 624u
+        @m := 397u
+        @matrix_a := 0x9908b0dfu
+        @upper_mask := 0x80000000u
+        @lower_mask := 0x7fffffffu
+        dummy := @init_by_array([
+                    read_cycle_counter(),
+                    read_cycle_counter(),
+                    read_cycle_counter(),
+                ])
+    end
+
+    func new_seed(seeds)
+        @init_by_array(seeds)
     end
 
   - func init_genrand(s)
@@ -154,22 +189,44 @@ class Mt19937
     end
 end
 
-func main
-    var lcg := new LCG{1}
-    var xor128 := new Xor128
-    var mt := new Mt19937{[0x123u, 0x234u, 0x345u, 0x456u]}
+class Random
+    generator
 
-    test := -> n, g do
+    init(@generator)
+    end
+
+    func new_seed(seeds)
+        @generator.new_seed(seeds)
+    end
+
+    func gen
+        ret @generator.gen
+    end
+end
+
+func main
+    test := -> n, r do
         n.println
         var i := 0
         for i < 5
-            g.gen.println
+            r.gen.println
             i += 1
         end
         println("")
     end
 
-    test("LCG", lcg)
-    test("Xor128", xor128)
-    test("Mt19937", mt)
+    do
+        r := new Random{new LCG{1}}
+        "LCG".test r
+    end
+
+    do
+        r := new Random{new Xor128{123456789u, 362436069u, 521288629u, 88675123u}}
+        "Xor128".test r
+    end
+
+    do
+        r := new Random{new Mt19937{[0x123u, 0x234u, 0x345u, 0x456u]}}
+        "Mt19937".test r
+    end
 end
