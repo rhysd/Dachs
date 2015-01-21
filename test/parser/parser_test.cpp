@@ -853,6 +853,9 @@ BOOST_AUTO_TEST_CASE(cast_expression)
                 as T((int, int)?)
             expr as
                 T((int, int)?)
+
+            # corner case
+            f.a as int
         end
         )"));
 

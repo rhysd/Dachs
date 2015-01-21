@@ -490,13 +490,14 @@ public:
 
         var_ref_before_space
             =
-                var_ref >> qi::no_skip[&' '_l]
+                var_ref >> qi::no_skip[&' '_l] >> !DACHS_KWD("as")
             ;
 
         // primary.name(...) [do-end]
         // primary.name ... do-end
         // primary.name ...
         // primary.name [do-end]
+        // primary.name
         // primary ... do-end
         // primary[...]
         // primary(...)
@@ -511,7 +512,7 @@ public:
                     | (-qi::eol >> '.' >> -qi::eol >> var_ref_before_space >> !('+'_l | '-') >> (typed_expr - "do") % comma)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2)]
                     | (-qi::eol >> '.' >> -qi::eol >> (var_ref - "do") >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_2, _1, _val)]
                     | (-qi::eol >> '.' >> -qi::eol >> called_function_name)[_val = make_node_ptr<ast::node::ufcs_invocation>(_val, _1, ast::node_type::ufcs_invocation::set_location_tag{})]
-                    | (qi::no_skip[&' '_l] >> (typed_expr - "do") % comma >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_val, _1, _2)]
+                    | (qi::no_skip[&' '_l] >> !DACHS_KWD("as") >> (typed_expr - "do") % comma >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_val, _1, _2)]
                     | ('[' >> -qi::eol >> typed_expr >> -qi::eol >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]
                     | ('(' >> -qi::eol >> -(typed_expr % comma) >> trailing_comma >> ')' >> -do_block)[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1), _2)]
                 )
