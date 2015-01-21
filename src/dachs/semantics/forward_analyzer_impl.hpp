@@ -7,6 +7,7 @@
 #include <cassert>
 
 #include <boost/format.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
 
@@ -215,6 +216,14 @@ public:
     template<class Walker>
     void visit(ast::node::function_definition const& func_def, Walker const& w)
     {
+        if (boost::algorithm::starts_with(func_def->name, "__builtin_")) {
+            semantic_error(
+                    func_def,
+                    "  Only built-in functions' names are permitted to prefix '__builtin_'"
+                );
+            return;
+        }
+
         // Define scope
         auto new_func = scope::make<scope::func_scope>(func_def, current_scope, func_def->name);
         new_func->type = type::make<type::generic_func_type>(scope::weak_func_scope{new_func});
@@ -537,6 +546,14 @@ public:
     template<class Walker>
     void visit(ast::node::class_definition const& class_def, Walker const& w)
     {
+        if (boost::algorithm::starts_with(class_def->name, "__builtin_")) {
+            semantic_error(
+                    class_def,
+                    "  Only built-in classes' names are permitted to prefix '__builtin_'"
+                );
+            return;
+        }
+
         auto new_class = scope::make<scope::class_scope>(class_def, current_scope, class_def->name);
         class_def->scope = new_class;
         new_class->type = type::make<type::class_type>(new_class);

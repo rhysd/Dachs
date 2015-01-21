@@ -118,7 +118,7 @@ public:
                 assert(*maybe_arg_type);
                 return emit_println_func(*maybe_arg_type);
             }
-        } else if (name == "read_cycle_counter") {
+        } else if (name == "__builtin_read_cycle_counter") {
             return emit_read_cycle_counter_func();
         } // else ...
 

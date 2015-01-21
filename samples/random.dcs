@@ -5,10 +5,10 @@ class Xor128
     end
 
     init
-        @x := read_cycle_counter()
-        @y := read_cycle_counter()
-        @z := read_cycle_counter()
-        @w := read_cycle_counter()
+        @x := __builtin_read_cycle_counter()
+        @y := __builtin_read_cycle_counter()
+        @z := __builtin_read_cycle_counter()
+        @w := __builtin_read_cycle_counter()
     end
 
     func new_seed(seeds)
@@ -36,7 +36,7 @@ class LCG
     end
 
     init
-        @seed := read_cycle_counter()
+        @seed := __builtin_read_cycle_counter()
     end
 
     func new_seed(seeds)
@@ -90,9 +90,9 @@ class Mt19937
         @upper_mask := 0x80000000u
         @lower_mask := 0x7fffffffu
         dummy := @init_by_array([
-                    read_cycle_counter(),
-                    read_cycle_counter(),
-                    read_cycle_counter(),
+                    __builtin_read_cycle_counter(),
+                    __builtin_read_cycle_counter(),
+                    __builtin_read_cycle_counter(),
                 ])
     end
 

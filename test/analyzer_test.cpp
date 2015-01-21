@@ -1205,6 +1205,57 @@ BOOST_AUTO_TEST_CASE(non_paren_func_calls_edge_cases)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(builtin_names_check)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class __builtin_foo
+        end
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func __builtin_foo
+        end
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            __builtin_foo := 42
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(__builtin_arg)
+        end
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class foo
+            __builtin_foo
+        end
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            for __builtin_foo in [1, 2, 3]
+            end
+        end
+    )");
+
+    // Intrinsics
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            __builtin_read_cycle_counter.println
+        end
+    )");
+}
 
 
 BOOST_AUTO_TEST_SUITE_END()

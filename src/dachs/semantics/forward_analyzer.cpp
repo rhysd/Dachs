@@ -45,11 +45,11 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
 
         {
             // func read_cycle_counter()
-            auto read_cycle_counter_func = scope::make<scope::func_scope>(nullptr, scope_root, "read_cycle_counter", true);
+            auto read_cycle_counter_func = scope::make<scope::func_scope>(nullptr, scope_root, "__builtin_read_cycle_counter", true);
             read_cycle_counter_func->body = scope::make<scope::local_scope>(read_cycle_counter_func);
             read_cycle_counter_func->ret_type = type::get_builtin_type("uint");
             scope_root->define_function(read_cycle_counter_func);
-            auto func_var_sym = symbol::make<symbol::var_symbol>(nullptr, "read_cycle_counter", true, true);
+            auto func_var_sym = symbol::make<symbol::var_symbol>(nullptr, read_cycle_counter_func->name, true, true);
             func_var_sym->type = type::make<type::generic_func_type>(read_cycle_counter_func);
             func_var_sym->is_global = true;
             scope_root->force_define_constant(std::move(func_var_sym));

@@ -59,11 +59,18 @@ struct basic_scope {
     template<class Symbol>
     bool define_symbol(std::vector<Symbol> &container, Symbol const& symbol)
     {
+        if (boost::algorithm::starts_with(symbol->name, "__builtin_")) {
+            
+            semantics::output_semantic_error(symbol->ast_node.get_shared(), "  '__builtin_' prefix is only permitted for built-in names");
+            return false;
+        }
+
         static_assert(std::is_base_of<symbol_node::basic_symbol, typename Symbol::element_type>::value, "define_symbol(): Not a symbol");
         if (auto maybe_duplication = helper::find_if(container, [&symbol](auto const& s){ return *symbol == *s; })) {
             semantics::print_duplication_error(symbol->ast_node.get_shared(), (*maybe_duplication)->ast_node.get_shared(), symbol->name);
             return false;
         }
+
         // TODO: raise warning when a variable shadows other variables
         container.push_back(symbol);
         return true;
