@@ -1088,6 +1088,61 @@ BOOST_AUTO_TEST_SUITE(class_definition)
                     o.foo(new Foo{42})
                 end
             )");
+
+        // Member function will be called instead of private member access.
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+              - foo : int
+
+                init
+                end
+
+                func foo
+                    "foo".println
+                end
+            end
+
+            func main
+                f := new Foo
+                f.foo
+            end
+        )");
+
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+                foo : int
+
+                init
+                end
+
+              - func foo
+                    "foo".println
+                end
+            end
+
+            func main
+                f := new Foo
+                f.foo.println
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class Foo
+              - foo : int
+
+                init
+                end
+
+              - func foo
+                    "foo".println
+                end
+            end
+
+            func main
+                f := new Foo
+                f.foo.println
+            end
+        )");
     }
 
     BOOST_AUTO_TEST_CASE(non_exist_member)

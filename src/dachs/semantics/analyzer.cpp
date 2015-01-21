@@ -1200,6 +1200,34 @@ public:
         // Find cast function and get its result type
     }
 
+    // Note:
+    // 'class_name' is a name of class which the variable belongs to
+    bool is_accessible_instance_var(scope::class_scope const& clazz, symbol::var_symbol const& var) const
+    {
+        if (var->is_public) {
+            return true;
+        }
+
+        auto const f = with_current_scope([](auto const& s)
+                {
+                    return s->get_enclosing_func();
+                }
+            );
+
+        assert(f);
+
+        if (auto const c = (*f)->get_receiver_class_scope()) {
+            if ((*c)->name == clazz->name) {
+                // Note:
+                // If the instance variable is a private member,
+                // it can only be accessed in the class.
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     template<class Walker>
     void visit(ast::node::ufcs_invocation const& ufcs, Walker const& w)
     {
@@ -1210,41 +1238,18 @@ public:
             return;
         }
 
+        bool private_member_access_was_rejected = false;
         if (auto const clazz = type::get<type::class_type>(child_type)) {
             assert(!(*clazz)->ref.expired());
             auto const scope = (*clazz)->ref.lock();
 
             if (auto const instance_var = scope->resolve_instance_var(ufcs->member_name)) {
-                ufcs->type = (*instance_var)->type;
-
-                if (!(*instance_var)->is_public) {
-                    auto const f = with_current_scope([](auto const& s)
-                            {
-                                return s->get_enclosing_func();
-                            }
-                        );
-
-                    assert(f);
-
-                    auto const error
-                        = [&ufcs, &scope, this]()
-                        {
-                            semantic_error(
-                                    ufcs,
-                                    boost::format("  '%1%' is not accessible because of a private member of '%2%'")
-                                        % ufcs->member_name % scope->to_string()
-                                );
-                        };
-
-                    if (auto const c = (*f)->get_receiver_class_scope()) {
-                        if ((*c)->name != scope->name) {
-                            error();
-                        }
-                    } else {
-                        error();
-                    }
+                if (is_accessible_instance_var(scope, *instance_var)) {
+                    ufcs->type = (*instance_var)->type;
+                    return;
+                } else {
+                    private_member_access_was_rejected = true;
                 }
-                return;
             }
         }
 
@@ -1264,11 +1269,20 @@ public:
         }
 
         // Note:
-        // Check function call
-        // a.foo means foo(a)
+        // Check function call.  'a.foo' means 'foo(a)'
         auto const error = visit_invocation(ufcs, ufcs->member_name, std::vector<type::type>{{child_type}});
         if (error) {
             semantic_error(ufcs, *error);
+            if (private_member_access_was_rejected) {
+                // XXX:
+                // This should be a note for the error message.
+                semantic_error(
+                        ufcs,
+                        "  Did you mean the access to instance variable '"
+                            + ufcs->member_name
+                            + "'? It is not accessible because of a private member"
+                    );
+            }
         }
     }
 
