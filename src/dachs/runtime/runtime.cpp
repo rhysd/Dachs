@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstdarg>
+#include <cstdlib>
 
 extern "C" {
     void __dachs_println_float__(double const d)
@@ -77,7 +78,12 @@ extern "C" {
     {
         va_list l;
         va_start(l, fmt);
-        vprintf(fmt, l);
+        std::vprintf(fmt, l);
         va_end(l);
+    }
+
+    void* __dachs_malloc(std::uint64_t const size)
+    {
+        return std::malloc(size);
     }
 }
