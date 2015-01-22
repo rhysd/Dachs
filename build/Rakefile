@@ -25,7 +25,12 @@ task default: :all
 task all: [:build, :test]
 
 task :cmake do
-  raise unless system "cmake .. -DCMAKE_BUILD_TYPE=#{ENV['TYPE']}"
+  raise unless
+    unless ENV['TYPE']
+      system "cmake .. -DCMAKE_BUILD_TYPE=#{ENV['TYPE']}"
+    else
+      system 'cmake ..'
+    end
 end
 
 task :build do
