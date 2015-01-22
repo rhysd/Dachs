@@ -60,7 +60,6 @@ struct basic_scope {
     bool define_symbol(std::vector<Symbol> &container, Symbol const& symbol)
     {
         if (boost::algorithm::starts_with(symbol->name, "__builtin_")) {
-            
             semantics::output_semantic_error(symbol->ast_node.get_shared(), "  '__builtin_' prefix is only permitted for built-in names");
             return false;
         }
@@ -268,11 +267,19 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     scope::local_scope body;
     std::vector<symbol::var_symbol> params;
     boost::optional<type::type> ret_type;
+    bool is_member_func;
 
     template<class Node, class P>
-    explicit func_scope(Node const& n, P const& p, std::string const& s, bool const is_builtin = false) noexcept
+    explicit func_scope(
+              Node const& n
+            , P const& p
+            , std::string const& s
+            , bool const is_mem
+            , bool const is_builtin = false
+    ) noexcept
         : basic_scope(p)
         , basic_symbol(n, s, is_builtin)
+        , is_member_func(is_mem)
     {}
 
     func_scope(func_scope const&) = default;
@@ -323,15 +330,14 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
 
     maybe_var_t resolve_receiver() const override
     {
-        if (params.empty()) {
+        if (!is_member_func) {
             return boost::none;
         }
 
-        if (boost::algorithm::starts_with(params[0]->name, "self.")) {
-            return params[0];
-        }
+        assert(params.empty());
+        assert(params[0]->name == "self");
 
-        return boost::none;
+        return params[0];
     }
 
     boost::optional<scope::class_scope> get_receiver_class_scope() const;

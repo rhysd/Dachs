@@ -225,7 +225,7 @@ public:
         }
 
         // Define scope
-        auto new_func = scope::make<scope::func_scope>(func_def, current_scope, func_def->name);
+        auto new_func = scope::make<scope::func_scope>(func_def, current_scope, func_def->name, func_def->kind == ast::symbol::func_kind::method);
         new_func->type = type::make<type::generic_func_type>(scope::weak_func_scope{new_func});
         func_def->scope = new_func;
 
@@ -334,7 +334,7 @@ public:
         }
 
         auto const& ctor = *f;
-        assert(!ctor->params.empty() && (ctor->params[0]->name == "self"));
+        assert(ctor->is_member_func);
         decl->self_symbol = ctor->params[0];
     }
 

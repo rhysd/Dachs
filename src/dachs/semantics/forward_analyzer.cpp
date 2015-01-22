@@ -13,7 +13,7 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
 
         {
             // func print(str)
-            auto print_func = scope::make<scope::func_scope>(nullptr, scope_root, "print", true);
+            auto print_func = scope::make<scope::func_scope>(nullptr, scope_root, "print", false, true);
             print_func->body = scope::make<scope::local_scope>(print_func);
             print_func->ret_type = type::get_unit_type();
             // Note: These definitions are never duplicate
@@ -29,7 +29,7 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
 
         {
             // func println(str)
-            auto println_func = scope::make<scope::func_scope>(nullptr, scope_root, "println", true);
+            auto println_func = scope::make<scope::func_scope>(nullptr, scope_root, "println", false, true);
             println_func->body = scope::make<scope::local_scope>(println_func);
             println_func->ret_type = type::get_unit_type();
             // Note: These definitions are never duplicate
@@ -45,7 +45,7 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
 
         {
             // func read_cycle_counter()
-            auto read_cycle_counter_func = scope::make<scope::func_scope>(nullptr, scope_root, "__builtin_read_cycle_counter", true);
+            auto read_cycle_counter_func = scope::make<scope::func_scope>(nullptr, scope_root, "__builtin_read_cycle_counter", false, true);
             read_cycle_counter_func->body = scope::make<scope::local_scope>(read_cycle_counter_func);
             read_cycle_counter_func->ret_type = type::get_builtin_type("uint");
             scope_root->define_function(read_cycle_counter_func);

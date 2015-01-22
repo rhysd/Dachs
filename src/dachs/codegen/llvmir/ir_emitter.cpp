@@ -631,8 +631,7 @@ public:
 
     void emit_instance_var_init_params(scope::func_scope const& ctor)
     {
-        assert(!ctor->params.empty() && (ctor->params[0]->name == "self"));
-        assert(type::is_a<type::class_type>(ctor->params[0]->type));
+        assert(ctor->is_member_func);
 
         auto const& self_sym = ctor->params[0];
         assert(type::is_a<type::class_type>(self_sym->type));
