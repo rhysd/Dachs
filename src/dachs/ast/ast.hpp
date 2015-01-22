@@ -525,6 +525,11 @@ struct ufcs_invocation final : public expression {
         set_source_location(node::location_of(c));
     }
 
+    bool is_instance_var_access() const noexcept
+    {
+        return callee_scope.expired();
+    }
+
     std::string to_string() const noexcept override
     {
         return "UFCS_INVOCATION: " + member_name;

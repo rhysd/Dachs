@@ -31,6 +31,7 @@
 #include "dachs/semantics/lambda_capture_resolver.hpp"
 #include "dachs/semantics/tmp_member_checker.hpp"
 #include "dachs/semantics/tmp_constructor_checker.hpp"
+#include "dachs/semantics/const_func_checker.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/util.hpp"
@@ -113,6 +114,7 @@ struct var_ref_marker_for_lhs_of_assign {
     template<class W>
     void visit(ast::node::index_access const&, W const&)
     {}
+
 
     // Otherwise, simply visit the node
     template<class N, class W>
@@ -503,6 +505,9 @@ public:
         if (is_query_function && *func->ret_type != type::get_builtin_type("bool", type::no_opt)) {
             semantic_error(func, boost::format("  Function '%1%' must return bool because it includes '?' in its name") % func->name);
         }
+
+        const_member_func_checker const_checker{scope, func_};
+        scope->is_const_ = const_checker.check_const();
     }
     // }}}
 
@@ -1155,6 +1160,14 @@ public:
             // Below makes code generation find its lambda captures properly.
             func_type->ref = invocation->callee_scope;
         }
+
+        if (auto const violated = is_const_violated_invocation(invocation)) {
+            semantic_error(
+                    invocation,
+                    boost::format("  Member function '%1%' modifies member(s) of immutable object '%2%'.")
+                        % invocation->callee_scope.lock()->to_string() % (*violated)->name
+                    );
+        }
     }
 
     template<class Walker>
@@ -1283,6 +1296,15 @@ public:
                             + "'? It is not accessible because of a private member"
                     );
             }
+            return;
+        }
+
+        if (auto const violated = is_const_violated_invocation(ufcs)) {
+            semantic_error(
+                    ufcs,
+                    boost::format("  Member function '%1%' modifies member(s) of immutable object '%2%'.")
+                        % ufcs->callee_scope.lock()->to_string() % (*violated)->name
+                    );
         }
     }
 

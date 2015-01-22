@@ -268,6 +268,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     std::vector<symbol::var_symbol> params;
     boost::optional<type::type> ret_type;
     bool is_member_func;
+    boost::optional<bool> is_const_ = boost::none;
 
     template<class Node, class P>
     explicit func_scope(
@@ -301,6 +302,11 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
                     params,
                     [](auto const& p){ return p->type.is_template(); }
                 );
+    }
+
+    bool is_const() const noexcept
+    {
+        return is_const_ && *is_const_;
     }
 
     ast::node::function_definition get_ast_node() const noexcept;

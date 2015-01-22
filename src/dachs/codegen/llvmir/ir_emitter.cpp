@@ -1053,7 +1053,7 @@ public:
 
     val emit(ast::node::ufcs_invocation const& ufcs)
     {
-        if (ufcs->callee_scope.expired()) {
+        if (ufcs->is_instance_var_access()) {
             return emit_data_member(ufcs);
         }
 

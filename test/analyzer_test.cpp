@@ -1257,5 +1257,277 @@ BOOST_AUTO_TEST_CASE(builtin_names_check)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(const_instance_var_access_check)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class Foo
+            a
+
+            init(@a)
+            end
+        end
+
+        func main
+            f := new Foo{42}
+            f.a = 42
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class Foo
+            a : int
+
+            init(@a)
+            end
+        end
+
+        func main
+            f := new Foo{42}
+            f.a = 42
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class Foo
+            a : int
+
+            init(@a)
+            end
+        end
+
+        class Foo2
+            a : int
+
+            init(@a)
+            end
+        end
+
+        func main
+            var f := new Foo{42}
+            f.a = 42
+            var f2 := new Foo2{42}
+            f.a = 42
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class Foo
+            a
+
+            init(@a)
+            end
+        end
+
+        func main
+            f := new Foo{new Foo{42}}
+            f.a.a = 42
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(const_func_access_check)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class Template
+            a
+
+            init(@a)
+            end
+
+            func modify
+                if @a > 21
+                    @a = 42
+                end
+            end
+        end
+
+        func main
+            t := new Template{42}
+            t.modify()
+        end
+    )");
+
+    // UFCS
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class Template
+            a
+
+            init(@a)
+            end
+
+            func modify
+                if @a > 21
+                    @a = 42
+                end
+            end
+        end
+
+        func main
+            t := new Template{42}
+            t.modify
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class NonTemplate
+            a : int
+
+            init
+                @a := 42
+            end
+
+            func modify
+                if @a > 21
+                    @a = 42
+                end
+            end
+        end
+
+        func main
+            n := new NonTemplate
+            n.modify()
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class NonTemplate
+            a : int
+
+            init
+                @a := 42
+            end
+
+            func non_modify
+                @a.println
+            end
+        end
+
+        func main
+            n := new NonTemplate
+            n.non_modify()
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class Template
+            a
+
+            init(@a)
+            end
+
+            func modify
+                if @a > 21
+                    @a = 42
+                end
+            end
+        end
+
+        class NonTemplate
+            a : int
+
+            init
+                @a := 42
+            end
+
+            func modify
+                if @a > 21
+                    @a = 42
+                end
+            end
+        end
+
+        func main
+            var t := new Template{42}
+            t.modify()
+
+            var n := new NonTemplate
+            n.modify()
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class Foo
+            a : int
+
+            init
+                @a := 42
+            end
+
+            func modify
+                @a = 10
+            end
+        end
+
+        func main
+            f := new Foo
+            (f : Foo).modify()
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class Foo
+            a : int
+
+            init
+                @a := 42
+            end
+
+            func modify
+                @a = 10
+            end
+        end
+
+        func main
+            f := [new Foo, new Foo]
+            f[0].modify()
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class Foo
+          - a
+          - b
+
+            init(@a, @b)
+            end
+
+            func set_a(a)
+                @a = a
+            end
+
+            func set_b(b)
+                @b = b
+            end
+
+            func set_all(a, b)
+                @set_a(a)
+                @set_b(b)
+            end
+        end
+
+        func main
+            f := new Foo{42, 3.14}
+            f.set_all(10, 10.1)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class Foo
+            a
+
+            init(@a)
+            end
+
+            func modify
+                @a.a = 10
+            end
+        end
+
+        func main
+            f := new Foo{new Foo{42}}
+            f.modify
+        end
+    )");
+}
 
 BOOST_AUTO_TEST_SUITE_END()

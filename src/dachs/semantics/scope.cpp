@@ -220,6 +220,10 @@ std::string func_scope::to_string() const noexcept
         ret += ": " + def->ret_type->to_string();
     }
 
+    if (is_const()) {
+        ret += " -> const";
+    }
+
     return ret;
 }
 
