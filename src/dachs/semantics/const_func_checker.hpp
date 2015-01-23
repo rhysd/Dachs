@@ -56,7 +56,7 @@ public:
     template<class Invocation>
     void visit_invocation(Invocation const& invocation) noexcept
     {
-        assert(!invocation->callee.expired());
+        assert(!invocation->callee_scope.expired());
         auto const callee = invocation->callee_scope.lock();
         if (callee == scope) {
             return;
@@ -167,6 +167,7 @@ public:
 
     void apply(ast::node::func_invocation &invocation) noexcept
     {
+        assert(!invocation->args.empty());
         ast::walk_topdown(invocation->args[0], *this);
     }
 
@@ -188,8 +189,6 @@ boost::optional<symbol::var_symbol> is_const_violated_invocation(Invocation invo
     if (!callee->is_member_func || callee->is_const()) {
         return boost::none;
     }
-
-    assert(!invocation->args.empty());
 
     const_func_invocation_checker checker;
     checker.apply(invocation);

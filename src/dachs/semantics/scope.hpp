@@ -340,7 +340,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
             return boost::none;
         }
 
-        assert(params.empty());
+        assert(!params.empty());
         assert(params[0]->name == "self");
 
         return params[0];
