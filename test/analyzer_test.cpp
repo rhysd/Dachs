@@ -1511,7 +1511,7 @@ BOOST_AUTO_TEST_CASE(const_func_access_check)
         end
     )");
 
-    CHECK_THROW_SEMANTIC_ERROR(R"(
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
         class Foo
             a
 

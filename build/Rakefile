@@ -41,9 +41,9 @@ task b: :build
 
 task :test do
   IO.popen("ctest -j#{NUM_CPU}").each_line do |l|
-    puts l.gsub(/(?<=Test #)(\d+: )(dachs-\S+)/, "\\1\033[96m\\2\033[0m")
-          .gsub(/(Passed)/, "\033[92m\\1\033[0m")
-          .gsub(/(\*+Failed)/, "\033[91m\\1\033[0m")
+    puts l.gsub(/(?<=\d\/\d Test )(#\d+)/, "\033[96m\\1\033[0m")
+          .gsub(/(\S+)( \.+\s+)(Passed)/, "\033[92m\\1\033[0m\\2\033[92m\\3\033[0m")
+          .gsub(/(\S+)( \.+)(\*+Failed)/, "\033[91m\\1\033[0m\\2\033[91m\\3\033[0m")
   end
   raise unless $?.success?
 end
