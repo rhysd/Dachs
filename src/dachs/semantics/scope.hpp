@@ -267,7 +267,7 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     scope::local_scope body;
     std::vector<symbol::var_symbol> params;
     boost::optional<type::type> ret_type;
-    bool is_member_func;
+    bool is_member_func = false;
     boost::optional<bool> is_const_ = boost::none;
 
     template<class Node, class P>
@@ -275,12 +275,10 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
               Node const& n
             , P const& p
             , std::string const& s
-            , bool const is_mem
             , bool const is_builtin = false
     ) noexcept
         : basic_scope(p)
         , basic_symbol(n, s, is_builtin)
-        , is_member_func(is_mem)
     {}
 
     func_scope(func_scope const&) = default;

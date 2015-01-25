@@ -225,7 +225,7 @@ public:
         }
 
         // Define scope
-        auto new_func = scope::make<scope::func_scope>(func_def, current_scope, func_def->name, func_def->kind == ast::symbol::func_kind::method);
+        auto new_func = scope::make<scope::func_scope>(func_def, current_scope, func_def->name);
         new_func->type = type::make<type::generic_func_type>(scope::weak_func_scope{new_func});
         func_def->scope = new_func;
 
@@ -240,6 +240,10 @@ public:
             auto const ret_type = type::from_ast(*func_def->return_type, current_scope);
             func_def->ret_type = ret_type;
             new_func->ret_type = ret_type;
+        }
+
+        if (!func_def->params.empty() && func_def->params[0]->is_receiver) {
+            new_func->is_member_func = true;
         }
 
         struct func_definer : boost::static_visitor<void> {

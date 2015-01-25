@@ -1078,7 +1078,6 @@ public:
                     [](auto const& node, bool const is_public)
                     {
                         node->accessibility = is_public;
-                        node->kind = ast::symbol::func_kind::method;
                     }
                   , _val
                   , _a

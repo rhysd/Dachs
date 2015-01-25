@@ -38,7 +38,6 @@ enum class qualifier {
 enum class func_kind {
     func,
     proc,
-    method,
 };
 
 std::string to_string(if_kind const o);

@@ -1020,7 +1020,7 @@ struct function_definition final : public statement {
     // For constructor
     function_definition(ctor_tag, decltype(params) const& p, node::statement_block const& b) noexcept
         : statement()
-        , kind(symbol::func_kind::method)
+        , kind(symbol::func_kind::func)
         , name("dachs.init")
         , params(p)
         , return_type(boost::none)

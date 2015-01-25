@@ -124,7 +124,7 @@ public:
     bool check_const() noexcept
     {
         assert(!scope->is_const_);
-        if (def->kind != ast::symbol::func_kind::method || scope->is_ctor()) {
+        if (!scope->is_member_func || scope->is_ctor()) {
             return false;
         }
         assert(!scope->params.empty());

@@ -42,7 +42,6 @@ std::string to_string(func_kind const o)
     switch(o) {
     case func_kind::func: return "func";
     case func_kind::proc: return "proc";
-    case func_kind::method: return "member func";
     default:
         DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         return "unknown";
