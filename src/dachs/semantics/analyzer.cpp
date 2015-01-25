@@ -1410,6 +1410,39 @@ public:
         }
     }
 
+    boost::optional<ast::node::class_definition>
+    already_instantiated(ast::node::class_definition const& def, scope::class_scope const& scope, std::vector<type::type> const& specified_types) const
+    {
+        auto const equals
+            = [&](auto const& def)
+            {
+                auto i = std::begin(def->instance_vars);
+                auto s = std::begin(specified_types);
+                for (; i != std::end(def->instance_vars); ++s, ++i) {
+                    assert(!(*i)->symbol.expired());
+                    auto const& t = (*i)->symbol.lock()->type;
+                    if (t != *s) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+        if (scope->is_template()) {
+            for (auto const& i : def->instantiated) {
+                if (equals(i)) {
+                    return i;
+                }
+            }
+        } else {
+            if (equals(def)) {
+                return def;
+            }
+        }
+
+        return boost::none;
+    }
+
     template<class InstantiationMap>
     boost::optional<ast::node::class_definition>
     already_instantiated(ast::node::class_definition const& def, InstantiationMap const& map) const
@@ -1480,17 +1513,63 @@ public:
     template<class Types>
     boost::variant<scope::class_scope, std::string> instantiate_class_from_specified_param_types(
             scope::class_scope const& scope,
-            Types const& specified)
-    {
+            Types const& specified
+    ) {
         if (specified.size() != scope->instance_var_symbols.size()) {
             return "  Specified template types in object construction mismatched the class  '" + scope->to_string() + '\'';
         }
 
-        // {
-        //     auto const iv = 
-        // }
+        auto const def = scope->get_ast_node();
 
-        return scope;
+        if (auto const d = already_instantiated(def, scope, specified)) {
+            assert(!(*d)->scope.expired());
+            return (*d)->scope.lock();
+        }
+
+        // Note: Check type mismatch
+        {
+            auto t = std::begin(specified);
+            for (auto const& i : scope->instance_var_symbols) {
+                if (!i->type.is_template() && (i->type != *t)) {
+                    return (
+                            boost::format(
+                                "  Type of instance variable '%1%' mismatches\n"
+                                "  Note: '%2%' against '%3%'"
+                            ) % i->name % i->type.to_string() % t->to_string()
+                        ).str();
+                }
+                ++t;
+            }
+        }
+
+        auto copied_def = ast::copy_ast(def);
+
+        // Note: Substitute specified types before visitting copied AST class tree
+        // Note:
+        //  Simply generate an AST nodes for the specified types and substitute them
+        //  to copied AST.  Is it reasonable using already-existing functions like
+        //  'prepare_class_definition_from_template'?
+        {
+            auto t = std::begin(specified);
+            for (auto decl : copied_def->instance_vars) {
+                // Note:
+                // Shallow copy is not available because original nodes indicate
+                // valid source locations.
+                decl->maybe_type = type::to_ast(*t, decl->source_location());
+                ++t;
+            }
+        }
+
+        auto const enclosing_scope = enclosing_scope_of(def->scope.lock());
+        failed += dispatch_forward_analyzer(copied_def, enclosing_scope_of(scope));
+        def->instantiated.push_back(copied_def);
+
+        auto const copied_scope = copied_def->scope.lock();
+        if (!walk_recursively_with(enclosing_scope_of(copied_scope), copied_def)) {
+            return "  Failed to instantiate class'" + copied_scope->name + '\'';
+        }
+
+        return copied_scope;
     }
 
     template<class InstantiationMap>
@@ -1610,9 +1689,9 @@ public:
 
         auto scope = *maybe_class_scope; // Copy is intended.
 
-        // TODO:
+        // Note:
         // If template type parameters are speficied, they should be considered.
-        if (!type->param_types.empty() && scope->is_template()) {
+        if (!type->param_types.empty()) {
             auto const maybe_instantiated = instantiate_class_from_specified_param_types(scope, type->param_types);
 
             if (auto const error = get_as<std::string>(maybe_instantiated)) {
@@ -1623,7 +1702,7 @@ public:
             scope = *get_as<scope::class_scope>(maybe_instantiated);
             assert(!scope->is_template());
 
-            std::cout << "foooo! " << scope->to_string() << std::endl;
+            arg_types[0] = scope->type;
         }
 
         auto const maybe_ctor = scope->resolve_ctor(arg_types);

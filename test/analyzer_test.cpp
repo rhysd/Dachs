@@ -1174,6 +1174,89 @@ BOOST_AUTO_TEST_SUITE(class_definition)
         )");
     }
 
+    BOOST_AUTO_TEST_CASE(constuct_with_template_types)
+    {
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+            class Template
+                a
+
+                init(@a)
+                end
+            end
+
+            class Template2
+                a
+                b : float
+
+                init(@a, @b)
+                end
+            end
+
+            class NonTemplate
+                a : int
+
+                init
+                    @a := 42
+                end
+            end
+
+            class X
+                a
+
+                init
+                end
+            end
+
+            func main
+                new Template(int){42}
+                new Template(float){3.14}
+                new NonTemplate(int)
+                new Template2(int, float){42, 3.14}
+                # new Template(Template(NonTemplate)){new Template{new Template{new NonTemplate}}}
+                new X(int) # X can't be instantiated without specifying type
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+
+                init(@a)
+                end
+            end
+
+            func main
+                x := new X(int, int){42}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a : int
+
+                init(@a)
+                end
+            end
+
+            func main
+                x := new X(float){3.14}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+
+                init(@a : int)
+                end
+            end
+
+            func main
+                x := new X(float){42}
+            end
+        )");
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_CASE(non_paren_func_calls_edge_cases)
