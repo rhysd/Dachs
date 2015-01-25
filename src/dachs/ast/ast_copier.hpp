@@ -158,7 +158,7 @@ public:
 
     auto copy(node::primary_type const& tt) const
     {
-        return copy_node<node::primary_type>(tt, tt->template_name, copy(tt->instantiated_templates));
+        return copy_node<node::primary_type>(tt, tt->template_name, copy(tt->holders));
     }
 
     auto copy(node::array_type const& at) const

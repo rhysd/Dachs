@@ -215,7 +215,7 @@ public:
     String visit(node::primary_type const& tt, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(tt, indent)
-            + visit_nodes(tt->instantiated_templates, indent+lead, true);
+            + visit_nodes(tt->holders, indent+lead, true);
     }
 
     String visit(node::array_type const& at, String const& indent, char const* const lead) const noexcept

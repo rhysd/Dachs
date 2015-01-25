@@ -126,7 +126,7 @@ public:
     void walk(node::primary_type &tt)
     {
         visitor.visit(tt, walker_for(
-            tt->instantiated_templates
+            tt->holders
         ));
     }
 

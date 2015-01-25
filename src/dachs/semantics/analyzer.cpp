@@ -1477,6 +1477,22 @@ public:
         }
     }
 
+    template<class Types>
+    boost::variant<scope::class_scope, std::string> instantiate_class_from_specified_param_types(
+            scope::class_scope const& scope,
+            Types const& specified)
+    {
+        if (specified.size() != scope->instance_var_symbols.size()) {
+            return "  Specified template types in object construction mismatched the class  '" + scope->to_string() + '\'';
+        }
+
+        // {
+        //     auto const iv = 
+        // }
+
+        return scope;
+    }
+
     template<class InstantiationMap>
     ast::node::class_definition prepare_class_definition_from_template(ast::node::class_definition const& def, InstantiationMap const& map)
     {
@@ -1514,7 +1530,7 @@ public:
         auto const instantiated_scope = instantiated_def->scope.lock();
 
         // Note:
-        // replace type of receiver with instantiated class
+        // Replace type of receiver with instantiated class
         arg_types[0] = instantiated_scope->type;
 
         // Note:
@@ -1588,15 +1604,31 @@ public:
                 );
 
         if (!maybe_class_scope) {
-            semantic_error(obj, "  Class '" + type->name +"' is not found");
+            semantic_error(obj, "  Class '" + type->name + "' is not found");
             return;
         }
 
         auto scope = *maybe_class_scope; // Copy is intended.
 
+        // TODO:
+        // If template type parameters are speficied, they should be considered.
+        if (!type->param_types.empty() && scope->is_template()) {
+            auto const maybe_instantiated = instantiate_class_from_specified_param_types(scope, type->param_types);
+
+            if (auto const error = get_as<std::string>(maybe_instantiated)) {
+                semantic_error(obj, *error);
+                return;
+            }
+
+            scope = *get_as<scope::class_scope>(maybe_instantiated);
+            assert(!scope->is_template());
+
+            std::cout << "foooo! " << scope->to_string() << std::endl;
+        }
+
         auto const maybe_ctor = scope->resolve_ctor(arg_types);
         if (!maybe_ctor) {
-            semantic_error(obj,"  No matching constructor to construct class '" + scope->to_string() + "'");
+            semantic_error(obj, "  No matching constructor to construct class '" + scope->to_string() + "'");
             return;
         }
 

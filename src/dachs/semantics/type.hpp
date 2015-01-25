@@ -316,8 +316,12 @@ struct builtin_type final : public named_type {
 // This class may not be needed because class from class template is instanciated at the point on resolving a symbol of class templates
 struct class_type final : public named_type {
     scope::weak_class_scope ref;
+    std::vector<type::any_type> param_types;
 
     explicit class_type(scope::class_scope const& s) noexcept;
+
+    template<class Types>
+    class_type(scope::class_scope const& s, Types const& types) noexcept;
 
     std::string to_string() const noexcept override;
 

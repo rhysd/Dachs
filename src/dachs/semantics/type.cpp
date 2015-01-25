@@ -3,6 +3,8 @@
 
 #include <boost/optional.hpp>
 #include <boost/variant/static_visitor.hpp>
+#include <boost/range/adaptor/transformed.hpp>
+#include <boost/algorithm/string/join.hpp>
 
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/type.hpp"
@@ -17,6 +19,7 @@ namespace detail {
 
 using helper::variant::apply_lambda;
 using std::size_t;
+using boost::adaptors::transformed;
 
 static std::vector<builtin_type> const builtin_types
     = {
@@ -51,16 +54,21 @@ public:
         auto const builtin = get_builtin_type(t->template_name.c_str());
         if (builtin) {
             return *builtin;
-        } else {
-            // TODO:
-            // Template types must be considered.
-            auto const c = apply_lambda([&t](auto const& s){ return s->resolve_class(t->template_name); }, current_scope);
-            if (!c) {
-                return {};
-            }
-
-            return make<class_type>(*c);
         }
+
+        // TODO:
+        // Template types must be considered.
+        auto const c = apply_lambda([&t](auto const& s){ return s->resolve_class(t->template_name); }, current_scope);
+        if (!c) {
+            return {};
+        }
+
+        return make<class_type>(
+                *c,
+                t->holders | transformed(
+                    [this](auto const& i){ return apply_recursively(i); }
+                    )
+            );
     }
 
     any_type operator()(ast::node::array_type const& t) const noexcept
@@ -418,17 +426,35 @@ class_type::class_type(scope::class_scope const& s) noexcept
     : named_type(s->name), ref(s)
 {}
 
+template<class Types>
+class_type::class_type(scope::class_scope const& s, Types const& types) noexcept
+    : class_type(s)
+{
+    for (auto const& t : types) {
+        param_types.push_back(t);
+    }
+}
+
 std::string class_type::to_string() const noexcept
 {
     if (ref.expired()) {
         return "<class:UNKNOWN>";
     }
 
+    std::string params
+        = boost::algorithm::join(
+                param_types | transformed([](auto const& t){ return t.to_string(); }),
+                ", "
+            );
+    if (!params.empty()) {
+        params = '(' + params + ')';
+    }
+
     auto const scope = ref.lock();
     if (scope->is_template()) {
-        return "<class template:" + name + ':' + helper::hex_string_of_ptr(scope.get()) + '>';
+        return "<class template:" + name + ':' + helper::hex_string_of_ptr(scope.get()) + '>' + params;
     } else {
-        return "<class:" + name + ':' + helper::hex_string_of_ptr(scope.get()) + '>';
+        return "<class:" + name + ':' + helper::hex_string_of_ptr(scope.get()) + '>' + params;
     }
 }
 

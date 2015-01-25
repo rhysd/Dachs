@@ -614,15 +614,15 @@ struct typed_expr final : public expression {
 
 struct primary_type final : public base {
     std::string template_name;
-    std::vector<node::any_type> instantiated_templates;
+    std::vector<node::any_type> holders;
 
     primary_type(std::string const& tmpl
-                , decltype(instantiated_templates) const& instantiated) noexcept
-        : base(), template_name(tmpl), instantiated_templates(instantiated)
+                , decltype(holders) const& instantiated) noexcept
+        : base(), template_name(tmpl), holders(instantiated)
     {}
 
     primary_type(std::string const& tmpl) noexcept
-        : base(), template_name(tmpl), instantiated_templates()
+        : base(), template_name(tmpl), holders()
     {}
 
     std::string to_string() const noexcept override
