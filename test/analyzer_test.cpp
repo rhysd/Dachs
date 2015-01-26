@@ -1210,10 +1210,25 @@ BOOST_AUTO_TEST_SUITE(class_definition)
             func main
                 new Template(int){42}
                 new Template(float){3.14}
-                new NonTemplate(int)
-                new Template2(int, float){42, 3.14}
+                new NonTemplate
+                new Template2(int){42, 3.14}
+                new Template2(char){'a', 3.14}
                 # new Template(Template(NonTemplate)){new Template{new Template{new NonTemplate}}}
                 new X(int) # X can't be instantiated without specifying type
+                new X(float) # X can't be instantiated without specifying type
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a : int
+
+                init(@a)
+                end
+            end
+
+            func main
+                x := new X(int){42}
             end
         )");
 
@@ -1227,19 +1242,6 @@ BOOST_AUTO_TEST_SUITE(class_definition)
 
             func main
                 x := new X(int, int){42}
-            end
-        )");
-
-        CHECK_THROW_SEMANTIC_ERROR(R"(
-            class X
-                a : int
-
-                init(@a)
-                end
-            end
-
-            func main
-                x := new X(float){3.14}
             end
         )");
 
