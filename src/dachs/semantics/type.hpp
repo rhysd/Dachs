@@ -325,11 +325,7 @@ struct class_type final : public named_type {
 
     std::string to_string() const noexcept override;
 
-    bool operator==(class_type const& rhs) const noexcept
-    {
-        assert(!ref.expired() && !rhs.ref.expired());
-        return ref.lock() == rhs.ref.lock();
-    }
+    bool operator==(class_type const& rhs) const noexcept;
 
     template<class T>
     bool operator==(T const&) const noexcept

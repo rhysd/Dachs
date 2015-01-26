@@ -409,6 +409,12 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
     ast::node::class_definition get_ast_node() const noexcept;
 
     std::string to_string() const noexcept;
+
+    bool operator==(class_scope const& rhs) const noexcept;
+    bool operator!=(class_scope const& rhs) const noexcept
+    {
+        return !(*this == rhs);
+    }
 };
 
 } // namespace scope_node

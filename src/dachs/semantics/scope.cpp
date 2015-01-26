@@ -251,6 +251,25 @@ std::string class_scope::to_string() const noexcept
     return templates_str == "()" ? name : (name + templates_str);
 }
 
+bool class_scope::operator==(class_scope const& rhs) const noexcept
+{
+    if ((name != rhs.name) || (instance_var_symbols.size() != rhs.instance_var_symbols.size())) {
+        return false;
+    }
+
+    {
+        auto i = std::begin(rhs.instance_var_symbols);
+        for (auto const& s : instance_var_symbols) {
+            if (s->type != (*i)->type) {
+                return false;
+            }
+            ++i;
+        }
+    }
+
+    return true;
+}
+
 } // namespace scope_node
 
 } // namespace dachs

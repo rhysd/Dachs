@@ -435,6 +435,12 @@ class_type::class_type(scope::class_scope const& s, Types const& types) noexcept
     }
 }
 
+bool class_type::operator==(class_type const& rhs) const noexcept
+{
+    assert(!ref.expired() && !rhs.ref.expired());
+    return *ref.lock() == *rhs.ref.lock();
+}
+
 std::string class_type::to_string() const noexcept
 {
     if (ref.expired()) {
