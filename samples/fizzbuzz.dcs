@@ -1,3 +1,23 @@
+#{
+  If 'var' is specified, the argument is copied and passed by value
+  then mutable.  Otherwise, the argument is passed by reference then
+  immutable. Variable definition has the same rule as this.
+  Type of arguments and returned value are deduced automatically.
+ 
+  If you want to specify the type of argument, you can use ':'.
+  e.g.</i>
+    func step_to(var first : float, last : float, block) : ()
+}#
+func step_to(var first, last, p)
+    for first <= last
+        p(first)
+        first += 1
+    end
+end
+
+
+
+# FizzBuzz #1
 func fizzbuzz(n)
     case
     when n % 15 == 0 then println("fizzbuzz")
@@ -7,10 +27,66 @@ func fizzbuzz(n)
     end
 end
 
+
+
+# FizzBuzz #2
+func print_fb(i)
+    case
+    when i % 15 == 0
+        "fizzbuzz".println
+    when i %  3 == 0
+        "fizz".println
+    when i %  5 == 0
+        "buzz".println
+    else
+        i.println
+    end
+end
+
+
+
+# FizzBuzz #3
+
+#{
+  UFCS is implemented.
+  '1.step_to n' is equivalent to 'step_to(1, n)'
+
+  Dachs has a block inspired from Ruby.
+  do-end block is passed to the last argument of callee as lambda object.
+  Here, 'block' variable is captured into do-end block.
+}#
+func fizzbuzz'(n, p)
+    1.step_to n do |i|
+        case
+        when i % 15 == 0
+            p("fizzbuzz")
+        when i %  3 == 0
+            p("fizz")
+        when i %  5 == 0
+            p("buzz")
+        else
+            p(i)
+        end
+    end
+end
+
+
+
 func main
-    var i := 1
-    for i <= 100
+
+    # FizzBuzz #1
+    let
+        var i := 1
+    in for i <= 100
         fizzbuzz(i)
         i += 1
+    end
+
+    # FizzBuzz #2
+    1.step_to 100, print_fb
+
+    # FizzBuzz #3
+    fizzbuzz' 100 do |i|
+        println(i)
     end
 end

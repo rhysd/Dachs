@@ -1,11 +1,21 @@
-func main()
-    print(fib(10))
+func fib(n)
+    case n
+    when 0, 1
+        ret 1
+    else
+        ret fib(n-1) + fib(n-2)
+    end
 end
 
-func fib(n)
+func fib'(n)
     if n <= 1
         ret 1
     else
         ret fib(n-1) + fib(n-2)
     end
+end
+
+func main()
+    println(fib(10))
+    10.fib'.println # UFCS
 end
