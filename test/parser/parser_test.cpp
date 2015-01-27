@@ -652,6 +652,8 @@ BOOST_AUTO_TEST_CASE(postfix_expr)
             foo.awesome_member_func(a, b)
             foo.awesome_member_func a
             foo.awesome_member_func a, b
+
+            aaa''.bbb''.ccc''()
         end
         )"));
 
@@ -1260,6 +1262,9 @@ BOOST_AUTO_TEST_CASE(variable_decl)
                 : int
             var b :
                 int
+
+            var a' : int
+            var a'' : int
         end
         )"));
 
@@ -1685,11 +1690,13 @@ BOOST_AUTO_TEST_CASE(function_invocation)
             foo()
             foo?()
             foo'()
+            foo''()
             foo!()
             foo?'()
             foo?!()
             foo'!()
             foo?'!()
+            foo?''()
         end
         )"));
 
