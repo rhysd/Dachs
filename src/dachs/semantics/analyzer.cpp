@@ -160,7 +160,102 @@ struct var_ref_getter_for_lhs_of_assign {
     }
 };
 
-// Walk to resolve symbol references
+template<class Scope, class OuterVisitor>
+struct class_template_updater : boost::static_visitor<boost::optional<std::string>> {
+    Scope const& current_scope;
+    OuterVisitor &outer;
+
+    class_template_updater(Scope const& s, OuterVisitor &o) noexcept
+        : current_scope(s), outer(o)
+    {}
+
+    result_type visit(type::type const& t) noexcept
+    {
+        return t.apply_visitor(*this);
+    }
+
+    result_type visit(std::vector<type::type> const& ts) noexcept
+    {
+        for (auto const& t : ts) {
+            if (auto const err = visit(t)) {
+                return err;
+            }
+        }
+        return boost::none;
+    }
+
+    result_type operator()(type::class_type const& t) noexcept
+    {
+        if (t->param_types.empty()) {
+            return boost::none;
+        }
+
+        if (auto const err = visit(t->param_types)) {
+            return err;
+        }
+
+        if (auto const already_instantiated = current_scope->resolve_class_template(t->name, t->param_types)) {
+            t->ref = *already_instantiated;
+        } else {
+            auto const newly_instantiated = outer.instantiate_class_from_specified_param_types(t->ref.lock(), t->param_types);
+
+            if (auto const error = get_as<std::string>(newly_instantiated)) {
+                return *error;
+            }
+
+            t->ref = boost::get<scope::class_scope>(newly_instantiated);
+        }
+        return boost::none;
+    }
+
+    template<class T>
+    result_type operator()(T const&) noexcept
+    {
+        return boost::none;
+    }
+
+    result_type operator()(type::tuple_type const& t) noexcept
+    {
+        return visit(t->element_types);
+    }
+
+    result_type operator()(type::func_type const& t) noexcept
+    {
+        if (auto const err = visit(t->return_type)) {
+            return err;
+        }
+        return visit(t->param_types);
+    }
+
+    result_type operator()(type::dict_type const& t) noexcept
+    {
+        if (auto const err = visit(t->key_type)) {
+            return err;
+        }
+        if (auto const err = visit(t->value_type)) {
+            return err;
+        }
+        return boost::none;
+    }
+
+    result_type operator()(type::array_type const& t) noexcept
+    {
+        return visit(t->element_type);
+    }
+
+    result_type operator()(type::range_type const& t) noexcept
+    {
+        return visit(t->element_type);
+    }
+
+    result_type operator()(type::qualified_type const& t) noexcept
+    {
+        return visit(t->contained_type);
+    }
+};
+
+
+// Note: Walk to resolve symbol references
 class symbol_analyzer {
 
     scope::any_scope current_scope;
@@ -1456,7 +1551,7 @@ public:
             // Note:
             // Replace instance variable's template type with instantiated type
             auto const var = find_from_map([&s](auto const& v){ return v.first == s->name; });
-            assert(var && !var->second.is_template());
+            assert(var);
 
             s->type = var->second;
         }
@@ -1643,7 +1738,6 @@ public:
             }
 
             scope = *get_as<scope::class_scope>(maybe_instantiated);
-            assert(!scope->is_template());
 
             arg_types[0] = scope->type;
         }
@@ -1723,6 +1817,19 @@ public:
         }
 
         w();
+
+        {
+            auto const error = apply_lambda(
+                [&t=obj->type, this](auto const& s)
+                {
+                    class_template_updater<decltype(s), decltype(*this)> updater{s, *this};
+                    return t.apply_visitor(updater);
+                }, current_scope);
+            if (error) {
+                semantic_error(obj, *error);
+                return;
+            }
+        }
 
         if (auto const maybe_class_type = type::get<type::class_type>(obj->type)) {
             visit_class_construct(obj, *maybe_class_type);

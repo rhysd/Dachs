@@ -19,6 +19,9 @@
 namespace dachs {
 namespace helper {
 
+// Note: Never defined
+extern void* enabler;
+
 template <class String>
 inline boost::optional<String> read_file(std::string const& file_name)
 {
@@ -117,7 +120,7 @@ struct are_same
         >::value;
 };
 
-template<class I>
+template<class I, typename std::enable_if<std::is_integral<I>::value>::type *& = helper::enabler>
 inline auto indices(I const i) noexcept
 {
     return boost::irange<I>(0, i);

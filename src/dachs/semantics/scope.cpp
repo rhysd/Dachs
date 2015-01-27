@@ -1,7 +1,9 @@
 #include <cassert>
 #include <cstddef>
 #include <iterator>
+#include <unordered_map>
 
+#include <boost/algorithm/cxx11/all_of.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/adaptor/filtered.hpp>
 #include <boost/range/algorithm/transform.hpp>
@@ -19,6 +21,7 @@ namespace scope_node {
 
 using boost::adaptors::transformed;
 using boost::adaptors::filtered;
+using boost::algorithm::all_of;
 
 namespace detail {
 
@@ -134,6 +137,52 @@ global_scope::maybe_func_t global_scope::resolve_func(std::string const& name, s
 {
     return detail::get_overloaded_function(functions, name, arg_types);
 }
+
+global_scope::maybe_class_t global_scope::resolve_class_template(std::string const& name, std::vector<type::type> const& specified) const
+{
+    auto const c = resolve_class(name);
+    if (!c || !(*c)->is_template()) {
+        return boost::none;
+    }
+
+    // Note:
+    // Remember all template parameters' index and its specified types
+    std::unordered_map<std::size_t, type::type> specified_template_params;
+    {
+        auto itr = std::begin(specified);
+        for (auto const idx : helper::indices((*c)->instance_var_symbols.size())) {
+            auto const& s = (*c)->instance_var_symbols[idx];
+            if (s->type.is_template()) {
+                if (itr == std::end(specified)) {
+                    return boost::none;
+                }
+                specified_template_params[idx] = *itr;
+                ++itr;
+            }
+        }
+        if (itr != std::end(specified)) {
+            return boost::none;
+        }
+    }
+
+    auto const def = (*c)->get_ast_node();
+    for (auto const& instantiated_def : def->instantiated) {
+        auto const instantiated = instantiated_def->scope.lock();
+        if (all_of(
+                specified_template_params,
+                [&vars=instantiated->instance_var_symbols](auto const& param)
+                {
+                    return vars[param.first]->type == param.second;
+                }
+            )
+        ) {
+            return instantiated;
+        }
+    }
+
+    return boost::none;
+}
+
 
 ast::node::function_definition func_scope::get_ast_node() const noexcept
 {

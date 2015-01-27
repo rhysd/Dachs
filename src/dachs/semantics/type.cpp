@@ -458,7 +458,7 @@ std::string class_type::to_string() const noexcept
 
     auto const scope = ref.lock();
     if (scope->is_template()) {
-        return "<class template:" + name + ':' + helper::hex_string_of_ptr(scope.get()) + '>' + params;
+        return "<class:" + name + ':' + helper::hex_string_of_ptr(scope.get()) + '>' + params;
     } else {
         return "<class:" + name + ':' + helper::hex_string_of_ptr(scope.get()) + '>' + params;
     }
