@@ -74,7 +74,9 @@ check_member_var(ast::node::ufcs_invocation const& ufcs, type::type const& child
     if (ufcs->member_name == "__type") {
         return type::get_builtin_type("string", type::no_opt);
     }
-    return child_type.apply_visitor(member_variable_checker{ufcs->member_name});
+
+    member_variable_checker const checker{ufcs->member_name};
+    return child_type.apply_visitor(checker);
 }
 
 } // namespace detail

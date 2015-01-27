@@ -200,14 +200,18 @@ public:
 
     bool is_unit() const noexcept;
 
+    // Note:
+    // Visitor && is not available because boost::apply_visitor
+    // can't take rvalue arguments.
+
     template<class Visitor>
-    typename Visitor::result_type apply_visitor(Visitor const& visitor) const
+    typename Visitor::result_type apply_visitor(Visitor &visitor)
     {
         return boost::apply_visitor(visitor, value);
     }
 
     template<class Visitor>
-    typename Visitor::result_type apply_visitor(Visitor &&visitor)
+    typename Visitor::result_type apply_visitor(Visitor &visitor) const
     {
         return boost::apply_visitor(visitor, value);
     }

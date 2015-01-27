@@ -96,7 +96,8 @@ public:
             return ctx.builder.CreateGlobalStringPtr(child_type.to_string().c_str());
         }
 
-        return child_type.apply_visitor(type_visit_emitter{member_name, child_value, ctx});
+        type_visit_emitter emitter{member_name, child_value, ctx};
+        return child_type.apply_visitor(emitter);
     }
 };
 

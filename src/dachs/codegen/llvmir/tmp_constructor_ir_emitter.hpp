@@ -100,7 +100,8 @@ public:
     template<class Values>
     val emit(type::type &type, Values const& arg_values)
     {
-        return type.apply_visitor(type_ctor_emitter<Values>{ctx, type_emitter, arg_values});
+        type_ctor_emitter<Values> emitter{ctx, type_emitter, arg_values};
+        return type.apply_visitor(emitter);
     }
 };
 
