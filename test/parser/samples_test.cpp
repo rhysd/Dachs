@@ -16,7 +16,6 @@
 using namespace dachs::test;
 
 // NOTE: use global variable to avoid executing heavy construction of parser
-static dachs::syntax::parser p;
 struct test_visitor {
     template<class T, class W>
     void visit(T &, W const& w)
@@ -24,17 +23,6 @@ struct test_visitor {
         w();
     }
 };
-
-inline void validate(dachs::ast::ast const& a)
-{
-    auto root = a.root;
-    dachs::ast::walk_topdown(root, test_visitor{});
-}
-
-inline void parse_and_validate(std::string const& code)
-{
-    validate(p.parse(code, "test_file"));
-}
 
 inline
 void check_no_throw_in_all_cases_in_directory(std::string const& dir_name)
@@ -81,7 +69,8 @@ BOOST_AUTO_TEST_CASE(ast_nodes_node_illegality)
                                 *dachs::helper::read_file<std::string>(path.c_str())
                                 , "test_file"
                            );
-                    validate(ast);
+
+                    dachs::ast::walk_topdown(ast.root, test_visitor{});
                 });
     }
 }
