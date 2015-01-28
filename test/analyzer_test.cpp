@@ -1286,7 +1286,7 @@ BOOST_AUTO_TEST_SUITE(class_definition)
             end
         )");
 
-        CHECK_THROW_SEMANTIC_ERROR(R"(
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
             class X
                 a
 
