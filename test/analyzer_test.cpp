@@ -1223,7 +1223,7 @@ BOOST_AUTO_TEST_SUITE(class_definition)
                 new Template2(int){42, 3.14}
                 new Template2(char){'a', 3.14}
 
-                new Template(Template(NonTemplate)){new Template{new Template{new NonTemplate}}}
+                new Template(Template(NonTemplate)){new Template{new NonTemplate}}
 
                 new X(int)
                 new X(X(int))
@@ -1262,6 +1262,19 @@ BOOST_AUTO_TEST_SUITE(class_definition)
 
         CHECK_THROW_SEMANTIC_ERROR(R"(
             class X
+                a
+
+                init(@a)
+                end
+            end
+
+            func main
+                x := new X(int){3.14}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
                 a, b
 
                 init
@@ -1270,6 +1283,19 @@ BOOST_AUTO_TEST_SUITE(class_definition)
 
             func main
                 new X(int, X(int, X)){42, new X(int, X){new X}}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+
+                init
+                end
+            end
+
+            func main
+                x := new X(X(int))
             end
         )");
 

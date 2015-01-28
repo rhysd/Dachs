@@ -197,12 +197,17 @@ struct class_template_updater : boost::static_visitor<boost::optional<std::strin
         if (auto const already_instantiated = current_scope->resolve_class_template(t->name, t->param_types)) {
             t->ref = *already_instantiated;
         } else {
+            assert(!t->ref.expired());
             auto const newly_instantiated = outer.instantiate_class_from_specified_param_types(t->ref.lock(), t->param_types);
 
             if (auto const error = get_as<std::string>(newly_instantiated)) {
                 return *error;
             }
 
+            // Note:
+            // Is it OK? Below overwrites a content of type.
+            // If it causes an issue, below is alternative.
+            //   t = type::make<type::class_type>(boost::get<scope::class_scope>(newly_instantiated))
             t->ref = boost::get<scope::class_scope>(newly_instantiated);
         }
         return boost::none;
