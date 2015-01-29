@@ -263,9 +263,6 @@ struct class_template_updater : boost::static_visitor<boost::optional<std::strin
 // Note: Walk to resolve symbol references
 class symbol_analyzer {
 
-    template<class S, class O>
-    friend class class_template_instantiater;
-
     scope::any_scope current_scope;
     scope::global_scope const global;
     std::vector<ast::node::lambda_expr> lambdas;
@@ -380,6 +377,15 @@ class symbol_analyzer {
         return std::make_pair(instantiated_func_def, instantiated_func_scope);
     }
 
+    type::type from_type_node(ast::node::any_type const& n) noexcept
+    {
+        auto const type = type::from_ast(n, current_scope);
+        if (!type) {
+            apply_lambda([this](auto const& t){ semantic_error(t, "  Invalid type '" + t->to_string() + '\''); }, n);
+        }
+        return type;
+    }
+
     std::string make_func_signature(std::string const& name, std::vector<type::type> const& arg_types) const
     {
         return name + '(' + boost::algorithm::join(arg_types | transformed([](auto const& t){ return t.to_string(); }), ",") + ')';
@@ -437,34 +443,6 @@ class symbol_analyzer {
         auto const result = walk_recursively(std::forward<Node>(node));
         current_scope = std::move(saved_current_scope);
         return result;
-    }
-
-    template<class TypeNode>
-    type::type from_ast(TypeNode const& node)
-    {
-        auto t = type::from_ast(node, current_scope);
-
-        if (!t) {
-            apply_lambda([&, this](auto const& n){
-                    semantic_error(n, "  Invalid type '" + n->to_string() + "'");
-                }, node);
-            return {};
-        }
-
-        auto const error = apply_lambda(
-            [&t, this](auto const& s)
-            {
-                class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
-                return t.apply_visitor(instantiater);
-            }, current_scope);
-
-        if (error) {
-            apply_lambda([&, this](auto const& n){
-                    semantic_error(n, *error);
-                }, node);
-        }
-
-        return t;
     }
 
     template<class Node>
@@ -671,8 +649,10 @@ public:
                 auto new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
                 decl->symbol = new_var;
 
+                // Set type if the type of variable is specified
                 if (decl->maybe_type) {
-                    new_var->type = from_ast(*decl->maybe_type);
+                    new_var->type
+                        = from_type_node(*decl->maybe_type);
                 }
 
                 if (!scope->define_variable(new_var)) {
@@ -1294,10 +1274,12 @@ public:
     template<class Walker>
     void visit(ast::node::typed_expr const& typed, Walker const& w)
     {
+        auto const specified_type = from_type_node(typed->specified_type);
+
         if (auto const maybe_child_array = get_as<ast::node::array_literal>(typed->child_expr)) {
             auto const& child_array = *maybe_child_array;
             if (child_array->element_exprs.empty()) {
-                if (auto const a = type::get<type::array_type>(typed->type)) {
+                if (auto const a = type::get<type::array_type>(specified_type)) {
                     auto const& the_type = *a;
                     the_type->size = 0u;
                     child_array->type = the_type;
@@ -1311,13 +1293,25 @@ public:
         w();
 
         auto const actual_type = type_of(typed->child_expr);
-        if (actual_type != typed->type) {
-            semantic_error(typed, boost::format("  Types mismatch; specified '%1%' but actually typed to '%2%'") % typed->type.to_string() % actual_type.to_string());
+        if (actual_type != specified_type) {
+            semantic_error(typed, boost::format("  Types mismatch; specified '%1%' but actually typed to '%2%'") % specified_type.to_string() % actual_type.to_string());
             return;
         }
 
+        typed->type = actual_type;
+
         // TODO:
         // Use another visitor to set type and check types. Do not use w().
+    }
+
+    template<class Walker>
+    void visit(ast::node::cast_expr const& casted, Walker const& w)
+    {
+        w();
+        casted->type = from_type_node(casted->casted_type);
+
+        // TODO:
+        // Find cast function and get its result type
     }
 
     // Note:
@@ -1454,9 +1448,6 @@ public:
             };
 
         std::unordered_set<ast::node::parameter> checked;
-
-        // Note:
-        // Use 'fail' flag because of showing error messages as many as possible.
         bool fail = false;
 
         // Note:
@@ -1824,7 +1815,26 @@ public:
     template<class Walker>
     void visit(ast::node::object_construct const& obj, Walker const& w)
     {
+        obj->type = from_type_node(obj->obj_type);
+        if (!obj->type) {
+            semantic_error(obj, "  Invalid type for object construction");
+            return;
+        }
+
         w();
+
+        {
+            auto const error = apply_lambda(
+                [&t=obj->type, this](auto const& s)
+                {
+                    class_template_updater<decltype(s), decltype(*this)> updater{s, *this};
+                    return t.apply_visitor(updater);
+                }, current_scope);
+            if (error) {
+                semantic_error(obj, *error);
+                return;
+            }
+        }
 
         if (auto const maybe_class_type = type::get<type::class_type>(obj->type)) {
             visit_class_construct(obj, *maybe_class_type);

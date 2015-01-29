@@ -5,13 +5,11 @@
 #include <algorithm>
 #include <cstddef>
 #include <cassert>
-#include <unordered_map>
 
 #include <boost/format.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
-#include <boost/range/algorithm/count_if.hpp>
 
 #include "dachs/semantics/forward_analyzer.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -19,11 +17,9 @@
 #include "dachs/semantics/error.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/ast_walker.hpp"
-#include "dachs/ast/ast_copier.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
-#include "dachs/helper/util.hpp"
 
 namespace dachs {
 namespace semantics {
@@ -34,176 +30,10 @@ using helper::variant::get_as;
 using helper::variant::has;
 using helper::variant::apply_lambda;
 
-template<class Scope, class OuterVisitor>
-class class_template_instantiater : public boost::static_visitor<boost::optional<std::string>> {
-    Scope const& current_scope;
-    OuterVisitor &outer;
-
-    template<class Types>
-    boost::variant<scope::class_scope, std::string>
-    instantiate_class_template(scope::class_scope const& scope, Types const& specified_types)
-    {
-        std::size_t const num_templates
-            = boost::count_if(
-                    scope->instance_var_symbols,
-                    [](auto const& i){ return i->type.is_template(); }
-                );
-
-        if (specified_types.size() != num_templates) {
-            return (boost::format(
-                        "  Number of specified template types in object construction mismatches\n"
-                        "  Note: You specified %1% but class '%2%' has %3% template(s)"
-                    ) % specified_types.size() % scope->name % num_templates
-                ).str();
-        }
-
-        auto const def = scope->get_ast_node();
-        auto const copied_def = ast::copy_ast(def);
-
-        std::unordered_map<size_t, type::type> instantiation;
-        {
-            auto i = std::begin(specified_types);
-            for (auto const idx : helper::indices(scope->instance_var_symbols.size())) {
-                auto const& s = scope->instance_var_symbols[idx];
-                if (s->type.is_template()) {
-                    instantiation[idx] = *i;
-                    ++i;
-                }
-            }
-            assert(i == std::end(specified_types));
-        }
-
-        for (auto const& specified : instantiation) {
-            copied_def->instance_vars[specified.first]->maybe_type
-                = type::to_ast(
-                        specified.second,
-                        copied_def->instance_vars[specified.first]->source_location()
-                    );
-        }
-
-        auto const enclosing_scope
-            = apply_lambda(
-                    [](auto const& s) -> scope::any_scope
-                    {
-                        assert(!s.expired());
-                        return s.lock();
-                    },
-                    scope->enclosing_scope
-                );
-        {
-            OuterVisitor resolver{enclosing_scope};
-            ast::walk_topdown(copied_def, resolver);
-            outer.failed += resolver.failed;
-        }
-
-        assert(!copied_def->scope.expired());
-
-        def->instantiated.push_back(copied_def);
-
-        assert(!copied_def->scope.expired());
-        return copied_def->scope.lock();
-    }
-
-public:
-
-    class_template_instantiater(Scope const& s, OuterVisitor &o) noexcept
-        : current_scope(s), outer(o)
-    {}
-
-    result_type visit(type::type const& t) noexcept
-    {
-        return t.apply_visitor(*this);
-    }
-
-    result_type visit(std::vector<type::type> const& ts) noexcept
-    {
-        for (auto const& t : ts) {
-            if (auto const err = visit(t)) {
-                return err;
-            }
-        }
-        return boost::none;
-    }
-
-    result_type operator()(type::class_type const& t) noexcept
-    {
-        if (t->param_types.empty()) {
-            return boost::none;
-        }
-
-        if (auto const err = visit(t->param_types)) {
-            return err;
-        }
-
-        if (auto const already_instantiated = current_scope->resolve_class_template(t->name, t->param_types)) {
-            t->ref = *already_instantiated;
-        } else {
-            assert(!t->ref.expired());
-            auto const scope = t->ref.lock();
-
-            // Note:
-            // Is it OK? Below overwrites a content of type.
-            // If it causes an issue, below is alternative.
-            //   t = type::make<type::class_type>(boost::get<scope::class_scope>(newly_instantiated))
-            // t->ref = boost::get<scope::class_scope>(newly_instantiated);
-        }
-        return boost::none;
-    }
-
-    template<class T>
-    result_type operator()(T const&) noexcept
-    {
-        return boost::none;
-    }
-
-    result_type operator()(type::tuple_type const& t) noexcept
-    {
-        return visit(t->element_types);
-    }
-
-    result_type operator()(type::func_type const& t) noexcept
-    {
-        if (auto const err = visit(t->return_type)) {
-            return err;
-        }
-        return visit(t->param_types);
-    }
-
-    result_type operator()(type::dict_type const& t) noexcept
-    {
-        if (auto const err = visit(t->key_type)) {
-            return err;
-        }
-        if (auto const err = visit(t->value_type)) {
-            return err;
-        }
-        return boost::none;
-    }
-
-    result_type operator()(type::array_type const& t) noexcept
-    {
-        return visit(t->element_type);
-    }
-
-    result_type operator()(type::range_type const& t) noexcept
-    {
-        return visit(t->element_type);
-    }
-
-    result_type operator()(type::qualified_type const& t) noexcept
-    {
-        return visit(t->contained_type);
-    }
-};
-
-
 // Walk to analyze functions, classes and member variables symbols to make forward reference possible
 class forward_symbol_analyzer {
 
     scope::any_scope current_scope;
-
-    template<class S, class O>
-    friend class class_template_instantiater;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -322,34 +152,6 @@ class forward_symbol_analyzer {
         return access;
     }
 
-    template<class TypeNode>
-    type::type from_ast(TypeNode const& node)
-    {
-        auto t = type::from_ast(node, current_scope);
-
-        if (!t) {
-            apply_lambda([&, this](auto const& n){
-                    semantic_error(n, "  Invalid type '" + n->to_string() + "'");
-                }, node);
-            return {};
-        }
-
-        auto const error = apply_lambda(
-            [&t, this](auto const& s)
-            {
-                class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
-                return t.apply_visitor(instantiater);
-            }, current_scope);
-
-        if (error) {
-            apply_lambda([&, this](auto const& n){
-                    semantic_error(n, *error);
-                }, node);
-        }
-
-        return t;
-    }
-
 public:
 
     size_t failed;
@@ -435,7 +237,7 @@ public:
         // Note:
         // Get return type for checking duplication of overloaded function
         if (func_def->return_type) {
-            auto const ret_type = from_ast(*func_def->return_type);
+            auto const ret_type = type::from_ast(*func_def->return_type, current_scope);
             func_def->ret_type = ret_type;
             new_func->ret_type = ret_type;
         }
@@ -508,7 +310,7 @@ public:
         // Set type if the type of variable is specified
         if (decl->maybe_type) {
             new_var->type
-                = from_ast(*decl->maybe_type);
+                = type::from_ast(*decl->maybe_type, current_scope);
         } else {
             new_var->type
                 = type::make<type::template_type>(decl);
@@ -611,7 +413,7 @@ public:
         if (param->param_type) {
             // XXX:
             // type_calculator requires class information which should be analyzed forward.
-            param->type = from_ast(*param->param_type);
+            param->type = type::from_ast(*param->param_type, current_scope);
             if (!param->type) {
                 semantic_error(
                         param,
@@ -807,28 +609,6 @@ public:
 
         w();
     }
-
-    template<class Walker>
-    void visit(ast::node::object_construct const& obj, Walker const& w)
-    {
-        obj->type = from_ast(obj->obj_type);
-        w();
-    }
-
-    template<class Walker>
-    void visit(ast::node::typed_expr const& typed, Walker const& w)
-    {
-        typed->type = from_ast(typed->specified_type);
-        w();
-    }
-
-    template<class Walker>
-    void visit(ast::node::cast_expr const& casted, Walker const& w)
-    {
-        casted->type = from_ast(casted->casted_type);
-        w();
-    }
-
 
     template<class Walker>
     void visit(ast::node::any_expr &expr, Walker const& w)
