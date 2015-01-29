@@ -540,8 +540,6 @@ public:
                 );
         receiver_node->set_source_location(location);
 
-        auto const receiver_sym = symbol::make<symbol::var_symbol>(receiver_node, receiver_node->name, !receiver_node->is_var);
-
         receiver_node->param_type = receiver_type_node;
         return receiver_node;
     }
@@ -568,7 +566,7 @@ public:
 
         global->define_class(new_class);
 
-        introduce_scope_and_walk(std::move(new_class), w);
+        introduce_scope_and_walk(new_class, w);
 
         failed += check_functions_duplication(
                     new_class->member_func_scopes,

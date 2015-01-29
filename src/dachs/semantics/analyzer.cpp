@@ -9,6 +9,7 @@
 
 #include <boost/variant/apply_visitor.hpp>
 #include <boost/variant/static_visitor.hpp>
+#include <boost/variant/get.hpp>
 #include <boost/algorithm/cxx11/all_of.hpp>
 #include <boost/algorithm/cxx11/any_of.hpp>
 #include <boost/algorithm/string/join.hpp>
@@ -210,6 +211,7 @@ struct class_template_updater : boost::static_visitor<boost::optional<std::strin
             //   t = type::make<type::class_type>(boost::get<scope::class_scope>(newly_instantiated))
             t->ref = boost::get<scope::class_scope>(newly_instantiated);
         }
+
         return boost::none;
     }
 
@@ -1432,15 +1434,33 @@ public:
                 assert(i != std::end(map));
                 auto &var_type = i->second;
 
+                auto const error
+                    = [&, this]
+                    {
+                        semantic_error(
+                                var_node, boost::format(
+                                    "  Type of instance variable '%1%' mismatches.\n"
+                                    "  Note: Tried to substitute type '%2%' but it was actually type '%3%'"
+                                ) % var_sym->name % var_type.to_string() % var_sym->type.to_string()
+                            );
+                    };
+
                 if (!var_type) {
                     var_type = var_sym->type;
+                } else if (var_type.is_class_template() && type::is_a<type::class_type>(var_sym->type)) {
+                    // Note:
+                    // Substitute instantiated class to its class template
+
+                    auto const c1 = *type::get<type::class_type>(var_type);
+                    auto const c2 = *type::get<type::class_type>(var_sym->type);
+                    if (c1->name != c2->name) {
+                        error();
+                        return false;
+                    }
+
+                    var_type = var_sym->type;
                 } else if (var_type != var_sym->type) {
-                    semantic_error(
-                            var_node, boost::format(
-                                "  Type of instance variable '%1%' mismatches.\n"
-                                "  Note: Tried to substitute type '%2%' but it was actually type '%3%'"
-                            ) % var_sym->name % var_type.to_string() % var_sym->type.to_string()
-                        );
+                    error();
                     return false;
                 }
 

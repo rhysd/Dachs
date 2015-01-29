@@ -356,6 +356,13 @@ bool any_type::is_class_template() const noexcept
     }
 
     auto const& c = *t;
+    if (!c->param_types.empty()) {
+        // Note:
+        // If the class has any specified template parameter,
+        // it means the class template was already instantiated.
+        return false;
+    }
+
     assert(!c->ref.expired());
     return c->ref.lock()->is_template();
 }
@@ -438,7 +445,65 @@ class_type::class_type(scope::class_scope const& s, Types const& types) noexcept
 bool class_type::operator==(class_type const& rhs) const noexcept
 {
     assert(!ref.expired() && !rhs.ref.expired());
-    return *ref.lock() == *rhs.ref.lock();
+
+    if (name != rhs.name) {
+        return false;
+    }
+
+    auto const instance_var_types_of
+        = [](auto const& t) -> boost::optional<std::vector<type::type>>
+        {
+            auto const scope = t.ref.lock();
+            std::vector<type::type> ret;
+
+            if (t.param_types.empty()) {
+                for (auto const& i : scope->instance_var_symbols) {
+                    ret.push_back(i->type);
+                }
+            } else {
+                auto itr = std::begin(t.param_types);
+                auto const end = std::end(t.param_types);
+                for (auto const& i : scope->instance_var_symbols) {
+                    if (type::is_a<type::template_type>(i->type)) {
+                        if (itr == end) {
+                            return boost::none;
+                        }
+
+                        ret.push_back(*itr);
+
+                        ++itr;
+                    } else {
+                        ret.push_back(i->type);
+                    }
+                }
+                if (itr != end) {
+                    return boost::none;
+                }
+            }
+            return ret;
+        };
+
+
+    auto const maybe_lhs_types = instance_var_types_of(*this);
+    auto const maybe_rhs_types = instance_var_types_of(rhs);
+
+    if (!maybe_lhs_types || !maybe_rhs_types || (maybe_lhs_types->size() != maybe_rhs_types->size())) {
+        // Note: Error
+        return false;
+    }
+
+    for (auto const& lr_pair : helper::zipped(*maybe_lhs_types, *maybe_rhs_types)) {
+        auto const& l = boost::get<0>(lr_pair);
+        auto const& r = boost::get<1>(lr_pair);
+        if (type::is_a<type::template_type>(l) && type::is_a<type::template_type>(r)) {
+            continue;
+        }
+        if (l != r) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 std::string class_type::to_string() const noexcept

@@ -1313,6 +1313,65 @@ BOOST_AUTO_TEST_SUITE(class_definition)
         )");
     }
 
+    BOOST_AUTO_TEST_CASE(instantiated_class_template_as_parameter_type)
+    {
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+
+                init
+                end
+            end
+
+            func foo(x : X(int))
+            end
+
+            func foo(x : X(float))
+            end
+
+            func foo'(x : X)
+            end
+
+            func foo''(x : X(int), y : int)
+            end
+
+            func foo''(x : X(int), y : float)
+            end
+
+            func main
+                x := new X(int)
+                x2 := new X(float)
+                foo(x)
+                foo(x2)
+                foo'(x)
+                foo'(x2)
+                foo''(x, 1)
+                foo''(x, 1.0)
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+
+                init
+                end
+            end
+
+            func foo(x : X(int))
+            end
+
+            func foo(x : X(int))
+            end
+
+            func main
+            end
+        )");
+
+        // TODO:
+        // More test cases should be added.
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_CASE(non_paren_func_calls_edge_cases)
