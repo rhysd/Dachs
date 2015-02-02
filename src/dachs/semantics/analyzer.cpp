@@ -211,6 +211,7 @@ struct class_template_updater : boost::static_visitor<boost::optional<std::strin
             //   t = type::make<type::class_type>(boost::get<scope::class_scope>(newly_instantiated))
             t->ref = boost::get<scope::class_scope>(newly_instantiated);
         }
+        t->param_types.clear();
 
         return boost::none;
     }
@@ -1511,15 +1512,15 @@ public:
         for (auto const& i : map
                 | filtered([](auto const& i) -> bool { return !i.second; })
         ) {
-            auto const class_name
-                = (*get_as<scope::class_scope>(enclosing_scope_of(ctor)))->name;
+            auto const clazz
+                = *get_as<scope::class_scope>(enclosing_scope_of(ctor));
             semantic_error(
                     ctor_def,
                     boost::format(
                         "  Failed to instantiate class template '%1%'\n"
                         "  Type of instance variable '%2%' can't be determined\n"
                         "  Note: Used contructor is at line:%3%, col:%4%"
-                    ) % class_name % i.first % ctor_def->line % ctor_def->col
+                    ) % clazz->to_string() % i.first % ctor_def->line % ctor_def->col
                 );
             fail = true;
         }
@@ -1740,17 +1741,7 @@ public:
             arg_types.push_back(t);
         }
 
-        auto const maybe_class_scope
-            = with_current_scope(
-                    [&](auto const& s){ return s->resolve_class(type->name); }
-                );
-
-        if (!maybe_class_scope) {
-            semantic_error(obj, "  Class '" + type->name + "' is not found");
-            return;
-        }
-
-        auto scope = *maybe_class_scope; // Copy is intended.
+        auto scope = type->ref.lock();
 
         // Note:
         // If template type parameters are speficied, they should be considered.
