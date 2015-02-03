@@ -327,6 +327,7 @@ struct class_type final : public named_type {
     template<class Types>
     class_type(scope::class_scope const& s, Types const& types) noexcept;
 
+    std::string stringize_param_types() const;
     std::string to_string() const noexcept override;
 
     bool operator==(class_type const& rhs) const noexcept;

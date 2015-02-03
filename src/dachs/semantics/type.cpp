@@ -492,9 +492,9 @@ bool class_type::operator==(class_type const& rhs) const noexcept
         return false;
     }
 
-    for (auto const& lr_pair : helper::zipped(*maybe_lhs_types, *maybe_rhs_types)) {
-        auto const& l = boost::get<0>(lr_pair);
-        auto const& r = boost::get<1>(lr_pair);
+    for (auto const& lr : helper::zipped(*maybe_lhs_types, *maybe_rhs_types)) {
+        auto const& l = boost::get<0>(lr);
+        auto const& r = boost::get<1>(lr);
         if (type::is_a<type::template_type>(l) && type::is_a<type::template_type>(r)) {
             continue;
         }
@@ -506,27 +506,54 @@ bool class_type::operator==(class_type const& rhs) const noexcept
     return true;
 }
 
-std::string class_type::to_string() const noexcept
+std::string class_type::stringize_param_types() const
 {
-    if (ref.expired()) {
-        return "<class:UNKNOWN>";
-    }
-
-    std::string params
-        = boost::algorithm::join(
-                param_types | transformed([](auto const& t){ return t.to_string(); }),
+    auto const stringize_params_from_symbols
+        = [this]
+        {
+            auto const scope = ref.lock();
+            return boost::algorithm::join(
+                scope->instance_var_symbols
+                    | transformed(
+                        [](auto const& s)
+                        {
+                            return !type::is_a<type::template_type>(s->type)
+                                ? s->type.to_string()
+                                : "T";
+                        }
+                    ),
                 ", "
             );
-    if (!params.empty()) {
-        params = '(' + params + ')';
-    }
+        };
 
-    auto const scope = ref.lock();
-    if (scope->is_template()) {
-        return "<class:" + name + ':' + helper::hex_string_of_ptr(scope.get()) + '>' + params;
-    } else {
-        return "<class:" + name + ':' + helper::hex_string_of_ptr(scope.get()) + '>' + params;
-    }
+    auto const stringize_params_from_params
+        = [this]
+        {
+            return boost::algorithm::join(
+                param_types
+                    | transformed(
+                        [](auto const& t)
+                        {
+                            assert(!type::is_a<type::template_type>(t));
+                            return t.to_string();
+                        }
+                    ),
+                ", "
+            );
+        };
+
+    std::string const ret
+        = param_types.empty()
+            ? stringize_params_from_symbols()
+            : stringize_params_from_params();
+
+    return ret.empty() ? ret : '(' + ret + ')';
+}
+
+std::string class_type::to_string() const noexcept
+{
+    assert(!ref.expired());
+    return "class " + name + stringize_param_types();
 }
 
 bool class_type::is_default_constructible() const noexcept

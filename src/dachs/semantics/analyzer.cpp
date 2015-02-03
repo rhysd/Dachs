@@ -1268,7 +1268,7 @@ public:
         if (auto const violated = is_const_violated_invocation(invocation)) {
             semantic_error(
                     invocation,
-                    boost::format("  Member function '%1%' modifies member(s) of immutable object '%2%'.")
+                    boost::format("  Member function '%1%' modifies member(s) of immutable object '%2%'")
                         % invocation->callee_scope.lock()->to_string() % (*violated)->name
                     );
         }

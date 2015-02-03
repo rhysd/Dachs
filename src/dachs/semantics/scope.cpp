@@ -285,19 +285,7 @@ ast::node::class_definition class_scope::get_ast_node() const noexcept
 
 std::string class_scope::to_string() const noexcept
 {
-    auto const templates_str
-        = '(' +
-        boost::algorithm::join(
-            instance_var_symbols
-                | filtered(
-                    [](auto const& s){ return type::is_a<type::template_type>(s->type); }
-                ) | transformed(
-                    [](auto const& s){ return s->type.to_string(); }
-                )
-            , ", ")
-        + ')';
-
-    return templates_str == "()" ? name : (name + templates_str);
+    return "<class:" + name + ':' + helper::hex_string_of_ptr(this) + '>';
 }
 
 bool class_scope::operator==(class_scope const& rhs) const noexcept
