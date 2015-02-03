@@ -1296,6 +1296,26 @@ public:
         w();
 
         auto const actual_type = type_of(typed->child_expr);
+
+        // Note:
+        // Check the class is an instance of a specified class template
+        //   e.g.
+        //     class X; a; init; end; end
+        //     x := new X(int)
+        //
+        //     # OK: Type of 'x' is 'X(int)' and it is an instance of 'X(T)'
+        //     x : X
+        //
+
+        if (auto const specified_class = type::get<type::class_type>(specified_type)) {
+            if (auto const actual_class = type::get<type::class_type>(actual_type)) {
+                if ((*actual_class)->is_instantiated_from(*specified_class)) {
+                    typed->type = actual_type;
+                    return;
+                }
+            }
+        }
+
         if (actual_type != specified_type) {
             semantic_error(typed, boost::format("  Types mismatch; specified '%1%' but actually typed to '%2%'") % specified_type.to_string() % actual_type.to_string());
             return;

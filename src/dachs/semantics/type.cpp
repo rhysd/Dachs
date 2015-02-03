@@ -265,6 +265,22 @@ public:
     }
 };
 
+inline bool is_instantiated_from_impl(ast::node::class_definition const& lhs_def, ast::node::class_definition const& rhs_def)
+{
+    if (rhs_def->instantiated.empty()) {
+        return lhs_def == rhs_def; // Note: Compare with address
+    }
+
+    for (auto const& i : rhs_def->instantiated) {
+        if (is_instantiated_from_impl(lhs_def, i)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
 } // namespace detail
 
 no_opt_t no_opt;
@@ -560,6 +576,22 @@ bool class_type::is_default_constructible() const noexcept
 {
     assert(!ref.expired());
     return ref.lock()->resolve_ctor({}) != boost::none;
+}
+
+bool class_type::is_instantiated_from(type::class_type const& class_template) const
+{
+    auto const template_scope = class_template->ref.lock();
+    auto const this_scope = ref.lock();
+    if (!template_scope->is_template() || this_scope->is_template()) {
+        return false;
+    }
+
+    // Note:
+    // resolve_class() returns the first-found class AST node.
+    // It is a root of instantiation tree of class template.
+    auto const root_scope
+        = *template_scope->resolve_class(class_template->name);
+    return type::detail::is_instantiated_from_impl(this_scope->get_ast_node(), root_scope->get_ast_node());
 }
 
 } // namespace type_node
