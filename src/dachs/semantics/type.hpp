@@ -223,6 +223,8 @@ public:
         return helper::variant::apply_lambda(lambda, value);
     }
 
+    bool is_instantiated_from(class_type const& from) const;
+
     bool is_default_constructible() const noexcept;
 
     template<class T>

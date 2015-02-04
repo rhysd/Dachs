@@ -32,6 +32,40 @@ static std::vector<builtin_type> const builtin_types
         make<builtin_type>("symbol"),
     };
 
+template<class T>
+inline auto instance_var_types_of(T const& t)
+    -> boost::optional<std::vector<any_type>>
+{
+    auto const scope = t.ref.lock();
+    std::vector<any_type> ret;
+
+    if (t.param_types.empty()) {
+        for (auto const& i : scope->instance_var_symbols) {
+            ret.push_back(i->type);
+        }
+    } else {
+        auto itr = std::begin(t.param_types);
+        auto const end = std::end(t.param_types);
+        for (auto const& i : scope->instance_var_symbols) {
+            if (is_a<template_type>(i->type)) {
+                if (itr == end) {
+                    return boost::none;
+                }
+
+                ret.push_back(*itr);
+
+                ++itr;
+            } else {
+                ret.push_back(i->type);
+            }
+        }
+        if (itr != end) {
+            return boost::none;
+        }
+    }
+    return ret;
+};
+
 class node_to_type_translator
     : public boost::static_visitor<any_type> {
 
@@ -265,21 +299,95 @@ public:
     }
 };
 
-inline bool is_instantiated_from_impl(ast::node::class_definition const& lhs_def, ast::node::class_definition const& rhs_def)
-{
-    if (rhs_def->instantiated.empty()) {
-        return lhs_def == rhs_def; // Note: Compare with address
+struct instantiation_checker : boost::static_visitor<bool> {
+
+    result_type visit(any_type const& l, any_type const& r) const noexcept
+    {
+        return boost::apply_visitor(*this, l.raw_value(), r.raw_value());
     }
 
-    for (auto const& i : rhs_def->instantiated) {
-        if (is_instantiated_from_impl(lhs_def, i)) {
-            return true;
+    result_type visit(std::vector<any_type> const& ls, std::vector<any_type> const& rs) const noexcept
+    {
+        for (auto const& lr : helper::zipped(ls, rs)) {
+            if (visit(boost::get<0>(lr), boost::get<1>(lr))) {
+                return true;
+            }
         }
+        return false;
     }
 
-    return false;
-}
+    result_type operator()(class_type const& l, class_type const& r) const noexcept
+    {
+        if (l->name != r->name) {
+            return false;
+        }
 
+        auto const ls = l->ref.lock();
+        auto const rs = r->ref.lock();
+
+        if (ls->is_template() || !rs->is_template()) {
+            return false;
+        }
+
+        auto const lts = detail::instance_var_types_of(*l);
+        auto const rts = detail::instance_var_types_of(*r);
+        if (!lts || !rts) {
+            return false;
+        }
+
+        assert(lts->size() == rts->size());
+        for (auto const& lr : helper::zipped(*lts, *rts)) {
+            if (!visit(boost::get<0>(lr), boost::get<1>(lr))) {
+                std::cout << boost::get<0>(lr).to_string() << " vs " << boost::get<1>(lr).to_string() << std::endl;
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    result_type operator()(tuple_type const& l, tuple_type const& r) const noexcept
+    {
+        return visit(l->element_types, r->element_types);
+    }
+
+    result_type operator()(func_type const& l, func_type const& r) const noexcept
+    {
+        return visit(l->return_type, r->return_type) || visit(l->param_types, r->param_types);
+    }
+
+    result_type operator()(dict_type const& l, dict_type const& r) const noexcept
+    {
+        return visit(l->key_type, r->key_type) || visit(l->value_type, r->value_type);
+    }
+
+    result_type operator()(array_type const& l, array_type const& r) const noexcept
+    {
+        return visit(l->element_type, r->element_type);
+    }
+
+    result_type operator()(range_type const& l, range_type const& r) const noexcept
+    {
+        return visit(l->element_type, r->element_type);
+    }
+
+    result_type operator()(qualified_type const& l, qualified_type const& r) const noexcept
+    {
+        return visit(l->contained_type, r->contained_type);
+    }
+
+    template<class T>
+    result_type operator()(T const&, template_type const&) const noexcept
+    {
+        return true;
+    }
+
+    template<class T, class U>
+    result_type operator()(T const& l, U const& r) const noexcept
+    {
+        return *l == *r;
+    }
+};
 
 } // namespace detail
 
@@ -383,6 +491,16 @@ bool any_type::is_class_template() const noexcept
     return c->ref.lock()->is_template();
 }
 
+bool any_type::is_instantiated_from(class_type const& from) const
+{
+    auto const c = helper::variant::get_as<class_type>(value);
+    if (!c) {
+        return false;
+    }
+    detail::instantiation_checker checker;
+    return checker(*c, from);
+}
+
 any_type from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept
 {
     return boost::apply_visitor(detail::node_to_type_translator{current}, t);
@@ -466,42 +584,9 @@ bool class_type::operator==(class_type const& rhs) const noexcept
         return false;
     }
 
-    auto const instance_var_types_of
-        = [](auto const& t) -> boost::optional<std::vector<type::type>>
-        {
-            auto const scope = t.ref.lock();
-            std::vector<type::type> ret;
 
-            if (t.param_types.empty()) {
-                for (auto const& i : scope->instance_var_symbols) {
-                    ret.push_back(i->type);
-                }
-            } else {
-                auto itr = std::begin(t.param_types);
-                auto const end = std::end(t.param_types);
-                for (auto const& i : scope->instance_var_symbols) {
-                    if (type::is_a<type::template_type>(i->type)) {
-                        if (itr == end) {
-                            return boost::none;
-                        }
-
-                        ret.push_back(*itr);
-
-                        ++itr;
-                    } else {
-                        ret.push_back(i->type);
-                    }
-                }
-                if (itr != end) {
-                    return boost::none;
-                }
-            }
-            return ret;
-        };
-
-
-    auto const maybe_lhs_types = instance_var_types_of(*this);
-    auto const maybe_rhs_types = instance_var_types_of(rhs);
+    auto const maybe_lhs_types = type::detail::instance_var_types_of(*this);
+    auto const maybe_rhs_types = type::detail::instance_var_types_of(rhs);
 
     if (!maybe_lhs_types || !maybe_rhs_types || (maybe_lhs_types->size() != maybe_rhs_types->size())) {
         // Note: Error
@@ -576,22 +661,6 @@ bool class_type::is_default_constructible() const noexcept
 {
     assert(!ref.expired());
     return ref.lock()->resolve_ctor({}) != boost::none;
-}
-
-bool class_type::is_instantiated_from(type::class_type const& class_template) const
-{
-    auto const template_scope = class_template->ref.lock();
-    auto const this_scope = ref.lock();
-    if (!template_scope->is_template() || this_scope->is_template()) {
-        return false;
-    }
-
-    // Note:
-    // resolve_class() returns the first-found class AST node.
-    // It is a root of instantiation tree of class template.
-    auto const root_scope
-        = *template_scope->resolve_class(class_template->name);
-    return type::detail::is_instantiated_from_impl(this_scope->get_ast_node(), root_scope->get_ast_node());
 }
 
 } // namespace type_node

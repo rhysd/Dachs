@@ -162,11 +162,11 @@ struct var_ref_getter_for_lhs_of_assign {
 };
 
 template<class Scope, class OuterVisitor>
-struct class_template_updater : boost::static_visitor<boost::optional<std::string>> {
+struct class_template_instantiater : boost::static_visitor<boost::optional<std::string>> {
     Scope const& current_scope;
     OuterVisitor &outer;
 
-    class_template_updater(Scope const& s, OuterVisitor &o) noexcept
+    class_template_instantiater(Scope const& s, OuterVisitor &o) noexcept
         : current_scope(s), outer(o)
     {}
 
@@ -1308,11 +1308,9 @@ public:
         //
 
         if (auto const specified_class = type::get<type::class_type>(specified_type)) {
-            if (auto const actual_class = type::get<type::class_type>(actual_type)) {
-                if ((*actual_class)->is_instantiated_from(*specified_class)) {
-                    typed->type = actual_type;
-                    return;
-                }
+            if (actual_type.is_instantiated_from(*specified_class)) {
+                typed->type = actual_type;
+                return;
             }
         }
 
@@ -1858,8 +1856,8 @@ public:
             auto const error = apply_lambda(
                 [&t=obj->type, this](auto const& s)
                 {
-                    class_template_updater<decltype(s), decltype(*this)> updater{s, *this};
-                    return t.apply_visitor(updater);
+                    class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
+                    return t.apply_visitor(instantiater);
                 }, current_scope);
             if (error) {
                 semantic_error(obj, *error);
