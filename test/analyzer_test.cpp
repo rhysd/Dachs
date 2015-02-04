@@ -1728,4 +1728,108 @@ BOOST_AUTO_TEST_CASE(const_func_access_check)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(typed_expression)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            init(@a)
+            end
+        end
+
+        class Y
+            a, b
+
+            init(@a, @b)
+            end
+        end
+
+        class Z
+            a : int
+            init
+            end
+        end
+
+        func main
+            let
+                x := new X{24}
+            in do
+                x : X(int)
+                x : X
+            end
+
+            let
+                y := new Y{new X{42}, new X{3.14}}
+            in do
+                y : Y(X(int), X(float))
+                y : Y(X, X(float))
+                y : Y(X(int), X)
+                y : Y(X, X)
+                y : Y
+            end
+
+            let
+                x := new X{new X{new X{42}}}
+            in do
+                x : X(X(X(int)))
+                x : X(X(X))
+                x : X(X)
+                x : X
+            end
+
+            let z := new Z in z : Z
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            init(@a)
+            end
+        end
+
+        func main
+            x := new X{42}
+            x : float
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            init(@a)
+            end
+        end
+
+        func main
+            x := new X{42}
+            x : X(float)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            init(@a)
+            end
+        end
+
+        class Y
+            a : int
+
+            init(@a)
+            end
+        end
+
+        func main
+            x := new X{42}
+            x : Y
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
