@@ -1123,7 +1123,7 @@ public:
         // Note:
         // generic_func_type::ref is not available because it is not updated
         // even if overload functions are resolved.
-        auto maybe_func =
+        auto const func_candidates =
             with_current_scope(
                     [&](auto const& s)
                     {
@@ -1131,11 +1131,17 @@ public:
                     }
                 );
 
-        if (!maybe_func) {
+        if (func_candidates.empty()) {
             return (boost::format("  Function for '%1%' is not found") % make_func_signature(func_name, arg_types)).str();
+        } else if (func_candidates.size() > 1u) {
+            std::string errmsg = "  Function candidates for '" + make_func_signature(func_name, arg_types) + "' are ambiguous";
+            for (auto const& c : func_candidates) {
+                errmsg += "\n  Candidate: " + c->to_string();
+            }
+            return errmsg;
         }
 
-        auto func = *maybe_func;
+        auto func = *std::begin(std::move(func_candidates));
 
         if (func->is_builtin) {
             assert(func->ret_type);
@@ -1696,9 +1702,11 @@ public:
 
         // Note:
         // Re-resolve contructor for the instantiated class.
-        auto const maybe_ctor_from_instantiated = instantiated_scope->resolve_ctor(arg_types);
-        assert(maybe_ctor_from_instantiated);
-        auto ctor_from_instantiated = *maybe_ctor_from_instantiated;
+        auto const ctors_from_instantiated = instantiated_scope->resolve_ctor(arg_types);
+        // TODO: check it's the only candidate.
+        assert(!ctors_from_instantiated.empty());
+        std::cout << ctors_from_instantiated.size() << std::endl;
+        auto ctor_from_instantiated = *std::begin(ctors_from_instantiated);
 
         if (ctor_from_instantiated->is_template()) {
             std::tie(std::ignore, ctor_from_instantiated) = instantiate_function_from_template(ctor_from_instantiated->get_ast_node(), ctor_from_instantiated, arg_types);
@@ -1776,13 +1784,21 @@ public:
             arg_types[0] = scope->type;
         }
 
-        auto const maybe_ctor = scope->resolve_ctor(arg_types);
-        if (!maybe_ctor) {
+        auto const ctor_candidates = scope->resolve_ctor(arg_types);
+
+        if (ctor_candidates.empty()) {
             semantic_error(obj, "  No matching constructor to construct class '" + scope->to_string() + "'");
+            return;
+        } else if (ctor_candidates.size() > 1u) {
+            std::string errmsg = "  Contructor candidates for '" + scope->to_string() + "' are ambiguous";
+            for (auto const& c : ctor_candidates) {
+                errmsg += "\n  Candidate: " + c->to_string();
+            }
+            semantic_error(obj, errmsg);
             return;
         }
 
-        auto ctor = *maybe_ctor;
+        auto ctor = *std::begin(std::move(ctor_candidates));
         auto ctor_def = ctor->get_ast_node();
 
         // Note:

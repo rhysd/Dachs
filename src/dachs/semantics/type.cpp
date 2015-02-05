@@ -660,7 +660,7 @@ std::string class_type::to_string() const noexcept
 bool class_type::is_default_constructible() const noexcept
 {
     assert(!ref.expired());
-    return ref.lock()->resolve_ctor({}) != boost::none;
+    return ref.lock()->resolve_ctor({}).size() == 1u;
 }
 
 } // namespace type_node

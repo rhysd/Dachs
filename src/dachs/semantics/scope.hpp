@@ -6,6 +6,8 @@
 #include <type_traits>
 #include <cstddef>
 #include <cassert>
+#include <unordered_set>
+
 #include <boost/variant/variant.hpp>
 #include <boost/format.hpp>
 #include <boost/algorithm/string/predicate.hpp>
@@ -34,6 +36,7 @@ using dachs::helper::make;
 namespace scope_node {
 
 using dachs::helper::variant::apply_lambda;
+using function_set = std::unordered_set<scope::func_scope>;
 
 struct basic_scope {
     // Note:
@@ -77,14 +80,14 @@ struct basic_scope {
 
     // TODO resolve member variables and member functions
 
-    virtual maybe_func_t resolve_func(std::string const& name, std::vector<type::type> const& args) const
+    virtual function_set resolve_func(std::string const& name, std::vector<type::type> const& args) const
     {
         // TODO:
         // resolve_func() now searches function scopes directly.
         // But it should search variables, check the result is funcref type, then resolve function overloads.
         return apply_lambda(
                 [&](auto const& s)
-                    -> maybe_func_t
+                    -> function_set
                 {
                     return s.lock()->resolve_func(name, args);
                 }, enclosing_scope);
@@ -220,7 +223,7 @@ struct global_scope final : public basic_scope {
         classes.push_back(new_class);
     }
 
-    maybe_func_t resolve_func(std::string const& name, std::vector<type::type> const& args) const override;
+    function_set resolve_func(std::string const& name, std::vector<type::type> const& args) const override;
 
     maybe_class_t resolve_class(std::string const& name) const override
     {
@@ -402,7 +405,7 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
         return boost::algorithm::any_of(instance_var_symbols, [](auto const& s){ return s->type.is_template(); });
     }
 
-    maybe_func_t resolve_ctor(std::vector<type::type> const& arg_types) const
+    function_set resolve_ctor(std::vector<type::type> const& arg_types) const
     {
         return resolve_func("dachs.init", arg_types);
     }

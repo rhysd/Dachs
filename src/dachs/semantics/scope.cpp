@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <iterator>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <boost/algorithm/cxx11/all_of.hpp>
 #include <boost/range/adaptor/transformed.hpp>
@@ -29,10 +30,6 @@ template<class FuncScope, class ArgTypes>
 inline
 std::size_t get_overloaded_function_score(FuncScope const& func, ArgTypes const& arg_types)
 {
-    if (arg_types.size() != func->params.size()) {
-        return 0u;
-    }
-
     std::size_t score = 1u;
 
     if (arg_types.size() == 0) {
@@ -111,29 +108,57 @@ std::size_t get_overloaded_function_score(FuncScope const& func, ArgTypes const&
 }
 
 template<class Funcs, class Types>
-auto get_overloaded_function(Funcs const& candidates, std::string const& name, Types const& arg_types)
+auto generate_overload_set(Funcs const& candidates, std::string const& name, Types const& arg_types)
 {
-    boost::optional<scope::func_scope> result = boost::none;
+    using result_type = std::unordered_multimap<std::size_t, typename Funcs::value_type>;
 
-    std::size_t score = 0u;
+    std::unordered_multimap<std::size_t, typename Funcs::value_type> candidate_scores;
+    std::size_t max_score = 0u;
+
     for (auto const& f : candidates) {
-        if (f->name != name) {
+        if (f->name != name || arg_types.size() != f->params.size()) {
             continue;
         }
 
         auto const score_tmp = detail::get_overloaded_function_score(f, arg_types);
-        if (score_tmp > score) {
-            score = score_tmp;
-            result = f;
+        if (score_tmp == 0u) {
+            continue;
+        }
+
+        if (score_tmp >= max_score) {
+            candidate_scores.emplace(score_tmp, f);
+            max_score = score_tmp;
         }
     }
 
+    auto const range = candidate_scores.equal_range(max_score);
+    std::unordered_set<typename Funcs::value_type> result;
+    for (auto i = range.first; i != range.second; ++i) {
+        result.emplace(i->second);
+    }
     return result;
+}
+
+template<class Funcs, class Types>
+function_set get_overloaded_function(Funcs const& candidates, std::string const& name, Types const& arg_types)
+{
+    auto const overload_set = generate_overload_set(candidates, name, arg_types);
+
+    // TODO:
+    // If there are multiple overload candidates, they should be narrowed down with partial ordering.
+    // Check how each candidate matches to the arguments.
+    if (overload_set.size() != 1u) {
+        std::cerr << "Multiple overload candidates!!" << std::endl;
+        for (auto const& c : overload_set) {
+            std::cerr << "  " << c->to_string() << std::endl;
+        }
+    }
+    return overload_set;
 }
 
 } // namespace detail
 
-global_scope::maybe_func_t global_scope::resolve_func(std::string const& name, std::vector<type::type> const& arg_types) const
+function_set global_scope::resolve_func(std::string const& name, std::vector<type::type> const& arg_types) const
 {
     return detail::get_overloaded_function(functions, name, arg_types);
 }
