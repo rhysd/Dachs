@@ -147,7 +147,7 @@ function_set get_overloaded_function(Funcs const& candidates, std::string const&
     // TODO:
     // If there are multiple overload candidates, they should be narrowed down with partial ordering.
     // Check how each candidate matches to the arguments.
-    if (overload_set.size() != 1u) {
+    if (overload_set.size() > 1u) {
         std::cerr << "Multiple overload candidates!!" << std::endl;
         for (auto const& c : overload_set) {
             std::cerr << "  " << c->to_string() << std::endl;
@@ -165,10 +165,6 @@ function_set global_scope::resolve_func(std::string const& name, std::vector<typ
 
 global_scope::maybe_class_t global_scope::resolve_class_template(std::string const& name, std::vector<type::type> const& specified) const
 {
-    std::cout << "resolve: \n  name: " << name << std::endl;;
-    for (auto const& t : specified) {
-        std::cout << "  type: " << t.to_string() << std::endl;
-    }
     auto const c = resolve_class(name);
     if (!c || !(*c)->is_template()) {
         return boost::none;

@@ -49,6 +49,8 @@ using helper::variant::has;
 using helper::variant::apply_lambda;
 using boost::adaptors::transformed;
 using boost::adaptors::filtered;
+using boost::algorithm::all_of;
+using boost::algorithm::any_of;
 using type::type_of;
 
 struct return_types_gatherer {
@@ -272,6 +274,7 @@ class symbol_analyzer {
     size_t failed = 0u;
     std::unordered_set<ast::node::function_definition> already_visited_functions;
     std::unordered_set<ast::node::class_definition> already_visited_classes;
+    std::unordered_set<ast::node::function_definition> already_visited_ctors;
 
     using class_instantiation_type_map_type = std::unordered_map<std::string, type::type>;
 
@@ -436,6 +439,11 @@ class symbol_analyzer {
         return already_visited_classes.find(c) != std::end(already_visited_classes);
     }
 
+    bool already_visited_ctor(ast::node::function_definition const& ctor) const noexcept
+    {
+        return already_visited_ctors.find(ctor) != std::end(already_visited_ctors);
+    }
+
     template<class Predicate>
     auto with_current_scope(Predicate const& p) const
     {
@@ -593,7 +601,7 @@ public:
                 }
             }
 
-            if (boost::algorithm::any_of(
+            if (any_of(
                         gatherer.result_types,
                         [&](auto const& t){ return gatherer.result_types[0] != t; })) {
                 semantic_error(
@@ -831,7 +839,7 @@ public:
         }
 
         auto arg0_type = type_of(arr_lit->element_exprs[0]);
-        if (boost::algorithm::any_of(
+        if (any_of(
                 arr_lit->element_exprs,
                 [&](auto const& e){ return arg0_type != type_of(e); })
             ) {
@@ -843,12 +851,9 @@ public:
             auto const knows_size =
                 [](auto const& e) -> bool { return *(*type::get<type::array_type>(type_of(e)))->size; };
 
-            if (boost::algorithm::all_of(
-                    arr_lit->element_exprs,
-                    knows_size
-                )) {
+            if (all_of(arr_lit->element_exprs, knows_size)) {
                 auto const arg0_size = *(*arg0_arr_type)->size;
-                if (boost::algorithm::any_of(
+                if (any_of(
                         arr_lit->element_exprs,
                         [arg0_size](auto const& e){ return *(*type::get<type::array_type>(type_of(e)))->size != arg0_size; }
                     )) {
@@ -856,7 +861,7 @@ public:
                     return;
                 }
 
-            } else if (boost::algorithm::any_of(
+            } else if (any_of(
                     arr_lit->element_exprs,
                     knows_size
                 )) {
@@ -898,7 +903,7 @@ public:
         auto key_type_elem0 = type_of(dict_lit->value[0].first);
         auto value_type_elem0 = type_of(dict_lit->value[0].second);
 
-        if (boost::algorithm::any_of(
+        if (any_of(
                 dict_lit->value,
                 [&](auto const& v)
                 {
@@ -1850,30 +1855,31 @@ public:
         // Ignore if the parameter's type is class template or not because the class template is
         // never resolved at this point. It will be resolved after the class is instantiated.
         if (ctor->is_template()) {
+            // Note:
+            // The result of this instantiation may be function template.
+            // See comment in instantiate_function_from_template().
             if (auto instantiated = already_instantiated_func(ctor_def, arg_types)) {
                 ctor_def = *instantiated;
                 ctor = ctor_def->scope.lock();
             } else {
                 std::tie(ctor_def, ctor) = instantiate_function_from_template(ctor_def, ctor, arg_types);
             }
+        }
+
+        if (ctor->is_template() && scope->is_template() && !already_visited_ctor(ctor_def)) {
             // Note:
-            // The result of above instantiation may be function template.
-            // See comment in instantiate_function_from_template().
-            if (ctor->is_template()) {
-                assert(scope->is_template());
-                // Note:
-                // If the receiver is class template, the body of ctor is not visited yet
-                // because the ctor is a template.  But initialize statements in the ctor
-                // is necessary to determine the class instantiation.  So visit it here.
-                if (!walk_ctor_body_to_infer_class_template(scope->instance_var_symbols, ctor->params, ctor->body, ctor_def->body)) {
-                    semantic_error(
-                            obj,
-                            boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")
-                                % ctor->to_string() % ctor_def->line % ctor_def->col
-                            );
-                    return;
-                }
+            // If the receiver is class template, the body of ctor is not visited yet
+            // because the ctor is a template.  But initialize statements in the ctor
+            // is necessary to determine the class instantiation.  So visit it here.
+            if (!walk_ctor_body_to_infer_class_template(scope->instance_var_symbols, ctor->params, ctor->body, ctor_def->body)) {
+                semantic_error(
+                        obj,
+                        boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")
+                            % ctor->to_string() % ctor_def->line % ctor_def->col
+                        );
+                return;
             }
+            already_visited_ctors.insert(ctor_def);
         }
 
         auto const instantiation_success = check_template_instantiation_with_ctor(generate_instantiation_map(scope), ctor, ctor_def);

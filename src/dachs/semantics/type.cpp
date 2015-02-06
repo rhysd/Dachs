@@ -338,7 +338,6 @@ struct instantiation_checker : boost::static_visitor<bool> {
         assert(lts->size() == rts->size());
         for (auto const& lr : helper::zipped(*lts, *rts)) {
             if (!visit(boost::get<0>(lr), boost::get<1>(lr))) {
-                std::cout << boost::get<0>(lr).to_string() << " vs " << boost::get<1>(lr).to_string() << std::endl;
                 return false;
             }
         }
