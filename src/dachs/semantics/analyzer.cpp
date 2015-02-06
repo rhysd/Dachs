@@ -317,6 +317,35 @@ class symbol_analyzer {
                 );
     }
 
+    template<class FuncDef>
+    boost::optional<FuncDef> already_instantiated_func(FuncDef const& def, std::vector<type::type> const& arg_types) const
+    {
+       auto const scope = def->scope.lock();
+
+       auto const its_the_func
+           = [&]
+           {
+               for (auto const& lr : helper::zipped(scope->params, arg_types)) {
+                   auto const& l = boost::get<0>(lr)->type;
+                   auto const& r = boost::get<1>(lr);
+                   if (l != r) {
+                       return false;
+                   }
+               }
+               return true;
+           };
+       if (its_the_func()) {
+           return def;
+       } else {
+           for (auto const& i : def->instantiated) {
+               if (auto const found = already_instantiated_func(i, arg_types)) {
+                   return found;
+               }
+           }
+           return boost::none;
+       }
+    }
+
     template<class FuncDefNode>
     std::pair<FuncDefNode, scope::func_scope>
     instantiate_function_from_template(
@@ -326,6 +355,9 @@ class symbol_analyzer {
         )
     {
         assert(func_template_scope->is_template());
+
+        // TODO:
+        // If the targe function is already instantiated, return it.
 
         auto instantiated_func_def = ast::copy_ast(func_template_def);
         auto const enclosing_scope
@@ -1705,7 +1737,6 @@ public:
         auto const ctors_from_instantiated = instantiated_scope->resolve_ctor(arg_types);
         // TODO: check it's the only candidate.
         assert(!ctors_from_instantiated.empty());
-        std::cout << ctors_from_instantiated.size() << std::endl;
         auto ctor_from_instantiated = *std::begin(ctors_from_instantiated);
 
         if (ctor_from_instantiated->is_template()) {
@@ -1819,7 +1850,12 @@ public:
         // Ignore if the parameter's type is class template or not because the class template is
         // never resolved at this point. It will be resolved after the class is instantiated.
         if (ctor->is_template()) {
-            std::tie(ctor_def, ctor) = instantiate_function_from_template(ctor_def, ctor, arg_types);
+            if (auto instantiated = already_instantiated_func(ctor_def, arg_types)) {
+                ctor_def = *instantiated;
+                ctor = ctor_def->scope.lock();
+            } else {
+                std::tie(ctor_def, ctor) = instantiate_function_from_template(ctor_def, ctor, arg_types);
+            }
             // Note:
             // The result of above instantiation may be function template.
             // See comment in instantiate_function_from_template().
