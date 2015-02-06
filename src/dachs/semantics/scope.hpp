@@ -4,9 +4,9 @@
 #include <vector>
 #include <string>
 #include <type_traits>
+#include <unordered_set>
 #include <cstddef>
 #include <cassert>
-#include <unordered_set>
 
 #include <boost/variant/variant.hpp>
 #include <boost/format.hpp>

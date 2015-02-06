@@ -26,12 +26,14 @@ namespace scope_node {
 using boost::adaptors::transformed;
 using boost::adaptors::filtered;
 using boost::algorithm::all_of;
+using std::size_t;
+
 
 namespace detail {
 
-inline std::size_t calc_depth_of_template(type::class_type const& clazz)
+inline size_t calc_depth_of_template(type::class_type const& clazz)
 {
-    std::size_t depth = 1u;
+    size_t depth = 1u;
 
     for (auto const& t : clazz->param_types) {
         if (auto const c = type::get<type::class_type>(t)) {
@@ -60,6 +62,8 @@ auto get_parameter_score(type::type const& arg_type, type::type const& param_typ
         auto const lhs_class = *type::get<type::class_type>(param_type);
         auto const rhs_class = *type::get<type::class_type>(arg_type);
 
+        // TODO:
+        // Use is_instantiated_from to check the parameter type more restrict
         if (lhs_class->name == rhs_class->name) {
             // Note:
             // When the lhs parameter is class template and the rhs argument is
@@ -109,12 +113,12 @@ auto get_parameter_score(type::type const& arg_type, type::type const& param_typ
 
 template<class FuncScope, class ArgTypes>
 inline
-std::tuple<std::size_t, std::size_t, std::size_t>
+std::tuple<size_t, size_t, size_t>
 get_overloaded_function_score(FuncScope const& func, ArgTypes const& arg_types)
 {
-    std::size_t score = 1u;
-    std::size_t num_perfect_match = 0u;
-    std::size_t total_template_depth = 0u;
+    size_t score = 1u;
+    size_t num_perfect_match = 0u;
+    size_t total_template_depth = 0u;
 
     if (arg_types.size() == 0) {
         return std::make_tuple(score, num_perfect_match, total_template_depth);
@@ -141,12 +145,12 @@ template<class Funcs, class Types>
 auto generate_first_overload_set(Funcs const& candidates, std::string const& name, Types const& arg_types)
 {
     std::vector<std::tuple<
-        std::size_t, // matching score score
-        std::size_t, // the number of perfect matching parameters
-        std::size_t, // total template depth
+        size_t, // matching score score
+        size_t, // the number of perfect matching parameters
+        size_t, // total template depth
         typename Funcs::value_type
     >> candidate_scores;
-    std::size_t max_score = 0u;
+    size_t max_score = 0u;
 
     for (auto const& f : candidates) {
         if (f->name != name || arg_types.size() != f->params.size()) {
@@ -174,7 +178,7 @@ auto generate_first_overload_set(Funcs const& candidates, std::string const& nam
     return candidate_scores;
 }
 
-template<std::size_t I, class Scores>
+template<size_t I, class Scores>
 void narrow_down_score_by(Scores &scores) {
     auto const max
         = std::get<I>(
@@ -236,7 +240,7 @@ global_scope::maybe_class_t global_scope::resolve_class_template(std::string con
 
     // Note:
     // Remember all template parameters' index and its specified types
-    std::unordered_map<std::size_t, type::type> specified_template_params;
+    std::unordered_map<size_t, type::type> specified_template_params;
     {
         auto itr = std::begin(specified);
         for (auto const idx : helper::indices((*c)->instance_var_symbols.size())) {
