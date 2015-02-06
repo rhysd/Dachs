@@ -473,16 +473,22 @@ bool any_type::is_template() const noexcept
 
 bool any_type::is_class_template() const noexcept
 {
-    auto const t = helper::variant::get_as<class_type>(value);
-    if (!t) {
+    auto const maybe_type = helper::variant::get_as<class_type>(value);
+    if (!maybe_type) {
         return false;
     }
 
-    auto const& c = *t;
+    auto const& c = *maybe_type;
     if (!c->param_types.empty()) {
         // Note:
         // If the class has any specified template parameter,
         // it means the class template was already instantiated.
+        for (auto const& t : c->param_types) {
+            if (t.is_class_template()) {
+                return true;
+            }
+        }
+
         return false;
     }
 

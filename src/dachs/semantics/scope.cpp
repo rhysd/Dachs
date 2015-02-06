@@ -144,15 +144,6 @@ function_set get_overloaded_function(Funcs const& candidates, std::string const&
 {
     auto const overload_set = generate_overload_set(candidates, name, arg_types);
 
-    // TODO:
-    // If there are multiple overload candidates, they should be narrowed down with partial ordering.
-    // Check how each candidate matches to the arguments.
-    if (overload_set.size() > 1u) {
-        std::cerr << "Multiple overload candidates!!" << std::endl;
-        for (auto const& c : overload_set) {
-            std::cerr << "  " << c->to_string() << std::endl;
-        }
-    }
     return overload_set;
 }
 
