@@ -147,6 +147,19 @@ inline std::string hex_string_of_ptr(T const* const t)
     return s.str();
 }
 
+template<class T, class Predicate>
+inline auto remove_erase_if(std::vector<T> &v, Predicate const& predicate)
+{
+    return v.erase(
+                std::remove_if(
+                    std::begin(v),
+                    std::end(v),
+                    predicate
+                ),
+                std::end(v)
+            );
+}
+
 } // namespace helper
 }  // namespace dachs
 

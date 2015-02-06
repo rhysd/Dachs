@@ -1,13 +1,16 @@
 #include <cassert>
 #include <cstddef>
 #include <iterator>
-#include <unordered_map>
+#include <tuple>
 #include <unordered_set>
+#include <unordered_map>
+#include <algorithm>
 
 #include <boost/algorithm/cxx11/all_of.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/adaptor/filtered.hpp>
 #include <boost/range/algorithm/transform.hpp>
+#include <boost/range/algorithm/max_element.hpp>
 #include <boost/range/numeric.hpp>
 #include <boost/algorithm/string/join.hpp>
 
@@ -26,93 +29,123 @@ using boost::algorithm::all_of;
 
 namespace detail {
 
+inline std::size_t calc_depth_of_template(type::class_type const& clazz)
+{
+    std::size_t depth = 1u;
+
+    for (auto const& t : clazz->param_types) {
+        if (auto const c = type::get<type::class_type>(t)) {
+            auto const d = calc_depth_of_template(*c);
+            if (depth < d + 1) {
+                depth = d + 1;
+            }
+        }
+    }
+
+    return depth;
+}
+
+auto get_parameter_score(type::type const& arg_type, type::type const& param_type)
+{
+    assert(arg_type);
+    assert(param_type);
+
+    if (type::is_a<type::template_type>(param_type)) {
+        // Note:
+        // Function parameter is template.  It matches any types.
+        return std::make_tuple(1u, 0u, 0u);
+    }
+
+    if (param_type.is_class_template() && type::is_a<type::class_type>(arg_type)) {
+        auto const lhs_class = *type::get<type::class_type>(param_type);
+        auto const rhs_class = *type::get<type::class_type>(arg_type);
+
+        if (lhs_class->name == rhs_class->name) {
+            // Note:
+            // When the lhs parameter is class template and the rhs argument is
+            // class which is instantiated from the same class template, they match
+            // more strongly than simple template match and more weakly than the
+            // perfect match.
+            //   e.g.
+            //      class Foo
+            //          a
+            //      end
+            //
+            //      func foo(a : Foo)
+            //      end
+            //
+            //      func main
+            //          foo(new Foo{42})  # Calls foo(Foo(int))
+            //      end
+
+            // Note:
+            // This matching is used in a receiver of member function
+            //
+            //   e.g.
+            //      class Foo
+            //          a
+            //
+            //          func foo
+            //          end
+            //      end
+            //
+            //  The member function foo() is defined actually like below
+            //
+            //      func foo(self : Foo)
+            //      end
+            //
+            //  Actually '(new Foo{42}).foo()' means calling foo(Foo(int)) by UFCS
+
+            return std::make_tuple(2u, 0u, calc_depth_of_template(lhs_class));
+        }
+    }
+
+    if (param_type == arg_type) {
+        return std::make_tuple(3u, 1u, 0u);
+    } else {
+        return std::make_tuple(0u, 0u, 0u);
+    }
+}
+
 template<class FuncScope, class ArgTypes>
 inline
-std::size_t get_overloaded_function_score(FuncScope const& func, ArgTypes const& arg_types)
+std::tuple<std::size_t, std::size_t, std::size_t>
+get_overloaded_function_score(FuncScope const& func, ArgTypes const& arg_types)
 {
     std::size_t score = 1u;
+    std::size_t num_perfect_match = 0u;
+    std::size_t total_template_depth = 0u;
 
     if (arg_types.size() == 0) {
-        return score;
+        return std::make_tuple(score, num_perfect_match, total_template_depth);
     }
 
     // Calculate the score of arguments' coincidence
-    std::vector<std::size_t> v;
-    v.reserve(arg_types.size());
-
-    boost::transform(arg_types, func->params, std::back_inserter(v),
-            [](auto const& arg_type, auto const& param)
-            {
-                assert(arg_type);
-                if (type::is_a<type::template_type>(param->type)) {
-                    // Note:
-                    // Function parameter is template.  It matches any types.
-                    return 1u;
-                }
-
-                assert(param->type);
-
-                if (param->type.is_class_template() && type::is_a<type::class_type>(arg_type)) {
-                    auto const lhs_class = *type::get<type::class_type>(param->type);
-                    auto const rhs_class = *type::get<type::class_type>(arg_type);
-                    if (lhs_class->name == rhs_class->name) {
-                        // Note:
-                        // When the lhs parameter is class template and the rhs argument is
-                        // class which is instantiated from the same class template, they match
-                        // more strongly than simple template match and more weakly than the
-                        // perfect match.
-                        //   e.g.
-                        //      class Foo
-                        //          a
-                        //      end
-                        //
-                        //      func foo(a : Foo)
-                        //      end
-                        //
-                        //      func main
-                        //          foo(new Foo{42})  # Calls foo(Foo(int))
-                        //      end
-
-                        // Note:
-                        // This matching is used in a receiver of member function
-                        //
-                        //   e.g.
-                        //      class Foo
-                        //          a
-                        //
-                        //          func foo
-                        //          end
-                        //      end
-                        //
-                        //  The member function foo() is defined actually like below
-                        //
-                        //      func foo(self : Foo)
-                        //      end
-                        //
-                        //  Actually '(new Foo{42}).foo()' means calling foo(Foo(int)) by UFCS
-
-                        return 2u;
-                    }
-                }
-
-                if (param->type == arg_type) {
-                    return 3u;
-                } else {
-                    return 0u;
-                }
-            });
+    for (auto const& arg_type_and_param : helper::zipped(arg_types, func->params)) {
+        auto const param_score
+            = get_parameter_score(
+                    boost::get<0>(arg_type_and_param),
+                    boost::get<1>(arg_type_and_param)->type
+                );
+        score *= std::get<0>(param_score);
+        num_perfect_match += std::get<1>(param_score);
+        total_template_depth += std::get<2>(param_score);
+    }
 
     // Note:
     // If the function have no argument and return type is not specified, score is 1.
-    return boost::accumulate(v, score, [](auto l, auto r){ return l*r; });
+    return std::make_tuple(score, num_perfect_match, total_template_depth);
 }
 
 template<class Funcs, class Types>
-auto generate_overload_set(Funcs const& candidates, std::string const& name, Types const& arg_types)
+auto generate_first_overload_set(Funcs const& candidates, std::string const& name, Types const& arg_types)
 {
-    using result_type = std::unordered_multimap<std::size_t, typename Funcs::value_type>;
-
-    std::unordered_multimap<std::size_t, typename Funcs::value_type> candidate_scores;
+    std::vector<std::tuple<
+        std::size_t, // matching score score
+        std::size_t, // the number of perfect matching parameters
+        std::size_t, // total template depth
+        typename Funcs::value_type
+    >> candidate_scores;
     std::size_t max_score = 0u;
 
     for (auto const& f : candidates) {
@@ -121,30 +154,70 @@ auto generate_overload_set(Funcs const& candidates, std::string const& name, Typ
         }
 
         auto const score_tmp = detail::get_overloaded_function_score(f, arg_types);
-        if (score_tmp == 0u) {
+        if (std::get<0>(score_tmp) == 0u) {
             continue;
         }
 
-        if (score_tmp >= max_score) {
-            candidate_scores.emplace(score_tmp, f);
-            max_score = score_tmp;
+        if (std::get<0>(score_tmp) >= max_score) {
+            candidate_scores.emplace_back(std::get<0>(score_tmp), std::get<1>(score_tmp), std::get<2>(score_tmp), f);
+            max_score = std::get<0>(score_tmp);
         }
     }
 
-    auto const range = candidate_scores.equal_range(max_score);
+    // Note:
+    // Narrow down candidates by the matching score
+    helper::remove_erase_if(
+            candidate_scores,
+            [&](auto const& c){ return std::get<0>(c) < max_score; }
+        );
+
+    return candidate_scores;
+}
+
+template<std::size_t I, class Scores>
+void narrow_down_score_by(Scores &scores) {
+    auto const max
+        = std::get<I>(
+            *boost::max_element(
+                scores,
+                [](auto const& l, auto const& r){ return std::get<I>(l) < std::get<I>(r); }
+            )
+        );
+
+    helper::remove_erase_if(
+            scores,
+            [&](auto const& c){ return std::get<I>(c) < max; }
+        );
+}
+
+template<class Funcs, class Types>
+auto generate_overload_set(Funcs const& candidates, std::string const& name, Types const& arg_types)
+{
+    auto candidate_scores = generate_first_overload_set(candidates, name, arg_types);
+
+    // Note:
+    // Narrow down candidates by the number of perfect match of argument types
+    if (candidate_scores.size() > 1) {
+        narrow_down_score_by<1>(candidate_scores);
+    }
+
+    // Note:
+    // Narrow down candidates by the total depth of templates of argument types
+    if (candidate_scores.size() > 1) {
+        narrow_down_score_by<2>(candidate_scores);
+    }
+
     std::unordered_set<typename Funcs::value_type> result;
-    for (auto i = range.first; i != range.second; ++i) {
-        result.emplace(i->second);
+    for (auto const& c : candidate_scores) {
+        result.emplace(std::get<3>(c));
     }
     return result;
 }
 
 template<class Funcs, class Types>
-function_set get_overloaded_function(Funcs const& candidates, std::string const& name, Types const& arg_types)
+inline function_set get_overloaded_function(Funcs const& candidates, std::string const& name, Types const& arg_types)
 {
-    auto const overload_set = generate_overload_set(candidates, name, arg_types);
-
-    return overload_set;
+    return generate_overload_set(candidates, name, arg_types);
 }
 
 } // namespace detail
