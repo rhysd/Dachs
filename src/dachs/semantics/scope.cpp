@@ -100,7 +100,7 @@ auto get_parameter_score(type::type const& arg_type, type::type const& param_typ
             //
             //  Actually '(new Foo{42}).foo()' means calling foo(Foo(int)) by UFCS
 
-            return std::make_tuple(2u, 0u, calc_depth_of_template(lhs_class));
+            return std::make_tuple(2u, 0u, static_cast<unsigned int>(calc_depth_of_template(lhs_class)));
         }
     }
 
