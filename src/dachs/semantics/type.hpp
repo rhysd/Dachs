@@ -591,10 +591,14 @@ struct array_type final : public basic_type {
 
     bool operator==(array_type const& rhs) const noexcept
     {
-        // Note:
-        // Do not consider size because different sized arrays are not
-        // different type.
-        return element_type == rhs.element_type && size == rhs.size;
+        if (size && rhs.size) {
+            return element_type == rhs.element_type && size == rhs.size;
+        } else {
+            // Note:
+            // Do not consider size because different sized arrays are not
+            // different type.
+            return element_type == rhs.element_type;
+        }
     }
 
     template<class T>
