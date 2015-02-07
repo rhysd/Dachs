@@ -496,14 +496,19 @@ bool any_type::is_class_template() const noexcept
     return c->ref.lock()->is_template();
 }
 
+bool is_instantiated_from(class_type const& instantiated_class, class_type const& template_class)
+{
+    detail::instantiation_checker checker;
+    return checker(instantiated_class, template_class);
+}
+
 bool any_type::is_instantiated_from(class_type const& from) const
 {
-    auto const c = helper::variant::get_as<class_type>(value);
-    if (!c) {
+    if (auto const c = helper::variant::get_as<class_type>(value)) {
+        return ::dachs::type::is_instantiated_from(*c, from);
+    } else {
         return false;
     }
-    detail::instantiation_checker checker;
-    return checker(*c, from);
 }
 
 any_type from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept

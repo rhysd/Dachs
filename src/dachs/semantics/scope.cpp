@@ -64,7 +64,7 @@ auto get_parameter_score(type::type const& arg_type, type::type const& param_typ
 
         // TODO:
         // Use is_instantiated_from to check the parameter type more restrict
-        if (lhs_class->name == rhs_class->name) {
+        if (type::is_instantiated_from(rhs_class, lhs_class)) {
             // Note:
             // When the lhs parameter is class template and the rhs argument is
             // class which is instantiated from the same class template, they match
