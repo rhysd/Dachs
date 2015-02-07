@@ -1794,9 +1794,17 @@ public:
         std::vector<type::type> arg_types = {type};
         arg_types.reserve(obj->args.size()+1);
 
+        auto const construct_error
+            = [&obj, this](auto const& msg)
+            {
+                semantic_error(obj, msg);
+                obj->type = type::type{};
+            };
+
         for (auto const& a : obj->args) {
             auto const t = type_of(a);
             if (!t) {
+                obj->type = type::type{};
                 return;
             }
 
@@ -1811,7 +1819,7 @@ public:
             auto const maybe_instantiated = instantiate_class_from_specified_param_types(scope, type->param_types);
 
             if (auto const error = get_as<std::string>(maybe_instantiated)) {
-                semantic_error(obj, *error);
+                construct_error(*error);
                 return;
             }
 
@@ -1823,14 +1831,15 @@ public:
         auto const ctor_candidates = scope->resolve_ctor(arg_types);
 
         if (ctor_candidates.empty()) {
-            semantic_error(obj, "  No matching constructor to construct class '" + scope->to_string() + "'");
+            construct_error("  No matching constructor to construct class '" + scope->to_string() + "'");
+            obj->type = type::type{};
             return;
         } else if (ctor_candidates.size() > 1u) {
             std::string errmsg = "  Contructor candidates for '" + scope->to_string() + "' are ambiguous";
             for (auto const& c : ctor_candidates) {
                 errmsg += "\n  Candidate: " + c->to_string();
             }
-            semantic_error(obj, errmsg);
+            construct_error(errmsg);
             return;
         }
 
@@ -1842,11 +1851,10 @@ public:
         // in the body of constructor.
         if (!already_visited(ctor_def)) {
             if (!walk_recursively_with(enclosing_scope_of(ctor), ctor_def)) {
-                semantic_error(
-                        obj,
-                        boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")
-                            % ctor->to_string() % ctor_def->line % ctor_def->col
-                    );
+                construct_error(
+                    boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")
+                        % ctor->to_string() % ctor_def->line % ctor_def->col
+                );
                 return;
             }
         }
@@ -1872,11 +1880,10 @@ public:
             // because the ctor is a template.  But initialize statements in the ctor
             // is necessary to determine the class instantiation.  So visit it here.
             if (!walk_ctor_body_to_infer_class_template(scope->instance_var_symbols, ctor->params, ctor->body, ctor_def->body)) {
-                semantic_error(
-                        obj,
-                        boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")
-                            % ctor->to_string() % ctor_def->line % ctor_def->col
-                        );
+                construct_error(
+                    boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")
+                        % ctor->to_string() % ctor_def->line % ctor_def->col
+                );
                 return;
             }
             already_visited_ctors.insert(ctor_def);
