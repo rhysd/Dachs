@@ -1832,4 +1832,219 @@ BOOST_AUTO_TEST_CASE(typed_expression)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(overload)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            init
+            end
+        end
+
+        func foo(x)
+        end
+
+        func foo(x : X)
+        end
+
+        func foo(x : int)
+        end
+
+        class Y
+            a
+
+            init(@a)
+            end
+        end
+
+        func foo(x : Y)
+        end
+
+        func foo(x : Y(Y))
+        end
+
+        func foo(x : Y(Y(int)))
+        end
+
+        func foo(x : Y(Y), i : int, j : int)
+        end
+
+        func foo(x : Y(Y(int)), i : int, j)
+        end
+
+        func foo(x : Y(Y), i : float, j : int)
+        end
+
+        func foo(x : Y(Y(int)), i : float, j : int)
+        end
+
+        func foo(a1 : int, a2 : Y, a3 : Y(Y), a4 : Y(Y(int)), a5 : X, a6 : string, a7)
+        end
+
+        func foo(a1 : int, a2 : Y, a3 : Y, a4 : Y(Y(int)), a5 : X, a6 : string, a7)
+        end
+
+        func foo(a1 : int, a2 : Y, a3 : Y, a4 : Y(Y), a5 : X, a6 : string, a7)
+        end
+
+        func foo(a1, a2 : Y, a3 : Y, a4 : Y, a5 : X, a6, a7)
+        end
+
+        func foo(a1, a2, a3, a4, a5, a6, a7)
+        end
+
+        func foo(x : X, y)
+        end
+
+        func foo(x, y : X)
+        end
+
+        func foo(x : X, y : X)
+        end
+
+        func main
+            foo(42)
+            foo(new X)
+            foo(3.14)
+
+            foo(new Y{new X})
+            foo(new Y{new Y{42}})
+            foo(new Y{new Y{3.14}})
+
+            foo(new Y{new Y{42}}, 42, 42)
+            foo(new Y{new Y{42}}, 42, 3.14)
+
+            foo(new Y{new Y{3.14}}, 3.14, 42)
+            foo(new Y{new Y{42}}, 3.14, 42)
+
+            foo(42, new Y{42}, new Y{new Y{3.14}}, new Y{new Y{42}}, new X, "aaa", 'a')
+            foo(42, new Y{42}, new Y{3.14}, new Y{new Y{42}}, new X, "bbb", 'a')
+            foo(42, new Y{42}, new Y{3.14}, new Y{new Y{3.14}}, new X, "ccc", 'a')
+            foo('a', new Y{42}, new Y{3.14}, new Y{new Y{'a'}}, new X, [1, 2, 3], 'a')
+            foo('a', "aaa", [1, 2], 42, 3.14, new Y{42}, new X)
+
+            foo(new X, new X)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            init(@a)
+            end
+        end
+
+        func foo(x : X(float))
+        end
+
+        func main
+            foo(new X{42})
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            init(@a)
+            end
+        end
+
+        func foo(x : X(X(float)))
+        end
+
+        func main
+            foo(new X{new X{42}})
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            init
+            end
+        end
+
+        func foo(x : X, y)
+        end
+
+        func foo(x, y : X)
+        end
+
+        func main
+            foo(new X, new X)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            init(@a)
+            end
+        end
+
+        func foo(x : X, y)
+        end
+
+        func foo(x, y : X)
+        end
+
+        func main
+            foo(new X{42}, new X{42})
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            init(@a)
+            end
+        end
+
+        func foo(x : X(int), y)
+        end
+
+        func foo(x, y : X(int))
+        end
+
+        func main
+            foo(new X{42}, new X{42})
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            init(@a)
+            end
+        end
+
+        func foo(x : X(X), y)
+        end
+
+        func foo(x, y : X(X))
+        end
+
+        func main
+            x := new X{new X{42}}
+            foo(x, x)
+        end
+    )");
+
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(x, y : int)
+        end
+
+        func foo(x : int, y)
+        end
+
+        func main
+            foo(42, 42)
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
