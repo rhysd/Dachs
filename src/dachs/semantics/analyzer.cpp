@@ -2379,13 +2379,21 @@ public:
 
         introduce_scope_and_walk(class_def->scope.lock(), w, class_def->instance_vars);
 
+        auto const scope = class_def->scope.lock();
+
+        for (auto const& s : scope->instance_var_symbols) {
+            if (!s->type) {
+                return;
+            }
+        }
+
         if (class_def->is_template()) {
             // Class templates are not actually instantiated
             return;
         }
 
         assert(!class_def->scope.expired());
-        introduce_scope_and_walk(class_def->scope.lock(), w, class_def->member_funcs);
+        introduce_scope_and_walk(scope, w, class_def->member_funcs);
     }
 
     // TODO: member variable accesses
