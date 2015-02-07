@@ -124,7 +124,7 @@ end
 - [x] Simple return type and variable type deduction
 - [ ] Type inference
 - [x] UFCS
-- [ ] Class
+- [x] Class
 - [x] Lambda
 - [x] Block
 - [ ] Variadic arguments
