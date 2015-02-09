@@ -213,6 +213,7 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
             // If it causes an issue, below is alternative.
             //   t = type::make<type::class_type>(boost::get<scope::class_scope>(newly_instantiated))
             t->ref = boost::get<scope::class_scope>(newly_instantiated);
+            t->param_types.clear();
         }
         t->param_types.clear();
 

@@ -696,17 +696,20 @@ bool class_type::is_default_constructible() const noexcept
         return false;
     }
 
-    if (param_types.empty()) {
-        for (auto const& s : ref.lock()->instance_var_symbols) {
-            if (!s->type.is_default_constructible()) {
+    auto itr = std::cbegin(param_types);
+    for (auto const& s : ref.lock()->instance_var_symbols) {
+        if (s->type.is_template()) {
+            if (itr == std::cend(param_types)) {
                 return false;
             }
-        }
-    } else {
-        for (auto const& t : param_types) {
-            if (!t.is_default_constructible()) {
+
+            if (!itr->is_default_constructible()) {
                 return false;
             }
+
+            ++itr;
+        } else if (!s->type.is_default_constructible()) {
+            return false;
         }
     }
 
