@@ -692,7 +692,25 @@ bool class_type::is_default_constructible() const noexcept
                 type::any_type{type::make<type::class_type>(*this)}
             }
         );
-    return ctor_candidates.size() == 1u;
+    if (ctor_candidates.size() != 1u) {
+        return false;
+    }
+
+    if (param_types.empty()) {
+        for (auto const& s : ref.lock()->instance_var_symbols) {
+            if (!s->type.is_default_constructible()) {
+                return false;
+            }
+        }
+    } else {
+        for (auto const& t : param_types) {
+            if (!t.is_default_constructible()) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 } // namespace type_node
