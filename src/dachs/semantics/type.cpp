@@ -667,12 +667,15 @@ std::string class_type::stringize_param_types() const
 
 bool class_type::is_template() const
 {
-    if (!param_types.empty()) {
-        return false;
+    if (param_types.empty()) {
+        assert(!ref.expired());
+        return ref.lock()->is_template();
+    } else {
+        return boost::algorithm::all_of(
+                param_types,
+                [](auto const& t){ return t.is_template(); }
+            );
     }
-
-    assert(!ref.expired());
-    return ref.lock()->is_template();
 }
 
 std::string class_type::to_string() const noexcept
@@ -684,7 +687,12 @@ std::string class_type::to_string() const noexcept
 bool class_type::is_default_constructible() const noexcept
 {
     assert(!ref.expired());
-    return ref.lock()->resolve_ctor({}).size() == 1u;
+    auto const ctor_candidates = ref.lock()->resolve_ctor(
+            {
+                type::any_type{type::make<type::class_type>(*this)}
+            }
+        );
+    return ctor_candidates.size() == 1u;
 }
 
 } // namespace type_node
