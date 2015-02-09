@@ -5,6 +5,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/algorithm/string/join.hpp>
+#include <boost/algorithm/cxx11/all_of.hpp>
 
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/type.hpp"
@@ -325,7 +326,7 @@ struct instantiation_checker : boost::static_visitor<bool> {
         auto const ls = l->ref.lock();
         auto const rs = r->ref.lock();
 
-        if (ls->is_template() || !rs->is_template()) {
+        if (l->is_template()) {
             return false;
         }
 
@@ -498,6 +499,9 @@ bool any_type::is_class_template() const noexcept
 
 bool is_instantiated_from(class_type const& instantiated_class, class_type const& template_class)
 {
+    if (!template_class->is_template()) {
+        return false;
+    }
     detail::instantiation_checker checker;
     return checker(instantiated_class, template_class);
 }
@@ -659,6 +663,16 @@ std::string class_type::stringize_param_types() const
             : stringize_params_from_params();
 
     return ret.empty() ? ret : '(' + ret + ')';
+}
+
+bool class_type::is_template() const
+{
+    if (!param_types.empty()) {
+        return false;
+    }
+
+    assert(!ref.expired());
+    return ref.lock()->is_template();
 }
 
 std::string class_type::to_string() const noexcept

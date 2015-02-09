@@ -3,6 +3,7 @@
 #include <cassert>
 #include <iterator>
 #include <unordered_set>
+#include <unordered_map>
 #include <tuple>
 #include <set>
 #include <algorithm>
@@ -1488,11 +1489,13 @@ public:
     boost::optional<Map> check_template_instantiation_with_ctor(Map &&map, scope::func_scope const& ctor, ast::node::function_definition const& ctor_def)
     {
         assert(ctor->is_ctor());
+        std::unordered_set<std::string> initialized_names;
 
         auto const check_instance_var_type
             = [&, this](auto const& var_node, auto const& var_sym)
             {
-                auto const i = map.find(var_sym->name.substr(1u)/* omit '@' */);
+                std::string name = var_sym->name.substr(1u)/* omit '@' */;
+                auto const i = map.find(name);
                 assert(i != std::end(map));
                 auto &var_type = i->second;
 
@@ -1526,6 +1529,7 @@ public:
                     return false;
                 }
 
+                initialized_names.emplace(std::move(name));
                 return true;
             };
 
@@ -1584,6 +1588,22 @@ public:
                     ) % clazz->to_string() % i.first % ctor_def->line % ctor_def->col
                 );
             fail = true;
+        }
+
+        // Note:
+        // Check all non-initialized members are default constructible.
+        for (auto const& v : map) {
+            if (initialized_names.find(v.first) == std::end(initialized_names)
+                    && v.second
+                    && !v.second.is_default_constructible()) {
+                semantic_error(
+                        ctor_def,
+                        boost::format(
+                            "  Instance variable '@%1%' must be initialized explicitly in constructor because its type '%2%' is not default constructible"
+                        ) % v.first % v.second.to_string()
+                    );
+                fail = true;
+            }
         }
 
         if (fail) {

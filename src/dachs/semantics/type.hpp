@@ -326,12 +326,15 @@ struct class_type final : public named_type {
     std::vector<type::any_type> param_types;
 
     explicit class_type(scope::class_scope const& s) noexcept;
+    class_type(class_type const&) = default;
 
     template<class Types>
     class_type(scope::class_scope const& s, Types const& types) noexcept;
 
     std::string stringize_param_types() const;
     std::string to_string() const noexcept override;
+
+    bool is_template() const;
 
     bool operator==(class_type const& rhs) const noexcept;
 

@@ -184,6 +184,7 @@ class forward_symbol_analyzer {
                 params,
                 helper::make<ast::node::statement_block>()
             );
+        ctor_def->set_source_location(*def);
 
         def->member_funcs.push_back(ctor_def);
 
