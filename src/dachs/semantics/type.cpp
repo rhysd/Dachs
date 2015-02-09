@@ -696,10 +696,10 @@ bool class_type::is_default_constructible() const noexcept
         return false;
     }
 
-    auto itr = std::cbegin(param_types);
+    auto itr = param_types.cbegin();
     for (auto const& s : ref.lock()->instance_var_symbols) {
         if (s->type.is_template()) {
-            if (itr == std::cend(param_types)) {
+            if (itr == param_types.cend()) {
                 return false;
             }
 
