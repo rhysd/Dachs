@@ -1465,6 +1465,24 @@ BOOST_AUTO_TEST_SUITE(class_definition)
         )");
     }
 
+    BOOST_AUTO_TEST_CASE(implicit_memberwise_constructor)
+    {
+        // If any ctor already exists, not defined implicitly.
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+
+                init(a, b)
+                    @a := a + b
+                end
+            end
+
+            func main
+                new X{42}
+            end
+        )");
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_CASE(non_paren_func_calls_edge_cases)

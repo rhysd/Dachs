@@ -343,6 +343,38 @@ BOOST_AUTO_TEST_CASE(implicitly_defined_ctor)
             w := new W
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+            b
+        end
+
+        class Y
+            a : char
+            b : string
+        end
+
+        class Z
+            p, q
+        end
+
+        func main
+            x := new X{42, 3.14}
+            x.a.println
+            x.b.println
+
+            y := new Y{'a', "aaa"}
+            y.a.println
+            y.b.println
+
+            z := new Z{x, y}
+            z.p.a.println
+            z.p.b.println
+            z.q.a.println
+            z.q.b.println
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(do_not_degrade)

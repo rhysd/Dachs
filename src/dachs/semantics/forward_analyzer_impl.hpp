@@ -186,18 +186,40 @@ class forward_symbol_analyzer {
             );
         ctor_def->set_source_location(*def);
 
-        def->member_funcs.push_back(ctor_def);
+        def->member_funcs.emplace_back(std::move(ctor_def));
+    }
 
-        // TODO:
-        // Add default member-wise ctor
-        // e.g.
-        //    class X
-        //        a, b
-        //
-        //        # Implicitly defined
-        //        init(@a, @b)
-        //        end
-        //    end
+    void grow_memberwise_ctor_ast(ast::node::class_definition const& def)
+    {
+        if (def->instance_vars.empty()) {
+            return;
+        }
+
+        std::vector<ast::node::parameter> params
+            = {
+                generate_receiver_node(def->name, *def)
+            };
+
+        for (auto const& d : def->instance_vars) {
+            params.emplace_back(
+                    helper::make<ast::node::parameter>(
+                            true,
+                            '@' + d->name,
+                            boost::none
+                        )
+                );
+            params.back()->set_source_location(*def);
+        }
+
+        auto ctor_def
+            = helper::make<ast::node::function_definition>(
+                ast::node_type::function_definition::ctor_tag{},
+                params,
+                helper::make<ast::node::statement_block>()
+            );
+        ctor_def->set_source_location(*def);
+
+        def->member_funcs.emplace_back(std::move(ctor_def));
     }
 
 public:
@@ -228,6 +250,7 @@ public:
 
             if (!has_user_ctor) {
                 grow_default_ctor_ast(c);
+                grow_memberwise_ctor_ast(c);
             }
         }
 
@@ -602,10 +625,6 @@ public:
                     new_class->member_func_scopes,
                     "class scope '" + class_def->name + "'"
                 );
-
-        // TODO:
-        // If all member are default constructible and no constructor is defined,
-        // define default constructor implicitly with generate_default_ctor()
 
         check_init_statements_in_ctor(class_def);
 
