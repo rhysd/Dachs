@@ -1376,6 +1376,95 @@ BOOST_AUTO_TEST_SUITE(class_definition)
         // More test cases should be added.
     }
 
+    BOOST_AUTO_TEST_CASE(implicit_default_constructor)
+    {
+        // If any ctor already exists, not defined implicitly.
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                init(a)
+                end
+            end
+
+            func main
+                new X
+            end
+        )");
+
+        // If any ctor already exists, not defined implicitly.
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+
+                init(@a)
+                end
+            end
+
+            func main
+                new X
+            end
+        )");
+
+        // If any instance var is not default constructible, not defined implicitly
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a : symbol
+                b : int
+            end
+
+            func main
+                new X
+            end
+        )");
+
+        // If any instance var is not default constructible, not defined implicitly
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a : symbol
+                b
+            end
+
+            func main
+                new X
+            end
+        )");
+
+        // Check nested template type
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+
+                init(@a)
+                end
+            end
+
+            class Y
+                a, b
+            end
+
+            func main
+                new Y(int, Y(X(int), X(symbol)))
+            end
+        )");
+
+        // Check nested template type
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a : string
+                init
+                    @a := ""
+                end
+            end
+
+            class Y
+                a, b
+            end
+
+            func main
+                new Y(int, Y(X, X))
+            end
+        )");
+    }
+
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_CASE(non_paren_func_calls_edge_cases)

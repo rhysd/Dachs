@@ -310,6 +310,41 @@ BOOST_AUTO_TEST_CASE(class_in_class)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(implicitly_defined_ctor)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a, b
+        end
+
+        class Y
+            a : int
+            b : float
+        end
+
+        class Z
+            a, b
+        end
+
+        class W
+        end
+
+        func main
+            x := new X(int, float)
+            x.a.println
+            x.b.println
+
+            y := new Y
+            y.a.println
+            y.b.println
+
+            z := new Z(X(int, float), Y)
+
+            w := new W
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(do_not_degrade)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
