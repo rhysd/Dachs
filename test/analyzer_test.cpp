@@ -553,6 +553,10 @@ BOOST_AUTO_TEST_SUITE(class_definition)
     {
         CHECK_THROW_SEMANTIC_ERROR(R"(
             class Foo
+                a : int
+
+                init(@a)
+                end
             end
 
             func main

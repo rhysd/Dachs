@@ -152,6 +152,53 @@ class forward_symbol_analyzer {
         return access;
     }
 
+    template<class String, class Location>
+    ast::node::parameter generate_receiver_node(String const& class_name, Location const& location) const
+    {
+        auto const receiver_type_node = helper::make<ast::node::primary_type>(class_name);
+        receiver_type_node->set_source_location(location);
+
+        auto const receiver_node
+            = helper::make<ast::node::parameter>(
+                    true/* is_var */,
+                    "self",
+                    ast::node::any_type{receiver_type_node},
+                    true/* is_receiver  */
+                );
+        receiver_node->set_source_location(location);
+
+        receiver_node->param_type = receiver_type_node;
+        return receiver_node;
+    }
+
+    void grow_default_ctor_ast(ast::node::class_definition const& def)
+    {
+        std::vector<ast::node::parameter> params
+            = {
+                generate_receiver_node(def->name, *def)
+            };
+
+        auto ctor_def
+            = helper::make<ast::node::function_definition>(
+                ast::node_type::function_definition::ctor_tag{},
+                params,
+                helper::make<ast::node::statement_block>()
+            );
+
+        def->member_funcs.push_back(ctor_def);
+
+        // TODO:
+        // Add default member-wise ctor
+        // e.g.
+        //    class X
+        //        a, b
+        //
+        //        # Implicitly defined
+        //        init(@a, @b)
+        //        end
+        //    end
+    }
+
 public:
 
     size_t failed;
@@ -169,8 +216,17 @@ public:
         // and it causes a problem when re-visiting class_definition to instantiate class template
         // if this operation is done at visiting class_definition.
         for (auto const& c : inu->classes) {
+            bool has_user_ctor = false;
+
             for (auto const& m : c->member_funcs) {
                 m->params.insert(std::begin(m->params), generate_receiver_node(c->name, *m));
+                if (m->is_ctor()) {
+                    has_user_ctor = true;
+                }
+            }
+
+            if (!has_user_ctor) {
+                grow_default_ctor_ast(c);
             }
         }
 
@@ -515,33 +571,6 @@ public:
             apply_lambda([&ret](auto const& child){ ret->set_source_location(*child); }, ret->ret_exprs[0]);
         }
         w();
-    }
-
-    scope::func_scope generate_default_ctor() const noexcept
-    {
-        auto const default_ctor = scope::make<scope::func_scope>(nullptr, current_scope, "dachs.init", true);
-        default_ctor->body = scope::make<scope::local_scope>(default_ctor);
-        default_ctor->ret_type = type::get_unit_type();
-        return default_ctor;
-    }
-
-    template<class String, class Location>
-    ast::node::parameter generate_receiver_node(String const& class_name, Location const& location) const noexcept
-    {
-        auto const receiver_type_node = helper::make<ast::node::primary_type>(class_name);
-        receiver_type_node->set_source_location(location);
-
-        auto const receiver_node
-            = helper::make<ast::node::parameter>(
-                    true/* is_var */,
-                    "self",
-                    ast::node::any_type{receiver_type_node},
-                    true/* is_receiver  */
-                );
-        receiver_node->set_source_location(location);
-
-        receiver_node->param_type = receiver_type_node;
-        return receiver_node;
     }
 
     // TODO: class scopes and member function scopes

@@ -951,6 +951,8 @@ struct statement_block final : public base {
     block_type value;
     scope::weak_local_scope scope;
 
+    statement_block() = default;
+
     explicit statement_block(block_type const& v) noexcept
         : value(v)
     {}
