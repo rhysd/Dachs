@@ -85,7 +85,8 @@ using ::dachs::helper::variant::apply_lambda;
 
 class any_type {
     using value_type
-        = boost::variant< builtin_type
+        = boost::variant<
+                      builtin_type
                     , class_type
                     , tuple_type
                     , func_type
@@ -315,7 +316,7 @@ struct builtin_type final : public named_type {
 
     bool is_default_constructible() const noexcept override
     {
-        return true;
+        return !(name == "string" || name == "symbol");
     }
 };
 
