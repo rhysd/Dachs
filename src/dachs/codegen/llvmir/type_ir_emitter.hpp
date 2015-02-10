@@ -72,7 +72,7 @@ public:
         } else if (builtin->name == "string") {
             result = llvm::Type::getInt8PtrTy(context);
         } else if (builtin->name == "symbol") {
-            result = llvm::Type::getInt8PtrTy(context);
+            result = llvm::Type::getInt64Ty(context);
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }

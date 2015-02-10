@@ -6,7 +6,7 @@
 #include "dachs/runtime/runtime.hpp"
 
 extern "C" {
-    std::uint64_t __dachs_cityhash(char const* const s, std::size_t const size)
+    std::uint64_t __dachs_cityhash__(char const* const s, std::size_t const size)
     {
         return dachs::runtime::cityhash64<std::uint64_t>{}(s, size);
     }
@@ -36,9 +36,9 @@ extern "C" {
         std::printf("%s\n", s);
     }
 
-    void __dachs_println_symbol__(char const* const s)
+    void __dachs_println_symbol__(std::uint64_t const u)
     {
-        std::printf("%s\n", s);
+        std::printf("<symbol:%llu>\n", u);
     }
 
     void __dachs_println_bool__(bool const b)
@@ -71,9 +71,9 @@ extern "C" {
         std::printf("%s", s);
     }
 
-    void __dachs_print_symbol__(char const* const s)
+    void __dachs_print_symbol__(std::uint64_t const s)
     {
-        std::printf("%s", s);
+        std::printf("<symbol:%llu>", s);
     }
 
     void __dachs_print_bool__(bool const b)

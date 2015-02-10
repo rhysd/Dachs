@@ -109,6 +109,7 @@ public:
         bool const is_float = builtin->name == "float";
         bool const is_int = builtin->name == "int" || builtin->name == "bool" || builtin->name == "char";
         bool const is_uint = builtin->name == "uint";
+        bool const is_symbol = builtin->name == "symbol";
 
         if (op == ">>") {
             return ctx.builder.CreateAShr(lhs, rhs, "shrtmp");
@@ -187,13 +188,13 @@ public:
                 return ctx.builder.CreateFCmpUGE(lhs, rhs, "fcmpugetmp");
             }
         } else if (op == "==") {
-            if (is_int || is_uint) {
+            if (is_int || is_uint || is_symbol) {
                 return ctx.builder.CreateICmpEQ(lhs, rhs, "icmpeqtmp");
             } else if (is_float) {
                 return ctx.builder.CreateFCmpUEQ(lhs, rhs, "fcmpeqtmp");
             }
         } else if (op == "!=") {
-            if (is_int || is_uint) {
+            if (is_int || is_uint || is_symbol) {
                 return ctx.builder.CreateICmpNE(lhs, rhs, "icmpnetmp");
             } else if (is_float) {
                 return ctx.builder.CreateFCmpUNE(lhs, rhs, "fcmpnetmp");

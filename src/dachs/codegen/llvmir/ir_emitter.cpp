@@ -2,8 +2,10 @@
 #include <memory>
 #include <utility>
 #include <string>
+#include <vector>
 #include <iostream>
 #include <stack>
+#include <array>
 #include <cstdint>
 #include <cassert>
 
@@ -45,6 +47,7 @@
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/semantics_context.hpp"
+#include "dachs/runtime/runtime.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
@@ -258,7 +261,17 @@ class llvm_ir_emitter {
 
         auto const lhs_builtin_type = *type::get<type::builtin_type>(lhs);
         auto const rhs_builtin_type = *type::get<type::builtin_type>(rhs);
-        auto const is_supported = [](auto const& t){ return t->name == "int" || t->name == "float" || t->name == "uint" || t->name == "bool" || t->name == "char"; };
+        auto const is_supported
+            = [](auto const& t)
+            {
+                    return t->name == "int"
+                        || t->name == "float"
+                        || t->name == "uint"
+                        || t->name == "bool"
+                        || t->name == "char"
+                        || t->name == "symbol"
+                    ;
+            };
 
         return is_supported(lhs_builtin_type) && is_supported(rhs_builtin_type);
     }
@@ -389,6 +402,16 @@ public:
         }
     }
 
+    val emit(ast::node::symbol_literal const& sl)
+    {
+        runtime::cityhash64<std::uint64_t> hash;
+        return llvm::ConstantInt::get(
+                llvm::Type::getInt64Ty(ctx.llvm_context),
+                hash(sl->value.data(), sl->value.size()),
+                false /*isSigned*/
+            );
+    }
+
     val emit(ast::node::primary_literal const& pl)
     {
         struct literal_visitor : public boost::static_visitor<val> {
@@ -425,9 +448,9 @@ public:
 
             val operator()(int const i)
             {
-                return llvm::ConstantInt::get(
+                return llvm::ConstantInt::getSigned(
                         t_emitter.emit(pl->type),
-                        static_cast<std::int64_t const>(i), false
+                        static_cast<std::int64_t const>(i)
                     );
             }
 
@@ -435,7 +458,7 @@ public:
             {
                 return llvm::ConstantInt::get(
                         t_emitter.emit(pl->type),
-                        static_cast<std::uint64_t const>(ui), true
+                        static_cast<std::uint64_t const>(ui), false
                     );
             }
 
@@ -879,7 +902,7 @@ public:
         auto const rhs_type = type::type_of(bin_expr->rhs);
 
         if (!is_available_type_for_binary_expression(lhs_type, rhs_type)) {
-            error(bin_expr, "Binary expression now only supports only some builtin types");
+            error(bin_expr, "Binary expression now supports only some builtin types");
         }
 
         return check(

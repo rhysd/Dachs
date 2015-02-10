@@ -70,9 +70,9 @@ public:
 
         assert(module);
         auto const& n = arg_type->name;
-        if (n == "string" || n == "symbol") {
+        if (n == "string") {
             target = define_func_prototype(llvm::Type::getInt8PtrTy(context));
-        } else if (n == "int" || n == "uint") {
+        } else if (n == "int" || n == "uint" || n == "symbol") {
             target = define_func_prototype(llvm::Type::getInt64Ty(context));
         } else if (n == "float") {
             target = define_func_prototype(llvm::Type::getDoubleTy(context));
