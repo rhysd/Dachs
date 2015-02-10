@@ -1012,7 +1012,7 @@ public:
 
         function_definition
             = (
-                DACHS_KWD(func_kind) > func_def_name > function_param_decls > -((-qi::eol >> ':' >> -qi::eol) > qualified_type) > sep
+                DACHS_KWD(func_kind) > func_def_name > function_param_decls > -((':' >> -qi::eol) > qualified_type) > sep
                 > func_precondition
                 > func_body_stmt_block > -sep
                 > -(

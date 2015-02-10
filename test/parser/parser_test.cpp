@@ -176,10 +176,6 @@ BOOST_AUTO_TEST_CASE(function)
                 very_very_long_type_name
         end
 
-        func hoge(a)
-                : very_very_long_type_name
-        end
-
         func hoge(a, b) : t
         end
 
@@ -2091,5 +2087,16 @@ BOOST_AUTO_TEST_CASE(clazz)
         end
     )"));
 }
+
+BOOST_AUTO_TEST_CASE(do_not_degrade)
+{
+    // :foo was parsed as the return type of function 'main'
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        func main
+            :foo.println
+        end
+    )"));
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
