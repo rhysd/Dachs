@@ -3,7 +3,14 @@
 #include <cstdarg>
 #include <cstdlib>
 
+#include "dachs/runtime/runtime.hpp"
+
 extern "C" {
+    std::uint64_t __dachs_cityhash(char const* const s, std::size_t const size)
+    {
+        return dachs::runtime::cityhash64<std::uint64_t>{}(s, size);
+    }
+
     void __dachs_println_float__(double const d)
     {
         std::printf("%lg\n", d);
