@@ -215,11 +215,17 @@ inline void dump_location(location_type const& l) noexcept
 
 namespace node {
 
+template<class Node>
+inline location_type location_of(std::shared_ptr<Node> const& node) noexcept
+{
+    return node->source_location();
+}
+
 template<class... Nodes>
 inline location_type location_of(boost::variant<Nodes...> const& node) noexcept
 {
     return helper::variant::apply_lambda(
-                [](auto const& n){ return n->source_location(); }
+                [](auto const& n){ return location_of(n); }
                 , node
             );
 }

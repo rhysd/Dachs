@@ -119,23 +119,6 @@ class forward_symbol_analyzer {
         return failed;
     }
 
-    bool check_init_statements_in_ctor(ast::node::class_definition const& class_def)
-    {
-        bool failed = false;
-        for (auto const& f : class_def->member_funcs) {
-            assert(!f->scope.expired());
-            if (f->is_ctor()) {
-                for (auto const& stmt : f->body->value) {
-                    if (!has<ast::node::initialize_stmt>(stmt)) {
-                        semantic_error(f, "  Only initialize statement is permitted in constructor.");
-                        failed = true;
-                    }
-                }
-            }
-        }
-        return failed;
-    }
-
     template<class Location>
     ast::node::var_ref generate_self_ref(Location const& location) const
     {
@@ -625,8 +608,6 @@ public:
                     new_class->member_func_scopes,
                     "class scope '" + class_def->name + "'"
                 );
-
-        check_init_statements_in_ctor(class_def);
 
         auto const new_class_var = symbol::make<symbol::var_symbol>(class_def, class_def->name, true /*immutable*/);
         new_class_var->type = new_class->type;

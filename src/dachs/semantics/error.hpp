@@ -28,6 +28,17 @@ inline void output_semantic_error(std::shared_ptr<Node> const& node, Message con
     output_semantic_error(node->line, node->col, msg, ost);
 }
 
+template<class Message>
+inline void output_semantic_error(ast::location_type const& location, Message const& msg, std::ostream &ost = std::cerr)
+{
+    output_semantic_error(
+            std::get<ast::location::location_index::line>(location), 
+            std::get<ast::location::location_index::col>(location),
+            msg,
+            ost
+        );
+}
+
 template<class Node1, class Node2>
 void print_duplication_error(Node1 const& node1, Node2 const& node2, std::string const& name) noexcept
 {
