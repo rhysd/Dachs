@@ -775,6 +775,69 @@ BOOST_AUTO_TEST_SUITE(class_definition)
                 new Foo{42, 3.14}
             end
         )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a, b
+
+                init(@a)
+                    a := @foo()
+                    @b := 42
+                end
+
+                func foo : int
+                end
+            end
+
+            func main
+                new X
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a, b
+
+                init(@a)
+                    println(@b)
+                    @b := 42
+                end
+            end
+
+            func main
+                new X{42}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a, b
+
+                init(@a)
+                    println(@b)
+                    @b := 42
+                end
+            end
+
+            func main
+                new X{42}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a, b
+
+                init(@a)
+                    self
+                    @b := 42
+                end
+            end
+
+            func main
+                new X{42}
+            end
+        )");
     }
 
     BOOST_AUTO_TEST_CASE(function_duplication_check_for_class_template_param)

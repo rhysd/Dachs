@@ -78,7 +78,7 @@ class Mt19937
         @matrix_a := 0x9908b0dfu
         @upper_mask := 0x80000000u
         @lower_mask := 0x7fffffffu
-        dummy := @init_by_array(seeds)
+        @init_by_array(seeds)
     end
 
     init
