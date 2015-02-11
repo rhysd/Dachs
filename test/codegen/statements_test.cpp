@@ -573,4 +573,19 @@ BOOST_AUTO_TEST_CASE(return_stmt_in_the_middle_of_basic_block)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(main_func)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main(args)
+            argc := args.size
+
+            var i := 0u
+            for i < argc
+                args[i].println
+                i += 1u
+            end
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

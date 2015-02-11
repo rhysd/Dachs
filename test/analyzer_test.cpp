@@ -2179,4 +2179,50 @@ BOOST_AUTO_TEST_CASE(overload)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(main_func)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main(args)
+            args[0]
+            args.size
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main(args : [string])
+            args[0]
+            args.size
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main(args : int)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main(var args)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main : int
+            ret main()
+        end
+    )")
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class Foo
+            a
+
+            func main
+            end
+        end
+
+        func main
+            (new Foo{42}).main
+        end
+    )")
+}
+
 BOOST_AUTO_TEST_SUITE_END()

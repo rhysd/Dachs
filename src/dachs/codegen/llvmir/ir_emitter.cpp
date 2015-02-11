@@ -187,8 +187,61 @@ class llvm_ir_emitter {
         }
     }
 
+    void emit_main_func_prototype(ast::node::function_definition const& main_def, scope::func_scope const& main_scope)
+    {
+        assert(main_scope->params.size() < 2u);
+
+        auto const has_cmdline_arg = main_scope->params.size() == 1u;
+
+        using params_type = std::vector<llvm::Type *>;
+        auto param_tys
+            = has_cmdline_arg
+                ? params_type{{
+                    ctx.builder.getInt32Ty(),
+                    llvm::PointerType::getUnqual(
+                        ctx.builder.getInt8PtrTy()
+                    )
+                }}
+                : params_type{};
+
+        auto *const func_ty = llvm::FunctionType::get(
+                type_emitter.emit(*main_def->ret_type),
+                param_tys,
+                false
+            );
+
+        auto *const func_value = llvm::Function::Create(
+                func_ty,
+                llvm::Function::ExternalLinkage,
+                "main",
+                module
+            );
+
+        if (has_cmdline_arg) {
+            auto arg_itr = func_value->arg_begin();
+
+            arg_itr->setName("dachs.main.argc");
+            // XXX:
+            // Owned by variable table only
+            var_table.insert(symbol::make<symbol::var_symbol>(nullptr, "dachs.main.argc"), arg_itr);
+
+            ++arg_itr;
+
+            arg_itr->setName(main_scope->params[0]->name);
+            var_table.insert(main_scope->params[0], arg_itr);
+        }
+
+        func_value->addFnAttr(llvm::Attribute::NoUnwind);
+        func_table.emplace(main_scope, func_value);
+    }
+
     void emit_func_prototype(ast::node::function_definition const& func_def, scope::func_scope const& scope)
     {
+        if (scope->name == "main") {
+            emit_main_func_prototype(func_def, scope);
+            return;
+        }
+
         assert(!scope->is_template());
         std::vector<llvm::Type *> param_type_irs;
         param_type_irs.reserve(func_def->params.size());
@@ -214,7 +267,7 @@ class llvm_ir_emitter {
                 llvm::Function::ExternalLinkage,
                 // Note:
                 // Simply use "main" because lli requires "main" function as entry point of the program
-                scope->name == "main" ? "main" : scope->to_string(),
+                scope->to_string(),
                 module
             );
         func_ir->addFnAttr(llvm::Attribute::NoUnwind);
@@ -937,6 +990,7 @@ public:
         auto *const index_val = get_operand(emit(access->index_expr));
         auto *const ty = child_val->getType();
         auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
+        auto const is_ptr = ty->isPointerTy();
 
         auto const with_check
             = [&, this](auto *const v)
@@ -953,7 +1007,7 @@ public:
                 error(access, "Index is not a constant.");
             }
 
-            assert(ty->isStructTy() || (ty->isPointerTy() && ty->getPointerElementType()->isStructTy()));
+            assert(ty->isStructTy() || (is_ptr && ty->getPointerElementType()->isStructTy()));
 
             return with_check(
                     ty->isStructTy() ?
@@ -964,15 +1018,38 @@ public:
         } else if (auto const maybe_array_type = type::get<type::array_type>(child_type)) {
             assert(index_val->getType()->isIntegerTy());
 
-            if (constant_index && !ty->isPointerTy()) {
+            if (constant_index && !is_ptr) {
                 auto const idx = constant_index->getZExtValue();
                 assert(ty->isArrayTy());
                 auto const size = ty->getArrayNumElements();
+
                 if (idx >= size) {
                     error(access, boost::format("Array index is out of bounds (size:%1%, index:%2%)") % size % idx);
                 }
+
                 return with_check(ctx.builder.CreateExtractValue(child_val, idx));
             } else {
+
+                auto const emit_i32
+                    = [this](auto *const v)
+                    {
+                        return v->getType()->isIntegerTy(32u)
+                                ? v
+                                : ctx.builder.CreateIntCast(v, ctx.builder.getInt32Ty(), true);
+                    };
+
+                // Note:
+                // When i8** (it means the arguments of 'main')
+                if (is_ptr
+                    && ty->getPointerElementType()->isPointerTy()
+                    && ty->getPointerElementType()->getPointerElementType()->isIntegerTy(8u)
+                ) {
+                    return ctx.builder.CreateGEP(
+                            child_val,
+                            emit_i32(index_val)
+                        );
+                }
+
                 return with_check(
                         ctx.builder.CreateInBoundsGEP(
                             ty->isPointerTy() ?
@@ -980,9 +1057,7 @@ public:
                                 allocator.alloc_and_deep_copy(child_val),
                             (val [2]){
                                 ctx.builder.getInt32(0u),
-                                index_val->getType()->isIntegerTy(32u) ?
-                                    index_val :
-                                    ctx.builder.CreateIntCast(index_val, ctx.builder.getInt32Ty(), true)
+                                emit_i32(index_val)
                             }
                         )
                     );
@@ -1061,12 +1136,36 @@ public:
         }
 
         // Note:
+        // When the argument is 'argv', which is an argument of 'main' function
+        auto *const child_value = emit(ufcs->child);
+        auto *const ty = child_value->getType();
+        if (ty->isPointerTy()
+            && ty->getPointerElementType()->isPointerTy()
+            && ty->getPointerElementType()->getPointerElementType()->isIntegerTy(8u)
+        ) {
+            // Note:
+            // When the type is 'i8**'
+            if (ufcs->member_name == "size") {
+                return check(
+                        ufcs,
+                        ctx.builder.CreateIntCast(
+                            var_table.lookup_value_by_name("dachs.main.argc"),
+                            ctx.builder.getInt64Ty(),
+                            true
+                        ),
+                        "access to 'dachs.main.argc'"
+                    );
+            }
+        }
+
+
+        // Note:
         // Do not use get_operand() because GEP is emitted
         // in member_emitter internally.
         return check(
                 ufcs,
                 member_emitter.emit_builtin_instance_var(
-                    emit(ufcs->child),
+                    child_value,
                     ufcs->member_name,
                     type::type_of(ufcs->child)
                 ),

@@ -421,17 +421,6 @@ tuple_type const& get_unit_type() noexcept
     return unit_type;
 }
 
-template<class String>
-bool any_type::is_builtin(String const& name) const noexcept
-{
-    auto const t = helper::variant::get_as<builtin_type>(value);
-    if (!t) {
-        return false;
-    }
-
-    return (*t)->name == name;
-}
-
 bool any_type::is_unit() const noexcept
 {
     auto const t = helper::variant::get_as<tuple_type>(value);

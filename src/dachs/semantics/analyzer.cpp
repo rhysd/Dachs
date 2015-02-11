@@ -1408,7 +1408,11 @@ public:
                     invocation,
                     boost::format("  Member function '%1%' modifies member(s) of immutable object '%2%'")
                         % invocation->callee_scope.lock()->to_string() % (*violated)->name
-                    );
+                );
+        }
+
+        if (callee_scope->name == "main") {
+            semantic_error(invocation, "  You can't invoke 'main' function");
         }
     }
 
@@ -1528,7 +1532,7 @@ public:
 
         // Check data member 'ufcs->member_name' of 'ufcs->child'.
         // Now, built-in data member is only available.
-        auto const checked = check_member_var(ufcs, child_type);
+        auto const checked = check_member_var(ufcs, child_type, current_scope);
         if (auto const error = get_as<std::string>(checked)) {
             semantic_error(ufcs, *error);
             return;
@@ -2577,14 +2581,14 @@ bool check_main_func(std::vector<Func> const& funcs)
     bool found_main = false;
 
     for (auto const& f : funcs) {
-        if (f->name != "main") {
+        if (f->name != "main" || f->is_member_func) {
             continue;
         }
 
         if (found_main) {
             output_semantic_error(
                 f->get_ast_node(),
-                "Only one main function must exist"
+                "  Only one main function must exist"
             );
             return false;
         }
@@ -2606,8 +2610,10 @@ bool check_main_func(std::vector<Func> const& funcs)
 
         output_semantic_error(
             f->get_ast_node(),
-            boost::format("Illegal siganture for main function: '%1%'\nNote: main() or main([string]) is required")
-                % f->to_string()
+            boost::format(
+                "  Illegal siganture for main function: '%1%'\n"
+                "  Note: main() or main([string]) is required"
+                ) % f->to_string()
         );
         return false;
     }
@@ -2615,7 +2621,7 @@ bool check_main_func(std::vector<Func> const& funcs)
     if (!found_main) {
         output_semantic_error(
                 1u, 1u,
-                "Entry point 'main' is not found"
+                "  Entry point 'main' is not found"
             );
     }
 
