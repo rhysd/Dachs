@@ -489,36 +489,6 @@ BOOST_AUTO_TEST_SUITE(class_definition)
         )");
     }
 
-    BOOST_AUTO_TEST_CASE(non_initialize_stmt_in_ctor)
-    {
-        CHECK_THROW_SEMANTIC_ERROR(R"(
-            class Foo
-                foo
-                init
-                    @foo := 42
-                    @foo.println
-                end
-            end
-
-            func main
-            end
-        )");
-
-        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
-            class Foo
-                foo, bar
-
-                init
-                    @foo := 42
-                    @bar := 3.14
-                end
-            end
-
-            func main
-            end
-        )");
-    }
-
     BOOST_AUTO_TEST_CASE(clazz)
     {
         CHECK_THROW_SEMANTIC_ERROR(R"(
@@ -708,18 +678,6 @@ BOOST_AUTO_TEST_SUITE(class_definition)
 
         CHECK_THROW_SEMANTIC_ERROR(R"(
             class Foo
-                init
-                    42 # it is not an initialization
-                end
-            end
-
-            func main
-                f := new Foo
-            end
-        )");
-
-        CHECK_THROW_SEMANTIC_ERROR(R"(
-            class Foo
                 a : int
 
                 init
@@ -815,6 +773,69 @@ BOOST_AUTO_TEST_SUITE(class_definition)
 
             func main
                 new Foo{42, 3.14}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a, b
+
+                init(@a)
+                    a := @foo()
+                    @b := 42
+                end
+
+                func foo : int
+                end
+            end
+
+            func main
+                new X
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a, b
+
+                init(@a)
+                    println(@b)
+                    @b := 42
+                end
+            end
+
+            func main
+                new X{42}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a, b
+
+                init(@a)
+                    println(@b)
+                    @b := 42
+                end
+            end
+
+            func main
+                new X{42}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a, b
+
+                init(@a)
+                    self
+                    @b := 42
+                end
+            end
+
+            func main
+                new X{42}
             end
         )");
     }

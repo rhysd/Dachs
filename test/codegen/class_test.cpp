@@ -377,6 +377,39 @@ BOOST_AUTO_TEST_CASE(implicitly_defined_ctor)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(constructor_restriction)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a : int
+            b
+            c
+
+            init(@c)
+                var a := 2 + @c
+                a *= 4
+                @a := a
+                println(@a)
+                @b := @a + 2
+
+                self.b.println
+                # @foo()
+                self
+            end
+
+            func foo : int
+                println("foo")
+            end
+        end
+
+        func main
+            x := new X{42}
+            x.a.println
+            x.b.println
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(do_not_degrade)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(

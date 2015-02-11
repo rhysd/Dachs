@@ -266,6 +266,99 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
     }
 };
 
+struct self_access_checker {
+    template<class Walker>
+    void visit(ast::node::var_ref const& var, Walker const& w)
+    {
+        if (var->name == "self") {
+            is_self_access = true;
+        } else {
+            w();
+        }
+    }
+
+    template<class Walker>
+    void visit(ast::node::func_invocation const& invocation, Walker const& w)
+    {
+        if (invocation->args.empty()) {
+            w();
+            return;
+        }
+
+        if (auto const a = get_as<ast::node::var_ref>(invocation->args[0])) {
+            if ((*a)->name == "self") {
+                is_self_access_with_func = invocation;
+            }
+            return;
+        }
+
+        w();
+    }
+
+    template<class Walker>
+    void visit(ast::node::ufcs_invocation const& invocation, Walker const& w)
+    {
+        if (auto const a = get_as<ast::node::var_ref>(invocation->child)) {
+            if ((*a)->name == "self") {
+                is_self_access_with_ufcs = invocation;
+            }
+            return;
+        }
+
+        w();
+    }
+
+    template<class Node, class Walker>
+    void visit(Node const&, Walker const& w)
+    {
+        if (contains_self_access()) {
+            return;
+        }
+
+        w();
+    }
+
+    bool contains_self_access() const noexcept
+    {
+        return is_self_access
+            || static_cast<bool>(is_self_access_with_func)
+            || static_cast<bool>(is_self_access_with_ufcs);
+    }
+
+    boost::optional<std::string> violated_member_name() const noexcept
+    {
+        // Note:
+        // @foo() -> self.foo() -> foo(self)
+        if (is_self_access_with_func) {
+            if (auto const callee_var = get_as<ast::node::var_ref>((*is_self_access_with_func)->child)) {
+                return (*callee_var)->name;
+            }
+        }
+
+        // Note:
+        // @foo -> self.foo
+        if (is_self_access_with_ufcs) {
+            return (*is_self_access_with_ufcs)->member_name;
+        }
+
+        return boost::none;
+    }
+
+    auto func_access_violation() const noexcept
+    {
+        return static_cast<bool>(is_self_access_with_func);
+    }
+
+    auto ufcs_access_violation() const noexcept
+    {
+        return static_cast<bool>(is_self_access_with_ufcs);
+    }
+
+private:
+    bool is_self_access = false;
+    boost::optional<ast::node::func_invocation> is_self_access_with_func = boost::none;
+    boost::optional<ast::node::ufcs_invocation> is_self_access_with_ufcs = boost::none;
+};
 
 // Note: Walk to resolve symbol references
 class symbol_analyzer {
@@ -1534,8 +1627,20 @@ public:
                 return true;
             };
 
+        auto const is_initialized
+            = [&](auto const& name)
+            {
+                return initialized_names.find(name) != std::end(initialized_names);
+            };
+
         std::unordered_set<ast::node::parameter> checked;
         bool fail = false;
+
+        auto const all_initialized
+            = [&]
+            {
+                return map.size() == initialized_names.size();
+            };
 
         // Note:
         // Parameter types are already checked in forward analyzer
@@ -1548,28 +1653,55 @@ public:
             }
         }
 
-        for (auto const& stmt : ctor_def->body->value) {
-            auto const init = *get_as<ast::node::initialize_stmt>(stmt);
-            for (auto const& decl : init->var_decls) {
-                if (decl->is_instance_var()) {
-                    auto const dup = helper::find_if(checked, [&n = decl->name](auto const& d){ return d->name == n; });
-                    if (dup) {
-                        // Note:
-                        // This check is necessary because the duplication of symbol names
-                        // between parameter and initialize statement doesn't occur an error
-                        // though a warning is raised.
+        for (auto &stmt : ctor_def->body->value) {
+            if (!all_initialized()) {
+                self_access_checker checker;
+                ast::walk_topdown(stmt, checker);
+                if (checker.contains_self_access()) {
+                    if (auto const n = checker.violated_member_name()) {
+                        if (!is_initialized(*n)) {
+                            semantic_error(
+                                    ast::node::location_of(stmt),
+                                    checker.func_access_violation()
+                                        ? "  Calling member function '" + *n
+                                            + "' is not permitted until all instance variables are initialized in constructor"
+                                        : "  Access to instance variable '" + *n + "' here is not permitted in constructor because '"
+                                            + *n + "' may not be initialized here yet"
+                                );
+                            fail = true;
+                        }
+                    } else {
                         semantic_error(
-                                decl,
-                                boost::format(
-                                    "  Instance variable '%1%' is initialized twice or more times.\n"
-                                    "  Note: Instance variable can only be initialized once.\n"
-                                    "  Note: First initialization is at line:%2%, col:%3%."
-                                ) % decl->name % (*dup)->line % (*dup)->col
+                                ast::node::location_of(stmt),
+                                "  Access to 'self' is not permitted until all instance variables are initialized in constructor"
                             );
                         fail = true;
-                    } else if (decl->symbol.expired()
-                            || !check_instance_var_type(decl, decl->symbol.lock())) {
-                        fail = true;
+                    }
+                }
+            }
+
+            if (auto const init = get_as<ast::node::initialize_stmt>(const_cast<ast::node::compound_stmt const&>(stmt))) {
+                for (auto const& decl : (*init)->var_decls) {
+                    if (decl->is_instance_var()) {
+                        auto const dup = helper::find_if(checked, [&n = decl->name](auto const& d){ return d->name == n; });
+                        if (dup) {
+                            // Note:
+                            // This check is necessary because the duplication of symbol names
+                            // between parameter and initialize statement doesn't occur an error
+                            // though a warning is raised.
+                            semantic_error(
+                                    decl,
+                                    boost::format(
+                                        "  Instance variable '%1%' is initialized twice or more times.\n"
+                                        "  Note: Instance variable can only be initialized once.\n"
+                                        "  Note: First initialization is at line:%2%, col:%3%."
+                                    ) % decl->name % (*dup)->line % (*dup)->col
+                                );
+                            fail = true;
+                        } else if (decl->symbol.expired()
+                                || !check_instance_var_type(decl, decl->symbol.lock())) {
+                            fail = true;
+                        }
                     }
                 }
             }
@@ -1594,7 +1726,7 @@ public:
         // Note:
         // Check all non-initialized members are default constructible.
         for (auto const& v : map) {
-            if (initialized_names.find(v.first) == std::end(initialized_names)
+            if (!is_initialized(v.first)
                     && v.second
                     && !v.second.is_default_constructible()) {
                 semantic_error(

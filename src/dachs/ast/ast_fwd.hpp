@@ -20,7 +20,7 @@ enum location_index {
     length = 2,
 };
 
-} // namespace
+} // namespace location
 
 using location_type = std::tuple<std::size_t, std::size_t, std::size_t>;
 
