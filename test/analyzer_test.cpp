@@ -2217,10 +2217,14 @@ BOOST_AUTO_TEST_CASE(main_func)
 
             func main
             end
+
+            func main(a)
+            end
         end
 
         func main
             (new Foo{42}).main
+            (new Foo{42}).main(42)
         end
     )")
 }

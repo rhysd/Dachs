@@ -296,6 +296,11 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         , basic_symbol(n, s, is_builtin)
     {}
 
+    bool is_main_func() const noexcept
+    {
+        return name == "main" && !is_member_func;
+    }
+
     func_scope(func_scope const&) = default;
 
     bool define_param(symbol::var_symbol const& new_var) noexcept

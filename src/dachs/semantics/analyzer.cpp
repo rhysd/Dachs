@@ -1411,7 +1411,7 @@ public:
                 );
         }
 
-        if (callee_scope->name == "main") {
+        if (callee_scope->is_main_func()) {
             semantic_error(invocation, "  You can't invoke 'main' function");
         }
     }
@@ -2581,7 +2581,7 @@ bool check_main_func(std::vector<Func> const& funcs)
     bool found_main = false;
 
     for (auto const& f : funcs) {
-        if (f->name != "main" || f->is_member_func) {
+        if (!f->is_main_func()) {
             continue;
         }
 

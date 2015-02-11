@@ -237,7 +237,7 @@ class llvm_ir_emitter {
 
     void emit_func_prototype(ast::node::function_definition const& func_def, scope::func_scope const& scope)
     {
-        if (scope->name == "main") {
+        if (scope->is_main_func()) {
             emit_main_func_prototype(func_def, scope);
             return;
         }

@@ -361,7 +361,7 @@ public:
 
         // Note:
         // Replace argument type of main function (#31)
-        if (new_func->name == "main" && !new_func->is_member_func && new_func->params.size() > 0) {
+        if (new_func->is_main_func() && new_func->params.size() > 0) {
             auto const& p = new_func->params[0];
             // Note:
             // Strict check for 'main' function will be done in semantics::detail::symbol_analyzer.
