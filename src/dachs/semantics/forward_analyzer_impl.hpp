@@ -358,6 +358,20 @@ public:
         boost::apply_visitor(definer, current_scope);
 
         introduce_scope_and_walk(std::move(new_func), w);
+
+        // Note:
+        // Replace argument type of main function (#31)
+        if (new_func->name == "main" && !new_func->is_member_func && new_func->params.size() > 0) {
+            // Note:
+            // Strict check for 'main' function will be done in semantics::detail::symbol_analyzer.
+            if (new_func->params[0]->type.is_template()) {
+                new_func->params[0]->type
+                    = type::make<type::array_type>(
+                            type::get_builtin_type("string", type::no_opt)
+                        );
+                func_def->params[0]->type = new_func->params[0]->type;
+            }
+        }
     }
 
     void visit_class_var_decl(ast::node::variable_decl const& decl, scope::class_scope const& scope)

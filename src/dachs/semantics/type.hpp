@@ -752,6 +752,17 @@ any_type from_ast(ast::node::any_type const&, scope::any_scope const& current) n
 ast::node::any_type to_ast(any_type const&, ast::location_type &&) noexcept;
 bool is_instantiated_from(class_type const& instantiated_class, class_type const& template_class);
 
+template<class String>
+bool any_type::is_builtin(String const& name) const noexcept
+{
+    auto const t = helper::variant::get_as<builtin_type>(value);
+    if (!t) {
+        return false;
+    }
+
+    return (*t)->name == name;
+}
+
 } // namespace type
 
 } // namespace dachs

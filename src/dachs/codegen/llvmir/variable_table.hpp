@@ -14,6 +14,7 @@
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/fatal.hpp"
+#include "dachs/helper/util.hpp"
 
 namespace dachs {
 namespace codegen {
@@ -181,6 +182,25 @@ public:
 
         if (auto const maybe_aggregate_val = detail::lookup_table(alloca_aggregate_table, s)) {
             return *maybe_aggregate_val;
+        }
+
+        return nullptr;
+    }
+
+    val lookup_value_by_name(std::string const& name)
+    {
+        auto const by_name = [&name](auto const& s){ return s.first->name == name; };
+
+        if (auto const maybe_reg_val = helper::find_if(register_table, by_name)) {
+            return maybe_reg_val->second;
+        }
+
+        if (auto const maybe_alloca_val = helper::find_if(alloca_table, by_name)) {
+            return maybe_alloca_val->second;
+        }
+
+        if (auto const maybe_aggregate_val = helper::find_if(alloca_aggregate_table, by_name)) {
+            return maybe_aggregate_val->second;
         }
 
         return nullptr;

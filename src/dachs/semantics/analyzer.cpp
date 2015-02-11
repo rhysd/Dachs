@@ -1528,7 +1528,7 @@ public:
 
         // Check data member 'ufcs->member_name' of 'ufcs->child'.
         // Now, built-in data member is only available.
-        auto const checked = check_member_var(ufcs, child_type);
+        auto const checked = check_member_var(ufcs, child_type, current_scope);
         if (auto const error = get_as<std::string>(checked)) {
             semantic_error(ufcs, *error);
             return;

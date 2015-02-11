@@ -11,12 +11,9 @@ namespace helper {
 
 void dump(llvm::Value const* const v) noexcept
 {
+    v->getType();
+    std::cout << ": " << std::flush;
     v->dump();
-}
-
-void dump(llvm::Type const* const t) noexcept
-{
-    t->dump(); std::cout << std::endl;
 }
 
 } // namespace helper
