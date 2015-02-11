@@ -362,14 +362,20 @@ public:
         // Note:
         // Replace argument type of main function (#31)
         if (new_func->name == "main" && !new_func->is_member_func && new_func->params.size() > 0) {
+            auto const& p = new_func->params[0];
             // Note:
             // Strict check for 'main' function will be done in semantics::detail::symbol_analyzer.
-            if (new_func->params[0]->type.is_template()) {
-                new_func->params[0]->type
+            if (p->type.is_template()) {
+                p->type
                     = type::make<type::array_type>(
                             type::get_builtin_type("string", type::no_opt)
                         );
-                func_def->params[0]->type = new_func->params[0]->type;
+                func_def->params[0]->type = p->type;
+            }
+
+            if (!p->immutable) {
+                semantic_error(func_def, "  Argument of main function '" + p->name + "' must be immutable");
+                return;
             }
         }
     }
