@@ -716,4 +716,23 @@ BOOST_AUTO_TEST_CASE(ufcs)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(symbol)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(s)
+        end
+
+        func main
+            :foo_hah
+
+            println(:foo_hah)
+
+            x := :foo_hah
+            y := :yeah_hah
+
+            (x != y).println
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
