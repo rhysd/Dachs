@@ -344,14 +344,14 @@ struct self_access_checker {
         return boost::none;
     }
 
-    auto access_with_func() const noexcept
+    auto func_access_violation() const noexcept
     {
-        return is_self_access_with_func;
+        return static_cast<bool>(is_self_access_with_func);
     }
 
-    auto access_with_ufcs() const noexcept
+    auto ufcs_access_violation() const noexcept
     {
-        return is_self_access_with_ufcs;
+        return static_cast<bool>(is_self_access_with_ufcs);
     }
 
 private:
@@ -1662,14 +1662,18 @@ public:
                         if (!is_initialized(*n)) {
                             semantic_error(
                                     ast::node::location_of(stmt),
-                                    "  Access to the member '" + *n + "' is not permitted in constructor"
+                                    checker.func_access_violation()
+                                        ? "  Calling member function '" + *n
+                                            + "' is not permitted until all instance variables are initialized in constructor"
+                                        : "  Access to instance variable '" + *n + "' here is not permitted in constructor because '"
+                                            + *n + "' may not be initialized here yet"
                                 );
                             fail = true;
                         }
                     } else {
                         semantic_error(
                                 ast::node::location_of(stmt),
-                                "  Access to 'self' is not permitted in constructor"
+                                "  Access to 'self' is not permitted until all instance variables are initialized in constructor"
                             );
                         fail = true;
                     }
