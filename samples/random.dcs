@@ -1,5 +1,8 @@
 class Xor128
-    - x, y, z, w : uint
+    - x : uint
+    , y : uint
+    , z : uint
+    , w : uint
 
     init(@x, @y, @z, @w)
     end
