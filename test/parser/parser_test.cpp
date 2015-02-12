@@ -461,6 +461,7 @@ BOOST_AUTO_TEST_CASE(literals)
             '\f'
             '\t'
             '\\'
+            '\0'
             ' '
 
             # string
