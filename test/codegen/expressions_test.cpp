@@ -735,4 +735,30 @@ BOOST_AUTO_TEST_CASE(symbol)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(string)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func each(str : string, pred)
+            var i := 0
+            for str[i] != '\0'
+                pred(str[i])
+                i += 1
+            end
+        end
+
+        func len(str : string)
+            var c := 0
+            for str[c] != '\0'
+                c += 1
+            end
+            ret c
+        end
+
+        func main(args)
+            "abcdefghijklmnopqrstu".each(println)
+            "abcdefghijklmnopqrstu".len.println
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
