@@ -1029,15 +1029,6 @@ public:
 
                 return with_check(ctx.builder.CreateExtractValue(child_val, idx));
             } else {
-
-                auto const emit_i32
-                    = [this](auto *const v)
-                    {
-                        return v->getType()->isIntegerTy(32u)
-                                ? v
-                                : ctx.builder.CreateIntCast(v, ctx.builder.getInt32Ty(), true);
-                    };
-
                 // Note:
                 // When i8** (it means the arguments of 'main')
                 if (is_ptr
@@ -1046,7 +1037,7 @@ public:
                 ) {
                     return ctx.builder.CreateGEP(
                             child_val,
-                            emit_i32(index_val)
+                            index_val
                         );
                 }
 
@@ -1057,14 +1048,39 @@ public:
                                 allocator.alloc_and_deep_copy(child_val),
                             (val [2]){
                                 ctx.builder.getInt32(0u),
-                                emit_i32(index_val)
+                                index_val->getType()->isIntegerTy(32u)
+                                    ? index_val
+                                    : ctx.builder.CreateIntCast(index_val, ctx.builder.getInt32Ty(), true)
                             }
                         )
                     );
             }
 
+        } else if (child_type.is_builtin("string")) {
+
+            // Note:
+            // Workaround.  At first, allocate i8* and store the global string pointer
+            // to the allocated memory. At second, load it and call CreateGEP().
+            // This make CreateGEP() not to fold the getelementptr inst.
+            // Without the workaround, the global string pointer is a constant and
+            // when the index value is a constant, the getelementptr inst will be folded.
+            // However, it seems that the result of folding the getelementptr is treated as if
+            // it is not a getelementptr inst.  The result of llvm::isa<llvm::GetElementPtrInst>(result)
+            // returns false.  I don't know why.
+
+            auto const v = get_operand(child_val);
+            auto const str_ptr = ctx.builder.CreateAlloca(v->getType());
+            ctx.builder.CreateStore(v, str_ptr);
+
+            return with_check(
+                    ctx.builder.CreateGEP(
+                        ctx.builder.CreateLoad(str_ptr),
+                        index_val
+                    )
+                );
+
         } else {
-            error(access, "Not a tuple or array value");
+            error(access, "Value is not tuple, array and string");
         }
     }
 

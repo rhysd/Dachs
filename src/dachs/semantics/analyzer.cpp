@@ -1050,8 +1050,7 @@ public:
         // Resolve operator [] function and get the return type of it.
 
         if (auto const maybe_array_type = type::get<type::array_type>(child_type)) {
-            if (index_type != type::get_builtin_type("int", type::no_opt)
-                && index_type != type::get_builtin_type("uint", type::no_opt)) {
+            if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
                 semantic_error(
                         access,
                         boost::format("  Index of array must be int or uint but actually '%1%'")
@@ -1114,6 +1113,16 @@ public:
                 return;
             }
             access->type = dict_type->value_type;
+        } else if (child_type.is_builtin("string")) {
+            if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
+                semantic_error(
+                        access,
+                        boost::format("  Index of string must be int or uint but actually '%1%'")
+                            % index_type.to_string()
+                    );
+                return;
+            }
+            access->type = type::get_builtin_type("char", type::no_opt);
         } else {
             semantic_error(
                 access,
