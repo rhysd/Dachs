@@ -2209,7 +2209,7 @@ BOOST_AUTO_TEST_CASE(main_func)
         func main : int
             ret main()
         end
-    )")
+    )");
 
     CHECK_NO_THROW_SEMANTIC_ERROR(R"(
         class Foo
@@ -2226,7 +2226,53 @@ BOOST_AUTO_TEST_CASE(main_func)
             (new Foo{42}).main
             (new Foo{42}).main(42)
         end
-    )")
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(invalid_index)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            a := [1, 2]
+            a['a']
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            t := (1, 'a')
+            t['a']
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            t := (1, 'a')
+            i := 1
+            t[i]
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            t := (1, 'a')
+            t[10000]
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            t := (1, 'a')
+            t[-1]
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            s := "aaa"
+            s['a']
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

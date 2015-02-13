@@ -759,6 +759,19 @@ BOOST_AUTO_TEST_CASE(string)
             "abcdefghijklmnopqrstu".len.println
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main(args)
+            var h := "hello"
+            h2 := "hello"
+            var i := 4
+            println(h[4])
+            println(h2[4])
+            println(h[i])
+            println(h2[i])
+        end
+    )");
+
 }
 
 BOOST_AUTO_TEST_SUITE_END()
