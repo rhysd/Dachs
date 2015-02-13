@@ -28,6 +28,7 @@ class builtin_function_emitter {
     using print_func_table_type = std::unordered_map<std::string, llvm::Function *const>;
     print_func_table_type print_func_table;
     print_func_table_type println_func_table;
+    llvm::Function * cityhash_func = nullptr;
 
 public:
 
@@ -84,6 +85,29 @@ public:
 
         table.insert(std::make_pair(arg_type->name, target));
         return target;
+    }
+
+    llvm::Function *emit_cityhash_func()
+    {
+        if (cityhash_func) {
+            return cityhash_func;
+        }
+
+        auto const func_type = llvm::FunctionType::get(
+                llvm::Type::getInt64Ty(context),
+                {llvm::Type::getInt8PtrTy(context)},
+                false
+            );
+
+        cityhash_func
+            = llvm::Function::Create(
+                    func_type,
+                    llvm::Function::ExternalLinkage,
+                    "__dachs_cityhash__",
+                    module
+                );
+
+        return cityhash_func;
     }
 
     // TODO:

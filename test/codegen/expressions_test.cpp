@@ -731,6 +731,10 @@ BOOST_AUTO_TEST_CASE(symbol)
             y := :yeah_hah
 
             (x != y).println
+
+            println("foo_hah" as symbol)
+            s := "foo_hah"
+            println(s as symbol == :foo_hah)
         end
     )");
 }

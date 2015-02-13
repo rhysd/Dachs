@@ -2,13 +2,14 @@
 #include <cstdint>
 #include <cstdarg>
 #include <cstdlib>
+#include <cstring>
 
 #include "dachs/runtime/runtime.hpp"
 
 extern "C" {
-    std::uint64_t __dachs_cityhash__(char const* const s, std::size_t const size)
+    std::uint64_t __dachs_cityhash__(char const* const s)
     {
-        return dachs::runtime::cityhash64<std::uint64_t>{}(s, size);
+        return dachs::runtime::cityhash64<std::uint64_t>{}(s, std::strlen(s));
     }
 
     void __dachs_println_float__(double const d)

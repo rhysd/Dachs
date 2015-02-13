@@ -1730,6 +1730,12 @@ public:
             } else if (to == "float") {
                 return cast_check(ctx.builder.CreateSIToFP(child_val, to_type_ir));
             }
+        } else if (from == "string" && to == "symbol") {
+            auto *const cityhash = builtin_func_emitter.emit_cityhash_func();
+            return ctx.builder.CreateCall(
+                    cityhash,
+                    child_val
+                );
         }
 
         cast_error();
