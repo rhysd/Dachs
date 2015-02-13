@@ -418,7 +418,7 @@ public:
         : ctx(c)
         , semantics_ctx(sc)
         , var_table(ctx)
-        , builtin_func_emitter(ctx.llvm_context)
+        , builtin_func_emitter(ctx)
         , file(f)
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , member_emitter(ctx)

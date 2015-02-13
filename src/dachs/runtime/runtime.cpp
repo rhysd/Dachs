@@ -90,7 +90,7 @@ extern "C" {
         va_end(l);
     }
 
-    void* __dachs_malloc(std::uint64_t const size)
+    void* __dachs_malloc__(std::uint64_t const size)
     {
         return std::malloc(size);
     }

@@ -5,16 +5,18 @@
 #include <vector>
 #include <unordered_map>
 #include <utility>
+#include <cstdint>
 
 #include <llvm/IR/Module.h>
-#include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Value.h>
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Intrinsics.h>
 
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/scope.hpp"
+#include "dachs/codegen/llvmir/context.hpp"
 
 namespace dachs {
 namespace codegen {
@@ -22,18 +24,19 @@ namespace llvmir {
 
 class builtin_function_emitter {
     llvm::Module *module = nullptr;
-    llvm::LLVMContext &context;
+    context &c;
 
     // Argument type name -> Function
     using print_func_table_type = std::unordered_map<std::string, llvm::Function *const>;
     print_func_table_type print_func_table;
     print_func_table_type println_func_table;
-    llvm::Function * cityhash_func = nullptr;
+    llvm::Function *cityhash_func = nullptr;
+    llvm::Function *malloc_func = nullptr;
 
 public:
 
-    explicit builtin_function_emitter(decltype(context) &c)
-        : context(c)
+    explicit builtin_function_emitter(decltype(c) &ctx)
+        : c(ctx)
     {}
 
     void set_module(llvm::Module *m) noexcept
@@ -57,7 +60,7 @@ public:
                 std::vector<llvm::Type *> param_types
                     = {arg_type_ir};
                 auto const print_func_type = llvm::FunctionType::get(
-                        llvm::StructType::get(context, {}),
+                        llvm::StructType::get(c.llvm_context, {}),
                         param_types,
                         false
                     );
@@ -72,19 +75,70 @@ public:
         assert(module);
         auto const& n = arg_type->name;
         if (n == "string") {
-            target = define_func_prototype(llvm::Type::getInt8PtrTy(context));
+            target = define_func_prototype(c.builder.getInt8PtrTy());
         } else if (n == "int" || n == "uint" || n == "symbol") {
-            target = define_func_prototype(llvm::Type::getInt64Ty(context));
+            target = define_func_prototype(c.builder.getInt64Ty());
         } else if (n == "float") {
-            target = define_func_prototype(llvm::Type::getDoubleTy(context));
+            target = define_func_prototype(c.builder.getDoubleTy());
         } else if (n == "char") {
-            target = define_func_prototype(llvm::Type::getInt8Ty(context));
+            target = define_func_prototype(c.builder.getInt8Ty());
         } else if (n == "bool") {
-            target = define_func_prototype(llvm::Type::getInt1Ty(context));
+            target = define_func_prototype(c.builder.getInt1Ty());
         }
 
         table.insert(std::make_pair(arg_type->name, target));
         return target;
+    }
+
+    llvm::Function *emit_malloc_func()
+    {
+        if (malloc_func) {
+            return malloc_func;
+        }
+
+        auto const func_type = llvm::FunctionType::get(
+                c.builder.getInt8PtrTy(),
+                {c.builder.getInt64Ty()},
+                false
+            );
+
+        malloc_func
+            = llvm::Function::Create(
+                    func_type,
+                    llvm::Function::ExternalLinkage,
+                    "__dachs_malloc__",
+                    module
+                );
+
+        return malloc_func;
+    }
+
+    llvm::Value *emit_malloc_call(llvm::Type *const ty)
+    {
+        auto const size = c.data_layout->getTypeAllocSize(ty);
+        if (size == 0u) {
+            return llvm::ConstantPointerNull::get(ty->getPointerTo());
+        }
+
+        auto *const malloc_func = emit_malloc_func();
+
+        auto *const size_value
+            = llvm::ConstantInt::get(
+                c.builder.getInt64Ty(),
+                size,
+                false /*isSigned*/
+            );
+
+        auto *const call_inst
+            = c.builder.CreateCall(
+                    malloc_func,
+                    size_value
+                );
+
+        return c.builder.CreateBitCast(
+                call_inst,
+                ty->getPointerTo()
+            );
     }
 
     llvm::Function *emit_cityhash_func()
@@ -94,8 +148,8 @@ public:
         }
 
         auto const func_type = llvm::FunctionType::get(
-                llvm::Type::getInt64Ty(context),
-                {llvm::Type::getInt8PtrTy(context)},
+                c.builder.getInt64Ty(),
+                {c.builder.getInt8PtrTy()},
                 false
             );
 
