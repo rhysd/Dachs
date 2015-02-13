@@ -143,7 +143,7 @@ int main(int const, char const* const argv[])
     auto const show_usage =
         [argv]()
         {
-            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj] [--debug] [--libdir={path}] [--disable-color] {file}\n";
+            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj|--check-syntax] [--debug] [--libdir={path}] [--disable-color] {file}\n";
         };
 
     // TODO: Use Boost.ProgramOptions
@@ -199,6 +199,15 @@ int main(int const, char const* const argv[])
                     compiler.compile_to_objects(
                         cmdopts.source_files,
                         cmdopts.debug
+                    );
+                }
+            );
+        } else if (opt == "--check-syntax") {
+            return dachs::cmdline::do_compiler_action(
+                [&]
+                {
+                    compiler.check_syntax(
+                        cmdopts.source_files
                     );
                 }
             );

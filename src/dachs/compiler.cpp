@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 
+#include <boost/optional.hpp>
+
 #include <llvm/Support/raw_ostream.h>
 
 #include "dachs/compiler.hpp"
@@ -115,6 +117,26 @@ std::string compiler::report_llvm_ir(std::string const& file, std::string const&
     codegen::llvmir::context context;
     codegen::llvmir::emit_llvm_ir(ast, ctx, context).print(raw_os, nullptr);
     return result;
+}
+
+bool compiler::check_syntax(std::vector<std::string> const& files) const
+{
+    boost::optional<parse_error> failed;
+
+    for (auto const& f : files) {
+        try {
+            parser.parse(read(f), f);
+        }
+        catch (parse_error const& e) {
+            failed = e;
+        }
+    }
+
+    if (failed) {
+        throw *failed;
+    }
+
+    return static_cast<bool>(!failed);
 }
 
 void compiler::dump_asts(std::ostream &out, compiler::files_type const& files) const
