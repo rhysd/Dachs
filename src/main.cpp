@@ -89,7 +89,7 @@ auto get_command_options(ArgPtr arg)
         bool enable_color = true; 
     } cmdopts;
 
-    std::string const debug_str = "--debug";
+    std::string const debug_str = "--debug-compiler";
     std::string const disable_color_str = "--disable-color";
 
     for (; *arg; ++arg) {
@@ -143,7 +143,7 @@ int main(int const, char const* const argv[])
     auto const show_usage =
         [argv]()
         {
-            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj|--check-syntax] [--debug] [--libdir={path}] [--disable-color] {file}\n";
+            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj|--check-syntax] [--debug-compiler] [--libdir={path}] [--disable-color] {file}\n";
         };
 
     // TODO: Use Boost.ProgramOptions
