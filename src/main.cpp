@@ -128,6 +128,20 @@ auto get_command_options(ArgPtr arg)
     return cmdopts;
 }
 
+std::string get_tmpdir()
+{
+    auto *const tmp = std::getenv("TMPDIR");
+
+    if (tmp) {
+        std::string ret = tmp;
+        if (!ret.empty()) {
+            return ret.back() == '/' ? ret : std::move(ret) + '/';
+        }
+    }
+
+    return "/tmp";
+}
+
 } // namespace cmdline
 } // namespace dachs
 
@@ -229,24 +243,37 @@ int main(int const, char const* const argv[])
 
     case 0:
         if (cmdopts.run && cmdopts.source_files.size() > 0) {
+
+            // Note:
+            // When JIT compiler with LLVM JIT support will be implemented,
+            // '--run' option should use it.
             return dachs::cmdline::do_compiler_action(
                     [&]
                     {
+                        auto tmpdir = dachs::cmdline::get_tmpdir();
                         auto const executable = compiler.compile(
                                 cmdopts.source_files,
                                 cmdopts.libdirs,
-                                cmdopts.debug
+                                cmdopts.debug,
+                                std::move(tmpdir)
                             );
+
+                        assert(!executable.empty() && executable.front() == '/');
 
                         std::string const args = boost::algorithm::join(
                                 cmdopts.run_args,
                                 " "
                             );
 
-                        std::system(("./" + executable + " " + args).c_str());
+                        std::system(
+                                (
+                                    executable + " " + args
+                                ).c_str()
+                            );
                         std::remove(executable.c_str());
                     }
                 );
+
         } else if (cmdopts.source_files.size() > 0) {
             return dachs::cmdline::do_compiler_action(
                 [&]

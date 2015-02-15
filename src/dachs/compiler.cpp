@@ -35,7 +35,7 @@ std::string compiler::read(std::string const& file) const
     return *maybe_code;
 }
 
-std::string compiler::compile(compiler::files_type const& files, std::vector<std::string> const& libdirs, bool const debug) const
+std::string compiler::compile(compiler::files_type const& files, std::vector<std::string> const& libdirs, bool const debug, std::string parent) const
 {
     std::vector<llvm::Module *> modules;
     codegen::llvmir::context context;
@@ -67,10 +67,10 @@ std::string compiler::compile(compiler::files_type const& files, std::vector<std
         modules.push_back(&module);
     }
 
-    return codegen::llvmir::generate_executable(modules, libdirs, context);
+    return codegen::llvmir::generate_executable(modules, libdirs, context, std::move(parent));
 }
 
-std::vector<std::string> compiler::compile_to_objects(compiler::files_type const& files, bool const debug) const
+std::vector<std::string> compiler::compile_to_objects(compiler::files_type const& files, bool const debug, std::string parent) const
 {
     std::vector<llvm::Module *> modules;
     codegen::llvmir::context context;
@@ -91,7 +91,7 @@ std::vector<std::string> compiler::compile_to_objects(compiler::files_type const
         modules.push_back(&module);
     }
 
-    return codegen::llvmir::generate_objects(modules, context);
+    return codegen::llvmir::generate_objects(modules, context, parent);
 }
 
 std::string compiler::report_ast(std::string const& file, std::string const& code) const

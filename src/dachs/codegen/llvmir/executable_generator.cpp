@@ -44,7 +44,8 @@ class binary_generator final {
         return file_name.substr(slash_pos+1, dot_pos - slash_pos - 1);
     }
 
-    std::string generate_object(llvm::Module &module)
+    template<class String>
+    std::string generate_object(llvm::Module &module, String const parent_dir_path)
     {
         llvm::PassManager pm;
         pm.add(new llvm::TargetLibraryInfo(ctx.triple));
@@ -59,7 +60,7 @@ class binary_generator final {
 #else
 # error LLVM: Not supported version.
 #endif
-        auto const obj_name = get_base_name_from_module(module) + ".o";
+        auto const obj_name = parent_dir_path + get_base_name_from_module(module) + ".o";
 
         std::string buffer;
 #if (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 4)
@@ -89,24 +90,26 @@ public:
         assert(!ms.empty());
     }
 
-    std::vector<std::string> generate_objects()
+    template<class String>
+    std::vector<std::string> generate_objects(String const parent_dir_path)
     {
         std::vector<std::string> obj_names;
         for (auto const m : modules) {
             assert(m);
-            obj_names.push_back(generate_object(*m));
+            obj_names.push_back(generate_object(*m, parent_dir_path));
         }
         return obj_names;
     }
 
-    std::string generate_executable(std::vector<std::string> const& libdirs)
+    template<class String>
+    std::string generate_executable(std::vector<std::string> const& libdirs, String const parent_dir_path)
     {
         // TODO: Temporary
-        auto const obj_names = generate_objects();
+        auto const obj_names = generate_objects(parent_dir_path);
         auto const os_type = ctx.triple.getOS();
         auto const objs_string
             = boost::algorithm::join(obj_names, " ");
-        auto const executable_name = get_base_name_from_module(*modules[0]);
+        auto const executable_name = parent_dir_path + get_base_name_from_module(*modules[0]);
         auto command
             = os_type == llvm::Triple::Darwin
                 ? "ld -macosx_version_min 10.9.0 \"" + objs_string + "\" -o \"" + executable_name + "\" -lSystem -ldachs -L /usr/lib -L /usr/local/lib -L " DACHS_INSTALL_PREFIX "/lib"
@@ -137,16 +140,16 @@ public:
     }
 };
 
-std::string generate_executable(std::vector<llvm::Module *> const& modules, std::vector<std::string> const& libdirs, context &ctx)
+std::string generate_executable(std::vector<llvm::Module *> const& modules, std::vector<std::string> const& libdirs, context &ctx, std::string parent)
 {
     binary_generator generator{modules, ctx};
-    return generator.generate_executable(libdirs);
+    return generator.generate_executable(libdirs, std::move(parent));
 }
 
-std::vector<std::string> generate_objects(std::vector<llvm::Module *> const& modules, context &ctx)
+std::vector<std::string> generate_objects(std::vector<llvm::Module *> const& modules, context &ctx, std::string parent)
 {
     binary_generator generator{modules, ctx};
-    return generator.generate_objects();
+    return generator.generate_objects(std::move(parent));
 }
 
 } // namespace llvmir
