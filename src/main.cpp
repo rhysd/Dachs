@@ -3,12 +3,15 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <cstdlib>
+#include <cstdio>
 
 #include <signal.h>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/join.hpp>
 
 #include "dachs/compiler.hpp"
 #include "dachs/helper/colorizer.hpp"
@@ -86,11 +89,14 @@ auto get_command_options(ArgPtr arg)
         std::vector<std::string> source_files;
         std::vector<std::string> libdirs;
         bool debug = false;
-        bool enable_color = true; 
+        bool enable_color = true;
+        bool run = false;
+        std::vector<std::string> run_args;
     } cmdopts;
 
     std::string const debug_str = "--debug-compiler";
     std::string const disable_color_str = "--disable-color";
+    std::string const run_str = "--run";
 
     for (; *arg; ++arg) {
         if (boost::algorithm::starts_with(*arg, "--libdir=")) {
@@ -108,12 +114,32 @@ auto get_command_options(ArgPtr arg)
             cmdopts.debug = true;
         } else if (*arg == disable_color_str) {
             cmdopts.enable_color = false;
+        } else if (*arg == run_str) {
+            cmdopts.run = true;
+            for (; *arg; ++arg) {
+                cmdopts.run_args.emplace_back(*arg);
+            }
+            return cmdopts;
         } else {
             cmdopts.rest_args.emplace_back(*arg);
         }
     }
 
     return cmdopts;
+}
+
+std::string get_tmpdir()
+{
+    auto *const tmp = std::getenv("TMPDIR");
+
+    if (tmp) {
+        std::string ret = tmp;
+        if (!ret.empty()) {
+            return ret.back() == '/' ? ret : std::move(ret) + '/';
+        }
+    }
+
+    return "/tmp";
 }
 
 } // namespace cmdline
@@ -216,7 +242,39 @@ int main(int const, char const* const argv[])
     break;
 
     case 0:
-        if (cmdopts.source_files.size() > 0) {
+        if (cmdopts.run && cmdopts.source_files.size() > 0) {
+
+            // Note:
+            // When JIT compiler with LLVM JIT support will be implemented,
+            // '--run' option should use it.
+            return dachs::cmdline::do_compiler_action(
+                    [&]
+                    {
+                        auto tmpdir = dachs::cmdline::get_tmpdir();
+                        auto const executable = compiler.compile(
+                                cmdopts.source_files,
+                                cmdopts.libdirs,
+                                cmdopts.debug,
+                                std::move(tmpdir)
+                            );
+
+                        assert(!executable.empty() && executable.front() == '/');
+
+                        std::string const args = boost::algorithm::join(
+                                cmdopts.run_args,
+                                " "
+                            );
+
+                        std::system(
+                                (
+                                    executable + " " + args
+                                ).c_str()
+                            );
+                        std::remove(executable.c_str());
+                    }
+                );
+
+        } else if (cmdopts.source_files.size() > 0) {
             return dachs::cmdline::do_compiler_action(
                 [&]
                 {

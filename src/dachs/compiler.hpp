@@ -21,8 +21,8 @@ public:
 
     explicit compiler(bool const colorful);
 
-    std::string compile(files_type const& files, files_type const& libdirs, bool const debug = false) const;
-    std::vector<std::string> compile_to_objects(files_type const& files, bool const debug = false) const;
+    std::string compile(files_type const& files, files_type const& libdirs, bool const debug = false, std::string parent = "") const;
+    std::vector<std::string> compile_to_objects(files_type const& files, bool const debug = false, std::string parent = "") const;
 
     std::string report_ast(std::string const& file, std::string const& code) const;
     std::string report_scope_tree(std::string const& file, std::string const& code) const;

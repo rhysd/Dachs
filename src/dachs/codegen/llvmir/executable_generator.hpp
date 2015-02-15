@@ -14,8 +14,8 @@ namespace llvmir {
 
 class binary_generator;
 
-std::string generate_executable(std::vector<llvm::Module *> const& modules, std::vector<std::string> const& libdirs, context &ctx);
-std::vector<std::string> generate_objects(std::vector<llvm::Module *> const& modules, context &ctx);
+std::string generate_executable(std::vector<llvm::Module *> const& modules, std::vector<std::string> const& libdirs, context &ctx, std::string parent = "");
+std::vector<std::string> generate_objects(std::vector<llvm::Module *> const& modules, context &ctx, std::string parent = "");
 
 } // namespace llvmir
 } // namespace codegen
