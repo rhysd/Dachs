@@ -1,0 +1,110 @@
+func len(str : string)
+    var c := 0u
+    for str[c] != '\0'
+        c += 1u
+    end
+    ret c
+end
+
+class BrainFxxk
+  - memory, pointer, tape, head
+
+    init(@tape, @memory)
+        @pointer := 0u
+        @head := 0u
+    end
+
+  - func incr
+        @pointer += 1u
+    end
+
+  - func decr
+        @pointer -= 1u
+    end
+
+  - func incr_val
+        @memory[@pointer] += 1
+    end
+
+  - func decr_val
+        @memory[@pointer] -= 1
+    end
+
+  - func put
+        print(@memory[@pointer] as char)
+    end
+
+  - func get
+        println("Warning!! ',' is not implemented yet!!")
+        # TODO: input is not implemented yet in Dachs
+    end
+
+  - func loop
+        ret unless @memory[@pointer] == 0
+
+        var stack := 0u
+        for true
+            @head += 1u
+            case @tape[@head]
+            when '['
+                stack += 1u
+            when ']'
+                if stack == 0u
+                    ret
+                else
+                    stack -= 1u
+                end
+            end
+        end
+    end
+
+  - func repeat
+        var stack := 0u
+        for true
+            @head -= 1u
+            case @tape[@head]
+            when ']'
+                stack += 1u
+            when '['
+                if stack == 0u
+                    # Read '[' again
+                    @head -= 1u
+                    ret
+                else
+                    stack -= 1u
+                end
+            end
+        end
+    end
+
+  - func step
+        case @tape[@head]
+        when '>' then @incr()
+        when '<' then @decr()
+        when '+' then @incr_val()
+        when '-' then @decr_val()
+        when '.' then @put()
+        when ',' then @get()
+        when '[' then @loop()
+        when ']' then @repeat()
+        end
+    end
+
+    func run
+        l := len(@tape)
+        @head = 0u
+
+        for @head < l
+            @step()
+            @head += 1u
+        end
+    end
+end
+
+func main
+    program := "+++++++++[>++++++++>+++++++++++>+++++<<<-]>.>++.+++++++..+++.>-.------------.<++++++++.--------.+++.------.--------.>+."
+
+    var memory := new [int]{5000u}
+    var interpreter := new BrainFxxk{program, memory}
+    interpreter.run
+end
