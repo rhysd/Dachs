@@ -1298,16 +1298,6 @@ public:
             assert(!global->ast_root.expired());
         }
 
-        if (func->is_template()) {
-            // Note:
-            // When the function is still instantiation, it means that receiver (1st argument) of
-            // the function is a template type and the function is analyzed for taking class template
-            // instantiation information from constructor.  Skip below check.
-            node->type = *func->ret_type;
-            node->callee_scope = func;
-            return boost::none;
-        }
-
         if (!func_def->ret_type) {
             // Note:
             // enclosing scope of function scope is always global scope
