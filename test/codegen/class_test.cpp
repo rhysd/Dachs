@@ -408,6 +408,92 @@ BOOST_AUTO_TEST_CASE(constructor_restriction)
             x.b.println
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+
+            init
+                @a := 42
+                @foo()
+                @bar(@a)
+            end
+
+            func foo
+            end
+
+            func bar(a)
+            end
+        end
+
+        func main
+            new X
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a : int
+
+            init
+                @a := 42
+                @foo()
+                @bar(@a)
+            end
+
+            func foo
+            end
+
+            func bar(a)
+            end
+        end
+
+        func main
+            new X
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+
+            init(@a)
+                @foo()
+                @bar(@a)
+            end
+
+            func foo
+            end
+
+            func bar(a)
+            end
+        end
+
+        func main
+            new X{42}
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+
+            init
+                @foo()
+                @bar(42)
+            end
+
+            func foo
+            end
+
+            func bar(a)
+            end
+        end
+
+        func main
+            new X(int)
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(do_not_degrade)
