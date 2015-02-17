@@ -88,13 +88,13 @@ auto get_command_options(ArgPtr arg)
         std::vector<char const*> rest_args;
         std::vector<std::string> source_files;
         std::vector<std::string> libdirs;
-        bool debug = false;
+        bool debug_compiler = false;
         bool enable_color = true;
         bool run = false;
         std::vector<std::string> run_args;
     } cmdopts;
 
-    std::string const debug_str = "--debug-compiler";
+    std::string const debug_compiler_str = "--debug-compiler";
     std::string const disable_color_str = "--disable-color";
     std::string const run_str = "--run";
 
@@ -110,8 +110,8 @@ auto get_command_options(ArgPtr arg)
             cmdopts.libdirs.insert(std::end(cmdopts.libdirs), std::begin(libs), std::end(libs));
         } else if (boost::algorithm::ends_with(*arg, ".dcs")) {
             cmdopts.source_files.emplace_back(*arg);
-        } else if (*arg == debug_str) {
-            cmdopts.debug = true;
+        } else if (*arg == debug_compiler_str) {
+            cmdopts.debug_compiler = true;
         } else if (*arg == disable_color_str) {
             cmdopts.enable_color = false;
         } else if (*arg == run_str) {
@@ -181,7 +181,7 @@ int main(int const, char const* const argv[])
         return 2;
     }
 
-    dachs::compiler compiler{cmdopts.enable_color};
+    dachs::compiler compiler{cmdopts.enable_color, cmdopts.debug_compiler};
 
     switch (cmdopts.rest_args.size()) {
 
@@ -223,8 +223,7 @@ int main(int const, char const* const argv[])
                 [&]
                 {
                     compiler.compile_to_objects(
-                        cmdopts.source_files,
-                        cmdopts.debug
+                        cmdopts.source_files
                     );
                 }
             );
@@ -254,7 +253,6 @@ int main(int const, char const* const argv[])
                         auto const executable = compiler.compile(
                                 cmdopts.source_files,
                                 cmdopts.libdirs,
-                                cmdopts.debug,
                                 std::move(tmpdir)
                             );
 
@@ -280,8 +278,7 @@ int main(int const, char const* const argv[])
                 {
                     compiler.compile(
                         cmdopts.source_files,
-                        cmdopts.libdirs,
-                        cmdopts.debug
+                        cmdopts.libdirs
                     );
                 }
             );

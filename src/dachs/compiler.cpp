@@ -21,7 +21,8 @@
 
 namespace dachs {
 
-compiler::compiler(bool const colorful)
+compiler::compiler(bool const colorful, bool const d, codegen::opt_level const o)
+    : debug(d), opt(o)
 {
     helper::colorizer::enabled = colorful;
 }
@@ -35,7 +36,7 @@ std::string compiler::read(std::string const& file) const
     return *maybe_code;
 }
 
-std::string compiler::compile(compiler::files_type const& files, std::vector<std::string> const& libdirs, bool const debug, std::string parent, codegen::opt_level const opt) const
+std::string compiler::compile(compiler::files_type const& files, std::vector<std::string> const& libdirs, std::string parent) const
 {
     std::vector<llvm::Module *> modules;
     codegen::llvmir::context context;
@@ -70,7 +71,7 @@ std::string compiler::compile(compiler::files_type const& files, std::vector<std
     return codegen::llvmir::generate_executable(modules, libdirs, context, opt, std::move(parent));
 }
 
-std::vector<std::string> compiler::compile_to_objects(compiler::files_type const& files, bool const debug, std::string parent, codegen::opt_level const opt) const
+std::vector<std::string> compiler::compile_to_objects(compiler::files_type const& files, std::string parent) const
 {
     std::vector<llvm::Module *> modules;
     codegen::llvmir::context context;

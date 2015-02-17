@@ -27,6 +27,7 @@ class binary_generator final {
 
     std::vector<llvm::Module *> modules;
     context &ctx;
+    opt_level opt;
 
     std::string get_base_name_from_module(llvm::Module const& module) const
     {
@@ -84,8 +85,8 @@ class binary_generator final {
 
 public:
 
-    binary_generator(decltype(modules) const& ms, context &c)
-        : modules(ms), ctx(c)
+    binary_generator(decltype(modules) const& ms, context &c, opt_level const o = opt_level::none)
+        : modules(ms), ctx(c), opt(o)
     {
         assert(!ms.empty());
     }
@@ -147,7 +148,7 @@ std::string generate_executable(
         opt_level const opt,
         std::string parent)
 {
-    binary_generator generator{modules, ctx};
+    binary_generator generator{modules, ctx, opt};
     return generator.generate_executable(libdirs, std::move(parent));
 }
 
@@ -157,7 +158,7 @@ std::vector<std::string> generate_objects(
         opt_level const opt,
         std::string parent)
 {
-    binary_generator generator{modules, ctx};
+    binary_generator generator{modules, ctx, opt};
     return generator.generate_objects(std::move(parent));
 }
 
