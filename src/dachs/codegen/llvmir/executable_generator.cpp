@@ -10,6 +10,7 @@
 #include <llvm/Target/TargetLibraryInfo.h>
 #include <llvm/Pass.h>
 #include <llvm/PassManager.h>
+#include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Support/FormattedStream.h>
 #if (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR >= 5)
@@ -28,6 +29,7 @@ class binary_generator final {
     std::vector<llvm::Module *> modules;
     context &ctx;
     opt_level opt;
+    llvm::PassManagerBuilder pm_builder;
 
     std::string get_base_name_from_module(llvm::Module const& module) const
     {
@@ -45,13 +47,9 @@ class binary_generator final {
         return file_name.substr(slash_pos+1, dot_pos - slash_pos - 1);
     }
 
-    template<class String>
-    std::string generate_object(llvm::Module &module, String const parent_dir_path)
+    template<class PassManager>
+    void add_data_layout(PassManager &pm) const
     {
-        llvm::PassManager pm;
-        pm.add(new llvm::TargetLibraryInfo(ctx.triple));
-        ctx.target_machine->addAnalysisPasses(pm);
-
         // Note:
         // This implies that all passes MUST be allocated with 'new'.
 #if (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 4)
@@ -61,6 +59,46 @@ class binary_generator final {
 #else
 # error LLVM: Not supported version.
 #endif
+    }
+
+    void run_func_passes(llvm::Module &module)
+    {
+        llvm::FunctionPassManager pm{&module};
+
+        add_data_layout(pm);
+
+        pm_builder.populateFunctionPassManager(pm);
+
+        for (auto &f : module.getFunctionList()) {
+            pm.doInitialization();
+            pm.run(f);
+            pm.doFinalization();
+        }
+    }
+
+    bool run_module_passes(llvm::Module &module, llvm::formatted_raw_ostream &os)
+    {
+        ctx.target_machine->setOptLevel(get_target_machine_opt_level());
+
+        llvm::PassManager pm;
+        ctx.target_machine->addAnalysisPasses(pm);
+        add_data_layout(pm);
+        pm_builder.populateModulePassManager(pm);
+
+        if (ctx.target_machine->addPassesToEmitFile(pm, os, llvm::TargetMachine::CGFT_ObjectFile)) {
+            return false;
+        }
+
+        pm.run(module);
+
+        return true;
+    }
+
+    template<class String>
+    std::string generate_object(llvm::Module &module, String const parent_dir_path)
+    {
+        run_func_passes(module);
+
         auto const obj_name = parent_dir_path + get_base_name_from_module(module) + ".o";
 
         std::string buffer;
@@ -72,23 +110,48 @@ class binary_generator final {
 # error LLVM: Not supported version.
 #endif
         out.keep(); // Do not delete object file
-
         llvm::formatted_raw_ostream formatted_os{out.os()};
-        if (ctx.target_machine->addPassesToEmitFile(pm, formatted_os, llvm::TargetMachine::CGFT_ObjectFile)) {
+        if (!run_module_passes(module, formatted_os)) {
             throw code_generation_error{"LLVM IR generator", boost::format("Failed to create an object file '%1%': %2%") % obj_name % buffer};
         }
 
-        pm.run(module);
-
         return obj_name;
+    }
+
+    llvm::CodeGenOpt::Level get_target_machine_opt_level() const
+    {
+        switch (opt) {
+        case opt_level::release:
+            return llvm::CodeGenOpt::Aggressive;
+        case opt_level::debug:
+            return llvm::CodeGenOpt::None;
+        case opt_level::none:
+        default:
+            return llvm::CodeGenOpt::Default;
+        }
     }
 
 public:
 
     binary_generator(decltype(modules) const& ms, context &c, opt_level const o = opt_level::none)
-        : modules(ms), ctx(c), opt(o)
+        : modules(ms), ctx(c), opt(o), pm_builder()
     {
         assert(!ms.empty());
+
+        switch (opt) {
+        case opt_level::release:
+            pm_builder.OptLevel = 3u;
+            break;
+        case opt_level::debug:
+            pm_builder.OptLevel = 0u;
+            break;
+        case opt_level::none:
+        default:
+            pm_builder.OptLevel = 2u;
+            break;
+        }
+        pm_builder.SizeLevel = 0u;
+        pm_builder.LibraryInfo = new llvm::TargetLibraryInfo(ctx.triple);
     }
 
     template<class String>
