@@ -160,6 +160,28 @@ inline auto remove_erase_if(std::vector<T> &v, Predicate const& predicate)
             );
 }
 
+template<class T, class Predicate>
+inline boost::optional<std::size_t> index_of(std::vector<T> const& v, Predicate const& predicate)
+{
+    for (auto i = 0u, size = v.size(); i < size; ++i) {
+        if (predicate(v[i])) {
+            return i;
+        }
+    }
+    return boost::none;
+}
+
+template<class T>
+inline boost::optional<std::size_t> index_of(std::vector<T> const& v, typename std::vector<T>::value_type const& value)
+{
+    for (auto i = 0u, size = v.size(); i < size; ++i) {
+        if (v[i] == value) {
+            return i;
+        }
+    }
+    return boost::none;
+}
+
 } // namespace helper
 }  // namespace dachs
 

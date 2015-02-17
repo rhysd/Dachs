@@ -476,24 +476,23 @@ BOOST_AUTO_TEST_CASE(constructor_restriction)
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         class X
-            a
-
-            init
-                @foo()
-                @bar(42)
-            end
+            a, b
 
             func foo
             end
 
-            func bar(a)
+            init
+                @a := 42
+                @b := @a
+                @foo()
             end
         end
 
         func main
-            new X(int)
+            new X
         end
     )");
+
 }
 
 BOOST_AUTO_TEST_CASE(do_not_degrade)

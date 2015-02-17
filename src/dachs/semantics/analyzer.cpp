@@ -658,6 +658,10 @@ public:
 
         assert(!func->scope.expired());
         auto scope = func->scope.lock();
+        if (scope->is_ctor()) {
+            func->ret_type = type::get_unit_type();
+            scope->ret_type = *func->ret_type;
+        }
 
         if (scope->is_template()) {
             // XXX:
@@ -738,7 +742,7 @@ public:
                     );
             }
             func->ret_type = type::get_unit_type();
-            scope->ret_type = type::get_unit_type();
+            scope->ret_type = *func->ret_type;
         }
 
         if (is_query_function && *func->ret_type != type::get_builtin_type("bool", type::no_opt)) {
@@ -1918,8 +1922,8 @@ public:
         return {instantiated_scope, ctor_from_instantiated};
      }
 
-    template<class InstanceVars, class CtorParams, class Scope, class Body>
-    bool walk_ctor_body_to_infer_class_template(InstanceVars const& vars, CtorParams const& params, Scope const& enclosing, Body &body)
+    template<class InstanceVars, class CtorScope, class Body>
+    bool walk_ctor_body_to_infer_class_template(InstanceVars const& vars, CtorScope const& ctor, Body &body)
     {
         // Note:
         // Obtain the information for template instance variable types from the constructor.
@@ -1927,9 +1931,12 @@ public:
         // At first replace the known types with its template types and visit body of ctor recursively,
         // then restore the template types not to affect the original AST of class template.
 
-        std::unordered_map<std::string, type::type> saved;
+        std::vector<type::type> saved;
+        for (auto const& v : vars) {
+            saved.emplace_back(v->type);
+        }
 
-        for (auto const& p : params | filtered([](auto const& p){ return p->is_instance_var(); })) {
+        for (auto const& p : ctor->params | filtered([](auto const& p){ return p->is_instance_var(); })) {
             auto const i
                 = std::find_if(
                         std::begin(vars), std::end(vars),
@@ -1939,20 +1946,17 @@ public:
                 continue;
             }
 
-            saved[(*i)->name] = (*i)->type;
             (*i)->type = p->type;
         }
 
         BOOST_SCOPE_EXIT_ALL(&vars, &saved) {
-            for (auto const& v : vars) {
-                auto const s = saved.find(v->name);
-                if (s != std::end(saved)) {
-                    v->type = s->second;
-                }
+            assert(vars.size() == saved.size());
+            for (auto const& vt : helper::zipped(vars, saved)) {
+                boost::get<0>(vt)->type = std::move(boost::get<1>(vt));
             }
         };
 
-        return walk_recursively_with(enclosing, body);
+        return walk_recursively_with(ctor->body, body);
     }
 
     void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
@@ -2045,7 +2049,7 @@ public:
             // If the receiver is class template, the body of ctor is not visited yet
             // because the ctor is a template.  But initialize statements in the ctor
             // is necessary to determine the class instantiation.  So visit it here.
-            if (!walk_ctor_body_to_infer_class_template(scope->instance_var_symbols, ctor->params, ctor->body, ctor_def->body)) {
+            if (!walk_ctor_body_to_infer_class_template(scope->instance_var_symbols, ctor, ctor_def->body)) {
                 construct_error(
                     boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")
                         % ctor->to_string() % ctor_def->line % ctor_def->col
@@ -2323,13 +2327,41 @@ public:
             }
         }
 
+        auto const maybe_ctor = enclosing_ctor();
+
         auto const substitute_type =
-            [this, &init](auto const& decl, auto const& t)
+            [this, &init, &maybe_ctor](auto const& decl, auto const& t)
             {
                 if (decl->name == "_" && decl->symbol.expired()) {
                     return;
                 }
                 auto const symbol = decl->symbol.lock();
+
+                if (decl->is_instance_var()) {
+                    assert(maybe_ctor);
+                    auto const& ctor = *maybe_ctor;
+                    assert((ctor->params[0]->name == "self") && type::is_a<type::class_type>(ctor->params[0]->type));
+                    auto const receiver_type = *type::get<type::class_type>(ctor->params[0]->type);
+                    auto const receiver_scope = receiver_type->ref.lock();
+                    auto const instance_var = receiver_scope->resolve_instance_var(decl->name.substr(1u));
+                    assert(instance_var);
+                    if (type::is_a<type::template_type>((*instance_var)->type)) {
+                        // Note:
+                        // Substitute the type which reveals from the rhs of initialize statement
+                        // to class's template instance variable.  It reaches here wnly when analyzed
+                        // by walk_ctor_body_to_infer_class_template().
+                        //
+                        // Note:
+                        // This is dangerous operation because it changes the original class definition.
+                        // But it's safe because the type of instance variables and self type are saved
+                        // and will be restored after the analysis in walk_ctor_body_to_infer_class_template().
+                        (*instance_var)->type = t;
+                        // Note:
+                        // If any param type are specified as template type, it should also be updated.
+                        // So ensure any type not to be specified.
+                        assert(receiver_type->param_types.empty());
+                    }
+                }
 
                 if (symbol->type) {
                     if (symbol->type != t) {
