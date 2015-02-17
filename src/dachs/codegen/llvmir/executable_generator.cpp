@@ -140,13 +140,22 @@ public:
     }
 };
 
-std::string generate_executable(std::vector<llvm::Module *> const& modules, std::vector<std::string> const& libdirs, context &ctx, std::string parent)
+std::string generate_executable(
+        std::vector<llvm::Module *> const& modules,
+        std::vector<std::string> const& libdirs,
+        context &ctx,
+        opt_level const opt,
+        std::string parent)
 {
     binary_generator generator{modules, ctx};
     return generator.generate_executable(libdirs, std::move(parent));
 }
 
-std::vector<std::string> generate_objects(std::vector<llvm::Module *> const& modules, context &ctx, std::string parent)
+std::vector<std::string> generate_objects(
+        std::vector<llvm::Module *> const& modules,
+        context &ctx,
+        opt_level const opt,
+        std::string parent)
 {
     binary_generator generator{modules, ctx};
     return generator.generate_objects(std::move(parent));
