@@ -7,11 +7,14 @@
 #include "dachs/ast/ast_fwd.hpp"
 #include "dachs/parser/parser.hpp"
 #include "dachs/semantics/scope.hpp"
+#include "dachs/codegen/opt_level.hpp"
 
 namespace dachs {
 
 class compiler final {
     syntax::parser parser;
+    bool debug;
+    codegen::opt_level opt;
 
     using files_type = std::vector<std::string>;
 
@@ -19,10 +22,18 @@ class compiler final {
 
 public:
 
-    explicit compiler(bool const colorful);
+    compiler(bool const colorful, bool const debug, codegen::opt_level const opt = codegen::opt_level::none);
 
-    std::string compile(files_type const& files, files_type const& libdirs, bool const debug = false, std::string parent = "") const;
-    std::vector<std::string> compile_to_objects(files_type const& files, bool const debug = false, std::string parent = "") const;
+    std::string compile(
+            files_type const& files,
+            files_type const& libdirs,
+            std::string parent = ""
+        ) const;
+
+    std::vector<std::string> compile_to_objects(
+            files_type const& files,
+            std::string parent = ""
+        ) const;
 
     std::string report_ast(std::string const& file, std::string const& code) const;
     std::string report_scope_tree(std::string const& file, std::string const& code) const;

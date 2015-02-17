@@ -104,6 +104,7 @@ set(DACHS_LLVM_COMPONENTS
     native
     asmparser
     asmprinter
+    ipo
     )
 
 foreach (c ${DACHS_LLVM_COMPONENTS})
