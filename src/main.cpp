@@ -17,6 +17,7 @@
 #include "dachs/helper/colorizer.hpp"
 #include "dachs/helper/backtrace_printer.hpp"
 #include "dachs/exception.hpp"
+#include "dachs/codegen/opt_level.hpp"
 
 namespace dachs {
 namespace cmdline {
@@ -91,12 +92,15 @@ auto get_command_options(ArgPtr arg)
         bool debug_compiler = false;
         bool enable_color = true;
         bool run = false;
+        codegen::opt_level opt = codegen::opt_level::none;
         std::vector<std::string> run_args;
     } cmdopts;
 
     std::string const debug_compiler_str = "--debug-compiler";
     std::string const disable_color_str = "--disable-color";
     std::string const run_str = "--run";
+    std::string const debug_str = "--debug";
+    std::string const release_str = "--release";
 
     for (; *arg; ++arg) {
         if (boost::algorithm::starts_with(*arg, "--libdir=")) {
@@ -120,6 +124,10 @@ auto get_command_options(ArgPtr arg)
                 cmdopts.run_args.emplace_back(*arg);
             }
             return cmdopts;
+        } else if (*arg == debug_str) {
+            cmdopts.opt = codegen::opt_level::debug;
+        } else if (*arg == release_str) {
+            cmdopts.opt = codegen::opt_level::release;
         } else {
             cmdopts.rest_args.emplace_back(*arg);
         }
@@ -169,7 +177,7 @@ int main(int const, char const* const argv[])
     auto const show_usage =
         [argv]()
         {
-            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj|--check-syntax] [--debug-compiler] [--libdir={path}] [--disable-color] {file} [--run [args...]]\n";
+            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj|--check-syntax] [--debug-compiler] [--debug|--release] [--libdir={path}] [--disable-color] {file} [--run [args...]]\n";
         };
 
     // TODO: Use Boost.ProgramOptions
@@ -181,7 +189,7 @@ int main(int const, char const* const argv[])
         return 2;
     }
 
-    dachs::compiler compiler{cmdopts.enable_color, cmdopts.debug_compiler};
+    dachs::compiler compiler{cmdopts.enable_color, cmdopts.debug_compiler, cmdopts.opt};
 
     switch (cmdopts.rest_args.size()) {
 
