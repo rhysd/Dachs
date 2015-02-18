@@ -1596,6 +1596,8 @@ public:
         return map;
     }
 
+    // TODO:
+    // This function is too long.  It should be refactored.
     template<class Map>
     boost::optional<Map> check_template_instantiation_with_ctor(Map &&map, scope::func_scope const& ctor, ast::node::function_definition const& ctor_def)
     {
@@ -1659,6 +1661,8 @@ public:
                 return map.size() == initialized_names.size();
             };
 
+        auto &body_stmts = ctor_def->body->value;
+
         // Note:
         // Parameter types are already checked in forward analyzer
         for (auto const& p : ctor_def->params) {
@@ -1670,8 +1674,23 @@ public:
             }
         }
 
-        for (auto &stmt : ctor_def->body->value) {
-            if (!all_initialized()) {
+        auto const init_end_point_idx
+            = [&body_stmts]() -> std::size_t
+            {
+                for (auto const idx : helper::rindices(body_stmts)) {
+                    auto const& stmt = body_stmts[idx];
+                    if (auto const& init = get_as<ast::node::initialize_stmt>(stmt)) {
+                        if (any_of((*init)->var_decls, [](auto const& d){ return d->is_instance_var(); })) {
+                            return idx + 1;
+                        }
+                    }
+                }
+                return 0;
+            }();
+
+        for (auto const idx : helper::indices(body_stmts)) {
+            auto &stmt = body_stmts[idx];
+            if (idx < init_end_point_idx && !all_initialized()) {
                 self_access_checker checker;
                 ast::walk_topdown(stmt, checker);
                 if (checker.contains_self_access()) {
@@ -1740,19 +1759,70 @@ public:
             fail = true;
         }
 
+        auto const generate_default_construct_ast
+            = [&ctor_def](auto const& type)
+            {
+                auto construct
+                    = helper::make<ast::node::object_construct>(
+                            type::to_ast(type, ctor_def->source_location())
+                        );
+                assert(construct);
+                assert(ctor_def);
+                construct->type = type;
+                construct->set_source_location(*ctor_def);
+
+                return construct;
+            };
+
+        auto const generate_default_initialize_ast
+            = [&](auto const& name, auto const& type)
+            {
+                auto construct = generate_default_construct_ast(type);
+                assert(construct);
+                auto decl = helper::make<ast::node::variable_decl>(false, name, boost::none);
+                assert(decl);
+                auto init = helper::make<ast::node::initialize_stmt>(
+                            std::move(decl),
+                            construct
+                        );
+                assert(init);
+                decl->set_source_location(*construct);
+                init->set_source_location(*construct);
+
+                return init;
+            };
+
         // Note:
         // Check all non-initialized members are default constructible.
         for (auto const& v : map) {
-            if (!is_initialized(v.first)
-                    && v.second
-                    && !v.second.is_default_constructible()) {
-                semantic_error(
-                        ctor_def,
-                        boost::format(
-                            "  Instance variable '@%1%' must be initialized explicitly in constructor because its type '%2%' is not default constructible"
-                        ) % v.first % v.second.to_string()
-                    );
-                fail = true;
+            if (!is_initialized(v.first) && v.second) {
+                if (!v.second.is_default_constructible()) {
+                    semantic_error(
+                            ctor_def,
+                            boost::format(
+                                "  Instance variable '@%1%' must be initialized explicitly in constructor because its type '%2%' is not default constructible"
+                            ) % v.first % v.second.to_string()
+                        );
+                    fail = true;
+                } else if (auto const t = type::get<type::class_type>(v.second)){
+                    // Note:
+                    // If the type is default constructible and not initialized yet,
+                    // add default construction to the body of constructor
+                    auto init = generate_default_initialize_ast('@' + v.first, *t);
+                    assert(init);
+                    failed += dispatch_forward_analyzer(init, ctor->body);
+                    if (!walk_recursively_with(ctor->body, init)) {
+                        semantic_error(
+                                ctor_def,
+                                boost::format(
+                                    "  Failed to generate default construction of type '%1%' for instance variable '@%2%'"
+                                ) % v.second.to_string() % v.first
+                            );
+                        fail = true;
+                    }
+
+                    body_stmts.emplace(std::begin(body_stmts), std::move(init));
+                }
             }
         }
 
@@ -2079,7 +2149,9 @@ public:
     template<class Walker>
     void visit(ast::node::object_construct const& obj, Walker const& w)
     {
-        obj->type = from_type_node(obj->obj_type);
+        if (!obj->type) {
+            obj->type = from_type_node(obj->obj_type);
+        }
         if (!obj->type) {
             semantic_error(obj, "  Invalid type for object construction");
             return;

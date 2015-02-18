@@ -470,7 +470,7 @@ struct object_construct final : public expression {
     scope::weak_func_scope callee_ctor_scope;
 
     object_construct(node::any_type const& t,
-                     decltype(args) const& args) noexcept
+                     decltype(args) const& args = {}) noexcept
         : expression(), obj_type(t), args(args)
     {}
 
@@ -769,6 +769,10 @@ struct initialize_stmt final : public statement {
     initialize_stmt(decltype(var_decls) const& vars,
                     decltype(maybe_rhs_exprs) const& rhss = boost::none) noexcept
         : statement(), var_decls(vars), maybe_rhs_exprs(rhss)
+    {}
+
+    initialize_stmt(node::variable_decl && lhs, node::any_expr const& rhs)
+        : statement(), var_decls({lhs}), maybe_rhs_exprs(std::vector<node::any_expr>{rhs})
     {}
 
     std::string to_string() const noexcept override

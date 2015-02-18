@@ -126,11 +126,39 @@ inline auto indices(I const i) noexcept
     return boost::irange<I>(0, i);
 }
 
+template<class T>
+inline auto indices(std::vector<T> const& v) noexcept
+{
+    return indices(v.size());
+}
+
 template<class I1, class I2>
 inline auto indices(I1 const i1, I2 const i2) noexcept
 {
     assert(i1 <= i2);
     return boost::irange<I1>(i1, static_cast<I1>(i2));
+}
+
+// Note:
+// Check it is signed because i-1 may cause overflow
+template<class I, typename std::enable_if<std::is_signed<I>::value>::type *& = helper::enabler>
+inline auto rindices(I const i) noexcept
+{
+    assert(i >= 0);
+    return boost::irange<I>(i-1, -1, -1);
+}
+
+template<class T>
+inline auto rindices(std::vector<T> const& v) noexcept
+{
+    return rindices(static_cast<int>(v.size()));
+}
+
+template<class I1, class I2, typename std::enable_if<std::is_signed<I2>::value>::type *& = helper::enabler>
+inline auto rindices(I1 const i1, I2 const i2) noexcept
+{
+    assert(i1 >= i2);
+    return boost::irange<I2>(i2-1, static_cast<I2>(i1)-1, -1);
 }
 
 template<class AssociatedContainer, class T>

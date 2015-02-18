@@ -217,14 +217,12 @@ public:
 
     result_type operator()(class_type const& t) const
     {
-        assert(!t->ref.expired());
-        auto const scope = t->ref.lock();
-        auto instantiated = prepare_vector(scope->instance_var_symbols);
-        for (auto const& i : scope->instance_var_symbols) {
-            instantiated.push_back(apply_recursively(i->type));
+        auto instantiated = prepare_vector(t->param_types);
+        for (auto const& p : t->param_types) {
+            instantiated.push_back(apply_recursively(p));
         }
 
-        return make<ast::node::primary_type>(scope->name, instantiated);
+        return make<ast::node::primary_type>(t->name, instantiated);
     }
 
     result_type operator()(tuple_type const& t) const
