@@ -1760,33 +1760,48 @@ public:
         }
 
         auto const generate_default_construct_ast
-            = [&ctor_def](auto const& type)
+            = [&ctor_def](auto const& type) -> ast::node::object_construct
             {
+                auto const ctor_candidates
+                    = type->ref.lock()->resolve_ctor({type});
+                if (ctor_candidates.size() != 1u) {
+                    return nullptr;
+                }
+
                 auto construct
                     = helper::make<ast::node::object_construct>(
                             type::to_ast(type, ctor_def->source_location())
                         );
-                assert(construct);
-                assert(ctor_def);
-                construct->type = type;
                 construct->set_source_location(*ctor_def);
+                construct->type = type;
+                construct->constructed_class_scope = type->ref;
+                construct->callee_ctor_scope = *std::begin(ctor_candidates);
 
                 return construct;
             };
 
         auto const generate_default_initialize_ast
-            = [&](auto const& name, auto const& type)
+            = [&](auto const& name, auto const& type) -> ast::node::initialize_stmt
             {
                 auto construct = generate_default_construct_ast(type);
-                assert(construct);
+                if (!construct) {
+                    return nullptr;
+                }
+
                 auto decl = helper::make<ast::node::variable_decl>(false, name, boost::none);
-                assert(decl);
+                decl->set_source_location(*construct);
+                {
+                    auto const new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
+                    decl->symbol = new_var;
+                    new_var->type = construct->type;
+                    ctor->body->define_variable(new_var);
+                }
+
                 auto init = helper::make<ast::node::initialize_stmt>(
                             std::move(decl),
                             construct
                         );
                 assert(init);
-                decl->set_source_location(*construct);
                 init->set_source_location(*construct);
 
                 return init;
@@ -1809,9 +1824,7 @@ public:
                     // If the type is default constructible and not initialized yet,
                     // add default construction to the body of constructor
                     auto init = generate_default_initialize_ast('@' + v.first, *t);
-                    assert(init);
-                    failed += dispatch_forward_analyzer(init, ctor->body);
-                    if (!walk_recursively_with(ctor->body, init)) {
+                    if (!init) {
                         semantic_error(
                                 ctor_def,
                                 boost::format(
@@ -2149,9 +2162,7 @@ public:
     template<class Walker>
     void visit(ast::node::object_construct const& obj, Walker const& w)
     {
-        if (!obj->type) {
-            obj->type = from_type_node(obj->obj_type);
-        }
+        obj->type = from_type_node(obj->obj_type);
         if (!obj->type) {
             semantic_error(obj, "  Invalid type for object construction");
             return;
