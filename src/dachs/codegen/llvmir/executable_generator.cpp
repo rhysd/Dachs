@@ -10,6 +10,7 @@
 #include <llvm/Target/TargetLibraryInfo.h>
 #include <llvm/Pass.h>
 #include <llvm/PassManager.h>
+#include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Support/ToolOutputFile.h>
 #include <llvm/Support/FormattedStream.h>
@@ -152,6 +153,16 @@ public:
         }
         pm_builder.SizeLevel = 0u;
         pm_builder.LibraryInfo = new llvm::TargetLibraryInfo(ctx.triple);
+
+        switch (opt) {
+        case opt_level::release:
+        case opt_level::none:
+            pm_builder.Inliner = llvm::createFunctionInliningPass(pm_builder.OptLevel, pm_builder.SizeLevel);
+            break;
+        case opt_level::debug:
+        defaut:
+            break;
+        }
     }
 
     template<class String>
