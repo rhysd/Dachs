@@ -1760,13 +1760,21 @@ public:
         }
 
         auto const generate_default_construct_ast
-            = [&ctor_def](auto const& type) -> ast::node::object_construct
+            = [&ctor_def, this](auto const& type) -> ast::node::object_construct
             {
+                assert(!type->is_template());
+
                 auto const ctor_candidates
                     = type->ref.lock()->resolve_ctor({type});
                 if (ctor_candidates.size() != 1u) {
                     return nullptr;
                 }
+
+                auto ctor = *std::begin(ctor_candidates);
+                if (ctor->is_template()) {
+                    std::tie(std::ignore, ctor) = instantiate_function_from_template(ctor->get_ast_node(), ctor, {type});
+                }
+                assert(!ctor->is_template());
 
                 auto construct
                     = helper::make<ast::node::object_construct>(
@@ -1775,7 +1783,7 @@ public:
                 construct->set_source_location(*ctor_def);
                 construct->type = type;
                 construct->constructed_class_scope = type->ref;
-                construct->callee_ctor_scope = *std::begin(ctor_candidates);
+                construct->callee_ctor_scope = ctor;
 
                 return construct;
             };

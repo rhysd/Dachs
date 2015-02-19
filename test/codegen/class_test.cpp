@@ -493,6 +493,53 @@ BOOST_AUTO_TEST_CASE(constructor_restriction)
         end
     )");
 
+    // @b in X is default constructible
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a, b
+
+            init
+                @a := 42
+                @foo(@b.a)
+            end
+
+            func foo(a)
+                a.println
+            end
+        end
+
+        class Y
+            a : int
+        end
+
+        func main
+            new X(int, Y)
+        end
+    )");
+
+    // @b in X is default constructible
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a, b
+
+            init
+                @a := 42
+                @foo(@b.a)
+            end
+
+            func foo(a)
+                a.println
+            end
+        end
+
+        class Y
+            a
+        end
+
+        func main
+            new X(int, Y(int))
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(do_not_degrade)
