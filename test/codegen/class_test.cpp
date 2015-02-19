@@ -493,6 +493,37 @@ BOOST_AUTO_TEST_CASE(constructor_restriction)
         end
     )");
 
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a : int
+
+            init
+                @foo()
+            end
+
+            func foo
+                @a.println
+            end
+        end
+
+        class X2
+            a
+
+            init(@a)
+                @foo()
+            end
+
+            func foo
+                @a.println
+            end
+        end
+
+        func main
+            new X
+            new X2{42}
+        end
+    )");
+
     // @b in X is default constructible
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         class X

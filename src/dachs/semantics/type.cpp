@@ -217,6 +217,16 @@ public:
 
     result_type operator()(class_type const& t) const
     {
+        // XXX:
+        // This implementation is not sufficient.
+        // If the type 't' is a class instantiated from class template,
+        // it can't set information of instantiation to the result AST node.
+        // (e.g. what types it is instantiated with?)
+        // To implement it, at first look up the class by name and check the
+        // result type is template or not.  If template, check the difference
+        // between the result type and the class type 't'.  By knowing the
+        // difference,  I can know what types are set to instantiate the class
+        // type 't'.  Then I can set the types to the result type of this function.
         auto instantiated = prepare_vector(t->param_types);
         for (auto const& p : t->param_types) {
             instantiated.push_back(apply_recursively(p));
