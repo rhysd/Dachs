@@ -867,22 +867,6 @@ BOOST_AUTO_TEST_SUITE(class_definition)
                 new X(int, symbol){42}
             end
         )");
-
-        CHECK_THROW_SEMANTIC_ERROR(R"(
-            class X
-                init
-                    @foo()
-                end
-
-                func foo
-                    println("foo")
-                end
-            end
-
-            func main
-                (new X).foo
-            end
-        )");
     }
 
     BOOST_AUTO_TEST_CASE(function_duplication_check_for_class_template_param)
