@@ -1596,6 +1596,8 @@ public:
         return map;
     }
 
+    // TODO:
+    // This function is too long.  It should be refactored.
     template<class Map>
     boost::optional<Map> check_template_instantiation_with_ctor(Map &&map, scope::func_scope const& ctor, ast::node::function_definition const& ctor_def)
     {
@@ -1659,6 +1661,8 @@ public:
                 return map.size() == initialized_names.size();
             };
 
+        auto &body_stmts = ctor_def->body->value;
+
         // Note:
         // Parameter types are already checked in forward analyzer
         for (auto const& p : ctor_def->params) {
@@ -1670,8 +1674,23 @@ public:
             }
         }
 
-        for (auto &stmt : ctor_def->body->value) {
-            if (!all_initialized()) {
+        auto const init_end_point_idx
+            = [&body_stmts]() -> std::size_t
+            {
+                for (auto const idx : helper::rindices(body_stmts)) {
+                    auto const& stmt = body_stmts[idx];
+                    if (auto const& init = get_as<ast::node::initialize_stmt>(stmt)) {
+                        if (any_of((*init)->var_decls, [](auto const& d){ return d->is_instance_var(); })) {
+                            return idx + 1;
+                        }
+                    }
+                }
+                return 0;
+            }();
+
+        for (auto const idx : helper::indices(body_stmts)) {
+            auto &stmt = body_stmts[idx];
+            if (idx < init_end_point_idx && !all_initialized()) {
                 self_access_checker checker;
                 ast::walk_topdown(stmt, checker);
                 if (checker.contains_self_access()) {
@@ -1740,19 +1759,91 @@ public:
             fail = true;
         }
 
+        auto const generate_default_construct_ast
+            = [&ctor_def, this](auto const& type) -> ast::node::object_construct
+            {
+                assert(!type->is_template());
+
+                auto const ctor_candidates
+                    = type->ref.lock()->resolve_ctor({type});
+                if (ctor_candidates.size() != 1u) {
+                    return nullptr;
+                }
+
+                auto ctor = *std::begin(ctor_candidates);
+                if (ctor->is_template()) {
+                    std::tie(std::ignore, ctor) = instantiate_function_from_template(ctor->get_ast_node(), ctor, {type});
+                }
+                assert(!ctor->is_template());
+
+                auto construct
+                    = helper::make<ast::node::object_construct>(
+                            type::to_ast(type, ctor_def->source_location())
+                        );
+                construct->set_source_location(*ctor_def);
+                construct->type = type;
+                construct->constructed_class_scope = type->ref;
+                construct->callee_ctor_scope = ctor;
+
+                return construct;
+            };
+
+        auto const generate_default_initialize_ast
+            = [&](auto const& name, auto const& type) -> ast::node::initialize_stmt
+            {
+                auto construct = generate_default_construct_ast(type);
+                if (!construct) {
+                    return nullptr;
+                }
+
+                auto decl = helper::make<ast::node::variable_decl>(false, name, boost::none);
+                decl->set_source_location(*construct);
+                {
+                    auto const new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
+                    decl->symbol = new_var;
+                    new_var->type = construct->type;
+                    ctor->body->define_variable(new_var);
+                }
+
+                auto init = helper::make<ast::node::initialize_stmt>(
+                            std::move(decl),
+                            construct
+                        );
+                assert(init);
+                init->set_source_location(*construct);
+
+                return init;
+            };
+
         // Note:
         // Check all non-initialized members are default constructible.
         for (auto const& v : map) {
-            if (!is_initialized(v.first)
-                    && v.second
-                    && !v.second.is_default_constructible()) {
-                semantic_error(
-                        ctor_def,
-                        boost::format(
-                            "  Instance variable '@%1%' must be initialized explicitly in constructor because its type '%2%' is not default constructible"
-                        ) % v.first % v.second.to_string()
-                    );
-                fail = true;
+            if (!is_initialized(v.first) && v.second) {
+                if (!v.second.is_default_constructible()) {
+                    semantic_error(
+                            ctor_def,
+                            boost::format(
+                                "  Instance variable '@%1%' must be initialized explicitly in constructor because its type '%2%' is not default constructible"
+                            ) % v.first % v.second.to_string()
+                        );
+                    fail = true;
+                } else if (auto const t = type::get<type::class_type>(v.second)){
+                    // Note:
+                    // If the type is default constructible and not initialized yet,
+                    // add default construction to the body of constructor
+                    auto init = generate_default_initialize_ast('@' + v.first, *t);
+                    if (!init) {
+                        semantic_error(
+                                ctor_def,
+                                boost::format(
+                                    "  Failed to generate default construction of type '%1%' for instance variable '@%2%'"
+                                ) % v.second.to_string() % v.first
+                            );
+                        fail = true;
+                    }
+
+                    body_stmts.emplace(std::begin(body_stmts), std::move(init));
+                }
             }
         }
 
