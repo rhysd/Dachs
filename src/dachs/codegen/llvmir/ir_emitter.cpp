@@ -271,7 +271,7 @@ class llvm_ir_emitter {
                 module
             );
         func_ir->addFnAttr(llvm::Attribute::NoUnwind);
-        func_value->addFnAttr(llvm::Attribute::InlineHint);
+        func_ir->addFnAttr(llvm::Attribute::InlineHint);
 
         check(func_def, func_type_ir, "function");
 

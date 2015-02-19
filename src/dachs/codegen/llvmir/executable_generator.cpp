@@ -82,9 +82,10 @@ class binary_generator final {
         ctx.target_machine->setOptLevel(get_target_machine_opt_level());
 
         llvm::PassManager pm;
+        pm_builder.populateModulePassManager(pm);
+
         ctx.target_machine->addAnalysisPasses(pm);
         add_data_layout(pm);
-        pm_builder.populateModulePassManager(pm);
 
         if (ctx.target_machine->addPassesToEmitFile(pm, os, llvm::TargetMachine::CGFT_ObjectFile)) {
             return false;
@@ -156,11 +157,27 @@ public:
 
         switch (opt) {
         case opt_level::release:
+#if (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 4)
+            // Note:
+            // 225 is a threshold used for -O3
+            pm_builder.Inliner = llvm::createFunctionInliningPass(275);
+            break;
+#endif
+
         case opt_level::none:
+#if (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 4)
+            // Note:
+            // 225 is a threshold used for -O2
+            pm_builder.Inliner = llvm::createFunctionInliningPass(225);
+#elif (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 5)
             pm_builder.Inliner = llvm::createFunctionInliningPass(pm_builder.OptLevel, pm_builder.SizeLevel);
+#else
+# error LLVM: Not supported version.
+#endif
+
             break;
         case opt_level::debug:
-        defaut:
+        default:
             break;
         }
     }
