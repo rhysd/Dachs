@@ -7,11 +7,12 @@ func len(str : string)
 end
 
 class BrainFxxk
-  - memory, pointer, tape, head
+  - memory, tape
+  , pointer : uint
+  , head : uint
 
-    init(@tape, @memory)
-        @pointer := 0u
-        @head := 0u
+    init(@memory)
+        @tape := ""
     end
 
   - func incr
@@ -90,9 +91,11 @@ class BrainFxxk
         end
     end
 
-    func run
-        l := len(@tape)
+    func run(code)
         @head = 0u
+        @pointer = 0u
+        @tape = code
+        l := len(@tape)
 
         for @head < l
             @step()
@@ -105,6 +108,6 @@ func main
     program := "+++++++++[>++++++++>+++++++++++>+++++<<<-]>.>++.+++++++..+++.>-.------------.<++++++++.--------.+++.------.--------.>+."
 
     var memory := new [int]{5000u}
-    var interpreter := new BrainFxxk{program, memory}
-    interpreter.run
+    var interpreter := new BrainFxxk{memory}
+    interpreter.run program
 end
