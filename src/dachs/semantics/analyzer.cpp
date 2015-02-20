@@ -539,6 +539,35 @@ class symbol_analyzer {
         return already_visited_ctors.find(ctor) != std::end(already_visited_ctors);
     }
 
+    template<class Location>
+    auto generate_default_construct_ast(type::class_type const& t, Location && location)
+        -> ast::node::object_construct 
+    {
+        assert(!t->is_template());
+
+        auto const ctor_candidates = t->ref.lock()->resolve_ctor({t});
+        if (ctor_candidates.size() != 1u) {
+            return nullptr;
+        }
+
+        auto ctor = *std::begin(ctor_candidates);
+        if (ctor->is_template()) {
+            std::tie(std::ignore, ctor) = instantiate_function_from_template(ctor->get_ast_node(), ctor, {t});
+        }
+        assert(!ctor->is_template());
+
+        auto construct
+            = helper::make<ast::node::object_construct>(
+                    type::to_ast(t, location)
+                );
+        construct->set_source_location(std::forward<Location>(location));
+        construct->type = t;
+        construct->constructed_class_scope = t->ref;
+        construct->callee_ctor_scope = ctor;
+
+        return construct;
+    }
+
     template<class Predicate>
     auto with_current_scope(Predicate const& p) const
     {
@@ -1759,39 +1788,10 @@ public:
             fail = true;
         }
 
-        auto const generate_default_construct_ast
-            = [&ctor_def, this](auto const& type) -> ast::node::object_construct
-            {
-                assert(!type->is_template());
-
-                auto const ctor_candidates
-                    = type->ref.lock()->resolve_ctor({type});
-                if (ctor_candidates.size() != 1u) {
-                    return nullptr;
-                }
-
-                auto ctor = *std::begin(ctor_candidates);
-                if (ctor->is_template()) {
-                    std::tie(std::ignore, ctor) = instantiate_function_from_template(ctor->get_ast_node(), ctor, {type});
-                }
-                assert(!ctor->is_template());
-
-                auto construct
-                    = helper::make<ast::node::object_construct>(
-                            type::to_ast(type, ctor_def->source_location())
-                        );
-                construct->set_source_location(*ctor_def);
-                construct->type = type;
-                construct->constructed_class_scope = type->ref;
-                construct->callee_ctor_scope = ctor;
-
-                return construct;
-            };
-
         auto const generate_default_initialize_ast
-            = [&](auto const& name, auto const& type) -> ast::node::initialize_stmt
+            = [&, this](auto const& name, auto const& type) -> ast::node::initialize_stmt
             {
-                auto construct = generate_default_construct_ast(type);
+                auto construct = generate_default_construct_ast(type, ctor_def->source_location());
                 if (!construct) {
                     return nullptr;
                 }
@@ -2396,8 +2396,28 @@ public:
                     // When it fails to define the variable
                     return;
                 }
-                if (!v->symbol.lock()->type) {
-                    semantic_error(init, boost::format("  Type of '%1%' can't be deduced") % v->name);
+                auto const& t = v->symbol.lock()->type;
+                if (!t) {
+                    semantic_error(v, boost::format("  Type of '%1%' can't be deduced") % v->name);
+                } else if (!t.is_default_constructible()) {
+                    semantic_error(
+                            v,
+                            boost::format("  Variable '%1%' must be initialized explicitly because type '%2%' is not default constructible")
+                                % v->name % t.to_string()
+                        );
+                } else if (auto const clazz = type::get<type::class_type>(t)) {
+                    auto default_construct = generate_default_construct_ast(*clazz, v->source_location());
+                    if (default_construct) {
+                        init->maybe_rhs_exprs = std::vector<ast::node::any_expr>{
+                                default_construct
+                            };
+                    } else {
+                        semantic_error(
+                                v,
+                                boost::format("  Generate default construction of type '%1%' to initialize '%2%' failed")
+                                    % t.to_string() % v->name
+                            );
+                    }
                 }
             }
             return;

@@ -210,6 +210,10 @@ public:
         : location(std::move(l))
     {}
 
+    explicit type_to_node_translator(ast::location_type const& l) noexcept
+        : location(l)
+    {}
+
     result_type operator()(builtin_type const& t) const
     {
         return make<ast::node::primary_type>(t->name);
@@ -520,6 +524,11 @@ any_type from_ast(ast::node::any_type const& t, scope::any_scope const& current)
 ast::node::any_type to_ast(any_type const& t, ast::location_type && location) noexcept
 {
     return boost::apply_visitor(detail::type_to_node_translator{std::move(location)}, t);
+}
+
+ast::node::any_type to_ast(any_type const& t, ast::location_type const& location) noexcept
+{
+    return boost::apply_visitor(detail::type_to_node_translator{location}, t);
 }
 
 } // namespace type

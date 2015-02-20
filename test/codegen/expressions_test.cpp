@@ -98,18 +98,21 @@ BOOST_AUTO_TEST_CASE(variable)
             d := 3.14
             e := true
             f := 42u
+            g := :foo
             var va := a
             var vb := b
             var vc := c
             var vd := d
             var ve := e
             var vf := f
+            var vg := g
             var vva := va
             var vvb := vb
             var vvc := vc
             var vvd := vd
             var vve := ve
             var vvf := vf
+            var vvg := vg
 
             va = 42
             vb = 'a'
@@ -117,6 +120,7 @@ BOOST_AUTO_TEST_CASE(variable)
             vd = 3.14
             ve = true
             vf = 42u
+            vg = :bar
 
             va : int = 42
             vb : char = 'a'
@@ -124,10 +128,10 @@ BOOST_AUTO_TEST_CASE(variable)
             vd : float = 3.14
             ve : bool = true
             vf : uint = 42u
+            vg : symbol = :poyo
 
             var a2 : int
             var b2 : char
-            var c2 : string
             var d2 : float
             var e2 : bool
             var f2 : uint

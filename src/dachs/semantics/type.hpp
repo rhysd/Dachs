@@ -750,6 +750,7 @@ inline any_type type_of(Variant const& v) noexcept
 
 any_type from_ast(ast::node::any_type const&, scope::any_scope const& current) noexcept;
 ast::node::any_type to_ast(any_type const&, ast::location_type &&) noexcept;
+ast::node::any_type to_ast(any_type const&, ast::location_type const&) noexcept;
 bool is_instantiated_from(class_type const& instantiated_class, class_type const& template_class);
 
 template<class String>
