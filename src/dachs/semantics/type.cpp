@@ -5,7 +5,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/algorithm/string/join.hpp>
-#include <boost/algorithm/cxx11/all_of.hpp>
+#include <boost/algorithm/cxx11/any_of.hpp>
 
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/type.hpp"
@@ -466,8 +466,7 @@ bool any_type::is_template() const noexcept
 {
     if (auto const c = helper::variant::get_as<class_type>(value)) {
         // Note: When the type is a class, check if it is class template
-        assert(!(*c)->ref.expired());
-        return (*c)->ref.lock()->is_template();
+        return (*c)->is_template();
     } else {
         return helper::variant::has<template_type>(value);
     }
@@ -677,7 +676,7 @@ bool class_type::is_template() const
         assert(!ref.expired());
         return ref.lock()->is_template();
     } else {
-        return boost::algorithm::all_of(
+        return boost::algorithm::any_of(
                 param_types,
                 [](auto const& t){ return t.is_template(); }
             );
