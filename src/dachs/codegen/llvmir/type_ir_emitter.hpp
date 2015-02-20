@@ -217,7 +217,7 @@ class type_ir_emitter {
     };
 
     template<class T>
-    struct should_dereference
+    struct should_treat_with_ptr
         : any_same<
             typename std::remove_reference<T>::type,
             type::class_type,
@@ -242,18 +242,20 @@ public:
     template<
         class T,
         helper::enable_if<
-            should_dereference<T>::value
+            should_treat_with_ptr<T>::value
         > *& = helper::enabler
     >
     llvm::Type *emit(T const& t)
     {
-        return emit_alloc_type(t);
+        return llvm::PointerType::getUnqual(
+                emit_alloc_type(t)
+            );
     }
 
     template<
         class T,
         helper::disable_if<
-            should_dereference<T>::value
+            should_treat_with_ptr<T>::value
         > *& = helper::enabler
     >
     llvm::Type *emit(T const& t)

@@ -205,7 +205,7 @@ class llvm_ir_emitter {
                 : params_type{};
 
         auto *const func_ty = llvm::FunctionType::get(
-                type_emitter.emit(*main_def->ret_type),
+                type_emitter.emit_alloc_type(*main_def->ret_type),
                 param_tys,
                 false
             );
@@ -247,13 +247,13 @@ class llvm_ir_emitter {
         param_type_irs.reserve(func_def->params.size());
 
         for (auto const& param_sym : scope->params) {
-            auto *const t = type_emitter.emit(param_sym->type);
+            auto *const t = type_emitter.emit_alloc_type(param_sym->type);
             assert(t);
             param_type_irs.push_back(t);
         }
 
         auto *const func_type_ir = llvm::FunctionType::get(
-                type_emitter.emit(*func_def->ret_type),
+                type_emitter.emit_alloc_type(*func_def->ret_type),
                 param_type_irs,
                 false // Non-variadic
             );
@@ -480,7 +480,7 @@ public:
             val operator()(char const ch)
             {
                 return llvm::ConstantInt::get(
-                        t_emitter.emit(pl->type),
+                        t_emitter.emit_alloc_type(pl->type),
                         static_cast<std::uint8_t const>(ch), false
                     );
             }
@@ -503,7 +503,7 @@ public:
             val operator()(int const i)
             {
                 return llvm::ConstantInt::getSigned(
-                        t_emitter.emit(pl->type),
+                        t_emitter.emit_alloc_type(pl->type),
                         static_cast<std::int64_t const>(i)
                     );
             }
@@ -511,7 +511,7 @@ public:
             val operator()(unsigned int const ui)
             {
                 return llvm::ConstantInt::get(
-                        t_emitter.emit(pl->type),
+                        t_emitter.emit_alloc_type(pl->type),
                         static_cast<std::uint64_t const>(ui), false
                     );
             }
@@ -540,7 +540,7 @@ public:
 
             return llvm::ConstantStruct::getAnon(ctx.llvm_context, elem_consts);
         } else {
-            auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(t));
+            auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit_alloc_type(t));
             for (auto const idx : helper::indices(elem_values.size())) {
                 auto *const elem_val = get_operand(elem_values[idx]);
                 ctx.builder.CreateStore(
@@ -586,7 +586,7 @@ public:
 
             return llvm::ConstantArray::get(type_emitter.emit_fixed_array(t), elem_consts);
         } else {
-            auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(t));
+            auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit_alloc_type(t));
             for (auto const idx : helper::indices(elem_exprs.size())) {
                 ctx.builder.CreateStore(
                         get_operand(emit(elem_exprs[idx])),
@@ -692,7 +692,7 @@ public:
         assert(register_val);
         var_table.erase_register_value(param_sym);
 
-        assert(type_emitter.emit(param_sym->type) == register_val->getType());
+        assert(type_emitter.emit_alloc_type(param_sym->type) == register_val->getType());
 
         auto const inst
             = check(
@@ -978,7 +978,7 @@ public:
         }
 
         if (auto const g = type::get<type::generic_func_type>(var->type)) {
-            auto *const ty = llvm::dyn_cast<llvm::StructType>(type_emitter.emit(*g));
+            auto *const ty = llvm::dyn_cast<llvm::StructType>(type_emitter.emit_alloc_type(*g));
             assert(ty);
             return llvm::ConstantStruct::get(ty, {});
         } else {
@@ -1265,7 +1265,7 @@ public:
 
         auto const& param = for_->iter_vars[0];
         auto const sym = param->param_symbol;
-        auto const iter_t = type_emitter.emit(param->type);
+        auto const iter_t = type_emitter.emit_alloc_type(param->type);
         auto *const allocated =
             param->is_var ? ctx.builder.CreateAlloca(iter_t, nullptr, param->name) : nullptr;
 
@@ -1321,7 +1321,7 @@ public:
             for (auto const& d : init->var_decls) {
                 auto const sym = d->symbol.lock();
                 assert(d->maybe_type);
-                auto const type_ir = type_emitter.emit(sym->type);
+                auto const type_ir = type_emitter.emit_alloc_type(sym->type);
                 auto *const allocated = ctx.builder.CreateAlloca(type_ir, nullptr, sym->name);
                 ctx.builder.CreateMemSet(
                         allocated,
@@ -1630,7 +1630,7 @@ public:
         auto *const else_val = get_operand(emit(if_->else_expr));
         helper.terminate_with_br(merge_block, merge_block);
 
-        auto *const phi = ctx.builder.CreatePHI(type_emitter.emit(if_->type), 2, "expr.if.tmp");
+        auto *const phi = ctx.builder.CreatePHI(type_emitter.emit_alloc_type(if_->type), 2, "expr.if.tmp");
         phi->addIncoming(then_val, then_block);
         phi->addIncoming(else_val, else_block);
         return phi;
@@ -1697,7 +1697,7 @@ public:
         auto const& to_type = *maybe_builtin_to_type;
         auto const& from = from_type->name;
         auto const& to = to_type->name;
-        auto *const to_type_ir = type_emitter.emit(to_type);
+        auto *const to_type_ir = type_emitter.emit_alloc_type(to_type);
 
         auto const cast_check
             = [&](auto const v)
@@ -1747,7 +1747,7 @@ public:
 
     val emit_class_object_construct(ast::node::object_construct const& obj, type::class_type const& t, std::vector<val> && arg_values)
     {
-        auto const type_ir = type_emitter.emit(t)->getPointerElementType();
+        auto const type_ir = type_emitter.emit_alloc_type(t)->getPointerElementType();
         assert(type_ir);
         auto const obj_val = ctx.builder.CreateAlloca(type_ir);
         ctx.builder.CreateMemSet(
