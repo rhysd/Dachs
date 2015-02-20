@@ -217,7 +217,7 @@ class type_ir_emitter {
     };
 
     template<class T>
-    struct should_treat_with_ptr
+    struct treats_by_value
         : any_same<
             typename std::remove_reference<T>::type,
             type::class_type,
@@ -241,8 +241,8 @@ public:
 
     template<
         class T,
-        helper::enable_if<
-            should_treat_with_ptr<T>::value
+        helper::disable_if<
+            treats_by_value<T>::value
         > *& = helper::enabler
     >
     llvm::Type *emit(T const& t)
@@ -254,8 +254,8 @@ public:
 
     template<
         class T,
-        helper::disable_if<
-            should_treat_with_ptr<T>::value
+        helper::enable_if<
+            treats_by_value<T>::value
         > *& = helper::enabler
     >
     llvm::Type *emit(T const& t)

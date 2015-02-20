@@ -247,7 +247,7 @@ class llvm_ir_emitter {
         param_type_irs.reserve(func_def->params.size());
 
         for (auto const& param_sym : scope->params) {
-            auto *const t = type_emitter.emit_alloc_type(param_sym->type);
+            auto *const t = type_emitter.emit(param_sym->type);
             assert(t);
             param_type_irs.push_back(t);
         }
@@ -530,6 +530,8 @@ public:
             elem_values.push_back(emit(e));
         }
 
+        auto *const ty = type_emitter.emit_alloc_type(t);
+
         if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
             std::vector<llvm::Constant *> elem_consts;
             for (auto const v : elem_values) {
@@ -538,9 +540,18 @@ public:
                 elem_consts.push_back(constant);
             }
 
-            return llvm::ConstantStruct::getAnon(ctx.llvm_context, elem_consts);
+            auto const constant = new llvm::GlobalVariable(
+                        *module,
+                        ty,
+                        true/*constant*/,
+                        llvm::GlobalValue::PrivateLinkage,
+                        llvm::ConstantStruct::getAnon(ctx.llvm_context, elem_consts)
+                    );
+            constant->setUnnamedAddr(true);
+            return constant;
         } else {
-            auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit_alloc_type(t));
+            auto *const alloca_inst = ctx.builder.CreateAlloca(ty);
+
             for (auto const idx : helper::indices(elem_values.size())) {
                 auto *const elem_val = get_operand(elem_values[idx]);
                 ctx.builder.CreateStore(
@@ -576,6 +587,8 @@ public:
             elem_values.push_back(emit(e));
         }
 
+        auto *const ty = type_emitter.emit_alloc_type(t);
+
         if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
             std::vector<llvm::Constant *> elem_consts;
             for (auto const v : elem_values) {
@@ -584,9 +597,17 @@ public:
                 elem_consts.push_back(constant);
             }
 
-            return llvm::ConstantArray::get(type_emitter.emit_fixed_array(t), elem_consts);
+            auto const constant = new llvm::GlobalVariable(
+                        *module,
+                        ty,
+                        true /*constant*/,
+                        llvm::GlobalValue::PrivateLinkage,
+                        llvm::ConstantArray::get(type_emitter.emit_fixed_array(t), elem_consts)
+                    );
+            constant->setUnnamedAddr(true);
+            return constant;
         } else {
-            auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit_alloc_type(t));
+            auto *const alloca_inst = ctx.builder.CreateAlloca(ty);
             for (auto const idx : helper::indices(elem_exprs.size())) {
                 ctx.builder.CreateStore(
                         get_operand(emit(elem_exprs[idx])),
@@ -889,12 +910,29 @@ public:
         return emit_non_builtin_callee(n, scope);
     }
 
+    template<class Expr>
+    val emit_arg_value(Expr const& expr)
+    {
+        auto v = emit(expr);
+        if (!v->getType()->isPointerTy()) {
+            return v;
+        }
+
+        if (auto const builtin = type::get<type::builtin_type>(type::type_of(expr))) {
+            if ((*builtin)->name != "string") {
+                v = ctx.builder.CreateLoad(v);
+            }
+        }
+
+        return v;
+    }
+
     val emit(ast::node::func_invocation const& invocation)
     {
         std::vector<val> args;
         args.reserve(invocation->args.size());
         for (auto const& a : invocation->args) {
-            args.push_back(get_operand(emit(a)));
+            args.push_back(emit_arg_value(a));
         }
 
         auto const child_type = type::type_of(invocation->child);
@@ -1029,35 +1067,33 @@ public:
                 if (idx >= size) {
                     error(access, boost::format("Array index is out of bounds (size:%1%, index:%2%)") % size % idx);
                 }
+            }
 
-                return with_check(ctx.builder.CreateExtractValue(child_val, idx));
-            } else {
-                // Note:
-                // When i8** (it means the arguments of 'main')
-                if (is_ptr
-                    && ty->getPointerElementType()->isPointerTy()
-                    && ty->getPointerElementType()->getPointerElementType()->isIntegerTy(8u)
-                ) {
-                    return ctx.builder.CreateGEP(
-                            child_val,
-                            index_val
-                        );
-                }
-
-                return with_check(
-                        ctx.builder.CreateInBoundsGEP(
-                            ty->isPointerTy() ?
-                                child_val :
-                                allocator.alloc_and_deep_copy(child_val),
-                            (val [2]){
-                                ctx.builder.getInt32(0u),
-                                index_val->getType()->isIntegerTy(32u)
-                                    ? index_val
-                                    : ctx.builder.CreateIntCast(index_val, ctx.builder.getInt32Ty(), true)
-                            }
-                        )
+            // Note:
+            // When i8** (it means the arguments of 'main')
+            if (is_ptr
+                && ty->getPointerElementType()->isPointerTy()
+                && ty->getPointerElementType()->getPointerElementType()->isIntegerTy(8u)
+            ) {
+                return ctx.builder.CreateGEP(
+                        child_val,
+                        index_val
                     );
             }
+
+            return with_check(
+                    ctx.builder.CreateInBoundsGEP(
+                        ty->isPointerTy() ?
+                            child_val :
+                            allocator.alloc_and_deep_copy(child_val),
+                        (val [2]){
+                            ctx.builder.getInt32(0u),
+                            index_val->getType()->isIntegerTy(32u)
+                                ? index_val
+                                : ctx.builder.CreateIntCast(index_val, ctx.builder.getInt32Ty(), true)
+                        }
+                    )
+                );
 
         } else if (child_type.is_builtin("string")) {
 
@@ -1200,7 +1236,9 @@ public:
 
         assert(!ufcs->callee_scope.expired());
 
-        std::vector<val> args = {get_operand(emit(ufcs->child))};
+        std::vector<val> args = {
+                emit_arg_value(ufcs->child)
+            };
         auto const callee = ufcs->callee_scope.lock();
 
         return check(
