@@ -541,9 +541,10 @@ class symbol_analyzer {
 
     template<class Location>
     auto generate_default_construct_ast(type::class_type const& t, Location && location)
-        -> ast::node::object_construct 
+        -> ast::node::object_construct
     {
         assert(!t->is_template());
+        assert(t->param_types.empty());
 
         auto const ctor_candidates = t->ref.lock()->resolve_ctor({t});
         if (ctor_candidates.size() != 1u) {
@@ -2052,6 +2053,8 @@ public:
 
     void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
     {
+        assert(type->param_types.empty());
+
         std::vector<type::type> arg_types = {type};
         arg_types.reserve(obj->args.size()+1);
 
@@ -2073,22 +2076,6 @@ public:
         }
 
         auto scope = type->ref.lock();
-
-        // Note:
-        // If template type parameters are speficied, they should be considered.
-        if (!type->param_types.empty()) {
-            auto const maybe_instantiated = instantiate_class_from_specified_param_types(scope, type->param_types);
-
-            if (auto const error = get_as<std::string>(maybe_instantiated)) {
-                construct_error(*error);
-                return;
-            }
-
-            scope = *get_as<scope::class_scope>(maybe_instantiated);
-
-            arg_types[0] = scope->type;
-        }
-
         auto const ctor_candidates = scope->resolve_ctor(arg_types);
 
         if (ctor_candidates.empty()) {
@@ -2397,9 +2384,27 @@ public:
                     return;
                 }
                 auto const& t = v->symbol.lock()->type;
+
                 if (!t) {
                     semantic_error(v, boost::format("  Type of '%1%' can't be deduced") % v->name);
-                } else if (!t.is_default_constructible()) {
+                    return;
+                }
+
+                {
+                    auto const error = apply_lambda(
+                        [&t, this](auto const& s)
+                        {
+                            class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
+                            return t.apply_visitor(instantiater);
+                        }, current_scope
+                    );
+                    if (error) {
+                        semantic_error(v, *error);
+                        return;
+                    }
+                }
+
+                if (!t.is_default_constructible()) {
                     semantic_error(
                             v,
                             boost::format("  Variable '%1%' must be initialized explicitly because type '%2%' is not default constructible")

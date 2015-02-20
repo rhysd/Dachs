@@ -2321,6 +2321,26 @@ BOOST_AUTO_TEST_CASE(invalid_var_def_without_init)
             var x : X
         end
     )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+        end
+
+        func main
+            var x : X(symbol)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+        end
+
+        func main
+            var x : X(X(symbol))
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

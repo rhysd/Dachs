@@ -141,6 +141,17 @@ BOOST_AUTO_TEST_CASE(variable)
             e3, var f3 := true, 42u
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        func main
+            var x1 : X(int)
+            var x2 : X(X(int))
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(print)
