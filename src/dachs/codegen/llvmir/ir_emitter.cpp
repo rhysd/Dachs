@@ -38,7 +38,6 @@
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/tmp_builtin_operator_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/builtin_func_ir_emitter.hpp"
-#include "dachs/codegen/llvmir/variable_table.hpp"
 #include "dachs/codegen/llvmir/ir_builder_helper.hpp"
 #include "dachs/codegen/llvmir/tmp_member_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/tmp_constructor_ir_emitter.hpp"
@@ -71,11 +70,12 @@ using boost::algorithm::all_of;
 class llvm_ir_emitter {
     using val = llvm::Value *;
     using self = llvm_ir_emitter;
+    using var_table_type = std::unordered_map<symbol::var_symbol, val>;
 
     llvm::Module *module = nullptr;
     context &ctx;
     semantics::semantics_context const& semantics_ctx;
-    variable_table var_table;
+    var_table_type var_table;
     std::unordered_map<scope::func_scope, llvm::Function *const> func_table;
     builtin_function_emitter builtin_func_emitter;
     std::string const& file;
@@ -85,6 +85,42 @@ class llvm_ir_emitter {
     tmp_constructor_ir_emitter builtin_ctor_emitter;
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
     builder::alloc_helper allocator;
+
+    val lookup_var(symbol::var_symbol const& s) const
+    {
+        auto const result = var_table.find(s);
+        if (result == std::end(var_table)) {
+            return nullptr;
+        } else {
+            return result->second;
+        }
+    }
+
+    val lookup_var(std::string const& name) const
+    {
+        auto const result
+            = boost::find_if(
+                    var_table,
+                    [&name](auto const& var){ return var.first->name == name; }
+                );
+
+        if (result == boost::end(var_table)) {
+            return nullptr;
+        } else {
+            return result->second;
+        }
+    }
+
+    bool register_var(symbol::var_symbol const& sym, llvm::Value *const v)
+    {
+        return var_table.emplace(sym, v).second;
+    }
+
+    template<class Symbol>
+    bool register_var(Symbol && sym, llvm::Value *const v)
+    {
+        return var_table.emplace(std::forward<Symbol>(sym), v).second;
+    }
 
     auto push_loop(llvm::BasicBlock *loop_value)
     {
@@ -223,12 +259,12 @@ class llvm_ir_emitter {
             arg_itr->setName("dachs.main.argc");
             // XXX:
             // Owned by variable table only
-            var_table.insert(symbol::make<symbol::var_symbol>(nullptr, "dachs.main.argc"), arg_itr);
+            register_var(symbol::make<symbol::var_symbol>(nullptr, "dachs.main.argc"), arg_itr);
 
             ++arg_itr;
 
             arg_itr->setName(main_scope->params[0]->name);
-            var_table.insert(main_scope->params[0], arg_itr);
+            register_var(main_scope->params[0], arg_itr);
         }
 
         func_value->addFnAttr(llvm::Attribute::NoUnwind);
@@ -280,7 +316,7 @@ class llvm_ir_emitter {
             auto param_itr = std::begin(scope->params);
             for (; param_itr != std::end(scope->params); ++arg_itr, ++param_itr) {
                 arg_itr->setName((*param_itr)->name);
-                var_table.insert(*param_itr, arg_itr);
+                register_var(*param_itr, arg_itr);
             }
         }
 
@@ -348,7 +384,7 @@ class llvm_ir_emitter {
             }
 
             assert(!ref->symbol.expired());
-            return emitter.var_table.lookup_value(ref->symbol.lock());
+            return emitter.lookup_var(ref->symbol.lock());
         }
 
         val emit(ast::node::index_access const& access)
@@ -418,7 +454,7 @@ public:
     llvm_ir_emitter(std::string const& f, context &c, semantics::semantics_context const& sc)
         : ctx(c)
         , semantics_ctx(sc)
-        , var_table(ctx)
+        , var_table()
         , builtin_func_emitter(ctx)
         , file(f)
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
@@ -709,20 +745,19 @@ public:
         // Note:
         // The parameter is already registered as register value for variable table in emit_func_prototype()
         // So at first we delete the value and re-register it as allocated value
-        auto const register_val = var_table.lookup_register_value(param_sym);
-        assert(register_val);
-        var_table.erase_register_value(param_sym);
+        auto const param_val = lookup_var(param_sym);
+        var_table.erase(param_sym);
 
-        assert(type_emitter.emit_alloc_type(param_sym->type) == register_val->getType());
+        assert(type_emitter.emit(param_sym->type) == param_val->getType());
 
         auto const inst
             = check(
                 param,
-                allocator.alloc_and_deep_copy(register_val, param_sym->name),
+                allocator.alloc_and_deep_copy(param_val, param_sym->name),
                 "allocation for variable parameter"
             );
 
-        auto const result = var_table.insert(param_sym, inst);
+        auto const result = register_var(param_sym, inst);
         assert(result);
         (void) result;
     }
@@ -737,12 +772,12 @@ public:
         assert(!receiver_type->ref.expired());
         auto const clazz = receiver_type->ref.lock();
 
-        auto *const self_val = var_table.lookup_value(self_sym);
+        auto *const self_val = lookup_var(self_sym);
         assert(self_val);
 
         for (auto const& p : ctor->params) {
             if (p->is_instance_var()) {
-                auto *const initializer_val = var_table.lookup_value(p);
+                auto *const initializer_val = lookup_var(p);
                 assert(initializer_val);
 
                 auto const offset = clazz->get_instance_var_offset_of(p->name.substr(1u)/* omit '@' */);
@@ -1010,7 +1045,7 @@ public:
     val emit(ast::node::var_ref const& var)
     {
         assert(!var->symbol.expired());
-        auto *const looked_up = var_table.lookup_value(var->symbol.lock());
+        auto *const looked_up = lookup_var(var->symbol.lock());
         if (looked_up) {
             return looked_up;
         }
@@ -1204,7 +1239,7 @@ public:
                 return check(
                         ufcs,
                         ctx.builder.CreateIntCast(
-                            var_table.lookup_value_by_name("dachs.main.argc"),
+                            lookup_var("dachs.main.argc"),
                             ctx.builder.getInt64Ty(),
                             true
                         ),
@@ -1339,9 +1374,9 @@ public:
 
             if (allocated) {
                 allocator.create_deep_copy(elem_ptr_val, allocated);
-                var_table.insert(sym.lock(), allocated);
+                register_var(sym.lock(), allocated);
             } else {
-                var_table.insert(sym.lock(), elem_ptr_val);
+                register_var(sym.lock(), elem_ptr_val);
                 elem_ptr_val->setName(param->name);
             }
         }
@@ -1367,7 +1402,7 @@ public:
                         ctx.data_layout->getTypeAllocSize(type_ir),
                         ctx.data_layout->getPrefTypeAlignment(type_ir)
                     );
-                var_table.insert(std::move(sym), allocated);
+                register_var(std::move(sym), allocated);
             }
             return;
         }
@@ -1406,7 +1441,7 @@ public:
                         = clazz->get_instance_var_offset_of(decl->name.substr(1u));
                     assert(offset);
 
-                    auto const self_val = var_table.lookup_value(self_sym);
+                    auto const self_val = lookup_var(self_sym);
                     assert(self_val);
                     assert(self_val->getType()->isPointerTy());
 
@@ -1418,10 +1453,10 @@ public:
                 } else if (decl->is_var) {
                     auto *const allocated = allocator.alloc_and_deep_copy(value, sym->name);
                     assert(allocated);
-                    var_table.insert(std::move(sym), allocated);
+                    register_var(std::move(sym), allocated);
                 } else {
                     // If the variable is immutable, do not copy rhs value
-                    var_table.insert(std::move(sym), value);
+                    register_var(std::move(sym), value);
                 }
             };
 
