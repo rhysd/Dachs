@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <cassert>
+#include <type_traits>
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/DerivedTypes.h>
@@ -22,7 +23,7 @@ namespace dachs {
 namespace codegen {
 namespace llvmir {
 
-class type_ir_emitter {
+class allocation_type_ir_emitter {
     llvm::LLVMContext &context;
     semantics::lambda_captures_type lambda_captures;
     std::unordered_map<scope::class_scope, llvm::PointerType *const> class_table;
@@ -44,7 +45,7 @@ class type_ir_emitter {
 
 public:
 
-    type_ir_emitter(llvm::LLVMContext &c, decltype(lambda_captures) const& lc)
+    allocation_type_ir_emitter(llvm::LLVMContext &c, decltype(lambda_captures) const& lc)
         : context(c), lambda_captures(lc)
     {}
 
@@ -154,7 +155,7 @@ public:
         throw not_implemented_error{__FILE__, __func__, __LINE__, "function type LLVM IR generation"};
     }
 
-    llvm::StructType *emit(type::generic_func_type const& g)
+    llvm::Type *emit(type::generic_func_type const& g)
     {
         if (!g->ref || g->ref->expired()) {
             return llvm::StructType::get(context, {});
@@ -193,6 +194,76 @@ public:
     llvm::Type *emit(type::template_type const&)
     {
         DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+    }
+};
+
+class type_ir_emitter {
+    allocation_type_ir_emitter alloc_ty_emitter;
+
+    template<class T, class... Args>
+    struct any_same;
+
+    template<class T, class Head, class... Tail>
+    struct any_same<T, Head, Tail...> {
+        static constexpr bool value
+            = std::is_same<T, Head>::value
+                || any_same<T, Tail...>::value;
+    };
+
+    template<class T, class U>
+    struct any_same<T, U> {
+        static constexpr bool value
+            = std::is_same<T, U>::value;
+    };
+
+    template<class T>
+    struct should_dereference
+        : any_same<
+            typename std::remove_reference<T>::type,
+            type::class_type,
+            type::tuple_type,
+            type::array_type,
+            type::generic_func_type
+        >
+    {};
+
+public:
+    template<class... Args>
+    type_ir_emitter(Args &&...  args)
+        : alloc_ty_emitter(std::forward<Args>(args)...)
+    {}
+
+    template<class T>
+    llvm::Type *emit_alloc_type(T const& t)
+    {
+        return alloc_ty_emitter.emit(t);
+    }
+
+    template<
+        class T,
+        helper::enable_if<
+            should_dereference<T>::value
+        > *& = helper::enabler
+    >
+    llvm::Type *emit(T const& t)
+    {
+        return emit_alloc_type(t);
+    }
+
+    template<
+        class T,
+        helper::disable_if<
+            should_dereference<T>::value
+        > *& = helper::enabler
+    >
+    llvm::Type *emit(T const& t)
+    {
+        return emit_alloc_type(t);
+    }
+
+    llvm::ArrayType *emit_fixed_array(type::array_type const& t)
+    {
+        return alloc_ty_emitter.emit_fixed_array(t);
     }
 };
 

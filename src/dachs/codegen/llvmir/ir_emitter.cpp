@@ -978,7 +978,9 @@ public:
         }
 
         if (auto const g = type::get<type::generic_func_type>(var->type)) {
-            return llvm::ConstantStruct::get(type_emitter.emit(*g), {});
+            auto *const ty = llvm::dyn_cast<llvm::StructType>(type_emitter.emit(*g));
+            assert(ty);
+            return llvm::ConstantStruct::get(ty, {});
         } else {
             error(var, boost::format("Invalid variable reference '%1%'. Its type is '%2%'") % var->name % var->type.to_string());
         }
