@@ -164,6 +164,142 @@ public:
 
 };
 
+class inst_emit_helper {
+    context &ctx;
+
+    using value_or_error_type = boost::variant<llvm::Value *, std::string>;
+
+    template<class Format, class T>
+    auto format_impl(Format && fmt, T const& v) const
+    {
+        return std::forward<Format>(fmt) % v;
+    }
+
+    template<class Format, class Head, class... Tail>
+    auto format_impl(Format && fmt, Head const& head, Tail const&... tail) const
+    {
+        return format_impl(std::forward<Format>(fmt) % head, tail...);
+    }
+
+    template<class String, class... Args>
+    std::string format(String && str, Args const&... args) const
+    {
+        return format_impl(boost::format(std::forward<String>(str)), args...).str();
+    }
+
+public:
+
+    explicit inst_emit_helper(context &c)
+        : ctx(c)
+    {}
+
+    value_or_error_type emit_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::type const& t)
+    {
+        if (auto const tuple = type::get<type::tuple_type>(t)) {
+            return emit_element_access(aggregate, index, *tuple);
+        } else if (auto const array = type::get<type::array_type>(t)) {
+            return emit_element_access(aggregate, index, *array);
+        } else if (auto const builtin = type::get<type::builtin_type>(t)) {
+            if ((*builtin)->name == "string") {
+                return emit_element_access(aggregate, index, *builtin);
+            }
+        }
+
+        return "Value is not tuple, array and string";
+    }
+
+    value_or_error_type emit_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::tuple_type const& t)
+    {
+        assert(aggregate->getType()->isPointerTy());
+        assert(aggregate->getType()->getPointerElementType()->isStructTy());
+
+        auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index);
+        if (!constant_index) {
+            return "Index is not a constant";
+        }
+
+        auto const idx = constant_index->getZExtValue();
+        auto result = ctx.builder.CreateStructGEP(aggregate, idx);
+
+        if (!t->element_types[idx].is_builtin()) {
+            result = ctx.builder.CreateLoad(result);
+        }
+
+        return result;
+    }
+
+    value_or_error_type emit_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::array_type const& t)
+    {
+        auto const ty = aggregate->getType();
+        assert(ty->isPointerTy());
+        assert(ty->getPointerElementType()->isArrayTy());
+
+        auto const array_ty = llvm::dyn_cast<llvm::ArrayType>(ty->getPointerElementType());
+
+        auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index);
+        if (constant_index) {
+            assert(array_ty);
+            auto const idx = constant_index->getZExtValue();
+            auto const size = array_ty->getArrayNumElements();
+
+            if (idx >= size) {
+                return format("Array index is out of bounds %1% for 0..%2%", idx, size);
+            }
+        }
+
+        if (ty->getPointerElementType()->isPointerTy()
+                && ty->getPointerElementType()->getPointerElementType()->isIntegerTy(8u)) {
+            // Note:
+            // Corner case.  When i8** (it means the argument of 'main')
+            return ctx.builder.CreateInBoundsGEP(
+                        aggregate,
+                        index
+                    );
+        }
+
+        auto result = ctx.builder.CreateInBoundsGEP(
+                aggregate,
+                (llvm::Value *[2]){
+                    ctx.builder.getInt64(0u),
+                    index
+                }
+            );
+
+        if (t->element_type.is_builtin()) {
+            result = ctx.builder.CreateLoad(result);
+        }
+        return result;
+    }
+
+    value_or_error_type emit_element_access(llvm::Value *str_val, llvm::Value *const index, type::builtin_type const& t)
+    {
+        // Note:
+        // Workaround.  At first, allocate i8* and store the global string pointer
+        // to the allocated memory. At second, load it and call CreateGEP().
+        // This make CreateGEP() not to fold the getelementptr inst.
+        // Without the workaround, the global string pointer is a constant and
+        // when the index value is a constant, the getelementptr inst will be folded.
+        // However, it seems that the result of folding the getelementptr is treated as if
+        // it is not a getelementptr inst.  The result of llvm::isa<llvm::GetElementPtrInst>(result)
+        // returns false.  I don't know why.
+
+        assert(t->name == "string");
+        (void) t;
+
+        if (str_val->getType()->getPointerElementType()->isPointerTy()) {
+            str_val = ctx.builder.CreateLoad(str_val);
+        }
+        auto const str_ptr = ctx.builder.CreateAlloca(str_val->getType());
+        ctx.builder.CreateStore(str_val, str_ptr);
+
+        return ctx.builder.CreateGEP(
+                ctx.builder.CreateLoad(str_ptr),
+                index
+            );
+
+    }
+};
+
 class alloc_helper {
     context &ctx;
 

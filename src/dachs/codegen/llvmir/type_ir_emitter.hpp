@@ -257,11 +257,6 @@ public:
     {
         return emitter_impl.emit_fixed_array(t);
     }
-
-    bool treats_by_value(type::type const& t) const
-    {
-        return t.is_builtin();
-    }
 };
 
 } // namespace llvmir

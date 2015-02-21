@@ -45,7 +45,7 @@ class tmp_constructor_ir_emitter {
             }
 
             assert(a->size);
-            auto *const ty = type_emitter.emit_fixed_array(a);
+            auto *const ty = type_emitter.emit_alloc_fixed_array(a);
             auto const size = *a->size;
 
             // Note:

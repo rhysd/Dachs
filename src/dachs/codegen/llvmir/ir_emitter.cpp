@@ -85,6 +85,8 @@ class llvm_ir_emitter {
     tmp_constructor_ir_emitter builtin_ctor_emitter;
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
     builder::alloc_helper allocator;
+    builder::new_alloc_helper new_allocator;
+    builder::inst_emit_helper inst_emitter;
 
     val lookup_var(symbol::var_symbol const& s) const
     {
@@ -449,6 +451,21 @@ class llvm_ir_emitter {
         }
     };
 
+    bool treats_by_value(type::type const& t) const
+    {
+        return t.is_builtin();
+    }
+
+    llvm::Value *ensure_register_val(llvm::Value *const v, type::type const& t)
+    {
+        if (auto const builtin = type::get<type::builtin_type>(t)) {
+            if ((*builtin)->name != "string" && v->getType()->isPointerTy()) {
+                return ctx.builder.CreateLoad(v);
+            }
+        }
+        return v;
+    }
+
 public:
 
     llvm_ir_emitter(std::string const& f, context &c, semantics::semantics_context const& sc)
@@ -461,6 +478,8 @@ public:
         , member_emitter(ctx)
         , builtin_ctor_emitter(ctx, type_emitter)
         , allocator(ctx)
+        , new_allocator(ctx, type_emitter)
+        , inst_emitter(ctx)
     {}
 
     // Note:
@@ -753,7 +772,7 @@ public:
         auto const inst
             = check(
                 param,
-                allocator.alloc_and_deep_copy(param_val, param_sym->name),
+                new_allocator.alloc_and_deep_copy(param_val, param_sym->type, param->name),
                 "allocation for variable parameter"
             );
 
@@ -1061,101 +1080,19 @@ public:
 
     val emit(ast::node::index_access const& access)
     {
-        auto const child_type = type::type_of(access->child);
-        auto *const child_val = emit(access->child);
-        auto *const index_val = get_operand(emit(access->index_expr));
-        auto *const ty = child_val->getType();
-        auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
-        auto const is_ptr = ty->isPointerTy();
+        auto const result = inst_emitter.emit_element_access(
+                emit(access->child),
+                ensure_register_val(emit(access->index_expr), type::type_of(access->index_expr)),
+                type::type_of(access->child)
+            );
 
-        auto const with_check
-            = [&, this](auto *const v)
-            {
-                return check(access, v, "index access");
-            };
-
-        if (type::is_a<type::tuple_type>(child_type)) {
-
-            // Note:
-            // Do not emit index expression because it is a integer literal and it is
-            // processed in compile time
-            if (!constant_index) {
-                error(access, "Index is not a constant.");
-            }
-
-            assert(ty->isStructTy() || (is_ptr && ty->getPointerElementType()->isStructTy()));
-
-            return with_check(
-                    ty->isStructTy() ?
-                        ctx.builder.CreateExtractValue(child_val, constant_index->getZExtValue()) :
-                        ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue())
-                );
-
-        } else if (auto const maybe_array_type = type::get<type::array_type>(child_type)) {
-            assert(index_val->getType()->isIntegerTy());
-
-            if (constant_index && !is_ptr) {
-                auto const idx = constant_index->getZExtValue();
-                assert(ty->isArrayTy());
-                auto const size = ty->getArrayNumElements();
-
-                if (idx >= size) {
-                    error(access, boost::format("Array index is out of bounds (size:%1%, index:%2%)") % size % idx);
-                }
-            }
-
-            // Note:
-            // When i8** (it means the arguments of 'main')
-            if (is_ptr
-                && ty->getPointerElementType()->isPointerTy()
-                && ty->getPointerElementType()->getPointerElementType()->isIntegerTy(8u)
-            ) {
-                return ctx.builder.CreateGEP(
-                        child_val,
-                        index_val
-                    );
-            }
-
-            return with_check(
-                    ctx.builder.CreateInBoundsGEP(
-                        ty->isPointerTy() ?
-                            child_val :
-                            allocator.alloc_and_deep_copy(child_val),
-                        (val [2]){
-                            ctx.builder.getInt32(0u),
-                            index_val->getType()->isIntegerTy(32u)
-                                ? index_val
-                                : ctx.builder.CreateIntCast(index_val, ctx.builder.getInt32Ty(), true)
-                        }
-                    )
-                );
-
-        } else if (child_type.is_builtin("string")) {
-
-            // Note:
-            // Workaround.  At first, allocate i8* and store the global string pointer
-            // to the allocated memory. At second, load it and call CreateGEP().
-            // This make CreateGEP() not to fold the getelementptr inst.
-            // Without the workaround, the global string pointer is a constant and
-            // when the index value is a constant, the getelementptr inst will be folded.
-            // However, it seems that the result of folding the getelementptr is treated as if
-            // it is not a getelementptr inst.  The result of llvm::isa<llvm::GetElementPtrInst>(result)
-            // returns false.  I don't know why.
-
-            auto const v = get_operand(child_val);
-            auto const str_ptr = ctx.builder.CreateAlloca(v->getType());
-            ctx.builder.CreateStore(v, str_ptr);
-
-            return with_check(
-                    ctx.builder.CreateGEP(
-                        ctx.builder.CreateLoad(str_ptr),
-                        index_val
-                    )
-                );
-
-        } else {
-            error(access, "Value is not tuple, array and string");
+        if (auto const err = get_as<std::string>(result)) {
+            error(access, *err);
         }
+
+        auto const ret = get_as<llvm::Value *>(result);
+        assert(ret);
+        return *ret;
     }
 
     val emit_lambda_capture_access(type::generic_func_type const& lambda, ast::node::ufcs_invocation const& ufcs)
