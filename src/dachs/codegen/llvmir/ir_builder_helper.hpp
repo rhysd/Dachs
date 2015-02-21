@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <algorithm>
+#include <utility>
 #include <cstddef>
 
 #include <boost/range/irange.hpp>
@@ -193,6 +194,18 @@ public:
         : ctx(c)
     {}
 
+    llvm::Value *emit_elem_value(llvm::Value *const v, type::type const& t)
+    {
+        if (t.is_builtin()) {
+            return v;
+        }
+
+        // Note:
+        // e.g. getelementptr {[1 x i64]* }* %x, i32 0, i32 0
+        assert(v->getType()->getPointerElementType()->isPointerTy());
+        return ctx.builder.CreateLoad(v);
+    }
+
     value_or_error_type emit_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::type const& t)
     {
         if (auto const tuple = type::get<type::tuple_type>(t)) {
@@ -219,13 +232,7 @@ public:
         }
 
         auto const idx = constant_index->getZExtValue();
-        auto result = ctx.builder.CreateStructGEP(aggregate, idx);
-
-        if (!t->element_types[idx].is_builtin()) {
-            result = ctx.builder.CreateLoad(result);
-        }
-
-        return result;
+        return emit_elem_value(ctx.builder.CreateStructGEP(aggregate, idx), t->element_types[idx]);
     }
 
     value_or_error_type emit_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::array_type const& t)
@@ -257,18 +264,15 @@ public:
                     );
         }
 
-        auto result = ctx.builder.CreateInBoundsGEP(
-                aggregate,
-                (llvm::Value *[2]){
-                    ctx.builder.getInt64(0u),
-                    index
-                }
+        return emit_elem_value(
+                ctx.builder.CreateInBoundsGEP(
+                    aggregate,
+                    (llvm::Value *[2]){
+                        ctx.builder.getInt64(0u),
+                        index
+                    }
+                ), t->element_type
             );
-
-        if (t->element_type.is_builtin()) {
-            result = ctx.builder.CreateLoad(result);
-        }
-        return result;
     }
 
     value_or_error_type emit_element_access(llvm::Value *str_val, llvm::Value *const index, type::builtin_type const& t)
@@ -484,25 +488,35 @@ public:
         if (auto const tuple_ = type::get<type::tuple_type>(t)) {
             auto const& tuple = *tuple_;
             for (auto const idx : helper::indices(tuple->element_types)) {
-                auto const& elem = tuple->element_types[idx];
-                if (elem.is_builtin()) {
+                auto const& elem_type = tuple->element_types[idx];
+                if (elem_type.is_builtin()) {
                     continue;
                 }
-                auto *const elem_from = ctx.builder.CreateStructGEP(from, idx);
-                auto *const elem_to = ctx.builder.CreateStructGEP(to, idx);
-                create_deep_copy(elem_from, elem_to, elem);
+
+                auto *const elem_from = ctx.builder.CreateLoad(
+                        ctx.builder.CreateStructGEP(from, idx)
+                    );
+                auto *const elem_to = ctx.builder.CreateLoad(
+                        ctx.builder.CreateStructGEP(to, idx)
+                    );
+                create_deep_copy(elem_from, elem_to, elem_type);
             }
         } else if (auto const array_ = type::get<type::array_type>(t)) {
             auto const& array = *array_;
-            if (array->element_type.is_builtin()) {
+            auto const& elem_type = array->element_type;
+            if (elem_type.is_builtin()) {
                 return;
             }
             auto *const array_ty = llvm::dyn_cast<llvm::ArrayType>(stripped_ty);
             assert(array_ty);
             for (uint64_t const idx : helper::indices(array_ty->getNumElements())) {
-                auto *const elem_from = ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx);
-                auto *const elem_to = ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx);
-                create_deep_copy(elem_from, elem_to, array->element_type);
+                auto *const elem_from = ctx.builder.CreateLoad(
+                            ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx)
+                        );
+                auto *const elem_to = ctx.builder.CreateLoad(
+                            ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx)
+                        );
+                create_deep_copy(elem_from, elem_to, elem_type);
             }
         } else if (auto const clazz_ = type::get<type::class_type>(t)) {
             auto const& clazz = *clazz_;
@@ -514,8 +528,12 @@ public:
                 if (var.is_builtin()) {
                     continue;
                 }
-                auto *const elem_from = ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx);
-                auto *const elem_to = ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx);
+                auto *const elem_from = ctx.builder.CreateLoad(
+                            ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx)
+                        );
+                auto *const elem_to = ctx.builder.CreateLoad(
+                            ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx)
+                        );
                 create_deep_copy(elem_from, elem_to, var);
             }
         } else {

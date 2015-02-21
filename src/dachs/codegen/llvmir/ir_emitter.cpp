@@ -605,6 +605,7 @@ public:
             constant->setUnnamedAddr(true);
             return constant;
         } else {
+            // XXX
             auto *const alloca_inst = ctx.builder.CreateAlloca(ty);
 
             for (auto const idx : helper::indices(elem_values.size())) {
@@ -657,7 +658,7 @@ public:
                         ty,
                         true /*constant*/,
                         llvm::GlobalValue::PrivateLinkage,
-                        llvm::ConstantArray::get(type_emitter.emit_fixed_array(t), elem_consts)
+                        llvm::ConstantArray::get(type_emitter.emit_alloc_fixed_array(t), elem_consts)
                     );
             constant->setUnnamedAddr(true);
             return constant;
