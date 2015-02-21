@@ -10,7 +10,10 @@
 
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
+#include "dachs/semantics/type.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
+#include "dachs/codegen/llvmir/type_ir_emitter.hpp"
+#include "dachs/helper/util.hpp"
 
 namespace dachs {
 namespace codegen {
@@ -285,6 +288,104 @@ public:
         }
     }
 
+};
+
+class new_alloc_helper {
+    context &ctx;
+    type_ir_emitter &type_emitter;
+
+public:
+
+    new_alloc_helper(context &c, type_ir_emitter &e)
+        : ctx(c), type_emitter(e)
+    {}
+
+    template<class String = char const* const>
+    llvm::AllocaInst *create_alloca(type::type const& t, String const& name = "", llvm::Value *const array_size = nullptr)
+    {
+        auto *const ty = type_emitter.emit_alloc_type(t);
+        return ctx.builder.CreateAlloca(ty, array_size, name);
+    }
+
+    template<class V, class String = char const* const>
+    llvm::AllocaInst *alloc_and_deep_copy(V *const from, type::type const& t, String const& name = "", llvm::Value *const array_size = nullptr)
+    {
+        auto *const allocated = create_alloca(t, name, array_size);
+        assert(allocated);
+
+        create_deep_copy(from, allocated, t);
+
+        return allocated;
+    }
+
+    template<class V1, class V2>
+    void create_deep_copy(V1 *const from, V2 *const to, type::type const& t)
+    {
+        assert(to->getType()->isPointerTy());
+
+        if (auto const builtin = type::get<type::builtin_type>(t)) {
+            if (from->getType()->isPointerTy()) {
+                auto const loaded = ctx.builder.CreateLoad(from);
+                ctx.builder.CreateStore(loaded, to);
+            } else {
+                ctx.builder.CreateStore(from, to);
+            }
+            return;
+        }
+
+        assert(from->getType()->isPointerTy());
+        auto *const stripped_ty = from->getType()->getPointerElementType();
+
+        ctx.builder.CreateMemCpy(
+                to,
+                from,
+                ctx.data_layout->getTypeAllocSize(stripped_ty),
+                ctx.data_layout->getPrefTypeAlignment(stripped_ty)
+            );
+
+        // TODO:
+        // I should use visitor to visit each type.
+        if (auto const tuple_ = type::get<type::tuple_type>(t)) {
+            auto const& tuple = *tuple_;
+            for (auto const idx : helper::indices(tuple->element_types)) {
+                auto const& elem = tuple->element_types[idx];
+                if (elem.is_builtin()) {
+                    continue;
+                }
+                auto *const elem_from = ctx.builder.CreateStructGEP(from, idx);
+                auto *const elem_to = ctx.builder.CreateStructGEP(to, idx);
+                create_deep_copy(elem_from, elem_to, elem);
+            }
+        } else if (auto const array_ = type::get<type::array_type>(t)) {
+            auto const& array = *array_;
+            if (array->element_type.is_builtin()) {
+                return;
+            }
+            auto *const array_ty = llvm::dyn_cast<llvm::ArrayType>(stripped_ty);
+            assert(array_ty);
+            for (uint64_t const idx : helper::indices(array_ty->getNumElements())) {
+                auto *const elem_from = ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx);
+                auto *const elem_to = ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx);
+                create_deep_copy(elem_from, elem_to, array->element_type);
+            }
+        } else if (auto const clazz_ = type::get<type::class_type>(t)) {
+            auto const& clazz = *clazz_;
+            assert(clazz->param_types.empty());
+            auto const scope = clazz->ref.lock();
+            assert(!scope->is_template());
+            for (auto const idx : helper::indices(scope->instance_var_symbols)) {
+                auto const& var = scope->instance_var_symbols[idx]->type;
+                if (var.is_builtin()) {
+                    continue;
+                }
+                auto *const elem_from = ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx);
+                auto *const elem_to = ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx);
+                create_deep_copy(elem_from, elem_to, var);
+            }
+        } else {
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        }
+    }
 };
 
 } // namespace builder

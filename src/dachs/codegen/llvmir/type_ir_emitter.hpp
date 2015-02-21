@@ -23,7 +23,7 @@ namespace dachs {
 namespace codegen {
 namespace llvmir {
 
-class allocation_type_ir_emitter {
+class type_ir_emitter_impl {
     llvm::LLVMContext &context;
     semantics::lambda_captures_type lambda_captures;
     std::unordered_map<scope::class_scope, llvm::PointerType *const> class_table;
@@ -45,7 +45,7 @@ class allocation_type_ir_emitter {
 
 public:
 
-    allocation_type_ir_emitter(llvm::LLVMContext &c, decltype(lambda_captures) const& lc)
+    type_ir_emitter_impl(llvm::LLVMContext &c, decltype(lambda_captures) const& lc)
         : context(c), lambda_captures(lc)
     {}
 
@@ -118,7 +118,7 @@ public:
         return result;
     }
 
-    llvm::Type *emit(type::tuple_type const& t)
+    llvm::PointerType *emit(type::tuple_type const& t)
     {
         std::vector<llvm::Type *> element_type_irs;
         element_type_irs.reserve(t->element_types.size());
@@ -127,21 +127,28 @@ public:
         }
 
         return check(
-            llvm::StructType::get(context, element_type_irs)
+            llvm::PointerType::getUnqual(
+                llvm::StructType::get(context, element_type_irs)
+            )
             , "tuple type"
         );
     }
 
-    llvm::ArrayType *emit_fixed_array(type::array_type const& a)
+    llvm::PointerType *emit_fixed_array(type::array_type const& a)
     {
         if (!a->size) {
             error("  Failed to emit size of array type " + a->to_string());
         }
 
-        return llvm::ArrayType::get(emit(a->element_type), *a->size);
+        return check(
+                llvm::PointerType::getUnqual(
+                    llvm::ArrayType::get(emit(a->element_type), *a->size)
+                )
+                , "array type"
+            );
     }
 
-    llvm::Type *emit(type::array_type const& a)
+    llvm::PointerType *emit(type::array_type const& a)
     {
         if (a->size) {
             return emit_fixed_array(a);
@@ -155,15 +162,19 @@ public:
         throw not_implemented_error{__FILE__, __func__, __LINE__, "function type LLVM IR generation"};
     }
 
-    llvm::Type *emit(type::generic_func_type const& g)
+    llvm::PointerType *emit(type::generic_func_type const& g)
     {
         if (!g->ref || g->ref->expired()) {
-            return llvm::StructType::get(context, {});
+            return llvm::PointerType::getUnqual(
+                    llvm::StructType::get(context, {})
+                );
         }
 
         auto const itr = lambda_captures.find(g);
         if (itr == std::end(lambda_captures)) {
-            return llvm::StructType::get(context, {});
+            return llvm::PointerType::getUnqual(
+                    llvm::StructType::get(context, {})
+                );
         }
 
         auto const& captures = itr->second;
@@ -173,7 +184,9 @@ public:
             capture_types.push_back(emit(capture.introduced->type));
         }
 
-        return llvm::StructType::get(context, capture_types);
+        return llvm::PointerType::getUnqual(
+                llvm::StructType::get(context, capture_types)
+            );
     }
 
     llvm::Type *emit(type::dict_type const&)
@@ -198,74 +211,56 @@ public:
 };
 
 class type_ir_emitter {
-    allocation_type_ir_emitter alloc_ty_emitter;
-
-    template<class T, class... Args>
-    struct any_same;
-
-    template<class T, class Head, class... Tail>
-    struct any_same<T, Head, Tail...> {
-        static constexpr bool value
-            = std::is_same<T, Head>::value
-                || any_same<T, Tail...>::value;
-    };
-
-    template<class T, class U>
-    struct any_same<T, U> {
-        static constexpr bool value
-            = std::is_same<T, U>::value;
-    };
-
-    template<class T>
-    struct treats_by_value
-        : any_same<
-            typename std::remove_reference<T>::type,
-            type::class_type,
-            type::tuple_type,
-            type::array_type,
-            type::generic_func_type
-        >
-    {};
+    type_ir_emitter_impl emitter_impl;
 
 public:
     template<class... Args>
     type_ir_emitter(Args &&...  args)
-        : alloc_ty_emitter(std::forward<Args>(args)...)
+        : emitter_impl(std::forward<Args>(args)...)
     {}
+
+    llvm::Type *emit_alloc_type(type::type const& any)
+    {
+        return any.apply_lambda([this](auto const& t){ return emit_alloc_type(t); });
+    }
 
     template<class T>
     llvm::Type *emit_alloc_type(T const& t)
     {
-        return alloc_ty_emitter.emit(t);
+        auto const ty = emitter_impl.emit(t);
+        if (ty->isPointerTy()) {
+            return ty->getPointerElementType();
+        } else {
+            return ty;
+        }
     }
 
-    template<
-        class T,
-        helper::disable_if<
-            treats_by_value<T>::value
-        > *& = helper::enabler
-    >
+    llvm::Type *emit(type::type const& any)
+    {
+        return any.apply_lambda([this](auto const& t){ return emit(t); });
+    }
+
+    template<class T>
     llvm::Type *emit(T const& t)
     {
-        return llvm::PointerType::getUnqual(
-                emit_alloc_type(t)
-            );
+        return emitter_impl.emit(t);
     }
 
-    template<
-        class T,
-        helper::enable_if<
-            treats_by_value<T>::value
-        > *& = helper::enabler
-    >
-    llvm::Type *emit(T const& t)
+    llvm::ArrayType *emit_alloc_fixed_array(type::array_type const& t)
     {
-        return emit_alloc_type(t);
+        auto const ty = llvm::dyn_cast<llvm::ArrayType>(emitter_impl.emit_fixed_array(t)->getPointerElementType());
+        assert(ty);
+        return ty;
     }
 
-    llvm::ArrayType *emit_fixed_array(type::array_type const& t)
+    llvm::PointerType *emit_fixed_array(type::array_type const& t)
     {
-        return alloc_ty_emitter.emit_fixed_array(t);
+        return emitter_impl.emit_fixed_array(t);
+    }
+
+    bool treats_by_value(type::type const& t) const
+    {
+        return t.is_builtin();
     }
 };
 
