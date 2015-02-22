@@ -237,12 +237,25 @@ public:
 
     value_or_error_type emit_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::array_type const& t)
     {
-        auto const ty = aggregate->getType();
-        assert(ty->isPointerTy());
-        assert(ty->getPointerElementType()->isArrayTy());
+        assert(aggregate->getType()->isPointerTy());
+        auto const ty = aggregate->getType()->getPointerElementType();
 
-        auto const array_ty = llvm::dyn_cast<llvm::ArrayType>(ty->getPointerElementType());
+        if (ty->isPointerTy() && ty->getPointerElementType()->isIntegerTy(8u)) {
+            assert(t->element_type.is_builtin("string"));
 
+            // Note:
+            // Corner case.  When i8** (it means the argument of 'main')
+            return ctx.builder.CreateLoad(
+                ctx.builder.CreateInBoundsGEP(
+                        aggregate,
+                        index
+                    )
+                );
+        }
+
+        assert(ty->isArrayTy());
+
+        auto const array_ty = llvm::dyn_cast<llvm::ArrayType>(ty);
         auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index);
         if (constant_index) {
             assert(array_ty);
@@ -252,16 +265,6 @@ public:
             if (idx >= size) {
                 return format("Array index is out of bounds %1% for 0..%2%", idx, size);
             }
-        }
-
-        if (ty->getPointerElementType()->isPointerTy()
-                && ty->getPointerElementType()->getPointerElementType()->isIntegerTy(8u)) {
-            // Note:
-            // Corner case.  When i8** (it means the argument of 'main')
-            return ctx.builder.CreateInBoundsGEP(
-                        aggregate,
-                        index
-                    );
         }
 
         return emit_elem_value(
@@ -337,7 +340,7 @@ public:
         assert(to->getType()->isPointerTy());
 
         if (auto const builtin = type::get<type::builtin_type>(t)) {
-            if (from->getType()->isPointerTy()) {
+            if ((*builtin)->name != "string" && from->getType()->isPointerTy()) {
                 auto const loaded = ctx.builder.CreateLoad(from);
                 ctx.builder.CreateStore(loaded, to);
             } else {
