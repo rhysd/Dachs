@@ -305,137 +305,11 @@ public:
 
 class alloc_helper {
     context &ctx;
-
-    template<class T>
-    bool is_aggregate_ptr(T const *const t) const noexcept
-    {
-        if (!t->isPointerTy()) {
-            return false;
-        }
-
-        auto *const elem_type = t->getPointerElementType();
-
-        if (auto const struct_type = llvm::dyn_cast<llvm::StructType>(elem_type)) {
-            if (struct_type->hasName()) {
-                // Note: User-defined type
-                return false;
-            }
-        }
-
-        return elem_type->isAggregateType();
-    }
-
-public:
-    explicit alloc_helper(context &c)
-        : ctx(c)
-    {}
-
-    template<class FromValue, class String = char const* const>
-    llvm::AllocaInst *create_alloca(FromValue *const from, llvm::Value *const array_size = nullptr, String const& name = "")
-    {
-        auto *const type = from->getType();
-        // Note:
-        // Absorb the difference between value types and reference types
-        return ctx.builder.CreateAlloca(
-                llvm::isa<llvm::AllocaInst>(from) || llvm::isa<llvm::GetElementPtrInst>(from) ?
-                    type->getPointerElementType()
-                    : type
-                , array_size
-                , name
-            );
-    }
-
-    template<class String = char const* const>
-    llvm::AllocaInst *alloc_and_deep_copy(llvm::Value *const from, String const& name = "")
-    {
-        auto *const allocated = create_alloca(from, nullptr, name);
-        if (!allocated) {
-            return nullptr;
-        }
-
-        create_deep_copy(from, allocated);
-        return allocated;
-    }
-
-    // Note:
-    // Pointer depth examples:
-    //      i8 : 0
-    //     *i8 : 1
-    //    **i8 : 2
-    template<class Type>
-    std::size_t pointer_depth(Type const* const type) const noexcept
-    {
-        return type->isPointerTy()
-            ? 1u + pointer_depth(type->getPointerElementType())
-            : 0u;
-    }
-
-    template<class PtrTypeType>
-    void create_deep_copy(llvm::Value *const from, PtrTypeType *const to)
-    {
-        assert(from);
-        assert(to);
-        assert(to->getType()->isPointerTy());
-        auto *const from_type = from->getType();
-
-        if (is_aggregate_ptr(from_type)) {
-            auto *const aggregate_type = from_type->getPointerElementType();
-            // Note:
-            // memcpy is shallow copy
-            ctx.builder.CreateMemCpy(
-                to,
-                from,
-                ctx.data_layout->getTypeAllocSize(aggregate_type),
-                ctx.data_layout->getPrefTypeAlignment(aggregate_type)
-            );
-            if (auto *const struct_type = llvm::dyn_cast<llvm::StructType>(aggregate_type)) {
-                for (uint64_t const idx : irange(0u, struct_type->getNumElements())) {
-                    if (!struct_type->getElementType(idx)->isPointerTy()) {
-                        // Note:
-                        // If element type is not pointer, it is already copied by memcpy()
-                        continue;
-                    }
-
-                    auto *const ptr_to_elem = ctx.builder.CreateStructGEP(from, idx);
-                    auto *const ptr_to_dest_elem = ctx.builder.CreateStructGEP(to, idx);
-                    create_deep_copy(ptr_to_elem, ptr_to_dest_elem);
-                }
-
-            } else if (auto *const array_type = llvm::dyn_cast<llvm::ArrayType>(aggregate_type)) {
-                auto *const elem_type = array_type->getArrayElementType();
-
-                if (elem_type->isPointerTy()) {
-                    for (uint64_t const idx : irange(uint64_t{0u}, array_type->getNumElements())) {
-                        auto *const ptr_to_elem = ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx);
-                        auto *const ptr_to_dest_elem = ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx);
-                        create_deep_copy(ptr_to_elem, ptr_to_dest_elem);
-                    }
-                }
-
-            } else {
-                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-            }
-
-        } else if ((llvm::isa<llvm::AllocaInst>(from) || llvm::isa<llvm::GetElementPtrInst>(from)) &&
-                   (pointer_depth(from_type) == pointer_depth(to->getType()))) {
-            // Note:
-            // When the src value should be loaded before storing to dest,
-            // pointer depth of src value must equal to one of dest value.
-            ctx.builder.CreateStore(ctx.builder.CreateLoad(from), to);
-        } else {
-            ctx.builder.CreateStore(from, to);
-        }
-    }
-
-};
-
-class new_alloc_helper {
-    context &ctx;
     type_ir_emitter &type_emitter;
 
 public:
 
-    new_alloc_helper(context &c, type_ir_emitter &e)
+    alloc_helper(context &c, type_ir_emitter &e)
         : ctx(c), type_emitter(e)
     {}
 
@@ -523,8 +397,8 @@ public:
             auto const scope = clazz->ref.lock();
             assert(!scope->is_template());
             for (auto const idx : helper::indices(scope->instance_var_symbols)) {
-                auto const& var = scope->instance_var_symbols[idx]->type;
-                if (var.is_builtin()) {
+                auto const& var_type = scope->instance_var_symbols[idx]->type;
+                if (var_type.is_builtin()) {
                     continue;
                 }
                 auto *const elem_from = ctx.builder.CreateLoad(
@@ -533,7 +407,7 @@ public:
                 auto *const elem_to = ctx.builder.CreateLoad(
                             ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx)
                         );
-                create_deep_copy(elem_from, elem_to, var);
+                create_deep_copy(elem_from, elem_to, var_type);
             }
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR

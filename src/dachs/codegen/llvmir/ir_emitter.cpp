@@ -84,8 +84,7 @@ class llvm_ir_emitter {
     tmp_member_ir_emitter member_emitter;
     tmp_constructor_ir_emitter builtin_ctor_emitter;
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
-    builder::alloc_helper allocator;
-    builder::new_alloc_helper new_allocator;
+    builder::alloc_helper alloc_emitter;
     builder::inst_emit_helper inst_emitter;
 
     val lookup_var(symbol::var_symbol const& s) const
@@ -392,7 +391,7 @@ class llvm_ir_emitter {
         val emit(ast::node::index_access const& access)
         {
             auto const child_val = emitter.emit(access->child);
-            auto const index_val = emitter.get_operand(emitter.emit(access->index_expr));
+            auto const index_val = emitter.load_if_ref(emitter.emit(access->index_expr), type::type_of(access->index_expr));
             auto const child_type = type::type_of(access->child);
             if (type::is_a<type::tuple_type>(child_type)) {
                 auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
@@ -411,7 +410,7 @@ class llvm_ir_emitter {
                     );
             } else {
                 // Note: An exception is thrown
-                emitter.error(access, "Not a tuple value (in assignment statement)");
+                emitter.error(access, "Not a tuple or array value (in assignment statement)");
             }
         }
 
@@ -477,8 +476,7 @@ public:
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , member_emitter(ctx)
         , builtin_ctor_emitter(ctx, type_emitter)
-        , allocator(ctx)
-        , new_allocator(ctx, type_emitter)
+        , alloc_emitter(ctx, type_emitter)
         , inst_emitter(ctx)
     {}
 
@@ -771,7 +769,7 @@ public:
         auto const inst
             = check(
                 param,
-                new_allocator.alloc_and_deep_copy(param_val, param_sym->type, param->name),
+                alloc_emitter.alloc_and_deep_copy(param_val, param_sym->type, param->name),
                 "allocation for variable parameter"
             );
 
@@ -802,7 +800,7 @@ public:
                 assert(offset);
                 auto *const dest_val = ctx.builder.CreateStructGEP(self_val, *offset);
                 assert(dest_val);
-                allocator.create_deep_copy(initializer_val, dest_val);
+                alloc_emitter.create_deep_copy(initializer_val, dest_val, p->type);
             }
         }
     }
@@ -1250,18 +1248,6 @@ public:
         // Now array is only supported
 
         val range_val = emit(for_->range_expr);
-        if (!range_val->getType()->isPointerTy()) {
-            if (auto *const a = llvm::dyn_cast<llvm::ConstantArray>(range_val)) {
-                range_val = new llvm::GlobalVariable(*module, a->getType(), true, llvm::GlobalVariable::PrivateLinkage, a);
-            } else {
-                range_val = check(
-                        for_,
-                        allocator.alloc_and_deep_copy(range_val),
-                        "allocation in for statement"
-                    );
-            }
-        }
-
         assert(range_val->getType()->isPointerTy());
         assert(range_val->getType()->getPointerElementType()->isArrayTy());
 
@@ -1298,7 +1284,7 @@ public:
         // TODO:
         // Make for's variable definition as assignment statement?
 
-        if (param->name != "_" || !sym.expired()) {
+        if (param->name != "_" && !sym.expired()) {
             auto *const elem_ptr_val =
                 ctx.builder.CreateInBoundsGEP(
                     range_val,
@@ -1309,11 +1295,13 @@ public:
                     param->name
                 );
 
+            auto const s = sym.lock();
+
             if (allocated) {
-                allocator.create_deep_copy(elem_ptr_val, allocated);
-                register_var(sym.lock(), allocated);
+                alloc_emitter.create_deep_copy(elem_ptr_val, allocated, s->type);
+                register_var(s, allocated);
             } else {
-                register_var(sym.lock(), elem_ptr_val);
+                register_var(s, elem_ptr_val);
                 elem_ptr_val->setName(param->name);
             }
         }
@@ -1386,10 +1374,10 @@ public:
                     auto *const dest_val = ctx.builder.CreateStructGEP(self_val, *offset);
                     assert(dest_val);
 
-                    new_allocator.create_deep_copy(value, dest_val, type);
+                    alloc_emitter.create_deep_copy(value, dest_val, type);
 
                 } else if (decl->is_var) {
-                    auto *const allocated = new_allocator.alloc_and_deep_copy(value, type, sym->name);
+                    auto *const allocated = alloc_emitter.alloc_and_deep_copy(value, type, sym->name);
                     assert(allocated);
                     register_var(std::move(sym), allocated);
                 } else {
@@ -1488,18 +1476,16 @@ public:
             {
                 val value_to_assign = rhs_value;
 
-                auto *const lhs_value =
-                    lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
+                auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
+                auto const lhs_type = type::type_of(lhs_expr);
 
                 if (!lhs_value) {
                     DACHS_RAISE_INTERNAL_COMPILATION_ERROR
                 }
-
                 assert(lhs_value->getType()->isPointerTy());
 
                 if (is_compound_assign) {
                     auto const bin_op = assign->op.substr(0, assign->op.size()-1);
-                    auto const lhs_type = type::type_of(lhs_expr);
                     value_to_assign =
                         check(
                             assign,
@@ -1515,7 +1501,7 @@ public:
                         );
                 }
 
-                allocator.create_deep_copy(value_to_assign, lhs_value);
+                alloc_emitter.create_deep_copy(value_to_assign, lhs_value, lhs_type);
             };
 
         helper::each(assignment_emitter, assign->assignees, rhs_values);
@@ -1758,7 +1744,7 @@ public:
 
     val emit_class_object_construct(ast::node::object_construct const& obj, type::class_type const& t, std::vector<val> && arg_values)
     {
-        auto const type_ir = type_emitter.emit_alloc_type(t)->getPointerElementType();
+        auto const type_ir = type_emitter.emit_alloc_type(t);
         assert(type_ir);
         auto const obj_val = ctx.builder.CreateAlloca(type_ir);
         ctx.builder.CreateMemSet(
@@ -1768,14 +1754,14 @@ public:
                 ctx.data_layout->getPrefTypeAlignment(type_ir)
             );
 
-        arg_values.insert(std::begin(arg_values), get_operand(obj_val));
+        arg_values.insert(std::begin(arg_values), obj_val);
 
         assert(!obj->callee_ctor_scope.expired());
         auto const ctor_scope = obj->callee_ctor_scope.lock();
 
         ctx.builder.CreateCall(
                 emit_non_builtin_callee(obj, ctor_scope),
-                arg_values
+                std::move(arg_values)
             );
 
         return obj_val;
