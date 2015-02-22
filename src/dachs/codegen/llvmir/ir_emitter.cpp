@@ -1808,10 +1808,8 @@ llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const
 #endif
 
         helper::colorizer c;
-        throw code_generation_error{
-            "LLVM IR generator",
-            "LLVM IR verifier failed:\n" + c.red(errmsg)
-        };
+        std::cerr << c.red(errmsg) << std::endl;
+        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
     }
 
     return the_module;
