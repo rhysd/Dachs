@@ -300,7 +300,6 @@ public:
                 ctx.builder.CreateLoad(str_ptr),
                 index
             );
-
     }
 };
 

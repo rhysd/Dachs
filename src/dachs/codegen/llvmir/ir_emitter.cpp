@@ -243,7 +243,7 @@ class llvm_ir_emitter {
                 : params_type{};
 
         auto *const func_ty = llvm::FunctionType::get(
-                type_emitter.emit_alloc_type(*main_def->ret_type),
+                type_emitter.emit(*main_def->ret_type),
                 param_tys,
                 false
             );
@@ -291,7 +291,7 @@ class llvm_ir_emitter {
         }
 
         auto *const func_type_ir = llvm::FunctionType::get(
-                type_emitter.emit_alloc_type(*func_def->ret_type),
+                type_emitter.emit(*func_def->ret_type),
                 param_type_irs,
                 false // Non-variadic
             );
@@ -456,7 +456,7 @@ class llvm_ir_emitter {
         return t.is_builtin();
     }
 
-    llvm::Value *ensure_register_val(llvm::Value *const v, type::type const& t)
+    llvm::Value *load_if_ref(llvm::Value *const v, type::type const& t)
     {
         if (auto const builtin = type::get<type::builtin_type>(t)) {
             if ((*builtin)->name != "string" && v->getType()->isPointerTy()) {
@@ -576,8 +576,7 @@ public:
         return check(pl, boost::apply_visitor(visitor, pl->value), "constant");
     }
 
-    template<class Expr>
-    val emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs)
+    val emit_tuple_constant(type::tuple_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
     {
         std::vector<val> elem_values;
         elem_values.reserve(elem_exprs.size());
@@ -603,6 +602,7 @@ public:
                         llvm::ConstantStruct::getAnon(ctx.llvm_context, elem_consts)
                     );
             constant->setUnnamedAddr(true);
+
             return constant;
         } else {
             // XXX
@@ -623,8 +623,7 @@ public:
         }
     }
 
-    template<class Expr>
-    val emit_tuple_constant(std::vector<Expr> const& elem_exprs)
+    val emit_tuple_constant(std::vector<ast::node::any_expr> const& elem_exprs)
     {
         auto const the_type
             = type::make<type::tuple_type>(
@@ -634,8 +633,7 @@ public:
         return emit_tuple_constant(the_type, elem_exprs);
     }
 
-    template<class Expr>
-    val emit_array_constant(type::array_type const& t, std::vector<Expr> const& elem_exprs)
+    val emit_array_constant(type::array_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
     {
         std::vector<val> elem_values;
         elem_values.reserve(elem_exprs.size());
@@ -846,7 +844,7 @@ public:
                 || func_def->kind == ast::symbol::func_kind::proc
                 || *func_def->ret_type == type::get_unit_type()) {
             ctx.builder.CreateRet(
-                llvm::ConstantStruct::getAnon(ctx.llvm_context, {})
+                emit_tuple_constant(type::get_unit_type(), {})
             );
         } else {
             // Note:
@@ -915,15 +913,16 @@ public:
         }
 
         if (return_->ret_exprs.size() == 1) {
-            ctx.builder.CreateRet(get_operand(emit(return_->ret_exprs[0])));
+            ctx.builder.CreateRet(load_if_ref(emit(return_->ret_exprs[0]), type::type_of(return_->ret_exprs[0])));
         } else {
             assert(type::is_a<type::tuple_type>(return_->ret_type));
             ctx.builder.CreateRet(
-                get_operand(
+                load_if_ref(
                     emit_tuple_constant(
                         *type::get<type::tuple_type>(return_->ret_type),
                         return_->ret_exprs
-                    )
+                    ),
+                    return_->ret_type
                 )
             );
         }
@@ -1083,7 +1082,7 @@ public:
     {
         auto const result = inst_emitter.emit_element_access(
                 emit(access->child),
-                ensure_register_val(emit(access->index_expr), type::type_of(access->index_expr)),
+                load_if_ref(emit(access->index_expr), type::type_of(access->index_expr)),
                 type::type_of(access->child)
             );
 
@@ -1106,7 +1105,7 @@ public:
             // Note:
             // If the capture map exists but no capture is found,
             // it is non-captured lambda.
-            return llvm::ConstantStruct::getAnon(ctx.llvm_context, {});
+            return emit_tuple_constant(type::get_unit_type(), {});
         }
 
         return child_val->getType()->isStructTy() ?
@@ -1362,6 +1361,7 @@ public:
                 assert(!decl->symbol.expired());
 
                 auto const sym = decl->symbol.lock();
+                auto const& type = sym->type;
                 if (!decl->self_symbol.expired()) {
                     assert(decl->is_instance_var());
 
@@ -1386,10 +1386,10 @@ public:
                     auto *const dest_val = ctx.builder.CreateStructGEP(self_val, *offset);
                     assert(dest_val);
 
-                    allocator.create_deep_copy(value, dest_val);
+                    new_allocator.create_deep_copy(value, dest_val, type);
 
                 } else if (decl->is_var) {
-                    auto *const allocated = allocator.alloc_and_deep_copy(value, sym->name);
+                    auto *const allocated = new_allocator.alloc_and_deep_copy(value, type, sym->name);
                     assert(allocated);
                     register_var(std::move(sym), allocated);
                 } else {

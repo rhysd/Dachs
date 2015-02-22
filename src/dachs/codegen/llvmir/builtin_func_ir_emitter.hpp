@@ -60,7 +60,7 @@ public:
                 std::vector<llvm::Type *> param_types
                     = {arg_type_ir};
                 auto const print_func_type = llvm::FunctionType::get(
-                        llvm::StructType::get(c.llvm_context, {}),
+                        llvm::StructType::get(c.llvm_context, {})->getPointerTo(),
                         param_types,
                         false
                     );
