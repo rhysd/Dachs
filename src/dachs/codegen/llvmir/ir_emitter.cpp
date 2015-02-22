@@ -1808,7 +1808,10 @@ llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const
 #endif
 
         helper::colorizer c;
-        std::cerr << c.red(errmsg) << std::endl;
+        throw code_generation_error{
+            "LLVM IR generator",
+            "LLVM IR verifier failed:\n" + c.red(errmsg)
+        };
     }
 
     return the_module;
