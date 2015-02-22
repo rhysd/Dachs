@@ -455,14 +455,24 @@ class llvm_ir_emitter {
         return t.is_builtin();
     }
 
+    // Note:
+    // load_if_ref() strips reference if the value is treated by reference.
+    // To determine the value is treated by reference, type::type is used.
     llvm::Value *load_if_ref(llvm::Value *const v, type::type const& t)
     {
         if (auto const builtin = type::get<type::builtin_type>(t)) {
             if ((*builtin)->name != "string" && v->getType()->isPointerTy()) {
+                assert(!v->getType()->getPointerElementType()->isPointerTy());
                 return ctx.builder.CreateLoad(v);
             }
         }
         return v;
+    }
+
+    template<class Node>
+    llvm::Value *load_if_ref(llvm::Value *const v, Node const& hint)
+    {
+        return load_if_ref(v, type::type_of(hint));
     }
 
 public:
@@ -479,35 +489,6 @@ public:
         , alloc_emitter(ctx, type_emitter)
         , inst_emitter(ctx)
     {}
-
-    // Note:
-    // get_operand() strips pointer if needed.
-    // Operation instructions and call operation requires a value as operand.
-    // The value must be loaded by load instruction if the value is allocated pointer
-    // by alloca instruction or GEP pointing to the element of tuple or array.
-    template<class T>
-    val get_operand(T *const value) const
-    {
-        // XXX:
-        // Too hacky.
-        // User defined class is treated with a pointer to its resource.
-        auto const *const type = value->getType();
-        if (type->isPointerTy()) {
-            if (auto const *const struct_ty = llvm::dyn_cast<llvm::StructType>(type->getPointerElementType())) {
-                if (struct_ty->hasName()) {
-                    return value;
-                }
-            }
-        }
-
-        // XXX:
-        // This condition is too ad hoc.
-        if (llvm::isa<llvm::AllocaInst>(value) || llvm::isa<llvm::GetElementPtrInst>(value)) {
-            return ctx.builder.CreateLoad(value);
-        } else {
-            return value;
-        }
-    }
 
     val emit(ast::node::symbol_literal const& sl)
     {
@@ -606,14 +587,11 @@ public:
             // XXX
             auto *const alloca_inst = ctx.builder.CreateAlloca(ty);
 
-            for (auto const idx : helper::indices(elem_values.size())) {
-                auto *const elem_val = get_operand(elem_values[idx]);
-                ctx.builder.CreateStore(
-                        elem_val,
-                        // Note:
-                        // CreateStructGEP is also available for array value because
-                        // it is equivalent to CreateConstInBoundsGEP2_32(v, 0u, i).
-                        ctx.builder.CreateStructGEP(alloca_inst, idx)
+            for (auto const idx : helper::indices(elem_values)) {
+                alloc_emitter.create_deep_copy(
+                        elem_values[idx],
+                        ctx.builder.CreateStructGEP(alloca_inst, idx),
+                        type::type_of(elem_exprs[idx])
                     );
             }
 
@@ -661,12 +639,10 @@ public:
         } else {
             auto *const alloca_inst = ctx.builder.CreateAlloca(ty);
             for (auto const idx : helper::indices(elem_exprs.size())) {
-                ctx.builder.CreateStore(
-                        get_operand(emit(elem_exprs[idx])),
-                        // Note:
-                        // CreateStructGEP is also available for array value because
-                        // it is equivalent to CreateConstInBoundsGEP2_32(v, 0u, i).
-                        ctx.builder.CreateStructGEP(alloca_inst, idx)
+                alloc_emitter.create_deep_copy(
+                        elem_values[idx],
+                        ctx.builder.CreateStructGEP(alloca_inst, idx),
+                        t->element_type
                     );
             }
 
@@ -874,7 +850,7 @@ public:
         auto *const end_block = helper.create_block("if.end");
 
         // IR for if-then clause
-        val cond_val = get_operand(emit(if_->condition));
+        val cond_val = load_if_ref(emit(if_->condition), if_->condition);
         if (if_->kind == ast::symbol::if_kind::unless) {
             cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_stmt_unless"), "unless statement");
         }
@@ -1002,7 +978,7 @@ public:
         // Note:
         // Add a receiver for lambda function invocation
         if (callee->is_anonymous()) {
-            args.insert(std::begin(args), get_operand(emit(invocation->child)));
+            args.insert(std::begin(args), load_if_ref(emit(invocation->child), child_type));
         } else {
             emit(invocation->child);
         }
@@ -1033,7 +1009,7 @@ public:
 
         return check(
             unary,
-            tmp_builtin_unary_op_ir_emitter{ctx, get_operand(emit(unary->expr)), unary->op}.emit(builtin),
+            tmp_builtin_unary_op_ir_emitter{ctx, load_if_ref(emit(unary->expr), val_type), unary->op}.emit(builtin),
             boost::format("unary operator '%1%' (operand's type is '%2%')")
                 % unary->op
                 % builtin->to_string()
@@ -1051,7 +1027,12 @@ public:
 
         return check(
             bin_expr,
-            tmp_builtin_bin_op_ir_emitter{ctx, get_operand(emit(bin_expr->lhs)), get_operand(emit(bin_expr->rhs)), bin_expr->op}.emit(lhs_type),
+            tmp_builtin_bin_op_ir_emitter{
+                ctx,
+                load_if_ref(emit(bin_expr->lhs), lhs_type),
+                load_if_ref(emit(bin_expr->rhs), rhs_type),
+                bin_expr->op
+            }.emit(lhs_type),
             boost::format("binary operator '%1%' (lhs type is '%2%', rhs type is '%3%')")
                 % bin_expr->op
                 % type::to_string(lhs_type)
@@ -1113,7 +1094,7 @@ public:
 
     boost::optional<val> emit_instance_var_access(scope::class_scope const& scope, ast::node::ufcs_invocation const& ufcs)
     {
-        auto *const child_val = get_operand(emit(ufcs->child));
+        auto *const child_val = load_if_ref(emit(ufcs->child), ufcs->child);
 
         auto const offset_of
             = [&scope](auto const& name)
@@ -1232,7 +1213,7 @@ public:
         // Loop header
         helper.create_br(cond_block);
         val cond_val = emit(while_->condition);
-        helper.create_cond_br(get_operand(cond_val), body_block, exit_block);
+        helper.create_cond_br(load_if_ref(cond_val, while_->condition), body_block, exit_block);
 
         // Loop body
         auto const auto_popper = push_loop(cond_block);
@@ -1514,7 +1495,7 @@ public:
 
         llvm::BasicBlock *else_block;
         for (auto const& when_stmts : case_->when_stmts_list) {
-            auto *const cond_val = get_operand(emit(when_stmts.first));
+            auto *const cond_val = load_if_ref(emit(when_stmts.first), when_stmts.first);
             auto *const when_block = helper.create_block_for_parent("case.when");
             else_block = helper.create_block_for_parent("case.else");
 
@@ -1555,7 +1536,7 @@ public:
         auto helper = bb_helper(switch_);
         auto *const end_block = helper.create_block("switch.end");
 
-        auto *const target_val = get_operand(emit(switch_->target_expr));
+        auto *const target_val = load_if_ref(emit(switch_->target_expr), switch_->target_expr);
         auto const target_type = type::type_of(switch_->target_expr);
 
         // Emit when clause
@@ -1568,8 +1549,9 @@ public:
             // Emit condition IRs
             for (auto const& cmp_expr : when_stmt.first) {
                 auto *const next_cond_block = helper.create_block("switch.cond.next");
+                auto const cmp_type = type::type_of(cmp_expr);
 
-                if (!is_available_type_for_binary_expression(target_type, type::type_of(cmp_expr))) {
+                if (!is_available_type_for_binary_expression(target_type, cmp_type)) {
                     error(switch_, "Case statement condition now only supports some builtin types");
                 }
 
@@ -1579,7 +1561,7 @@ public:
                         tmp_builtin_bin_op_ir_emitter{
                             ctx,
                             target_val,
-                            get_operand(emit(cmp_expr)),
+                            load_if_ref(emit(cmp_expr), cmp_type),
                             "=="
                         }.emit(target_type),
                         "condition in switch statement"
@@ -1615,16 +1597,16 @@ public:
         auto *const else_block = helper.create_block_for_parent("expr.if.else");
         auto *const merge_block = helper.create_block_for_parent("expr.if.merge");
 
-        val cond_val = get_operand(emit(if_->condition_expr));
+        val cond_val = load_if_ref(emit(if_->condition_expr), if_->condition_expr);
         if (if_->kind == ast::symbol::if_kind::unless) {
             cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_expr_unless"), "unless expression");
         }
         helper.create_cond_br(cond_val, then_block, else_block);
 
-        auto *const then_val = get_operand(emit(if_->then_expr));
+        auto *const then_val = load_if_ref(emit(if_->then_expr), if_->then_expr);
         helper.terminate_with_br(merge_block, else_block);
 
-        auto *const else_val = get_operand(emit(if_->else_expr));
+        auto *const else_val = load_if_ref(emit(if_->else_expr), if_->else_expr);
         helper.terminate_with_br(merge_block, merge_block);
 
         auto *const phi = ctx.builder.CreatePHI(type_emitter.emit_alloc_type(if_->type), 2, "expr.if.tmp");
@@ -1645,7 +1627,7 @@ public:
         auto *const then_block = helper.create_block_for_parent("postfixif.then");
         auto *const end_block = helper.create_block_for_parent("postfixif.end");
 
-        val cond_val = get_operand(emit(postfix_if->condition));
+        val cond_val = load_if_ref(emit(postfix_if->condition), postfix_if->condition);
         if (postfix_if->kind == ast::symbol::if_kind::unless) {
             cond_val = check(postfix_if, ctx.builder.CreateNot(cond_val, "postfix_if_unless"), "unless expression");
         }
@@ -1665,8 +1647,8 @@ public:
 
     val emit(ast::node::cast_expr const& cast)
     {
-        auto *const child_val = get_operand(emit(cast->child));
         auto const child_type = type::type_of(cast->child);
+        auto *const child_val = load_if_ref(emit(cast->child), child_type);
         if (cast->type == child_type) {
             return child_val;
         }
@@ -1771,7 +1753,7 @@ public:
     {
         std::vector<val> arg_vals;
         for (auto const& e : obj->args) {
-            arg_vals.push_back(get_operand(emit(e)));
+            arg_vals.push_back(load_if_ref(emit(e), e));
         }
 
         if (auto const c = type::get<type::class_type>(obj->type)) {
