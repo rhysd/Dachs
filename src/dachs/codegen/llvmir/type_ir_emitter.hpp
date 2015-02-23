@@ -224,6 +224,13 @@ public:
         return any.apply_lambda([this](auto const& t){ return emit_alloc_type(t); });
     }
 
+    llvm::Type *emit_alloc_type(type::builtin_type const& t)
+    {
+        // Note:
+        // No need to strip pointer type because builtin type is treated by value.
+        return emitter_impl.emit(t);
+    }
+
     template<class T>
     llvm::Type *emit_alloc_type(T const& t)
     {

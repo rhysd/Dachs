@@ -344,6 +344,9 @@ public:
             if ((*builtin)->name != "string" && from->getType()->isPointerTy()) {
                 auto const loaded = ctx.builder.CreateLoad(from);
                 ctx.builder.CreateStore(loaded, to);
+            } else if ((*builtin)->name == "string" && from->getType()->getPointerElementType()->isPointerTy()) {
+                auto const loaded = ctx.builder.CreateLoad(from);
+                ctx.builder.CreateStore(loaded, to);
             } else {
                 ctx.builder.CreateStore(from, to);
             }
