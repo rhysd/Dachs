@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <algorithm>
+#include <utility>
 #include <cstddef>
 
 #include <boost/range/irange.hpp>
@@ -10,7 +11,10 @@
 
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
+#include "dachs/semantics/type.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
+#include "dachs/codegen/llvmir/type_ir_emitter.hpp"
+#include "dachs/helper/util.hpp"
 
 namespace dachs {
 namespace codegen {
@@ -161,130 +165,364 @@ public:
 
 };
 
-class alloc_helper {
+class inst_emit_helper {
     context &ctx;
 
-    template<class T>
-    bool is_aggregate_ptr(T const *const t) const noexcept
+    using value_or_error_type = boost::variant<llvm::Value *, std::string>;
+
+    template<class Format, class T>
+    auto format_impl(Format && fmt, T const& v) const
     {
-        if (!t->isPointerTy()) {
-            return false;
-        }
+        return std::forward<Format>(fmt) % v;
+    }
 
-        auto *const elem_type = t->getPointerElementType();
+    template<class Format, class Head, class... Tail>
+    auto format_impl(Format && fmt, Head const& head, Tail const&... tail) const
+    {
+        return format_impl(std::forward<Format>(fmt) % head, tail...);
+    }
 
-        if (auto const struct_type = llvm::dyn_cast<llvm::StructType>(elem_type)) {
-            if (struct_type->hasName()) {
-                // Note: User-defined type
-                return false;
-            }
-        }
-
-        return elem_type->isAggregateType();
+    template<class String, class... Args>
+    std::string format(String && str, Args const&... args) const
+    {
+        return format_impl(boost::format(std::forward<String>(str)), args...).str();
     }
 
 public:
-    explicit alloc_helper(context &c)
+
+    explicit inst_emit_helper(context &c)
         : ctx(c)
     {}
 
-    template<class FromValue, class String = char const* const>
-    llvm::AllocaInst *create_alloca(FromValue *const from, llvm::Value *const array_size = nullptr, String const& name = "")
+    llvm::Value *emit_elem_value(llvm::Value *const v, type::type const& t)
     {
-        auto *const type = from->getType();
+        if (t.is_builtin()) {
+            return v;
+        }
+
         // Note:
-        // Absorb the difference between value types and reference types
-        return ctx.builder.CreateAlloca(
-                llvm::isa<llvm::AllocaInst>(from) || llvm::isa<llvm::GetElementPtrInst>(from) ?
-                    type->getPointerElementType()
-                    : type
-                , array_size
-                , name
+        // e.g. getelementptr {[1 x i64]* }* %x, i32 0, i32 0
+        assert(v->getType()->getPointerElementType()->isPointerTy());
+        return ctx.builder.CreateLoad(v);
+    }
+
+    value_or_error_type emit_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::type const& t)
+    {
+        if (auto const tuple = type::get<type::tuple_type>(t)) {
+            return emit_element_access(aggregate, index, *tuple);
+        } else if (auto const array = type::get<type::array_type>(t)) {
+            return emit_element_access(aggregate, index, *array);
+        } else if (auto const builtin = type::get<type::builtin_type>(t)) {
+            if ((*builtin)->name == "string") {
+                return emit_element_access(aggregate, index, *builtin);
+            }
+        }
+
+        return "Value is not tuple, array and string";
+    }
+
+    value_or_error_type emit_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::tuple_type const& t)
+    {
+        assert(aggregate->getType()->isPointerTy());
+        assert(aggregate->getType()->getPointerElementType()->isStructTy());
+
+        auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index);
+        if (!constant_index) {
+            return "Index is not a constant";
+        }
+
+        auto const idx = constant_index->getZExtValue();
+        return emit_elem_value(ctx.builder.CreateStructGEP(aggregate, idx), t->element_types[idx]);
+    }
+
+    value_or_error_type emit_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::array_type const& t)
+    {
+        assert(aggregate->getType()->isPointerTy());
+        auto const ty = aggregate->getType()->getPointerElementType();
+
+        if (ty->isPointerTy() && ty->getPointerElementType()->isIntegerTy(8u)) {
+            assert(t->element_type.is_builtin("string"));
+
+            // Note:
+            // Corner case.  When i8** (it means the argument of 'main')
+            return ctx.builder.CreateLoad(
+                ctx.builder.CreateInBoundsGEP(
+                        aggregate,
+                        index
+                    )
+                );
+        }
+
+        assert(ty->isArrayTy());
+
+        auto const array_ty = llvm::dyn_cast<llvm::ArrayType>(ty);
+        auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index);
+        if (constant_index) {
+            assert(array_ty);
+            auto const idx = constant_index->getZExtValue();
+            auto const size = array_ty->getArrayNumElements();
+
+            if (idx >= size) {
+                return format("Array index is out of bounds %1% for 0..%2%", idx, size);
+            }
+        }
+
+        return emit_elem_value(
+                ctx.builder.CreateInBoundsGEP(
+                    aggregate,
+                    (llvm::Value *[2]){
+                        ctx.builder.getInt64(0u),
+                        index
+                    }
+                ), t->element_type
             );
     }
 
-    template<class String = char const* const>
-    llvm::AllocaInst *alloc_and_deep_copy(llvm::Value *const from, String const& name = "")
+    value_or_error_type emit_element_access(llvm::Value *str_val, llvm::Value *const index, type::builtin_type const& t)
     {
-        auto *const allocated = create_alloca(from, nullptr, name);
-        if (!allocated) {
-            return nullptr;
+        // Note:
+        // Workaround.  At first, allocate i8* and store the global string pointer
+        // to the allocated memory. At second, load it and call CreateGEP().
+        // This make CreateGEP() not to fold the getelementptr inst.
+        // Without the workaround, the global string pointer is a constant and
+        // when the index value is a constant, the getelementptr inst will be folded.
+        // However, it seems that the result of folding the getelementptr is treated as if
+        // it is not a getelementptr inst.  The result of llvm::isa<llvm::GetElementPtrInst>(result)
+        // returns false.  I don't know why.
+
+        assert(t->name == "string");
+        (void) t;
+
+        if (str_val->getType()->getPointerElementType()->isPointerTy()) {
+            str_val = ctx.builder.CreateLoad(str_val);
+        }
+        auto const str_ptr = ctx.builder.CreateAlloca(str_val->getType());
+        ctx.builder.CreateStore(str_val, str_ptr);
+
+        return ctx.builder.CreateGEP(
+                ctx.builder.CreateLoad(str_ptr),
+                index
+            );
+    }
+};
+
+class alloc_helper {
+    context &ctx;
+    type_ir_emitter &type_emitter;
+    semantics::lambda_captures_type const& lambda_captures;
+
+public:
+
+    alloc_helper(context &c, type_ir_emitter &e, decltype(lambda_captures) const& cs)
+        : ctx(c), type_emitter(e), lambda_captures(cs)
+    {}
+
+    template<class String = char const* const>
+    llvm::AllocaInst *create_alloca(type::type const& t, String const& name = "", llvm::Value *const array_size = nullptr)
+    {
+        auto *const ty = type_emitter.emit_alloc_type(t);
+        assert(ty);
+        auto *const allocated = ctx.builder.CreateAlloca(ty, array_size, name);
+
+        ctx.builder.CreateMemSet(
+                allocated,
+                ctx.builder.getInt8(0u),
+                ctx.data_layout->getTypeAllocSize(ty),
+                ctx.data_layout->getPrefTypeAlignment(ty)
+            );
+
+        if (auto const array = type::get<type::array_type>(t)) {
+            auto const& elem_type = (*array)->element_type;
+            if (elem_type.is_builtin()) {
+                return allocated;
+            }
+
+            auto *const array_ty = llvm::dyn_cast<llvm::ArrayType>(ty);
+            assert(array_ty);
+            for (uint32_t const idx : helper::indices(array_ty->getNumElements())) {
+                ctx.builder.CreateStore(
+                        create_alloca(elem_type),
+                        ctx.builder.CreateConstInBoundsGEP2_32(allocated, 0u, idx)
+                    );
+            }
+        } else if (auto const tuple = type::get<type::tuple_type>(t)) {
+            for (auto const idx : helper::indices((*tuple)->element_types)) {
+                auto const& elem_type = (*tuple)->element_types[idx];
+                if (elem_type.is_builtin()) {
+                    continue;
+                }
+
+                ctx.builder.CreateStore(
+                        create_alloca(elem_type),
+                        ctx.builder.CreateStructGEP(allocated, idx)
+                    );
+            }
+        } else if (auto const clazz = type::get<type::class_type>(t)) {
+            auto const& c = *clazz;
+            assert(c->param_types.empty());
+            auto const scope = c->ref.lock();
+            assert(!scope->is_template());
+            for (auto const idx : helper::indices(scope->instance_var_symbols)) {
+                auto const& var_type = scope->instance_var_symbols[idx]->type;
+                if (var_type.is_builtin()) {
+                    continue;
+                }
+
+                ctx.builder.CreateStore(
+                        create_alloca(var_type),
+                        ctx.builder.CreateStructGEP(allocated, idx)
+                    );
+            }
+        } else if (auto const generic_func = type::get<type::generic_func_type>(t)) {
+            auto const& g = *generic_func;
+            if (!g->ref || g->ref->expired()) {
+                return allocated;
+            }
+
+            auto const itr = lambda_captures.find(g);
+            if (itr == std::end(lambda_captures)) {
+                return allocated;
+            }
+
+            auto const& captures = itr->second;
+            for (auto const& capture : captures) {
+                auto const& capture_type = capture.introduced->type;
+                if (capture_type.is_builtin()) {
+                    continue;
+                }
+
+                ctx.builder.CreateStore(
+                        create_alloca(capture_type),
+                        ctx.builder.CreateStructGEP(allocated, capture.offset)
+                    );
+            }
         }
 
-        create_deep_copy(from, allocated);
         return allocated;
     }
 
-    // Note:
-    // Pointer depth examples:
-    //      i8 : 0
-    //     *i8 : 1
-    //    **i8 : 2
-    template<class Type>
-    std::size_t pointer_depth(Type const* const type) const noexcept
+    template<class V, class String = char const* const>
+    llvm::AllocaInst *alloc_and_deep_copy(V *const from, type::type const& t, String const& name = "", llvm::Value *const array_size = nullptr)
     {
-        return type->isPointerTy()
-            ? 1u + pointer_depth(type->getPointerElementType())
-            : 0u;
+        auto *const allocated = create_alloca(t, name, array_size);
+        assert(allocated);
+
+        create_deep_copy(from, allocated, t);
+
+        return allocated;
     }
 
-    template<class PtrTypeType>
-    void create_deep_copy(llvm::Value *const from, PtrTypeType *const to)
+    template<class V1, class V2>
+    void create_deep_copy(V1 *const from, V2 *const to, type::type const& t)
     {
-        assert(from);
-        assert(to);
         assert(to->getType()->isPointerTy());
-        auto *const from_type = from->getType();
 
-        if (is_aggregate_ptr(from_type)) {
-            auto *const aggregate_type = from_type->getPointerElementType();
-            // Note:
-            // memcpy is shallow copy
-            ctx.builder.CreateMemCpy(
+        if (auto const builtin = type::get<type::builtin_type>(t)) {
+            if ((*builtin)->name != "string" && from->getType()->isPointerTy()) {
+                auto const loaded = ctx.builder.CreateLoad(from);
+                ctx.builder.CreateStore(loaded, to);
+            } else if ((*builtin)->name == "string" && from->getType()->getPointerElementType()->isPointerTy()) {
+                auto const loaded = ctx.builder.CreateLoad(from);
+                ctx.builder.CreateStore(loaded, to);
+            } else {
+                ctx.builder.CreateStore(from, to);
+            }
+            return;
+        }
+
+        assert(from->getType()->isPointerTy());
+        auto *const stripped_ty = from->getType()->getPointerElementType();
+
+        ctx.builder.CreateMemCpy(
                 to,
                 from,
-                ctx.data_layout->getTypeAllocSize(aggregate_type),
-                ctx.data_layout->getPrefTypeAlignment(aggregate_type)
+                ctx.data_layout->getTypeAllocSize(stripped_ty),
+                ctx.data_layout->getPrefTypeAlignment(stripped_ty)
             );
-            if (auto *const struct_type = llvm::dyn_cast<llvm::StructType>(aggregate_type)) {
-                for (uint64_t const idx : irange(0u, struct_type->getNumElements())) {
-                    if (!struct_type->getElementType(idx)->isPointerTy()) {
-                        // Note:
-                        // If element type is not pointer, it is already copied by memcpy()
-                        continue;
-                    }
 
-                    auto *const ptr_to_elem = ctx.builder.CreateStructGEP(from, idx);
-                    auto *const ptr_to_dest_elem = ctx.builder.CreateStructGEP(to, idx);
-                    create_deep_copy(ptr_to_elem, ptr_to_dest_elem);
+        // TODO:
+        // I should use visitor to visit each type.
+        if (auto const tuple_ = type::get<type::tuple_type>(t)) {
+            auto const& tuple = *tuple_;
+            for (auto const idx : helper::indices(tuple->element_types)) {
+                auto const& elem_type = tuple->element_types[idx];
+                if (elem_type.is_builtin()) {
+                    continue;
                 }
 
-            } else if (auto *const array_type = llvm::dyn_cast<llvm::ArrayType>(aggregate_type)) {
-                auto *const elem_type = array_type->getArrayElementType();
-
-                if (elem_type->isPointerTy()) {
-                    for (uint64_t const idx : irange(uint64_t{0u}, array_type->getNumElements())) {
-                        auto *const ptr_to_elem = ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx);
-                        auto *const ptr_to_dest_elem = ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx);
-                        create_deep_copy(ptr_to_elem, ptr_to_dest_elem);
-                    }
+                auto *const elem_from = ctx.builder.CreateLoad(
+                        ctx.builder.CreateStructGEP(from, idx)
+                    );
+                auto *const elem_to = ctx.builder.CreateLoad(
+                        ctx.builder.CreateStructGEP(to, idx)
+                    );
+                create_deep_copy(elem_from, elem_to, elem_type);
+            }
+        } else if (auto const array_ = type::get<type::array_type>(t)) {
+            auto const& array = *array_;
+            auto const& elem_type = array->element_type;
+            if (elem_type.is_builtin()) {
+                return;
+            }
+            auto *const array_ty = llvm::dyn_cast<llvm::ArrayType>(stripped_ty);
+            assert(array_ty);
+            for (uint64_t const idx : helper::indices(array_ty->getNumElements())) {
+                auto *const elem_from = ctx.builder.CreateLoad(
+                            ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx)
+                        );
+                auto *const elem_to = ctx.builder.CreateLoad(
+                            ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx)
+                        );
+                create_deep_copy(elem_from, elem_to, elem_type);
+            }
+        } else if (auto const clazz_ = type::get<type::class_type>(t)) {
+            auto const& clazz = *clazz_;
+            assert(clazz->param_types.empty());
+            auto const scope = clazz->ref.lock();
+            assert(!scope->is_template());
+            for (auto const idx : helper::indices(scope->instance_var_symbols)) {
+                auto const& var_type = scope->instance_var_symbols[idx]->type;
+                if (var_type.is_builtin()) {
+                    continue;
                 }
-
-            } else {
-                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+                auto *const elem_from = ctx.builder.CreateLoad(
+                            ctx.builder.CreateStructGEP(from, idx)
+                        );
+                auto *const elem_to = ctx.builder.CreateLoad(
+                            ctx.builder.CreateStructGEP(to, idx)
+                        );
+                create_deep_copy(elem_from, elem_to, var_type);
+            }
+        } else if (auto const generic_func = type::get<type::generic_func_type>(t)){
+            auto const& g = *generic_func;
+            if (!g->ref || g->ref->expired()) {
+                return;
             }
 
-        } else if ((llvm::isa<llvm::AllocaInst>(from) || llvm::isa<llvm::GetElementPtrInst>(from)) &&
-                   (pointer_depth(from_type) == pointer_depth(to->getType()))) {
-            // Note:
-            // When the src value should be loaded before storing to dest,
-            // pointer depth of src value must equal to one of dest value.
-            ctx.builder.CreateStore(ctx.builder.CreateLoad(from), to);
+            auto const itr = lambda_captures.find(g);
+            if (itr == std::end(lambda_captures)) {
+                return;
+            }
+
+            auto const& captures = itr->second;
+            for (auto const& capture : captures) {
+                auto const& capture_type = capture.introduced->type;
+                if (capture_type.is_builtin()) {
+                    continue;
+                }
+
+                auto *const elem_from = ctx.builder.CreateLoad(
+                            ctx.builder.CreateStructGEP(from, capture.offset)
+                        );
+                auto *const elem_to = ctx.builder.CreateLoad(
+                            ctx.builder.CreateStructGEP(to, capture.offset)
+                        );
+                create_deep_copy(elem_from, elem_to, capture_type);
+            }
         } else {
-            ctx.builder.CreateStore(from, to);
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
     }
-
 };
 
 } // namespace builder

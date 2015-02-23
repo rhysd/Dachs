@@ -13,6 +13,7 @@
 #include "dachs/semantics/type.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
+#include "dachs/codegen/llvmir/ir_builder_helper.hpp"
 #include "dachs/helper/util.hpp"
 
 namespace dachs {
@@ -25,15 +26,19 @@ class tmp_constructor_ir_emitter {
 
     context &ctx;
     type_ir_emitter &type_emitter;
+    builder::alloc_helper &alloc_emitter;
+    llvm::Module * const& module;
 
     template<class Values>
     struct type_ctor_emitter : boost::static_visitor<val> {
         context &ctx;
         type_ir_emitter &type_emitter;
+        builder::alloc_helper &alloc_emitter;
+        llvm::Module &module;
         Values const& arg_values;
 
-        type_ctor_emitter(context &c, type_ir_emitter &t, Values const& a)
-            : ctx(c), type_emitter(t), arg_values(a)
+        type_ctor_emitter(context &c, type_ir_emitter &t, builder::alloc_helper &e, llvm::Module &m, Values const& a)
+            : ctx(c), type_emitter(t), alloc_emitter(e), module(m), arg_values(a)
         {
             assert(a.size() == 1 || a.size() == 2);
         }
@@ -45,7 +50,7 @@ class tmp_constructor_ir_emitter {
             }
 
             assert(a->size);
-            auto *const ty = type_emitter.emit_fixed_array(a);
+            auto *const ty = type_emitter.emit_alloc_fixed_array(a);
             auto const size = *a->size;
 
             // Note:
@@ -59,7 +64,15 @@ class tmp_constructor_ir_emitter {
                     (void) unused;
                     elems.push_back(elem_constant);
                 }
-                return llvm::ConstantArray::get(ty, elems);
+                auto const constant = new llvm::GlobalVariable(
+                            module,
+                            ty,
+                            true /*constant*/,
+                            llvm::GlobalValue::PrivateLinkage,
+                            llvm::ConstantArray::get(ty, elems)
+                        );
+                constant->setUnnamedAddr(true);
+                return constant;
 
             } else {
                 auto *const allocated = ctx.builder.CreateAlloca(ty);
@@ -73,9 +86,10 @@ class tmp_constructor_ir_emitter {
                         );
                 } else {
                     for (auto const idx : helper::indices(size)) {
-                        ctx.builder.CreateStore(
+                        alloc_emitter.create_deep_copy(
                                 arg_values[1],
-                                ctx.builder.CreateStructGEP(allocated, idx)
+                                ctx.builder.CreateStructGEP(allocated, idx),
+                                a->element_type
                             );
                     }
                 }
@@ -93,14 +107,15 @@ class tmp_constructor_ir_emitter {
 
 public:
 
-    tmp_constructor_ir_emitter(context &c, type_ir_emitter &t) noexcept
-        : ctx(c), type_emitter(t)
+    tmp_constructor_ir_emitter(context &c, type_ir_emitter &t, builder::alloc_helper &a, llvm::Module *const& m) noexcept
+        : ctx(c), type_emitter(t), alloc_emitter(a), module(m)
     {}
 
     template<class Values>
     val emit(type::type &type, Values const& arg_values)
     {
-        type_ctor_emitter<Values> emitter{ctx, type_emitter, arg_values};
+        assert(module);
+        type_ctor_emitter<Values> emitter{ctx, type_emitter, alloc_emitter, *module, arg_values};
         return type.apply_visitor(emitter);
     }
 };

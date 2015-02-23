@@ -30,14 +30,17 @@ class tmp_member_ir_emitter {
             : name(n), value(v), ctx(c)
         {}
 
-        val emit_tuple_access(std::uint64_t const i)
+        val emit_tuple_access(std::uint64_t const i, type::type const& elem_type)
         {
-            auto *const t = value->getType();
-            assert(t->isStructTy() || (t->isPointerTy() && t->getPointerElementType()->isStructTy()));
+            assert(value->getType()->isPointerTy() && value->getType()->getPointerElementType()->isStructTy());
 
-            return t->isStructTy() ?
-                       ctx.builder.CreateExtractValue(value, i) :
-                       ctx.builder.CreateStructGEP(value, i);
+            auto access = ctx.builder.CreateStructGEP(value, i);
+
+            if (!elem_type.is_builtin()) {
+                access = ctx.builder.CreateLoad(access);
+            }
+
+            return access;
         }
 
         val operator()(type::tuple_type const& t)
@@ -45,11 +48,11 @@ class tmp_member_ir_emitter {
             if (name == "size") {
                 return ctx.builder.getInt64(t->element_types.size());
             } else if (name == "first") {
-                return emit_tuple_access(0u);
+                return emit_tuple_access(0u, t->element_types[0u]);
             } else if (name == "second") {
-                return emit_tuple_access(1u);
+                return emit_tuple_access(1u, t->element_types[1u]);
             } else if (name == "last") {
-                return emit_tuple_access(t->element_types.size() - 1);
+                return emit_tuple_access(t->element_types.size() - 1, t->element_types[t->element_types.size() - 1]);
             } else {
                 return nullptr;
             }
@@ -90,14 +93,15 @@ public:
         : ctx(c)
     {}
 
-    val emit_builtin_instance_var(val const child_value, std::string const& member_name, type::type &&child_type)
+    template<class Type>
+    val emit_builtin_instance_var(val const child_value, std::string const& member_name, Type &&child_type)
     {
         if (member_name == "__type") {
             return ctx.builder.CreateGlobalStringPtr(child_type.to_string().c_str());
         }
 
         type_visit_emitter emitter{member_name, child_value, ctx};
-        return child_type.apply_visitor(emitter);
+        return std::forward<Type>(child_type).apply_visitor(emitter);
     }
 };
 

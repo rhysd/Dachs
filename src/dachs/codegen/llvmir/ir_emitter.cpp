@@ -38,7 +38,6 @@
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/tmp_builtin_operator_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/builtin_func_ir_emitter.hpp"
-#include "dachs/codegen/llvmir/variable_table.hpp"
 #include "dachs/codegen/llvmir/ir_builder_helper.hpp"
 #include "dachs/codegen/llvmir/tmp_member_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/tmp_constructor_ir_emitter.hpp"
@@ -71,20 +70,59 @@ using boost::algorithm::all_of;
 class llvm_ir_emitter {
     using val = llvm::Value *;
     using self = llvm_ir_emitter;
+    using var_table_type = std::unordered_map<symbol::var_symbol, val>;
 
     llvm::Module *module = nullptr;
     context &ctx;
     semantics::semantics_context const& semantics_ctx;
-    variable_table var_table;
+    var_table_type var_table;
     std::unordered_map<scope::func_scope, llvm::Function *const> func_table;
     builtin_function_emitter builtin_func_emitter;
     std::string const& file;
     std::stack<llvm::BasicBlock *> loop_stack; // Loop stack for continue and break statements
     type_ir_emitter type_emitter;
     tmp_member_ir_emitter member_emitter;
-    tmp_constructor_ir_emitter builtin_ctor_emitter;
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
-    builder::alloc_helper allocator;
+    builder::alloc_helper alloc_emitter;
+    builder::inst_emit_helper inst_emitter;
+    tmp_constructor_ir_emitter builtin_ctor_emitter;
+    llvm::GlobalVariable *unit_constant = nullptr;
+
+    val lookup_var(symbol::var_symbol const& s) const
+    {
+        auto const result = var_table.find(s);
+        if (result == std::end(var_table)) {
+            return nullptr;
+        } else {
+            return result->second;
+        }
+    }
+
+    val lookup_var(std::string const& name) const
+    {
+        auto const result
+            = boost::find_if(
+                    var_table,
+                    [&name](auto const& var){ return var.first->name == name; }
+                );
+
+        if (result == boost::end(var_table)) {
+            return nullptr;
+        } else {
+            return result->second;
+        }
+    }
+
+    bool register_var(symbol::var_symbol const& sym, llvm::Value *const v)
+    {
+        return var_table.emplace(sym, v).second;
+    }
+
+    template<class Symbol>
+    bool register_var(Symbol && sym, llvm::Value *const v)
+    {
+        return var_table.emplace(std::forward<Symbol>(sym), v).second;
+    }
 
     auto push_loop(llvm::BasicBlock *loop_value)
     {
@@ -223,12 +261,12 @@ class llvm_ir_emitter {
             arg_itr->setName("dachs.main.argc");
             // XXX:
             // Owned by variable table only
-            var_table.insert(symbol::make<symbol::var_symbol>(nullptr, "dachs.main.argc"), arg_itr);
+            register_var(symbol::make<symbol::var_symbol>(nullptr, "dachs.main.argc"), arg_itr);
 
             ++arg_itr;
 
             arg_itr->setName(main_scope->params[0]->name);
-            var_table.insert(main_scope->params[0], arg_itr);
+            register_var(main_scope->params[0], arg_itr);
         }
 
         func_value->addFnAttr(llvm::Attribute::NoUnwind);
@@ -280,7 +318,7 @@ class llvm_ir_emitter {
             auto param_itr = std::begin(scope->params);
             for (; param_itr != std::end(scope->params); ++arg_itr, ++param_itr) {
                 arg_itr->setName((*param_itr)->name);
-                var_table.insert(*param_itr, arg_itr);
+                register_var(*param_itr, arg_itr);
             }
         }
 
@@ -348,13 +386,13 @@ class llvm_ir_emitter {
             }
 
             assert(!ref->symbol.expired());
-            return emitter.var_table.lookup_value(ref->symbol.lock());
+            return emitter.lookup_var(ref->symbol.lock());
         }
 
         val emit(ast::node::index_access const& access)
         {
             auto const child_val = emitter.emit(access->child);
-            auto const index_val = emitter.get_operand(emitter.emit(access->index_expr));
+            auto const index_val = emitter.load_if_ref(emitter.emit(access->index_expr), type::type_of(access->index_expr));
             auto const child_type = type::type_of(access->child);
             if (type::is_a<type::tuple_type>(child_type)) {
                 auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
@@ -373,7 +411,7 @@ class llvm_ir_emitter {
                     );
             } else {
                 // Note: An exception is thrown
-                emitter.error(access, "Not a tuple value (in assignment statement)");
+                emitter.error(access, "Not a tuple or array value (in assignment statement)");
             }
         }
 
@@ -413,48 +451,65 @@ class llvm_ir_emitter {
         }
     };
 
+    bool treats_by_value(type::type const& t) const
+    {
+        return t.is_builtin();
+    }
+
+    // Note:
+    // load_if_ref() strips reference if the value is treated by reference.
+    // To determine the value is treated by reference, type::type is used.
+    llvm::Value *load_if_ref(llvm::Value *const v, type::type const& t)
+    {
+        if (auto const builtin = type::get<type::builtin_type>(t)) {
+            if ((*builtin)->name != "string" && v->getType()->isPointerTy()) {
+                assert(!v->getType()->getPointerElementType()->isPointerTy());
+                return ctx.builder.CreateLoad(v);
+            } else if ((*builtin)->name == "string" && v->getType()->getPointerElementType()->isPointerTy()) {
+                // Note:
+                // When the type of string is i8**
+                return ctx.builder.CreateLoad(v);
+            }
+        }
+        return v;
+    }
+
+    // Note:
+    // Aggregate elements in aggregates are stored as a pointer to it.
+    // e.g.
+    //  [{i32, i32}*], {[i32 x 1]*, {i32, i32}*}
+    // However, built-in type is embedded in aggregates directly.
+    // So it is necessary to check the type is built-in type and, if not, load instruction
+    // needs to be emitted.
+    llvm::Value *load_aggregate_elem(llvm::Value *const v, type::type const& elem_type)
+    {
+        if (elem_type.is_builtin()) {
+            return v;
+        }
+
+        return ctx.builder.CreateLoad(v);
+    }
+
+    template<class Node>
+    llvm::Value *load_if_ref(llvm::Value *const v, Node const& hint)
+    {
+        return load_if_ref(v, type::type_of(hint));
+    }
+
 public:
 
     llvm_ir_emitter(std::string const& f, context &c, semantics::semantics_context const& sc)
         : ctx(c)
         , semantics_ctx(sc)
-        , var_table(ctx)
+        , var_table()
         , builtin_func_emitter(ctx)
         , file(f)
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , member_emitter(ctx)
-        , builtin_ctor_emitter(ctx, type_emitter)
-        , allocator(ctx)
+        , alloc_emitter(ctx, type_emitter, sc.lambda_captures)
+        , inst_emitter(ctx)
+        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, module)
     {}
-
-    // Note:
-    // get_operand() strips pointer if needed.
-    // Operation instructions and call operation requires a value as operand.
-    // The value must be loaded by load instruction if the value is allocated pointer
-    // by alloca instruction or GEP pointing to the element of tuple or array.
-    template<class T>
-    val get_operand(T *const value) const
-    {
-        // XXX:
-        // Too hacky.
-        // User defined class is treated with a pointer to its resource.
-        auto const *const type = value->getType();
-        if (type->isPointerTy()) {
-            if (auto const *const struct_ty = llvm::dyn_cast<llvm::StructType>(type->getPointerElementType())) {
-                if (struct_ty->hasName()) {
-                    return value;
-                }
-            }
-        }
-
-        // XXX:
-        // This condition is too ad hoc.
-        if (llvm::isa<llvm::AllocaInst>(value) || llvm::isa<llvm::GetElementPtrInst>(value)) {
-            return ctx.builder.CreateLoad(value);
-        } else {
-            return value;
-        }
-    }
 
     val emit(ast::node::symbol_literal const& sl)
     {
@@ -480,7 +535,7 @@ public:
             val operator()(char const ch)
             {
                 return llvm::ConstantInt::get(
-                        t_emitter.emit(pl->type),
+                        t_emitter.emit_alloc_type(pl->type),
                         static_cast<std::uint8_t const>(ch), false
                     );
             }
@@ -503,7 +558,7 @@ public:
             val operator()(int const i)
             {
                 return llvm::ConstantInt::getSigned(
-                        t_emitter.emit(pl->type),
+                        t_emitter.emit_alloc_type(pl->type),
                         static_cast<std::int64_t const>(i)
                     );
             }
@@ -511,7 +566,7 @@ public:
             val operator()(unsigned int const ui)
             {
                 return llvm::ConstantInt::get(
-                        t_emitter.emit(pl->type),
+                        t_emitter.emit_alloc_type(pl->type),
                         static_cast<std::uint64_t const>(ui), false
                     );
             }
@@ -521,14 +576,23 @@ public:
         return check(pl, boost::apply_visitor(visitor, pl->value), "constant");
     }
 
-    template<class Expr>
-    val emit_tuple_constant(type::tuple_type const& t, std::vector<Expr> const& elem_exprs)
+    val emit_tuple_constant(type::tuple_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
     {
+        if (elem_exprs.empty()) {
+            if (!unit_constant) {
+                unit_constant = new llvm::GlobalVariable(*module, llvm::StructType::get(ctx.llvm_context, {}), true, llvm::GlobalValue::PrivateLinkage, llvm::ConstantStruct::getAnon(ctx.llvm_context, {}));
+                unit_constant->setUnnamedAddr(true);
+            }
+            return unit_constant;
+        }
+
         std::vector<val> elem_values;
         elem_values.reserve(elem_exprs.size());
         for (auto const& e : elem_exprs) {
             elem_values.push_back(emit(e));
         }
+
+        auto *const ty = type_emitter.emit_alloc_type(t);
 
         if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
             std::vector<llvm::Constant *> elem_consts;
@@ -538,17 +602,25 @@ public:
                 elem_consts.push_back(constant);
             }
 
-            return llvm::ConstantStruct::getAnon(ctx.llvm_context, elem_consts);
+            auto const constant = new llvm::GlobalVariable(
+                        *module,
+                        ty,
+                        true/*constant*/,
+                        llvm::GlobalValue::PrivateLinkage,
+                        llvm::ConstantStruct::getAnon(ctx.llvm_context, elem_consts)
+                    );
+            constant->setUnnamedAddr(true);
+
+            return constant;
         } else {
-            auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(t));
-            for (auto const idx : helper::indices(elem_values.size())) {
-                auto *const elem_val = get_operand(elem_values[idx]);
-                ctx.builder.CreateStore(
-                        elem_val,
-                        // Note:
-                        // CreateStructGEP is also available for array value because
-                        // it is equivalent to CreateConstInBoundsGEP2_32(v, 0u, i).
-                        ctx.builder.CreateStructGEP(alloca_inst, idx)
+            // XXX
+            auto *const alloca_inst = ctx.builder.CreateAlloca(ty);
+
+            for (auto const idx : helper::indices(elem_values)) {
+                alloc_emitter.create_deep_copy(
+                        elem_values[idx],
+                        ctx.builder.CreateStructGEP(alloca_inst, idx),
+                        type::type_of(elem_exprs[idx])
                     );
             }
 
@@ -556,8 +628,7 @@ public:
         }
     }
 
-    template<class Expr>
-    val emit_tuple_constant(std::vector<Expr> const& elem_exprs)
+    val emit_tuple_constant(std::vector<ast::node::any_expr> const& elem_exprs)
     {
         auto const the_type
             = type::make<type::tuple_type>(
@@ -567,14 +638,15 @@ public:
         return emit_tuple_constant(the_type, elem_exprs);
     }
 
-    template<class Expr>
-    val emit_array_constant(type::array_type const& t, std::vector<Expr> const& elem_exprs)
+    val emit_array_constant(type::array_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
     {
         std::vector<val> elem_values;
         elem_values.reserve(elem_exprs.size());
         for (auto const& e : elem_exprs) {
             elem_values.push_back(emit(e));
         }
+
+        auto *const ty = type_emitter.emit_alloc_type(t);
 
         if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
             std::vector<llvm::Constant *> elem_consts;
@@ -584,16 +656,22 @@ public:
                 elem_consts.push_back(constant);
             }
 
-            return llvm::ConstantArray::get(type_emitter.emit_fixed_array(t), elem_consts);
+            auto const constant = new llvm::GlobalVariable(
+                        *module,
+                        ty,
+                        true /*constant*/,
+                        llvm::GlobalValue::PrivateLinkage,
+                        llvm::ConstantArray::get(type_emitter.emit_alloc_fixed_array(t), elem_consts)
+                    );
+            constant->setUnnamedAddr(true);
+            return constant;
         } else {
-            auto *const alloca_inst = ctx.builder.CreateAlloca(type_emitter.emit(t));
+            auto *const alloca_inst = ctx.builder.CreateAlloca(ty);
             for (auto const idx : helper::indices(elem_exprs.size())) {
-                ctx.builder.CreateStore(
-                        get_operand(emit(elem_exprs[idx])),
-                        // Note:
-                        // CreateStructGEP is also available for array value because
-                        // it is equivalent to CreateConstInBoundsGEP2_32(v, 0u, i).
-                        ctx.builder.CreateStructGEP(alloca_inst, idx)
+                alloc_emitter.create_deep_copy(
+                        elem_values[idx],
+                        ctx.builder.CreateStructGEP(alloca_inst, idx),
+                        t->element_type
                     );
             }
 
@@ -688,20 +766,19 @@ public:
         // Note:
         // The parameter is already registered as register value for variable table in emit_func_prototype()
         // So at first we delete the value and re-register it as allocated value
-        auto const register_val = var_table.lookup_register_value(param_sym);
-        assert(register_val);
-        var_table.erase_register_value(param_sym);
+        auto const param_val = lookup_var(param_sym);
+        var_table.erase(param_sym);
 
-        assert(type_emitter.emit(param_sym->type) == register_val->getType());
+        assert(type_emitter.emit(param_sym->type) == param_val->getType());
 
         auto const inst
             = check(
                 param,
-                allocator.alloc_and_deep_copy(register_val, param_sym->name),
+                alloc_emitter.alloc_and_deep_copy(param_val, param_sym->type, param->name),
                 "allocation for variable parameter"
             );
 
-        auto const result = var_table.insert(param_sym, inst);
+        auto const result = register_var(param_sym, inst);
         assert(result);
         (void) result;
     }
@@ -716,19 +793,22 @@ public:
         assert(!receiver_type->ref.expired());
         auto const clazz = receiver_type->ref.lock();
 
-        auto *const self_val = var_table.lookup_value(self_sym);
+        auto *const self_val = lookup_var(self_sym);
         assert(self_val);
 
         for (auto const& p : ctor->params) {
             if (p->is_instance_var()) {
-                auto *const initializer_val = var_table.lookup_value(p);
+                auto *const initializer_val = lookup_var(p);
                 assert(initializer_val);
 
                 auto const offset = clazz->get_instance_var_offset_of(p->name.substr(1u)/* omit '@' */);
                 assert(offset);
-                auto *const dest_val = ctx.builder.CreateStructGEP(self_val, *offset);
+                auto *const dest_val = load_aggregate_elem(
+                        ctx.builder.CreateStructGEP(self_val, *offset),
+                        p->type
+                    );
                 assert(dest_val);
-                allocator.create_deep_copy(initializer_val, dest_val);
+                alloc_emitter.create_deep_copy(initializer_val, dest_val, p->type);
             }
         }
     }
@@ -770,7 +850,7 @@ public:
                 || func_def->kind == ast::symbol::func_kind::proc
                 || *func_def->ret_type == type::get_unit_type()) {
             ctx.builder.CreateRet(
-                llvm::ConstantStruct::getAnon(ctx.llvm_context, {})
+                emit_tuple_constant(type::get_unit_type(), {})
             );
         } else {
             // Note:
@@ -802,7 +882,7 @@ public:
         auto *const end_block = helper.create_block("if.end");
 
         // IR for if-then clause
-        val cond_val = get_operand(emit(if_->condition));
+        val cond_val = load_if_ref(emit(if_->condition), if_->condition);
         if (if_->kind == ast::symbol::if_kind::unless) {
             cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_stmt_unless"), "unless statement");
         }
@@ -839,15 +919,16 @@ public:
         }
 
         if (return_->ret_exprs.size() == 1) {
-            ctx.builder.CreateRet(get_operand(emit(return_->ret_exprs[0])));
+            ctx.builder.CreateRet(load_if_ref(emit(return_->ret_exprs[0]), type::type_of(return_->ret_exprs[0])));
         } else {
             assert(type::is_a<type::tuple_type>(return_->ret_type));
             ctx.builder.CreateRet(
-                get_operand(
+                load_if_ref(
                     emit_tuple_constant(
                         *type::get<type::tuple_type>(return_->ret_type),
                         return_->ret_exprs
-                    )
+                    ),
+                    return_->ret_type
                 )
             );
         }
@@ -894,7 +975,7 @@ public:
         std::vector<val> args;
         args.reserve(invocation->args.size());
         for (auto const& a : invocation->args) {
-            args.push_back(get_operand(emit(a)));
+            args.push_back(load_if_ref(emit(a), a));
         }
 
         auto const child_type = type::type_of(invocation->child);
@@ -912,7 +993,7 @@ public:
         // Note:
         // Add a receiver for lambda function invocation
         if (callee->is_anonymous()) {
-            args.insert(std::begin(args), get_operand(emit(invocation->child)));
+            args.insert(std::begin(args), load_if_ref(emit(invocation->child), child_type));
         } else {
             emit(invocation->child);
         }
@@ -943,7 +1024,7 @@ public:
 
         return check(
             unary,
-            tmp_builtin_unary_op_ir_emitter{ctx, get_operand(emit(unary->expr)), unary->op}.emit(builtin),
+            tmp_builtin_unary_op_ir_emitter{ctx, load_if_ref(emit(unary->expr), val_type), unary->op}.emit(builtin),
             boost::format("unary operator '%1%' (operand's type is '%2%')")
                 % unary->op
                 % builtin->to_string()
@@ -961,7 +1042,12 @@ public:
 
         return check(
             bin_expr,
-            tmp_builtin_bin_op_ir_emitter{ctx, get_operand(emit(bin_expr->lhs)), get_operand(emit(bin_expr->rhs)), bin_expr->op}.emit(lhs_type),
+            tmp_builtin_bin_op_ir_emitter{
+                ctx,
+                load_if_ref(emit(bin_expr->lhs), lhs_type),
+                load_if_ref(emit(bin_expr->rhs), rhs_type),
+                bin_expr->op
+            }.emit(lhs_type),
             boost::format("binary operator '%1%' (lhs type is '%2%', rhs type is '%3%')")
                 % bin_expr->op
                 % type::to_string(lhs_type)
@@ -972,13 +1058,18 @@ public:
     val emit(ast::node::var_ref const& var)
     {
         assert(!var->symbol.expired());
-        auto *const looked_up = var_table.lookup_value(var->symbol.lock());
+        auto *const looked_up = lookup_var(var->symbol.lock());
         if (looked_up) {
             return looked_up;
         }
 
         if (auto const g = type::get<type::generic_func_type>(var->type)) {
-            return llvm::ConstantStruct::get(type_emitter.emit(*g), {});
+            // Note:
+            // Reach here when the variable is function variable and it is not a lambda object.
+            // This is because a lambda object has already been emitted as a variable and lookup_var()
+            // returns the corresponding llvm::Value.
+            assert(llvm::dyn_cast<llvm::StructType>(type_emitter.emit_alloc_type(*g))->getNumElements() == 0u);
+            return emit_tuple_constant(type::get_unit_type(), {});
         } else {
             error(var, boost::format("Invalid variable reference '%1%'. Its type is '%2%'") % var->name % var->type.to_string());
         }
@@ -986,103 +1077,19 @@ public:
 
     val emit(ast::node::index_access const& access)
     {
-        auto const child_type = type::type_of(access->child);
-        auto *const child_val = emit(access->child);
-        auto *const index_val = get_operand(emit(access->index_expr));
-        auto *const ty = child_val->getType();
-        auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
-        auto const is_ptr = ty->isPointerTy();
+        auto const result = inst_emitter.emit_element_access(
+                emit(access->child),
+                load_if_ref(emit(access->index_expr), type::type_of(access->index_expr)),
+                type::type_of(access->child)
+            );
 
-        auto const with_check
-            = [&, this](auto *const v)
-            {
-                return check(access, v, "index access");
-            };
-
-        if (type::is_a<type::tuple_type>(child_type)) {
-
-            // Note:
-            // Do not emit index expression because it is a integer literal and it is
-            // processed in compile time
-            if (!constant_index) {
-                error(access, "Index is not a constant.");
-            }
-
-            assert(ty->isStructTy() || (is_ptr && ty->getPointerElementType()->isStructTy()));
-
-            return with_check(
-                    ty->isStructTy() ?
-                        ctx.builder.CreateExtractValue(child_val, constant_index->getZExtValue()) :
-                        ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue())
-                );
-
-        } else if (auto const maybe_array_type = type::get<type::array_type>(child_type)) {
-            assert(index_val->getType()->isIntegerTy());
-
-            if (constant_index && !is_ptr) {
-                auto const idx = constant_index->getZExtValue();
-                assert(ty->isArrayTy());
-                auto const size = ty->getArrayNumElements();
-
-                if (idx >= size) {
-                    error(access, boost::format("Array index is out of bounds (size:%1%, index:%2%)") % size % idx);
-                }
-
-                return with_check(ctx.builder.CreateExtractValue(child_val, idx));
-            } else {
-                // Note:
-                // When i8** (it means the arguments of 'main')
-                if (is_ptr
-                    && ty->getPointerElementType()->isPointerTy()
-                    && ty->getPointerElementType()->getPointerElementType()->isIntegerTy(8u)
-                ) {
-                    return ctx.builder.CreateGEP(
-                            child_val,
-                            index_val
-                        );
-                }
-
-                return with_check(
-                        ctx.builder.CreateInBoundsGEP(
-                            ty->isPointerTy() ?
-                                child_val :
-                                allocator.alloc_and_deep_copy(child_val),
-                            (val [2]){
-                                ctx.builder.getInt32(0u),
-                                index_val->getType()->isIntegerTy(32u)
-                                    ? index_val
-                                    : ctx.builder.CreateIntCast(index_val, ctx.builder.getInt32Ty(), true)
-                            }
-                        )
-                    );
-            }
-
-        } else if (child_type.is_builtin("string")) {
-
-            // Note:
-            // Workaround.  At first, allocate i8* and store the global string pointer
-            // to the allocated memory. At second, load it and call CreateGEP().
-            // This make CreateGEP() not to fold the getelementptr inst.
-            // Without the workaround, the global string pointer is a constant and
-            // when the index value is a constant, the getelementptr inst will be folded.
-            // However, it seems that the result of folding the getelementptr is treated as if
-            // it is not a getelementptr inst.  The result of llvm::isa<llvm::GetElementPtrInst>(result)
-            // returns false.  I don't know why.
-
-            auto const v = get_operand(child_val);
-            auto const str_ptr = ctx.builder.CreateAlloca(v->getType());
-            ctx.builder.CreateStore(v, str_ptr);
-
-            return with_check(
-                    ctx.builder.CreateGEP(
-                        ctx.builder.CreateLoad(str_ptr),
-                        index_val
-                    )
-                );
-
-        } else {
-            error(access, "Value is not tuple, array and string");
+        if (auto const err = get_as<std::string>(result)) {
+            error(access, *err);
         }
+
+        auto const ret = get_as<llvm::Value *>(result);
+        assert(ret);
+        return *ret;
     }
 
     val emit_lambda_capture_access(type::generic_func_type const& lambda, ast::node::ufcs_invocation const& ufcs)
@@ -1095,17 +1102,18 @@ public:
             // Note:
             // If the capture map exists but no capture is found,
             // it is non-captured lambda.
-            return llvm::ConstantStruct::getAnon(ctx.llvm_context, {});
+            return emit_tuple_constant(type::get_unit_type(), {});
         }
 
-        return child_val->getType()->isStructTy() ?
-            ctx.builder.CreateExtractValue(child_val, capture->offset) :
-            ctx.builder.CreateStructGEP(child_val, capture->offset);
+        return load_aggregate_elem(
+                ctx.builder.CreateStructGEP(child_val, capture->offset),
+                ufcs->type
+            );
     }
 
     boost::optional<val> emit_instance_var_access(scope::class_scope const& scope, ast::node::ufcs_invocation const& ufcs)
     {
-        auto *const child_val = get_operand(emit(ufcs->child));
+        auto *const child_val = load_if_ref(emit(ufcs->child), ufcs->child);
 
         auto const offset_of
             = [&scope](auto const& name)
@@ -1125,7 +1133,11 @@ public:
 
         if (auto const maybe_idx = offset_of(ufcs->member_name)) {
             auto const& idx = *maybe_idx;
-            return ctx.builder.CreateStructGEP(child_val, idx);
+
+            return load_aggregate_elem(
+                    ctx.builder.CreateStructGEP(child_val, idx),
+                    ufcs->type
+                );
         }
 
         return boost::none;
@@ -1166,7 +1178,7 @@ public:
                 return check(
                         ufcs,
                         ctx.builder.CreateIntCast(
-                            var_table.lookup_value_by_name("dachs.main.argc"),
+                            lookup_var("dachs.main.argc"),
                             ctx.builder.getInt64Ty(),
                             true
                         ),
@@ -1184,7 +1196,7 @@ public:
                 member_emitter.emit_builtin_instance_var(
                     child_value,
                     ufcs->member_name,
-                    type::type_of(ufcs->child)
+                    child_type
                 ),
                 "data member access"
             );
@@ -1198,7 +1210,9 @@ public:
 
         assert(!ufcs->callee_scope.expired());
 
-        std::vector<val> args = {get_operand(emit(ufcs->child))};
+        std::vector<val> args = {
+                load_if_ref(emit(ufcs->child), ufcs->child)
+            };
         auto const callee = ufcs->callee_scope.lock();
 
         return check(
@@ -1222,7 +1236,7 @@ public:
         // Loop header
         helper.create_br(cond_block);
         val cond_val = emit(while_->condition);
-        helper.create_cond_br(get_operand(cond_val), body_block, exit_block);
+        helper.create_cond_br(load_if_ref(cond_val, while_->condition), body_block, exit_block);
 
         // Loop body
         auto const auto_popper = push_loop(cond_block);
@@ -1238,18 +1252,6 @@ public:
         // Now array is only supported
 
         val range_val = emit(for_->range_expr);
-        if (!range_val->getType()->isPointerTy()) {
-            if (auto *const a = llvm::dyn_cast<llvm::ConstantArray>(range_val)) {
-                range_val = new llvm::GlobalVariable(*module, a->getType(), true, llvm::GlobalVariable::PrivateLinkage, a);
-            } else {
-                range_val = check(
-                        for_,
-                        allocator.alloc_and_deep_copy(range_val),
-                        "allocation in for statement"
-                    );
-            }
-        }
-
         assert(range_val->getType()->isPointerTy());
         assert(range_val->getType()->getPointerElementType()->isArrayTy());
 
@@ -1263,7 +1265,7 @@ public:
 
         auto const& param = for_->iter_vars[0];
         auto const sym = param->param_symbol;
-        auto const iter_t = type_emitter.emit(param->type);
+        auto const iter_t = type_emitter.emit_alloc_type(param->type);
         auto *const allocated =
             param->is_var ? ctx.builder.CreateAlloca(iter_t, nullptr, param->name) : nullptr;
 
@@ -1286,7 +1288,7 @@ public:
         // TODO:
         // Make for's variable definition as assignment statement?
 
-        if (param->name != "_" || !sym.expired()) {
+        if (param->name != "_" && !sym.expired()) {
             auto *const elem_ptr_val =
                 ctx.builder.CreateInBoundsGEP(
                     range_val,
@@ -1297,11 +1299,13 @@ public:
                     param->name
                 );
 
+            auto const s = sym.lock();
+
             if (allocated) {
-                allocator.create_deep_copy(elem_ptr_val, allocated);
-                var_table.insert(sym.lock(), allocated);
+                alloc_emitter.create_deep_copy(elem_ptr_val, allocated, s->type);
+                register_var(s, allocated);
             } else {
-                var_table.insert(sym.lock(), elem_ptr_val);
+                register_var(s, elem_ptr_val);
                 elem_ptr_val->setName(param->name);
             }
         }
@@ -1319,7 +1323,7 @@ public:
             for (auto const& d : init->var_decls) {
                 auto const sym = d->symbol.lock();
                 assert(d->maybe_type);
-                auto const type_ir = type_emitter.emit(sym->type);
+                auto const type_ir = type_emitter.emit_alloc_type(sym->type);
                 auto *const allocated = ctx.builder.CreateAlloca(type_ir, nullptr, sym->name);
                 ctx.builder.CreateMemSet(
                         allocated,
@@ -1327,7 +1331,7 @@ public:
                         ctx.data_layout->getTypeAllocSize(type_ir),
                         ctx.data_layout->getPrefTypeAlignment(type_ir)
                     );
-                var_table.insert(std::move(sym), allocated);
+                register_var(std::move(sym), allocated);
             }
             return;
         }
@@ -1349,6 +1353,7 @@ public:
                 assert(!decl->symbol.expired());
 
                 auto const sym = decl->symbol.lock();
+                auto const& type = sym->type;
                 if (!decl->self_symbol.expired()) {
                     assert(decl->is_instance_var());
 
@@ -1366,22 +1371,22 @@ public:
                         = clazz->get_instance_var_offset_of(decl->name.substr(1u));
                     assert(offset);
 
-                    auto const self_val = var_table.lookup_value(self_sym);
+                    auto const self_val = lookup_var(self_sym);
                     assert(self_val);
                     assert(self_val->getType()->isPointerTy());
 
                     auto *const dest_val = ctx.builder.CreateStructGEP(self_val, *offset);
                     assert(dest_val);
 
-                    allocator.create_deep_copy(value, dest_val);
+                    alloc_emitter.create_deep_copy(value, dest_val, type);
 
                 } else if (decl->is_var) {
-                    auto *const allocated = allocator.alloc_and_deep_copy(value, sym->name);
+                    auto *const allocated = alloc_emitter.alloc_and_deep_copy(value, type, sym->name);
                     assert(allocated);
-                    var_table.insert(std::move(sym), allocated);
+                    register_var(std::move(sym), allocated);
                 } else {
                     // If the variable is immutable, do not copy rhs value
-                    var_table.insert(std::move(sym), value);
+                    register_var(std::move(sym), value);
                 }
             };
 
@@ -1475,18 +1480,16 @@ public:
             {
                 val value_to_assign = rhs_value;
 
-                auto *const lhs_value =
-                    lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
+                auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
+                auto const lhs_type = type::type_of(lhs_expr);
 
                 if (!lhs_value) {
                     DACHS_RAISE_INTERNAL_COMPILATION_ERROR
                 }
-
                 assert(lhs_value->getType()->isPointerTy());
 
                 if (is_compound_assign) {
                     auto const bin_op = assign->op.substr(0, assign->op.size()-1);
-                    auto const lhs_type = type::type_of(lhs_expr);
                     value_to_assign =
                         check(
                             assign,
@@ -1502,7 +1505,7 @@ public:
                         );
                 }
 
-                allocator.create_deep_copy(value_to_assign, lhs_value);
+                alloc_emitter.create_deep_copy(value_to_assign, lhs_value, lhs_type);
             };
 
         helper::each(assignment_emitter, assign->assignees, rhs_values);
@@ -1515,7 +1518,7 @@ public:
 
         llvm::BasicBlock *else_block;
         for (auto const& when_stmts : case_->when_stmts_list) {
-            auto *const cond_val = get_operand(emit(when_stmts.first));
+            auto *const cond_val = load_if_ref(emit(when_stmts.first), when_stmts.first);
             auto *const when_block = helper.create_block_for_parent("case.when");
             else_block = helper.create_block_for_parent("case.else");
 
@@ -1556,7 +1559,7 @@ public:
         auto helper = bb_helper(switch_);
         auto *const end_block = helper.create_block("switch.end");
 
-        auto *const target_val = get_operand(emit(switch_->target_expr));
+        auto *const target_val = load_if_ref(emit(switch_->target_expr), switch_->target_expr);
         auto const target_type = type::type_of(switch_->target_expr);
 
         // Emit when clause
@@ -1569,8 +1572,9 @@ public:
             // Emit condition IRs
             for (auto const& cmp_expr : when_stmt.first) {
                 auto *const next_cond_block = helper.create_block("switch.cond.next");
+                auto const cmp_type = type::type_of(cmp_expr);
 
-                if (!is_available_type_for_binary_expression(target_type, type::type_of(cmp_expr))) {
+                if (!is_available_type_for_binary_expression(target_type, cmp_type)) {
                     error(switch_, "Case statement condition now only supports some builtin types");
                 }
 
@@ -1580,7 +1584,7 @@ public:
                         tmp_builtin_bin_op_ir_emitter{
                             ctx,
                             target_val,
-                            get_operand(emit(cmp_expr)),
+                            load_if_ref(emit(cmp_expr), cmp_type),
                             "=="
                         }.emit(target_type),
                         "condition in switch statement"
@@ -1616,19 +1620,19 @@ public:
         auto *const else_block = helper.create_block_for_parent("expr.if.else");
         auto *const merge_block = helper.create_block_for_parent("expr.if.merge");
 
-        val cond_val = get_operand(emit(if_->condition_expr));
+        val cond_val = load_if_ref(emit(if_->condition_expr), if_->condition_expr);
         if (if_->kind == ast::symbol::if_kind::unless) {
             cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_expr_unless"), "unless expression");
         }
         helper.create_cond_br(cond_val, then_block, else_block);
 
-        auto *const then_val = get_operand(emit(if_->then_expr));
+        auto *const then_val = load_if_ref(emit(if_->then_expr), if_->then_expr);
         helper.terminate_with_br(merge_block, else_block);
 
-        auto *const else_val = get_operand(emit(if_->else_expr));
+        auto *const else_val = load_if_ref(emit(if_->else_expr), if_->else_expr);
         helper.terminate_with_br(merge_block, merge_block);
 
-        auto *const phi = ctx.builder.CreatePHI(type_emitter.emit(if_->type), 2, "expr.if.tmp");
+        auto *const phi = ctx.builder.CreatePHI(type_emitter.emit_alloc_type(if_->type), 2, "expr.if.tmp");
         phi->addIncoming(then_val, then_block);
         phi->addIncoming(else_val, else_block);
         return phi;
@@ -1646,7 +1650,7 @@ public:
         auto *const then_block = helper.create_block_for_parent("postfixif.then");
         auto *const end_block = helper.create_block_for_parent("postfixif.end");
 
-        val cond_val = get_operand(emit(postfix_if->condition));
+        val cond_val = load_if_ref(emit(postfix_if->condition), postfix_if->condition);
         if (postfix_if->kind == ast::symbol::if_kind::unless) {
             cond_val = check(postfix_if, ctx.builder.CreateNot(cond_val, "postfix_if_unless"), "unless expression");
         }
@@ -1666,8 +1670,8 @@ public:
 
     val emit(ast::node::cast_expr const& cast)
     {
-        auto *const child_val = get_operand(emit(cast->child));
         auto const child_type = type::type_of(cast->child);
+        auto *const child_val = load_if_ref(emit(cast->child), child_type);
         if (cast->type == child_type) {
             return child_val;
         }
@@ -1695,7 +1699,7 @@ public:
         auto const& to_type = *maybe_builtin_to_type;
         auto const& from = from_type->name;
         auto const& to = to_type->name;
-        auto *const to_type_ir = type_emitter.emit(to_type);
+        auto *const to_type_ir = type_emitter.emit_alloc_type(to_type);
 
         auto const cast_check
             = [&](auto const v)
@@ -1745,24 +1749,16 @@ public:
 
     val emit_class_object_construct(ast::node::object_construct const& obj, type::class_type const& t, std::vector<val> && arg_values)
     {
-        auto const type_ir = type_emitter.emit(t)->getPointerElementType();
-        assert(type_ir);
-        auto const obj_val = ctx.builder.CreateAlloca(type_ir);
-        ctx.builder.CreateMemSet(
-                obj_val,
-                ctx.builder.getInt8(0u),
-                ctx.data_layout->getTypeAllocSize(type_ir),
-                ctx.data_layout->getPrefTypeAlignment(type_ir)
-            );
+        auto const obj_val = alloc_emitter.create_alloca(t);
 
-        arg_values.insert(std::begin(arg_values), get_operand(obj_val));
+        arg_values.insert(std::begin(arg_values), obj_val);
 
         assert(!obj->callee_ctor_scope.expired());
         auto const ctor_scope = obj->callee_ctor_scope.lock();
 
         ctx.builder.CreateCall(
                 emit_non_builtin_callee(obj, ctor_scope),
-                arg_values
+                std::move(arg_values)
             );
 
         return obj_val;
@@ -1772,7 +1768,7 @@ public:
     {
         std::vector<val> arg_vals;
         for (auto const& e : obj->args) {
-            arg_vals.push_back(get_operand(emit(e)));
+            arg_vals.push_back(load_if_ref(emit(e), e));
         }
 
         if (auto const c = type::get<type::class_type>(obj->type)) {

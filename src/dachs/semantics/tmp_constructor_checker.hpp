@@ -48,6 +48,24 @@ struct ctor_checker {
         }
 
         a->size = *maybe_uint;
+
+        if (args.size() == 1) {
+            if (!a->element_type.is_default_constructible()) {
+                return (
+                        boost::format("  Element of array '%1%' is not default constructible") % a->to_string()
+                    ).str();
+            }
+        } else if (args.size() == 2) {
+            auto const elem_type = type::type_of(args[1]);
+            if (elem_type != a->element_type) {
+                return (
+                    boost::format("  Type of 2nd argument '%1%' doesn't match for constructor of '%2%'\n  Note: '%3%' is expected")
+                        % elem_type.to_string()
+                        % a->to_string()
+                        % a->element_type.to_string()
+                ).str();
+            }
+        }
         return boost::none;
     }
 
