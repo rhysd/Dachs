@@ -82,10 +82,10 @@ class llvm_ir_emitter {
     std::stack<llvm::BasicBlock *> loop_stack; // Loop stack for continue and break statements
     type_ir_emitter type_emitter;
     tmp_member_ir_emitter member_emitter;
-    tmp_constructor_ir_emitter builtin_ctor_emitter;
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
     builder::alloc_helper alloc_emitter;
     builder::inst_emit_helper inst_emitter;
+    tmp_constructor_ir_emitter builtin_ctor_emitter;
     llvm::GlobalVariable *unit_constant = nullptr;
 
     val lookup_var(symbol::var_symbol const& s) const
@@ -506,9 +506,9 @@ public:
         , file(f)
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , member_emitter(ctx)
-        , builtin_ctor_emitter(ctx, type_emitter)
         , alloc_emitter(ctx, type_emitter, sc.lambda_captures)
         , inst_emitter(ctx)
+        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, module)
     {}
 
     val emit(ast::node::symbol_literal const& sl)
