@@ -403,6 +403,9 @@ BOOST_AUTO_TEST_CASE(array)
 BOOST_AUTO_TEST_CASE(object_construction)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+        end
+
         func main
             a := new [char]{4u}
             var b := new [float]{4u}
@@ -411,6 +414,7 @@ BOOST_AUTO_TEST_CASE(object_construction)
             var s := new [string]{4u, "aaa"}
 
             var e := new [uint]{32u}
+            var x := new [X]{4u, new X}
 
             var i := 0u
             for i < e.size
@@ -421,6 +425,12 @@ BOOST_AUTO_TEST_CASE(object_construction)
             for i2 in e
                 println(i2)
             end
+
+            var cc := 'a'
+            aa := new [char]{4u, cc}
+
+            xx := new X
+            bb := new [X]{4u, xx}
         end
     )");
 }
