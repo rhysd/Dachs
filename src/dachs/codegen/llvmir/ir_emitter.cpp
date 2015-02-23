@@ -582,6 +582,7 @@ public:
             if (!unit_constant) {
                 unit_constant = new llvm::GlobalVariable(*module, llvm::StructType::get(ctx.llvm_context, {}), true, llvm::GlobalValue::PrivateLinkage, llvm::ConstantStruct::getAnon(ctx.llvm_context, {}));
                 unit_constant->setUnnamedAddr(true);
+                unit_constant->setName("unit");
             }
             return unit_constant;
         }
@@ -1265,9 +1266,8 @@ public:
 
         auto const& param = for_->iter_vars[0];
         auto const sym = param->param_symbol;
-        auto const iter_t = type_emitter.emit_alloc_type(param->type);
         auto *const allocated =
-            param->is_var ? ctx.builder.CreateAlloca(iter_t, nullptr, param->name) : nullptr;
+            param->is_var ? alloc_emitter.create_alloca(param->type, param->name, nullptr) : nullptr;
 
         // Note:
         // Do not emit parameter by emit(ast::node::parameter const&)
@@ -1379,6 +1379,8 @@ public:
                     assert(dest_val);
 
                     alloc_emitter.create_deep_copy(value, dest_val, type);
+
+                    dest_val->setName(decl->name);
 
                 } else if (decl->is_var) {
                     auto *const allocated = alloc_emitter.alloc_and_deep_copy(value, type, sym->name);

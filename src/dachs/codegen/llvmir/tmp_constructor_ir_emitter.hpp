@@ -60,10 +60,12 @@ class tmp_constructor_ir_emitter {
                 auto *const elem_constant = llvm::dyn_cast<llvm::Constant>(arg_values[1]);
                 std::vector<llvm::Constant *> elems;
                 elems.reserve(size);
+
                 for (auto const unused : helper::indices(size)) {
                     (void) unused;
                     elems.push_back(elem_constant);
                 }
+
                 auto const constant = new llvm::GlobalVariable(
                             module,
                             ty,
@@ -71,20 +73,14 @@ class tmp_constructor_ir_emitter {
                             llvm::GlobalValue::PrivateLinkage,
                             llvm::ConstantArray::get(ty, elems)
                         );
+
                 constant->setUnnamedAddr(true);
                 return constant;
 
             } else {
-                auto *const allocated = ctx.builder.CreateAlloca(ty);
+                auto *const allocated = alloc_emitter.create_alloca(a);
 
-                if (arg_values.size() == 1) {
-                    ctx.builder.CreateMemSet(
-                            allocated,
-                            ctx.builder.getInt8(0u),
-                            ctx.data_layout->getTypeAllocSize(ty),
-                            ctx.data_layout->getPrefTypeAlignment(ty)
-                        );
-                } else {
+                if (arg_values.size() == 2) {
                     for (auto const idx : helper::indices(size)) {
                         alloc_emitter.create_deep_copy(
                                 arg_values[1],

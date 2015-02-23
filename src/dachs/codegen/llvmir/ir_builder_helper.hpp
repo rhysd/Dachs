@@ -208,6 +208,7 @@ public:
 
     value_or_error_type emit_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::type const& t)
     {
+        index->setName("idx");
         if (auto const tuple = type::get<type::tuple_type>(t)) {
             return emit_element_access(aggregate, index, *tuple);
         } else if (auto const array = type::get<type::array_type>(t)) {
@@ -317,6 +318,28 @@ public:
         : ctx(c), type_emitter(e), lambda_captures(cs)
     {}
 
+    template<class Ptr>
+    llvm::CallInst *create_memset(Ptr *const p, llvm::Type *const ty)
+    {
+        return ctx.builder.CreateMemSet(
+                p,
+                ctx.builder.getInt8(0u),
+                ctx.data_layout->getTypeAllocSize(ty),
+                ctx.data_layout->getPrefTypeAlignment(ty)
+            );
+    }
+
+    template<class Dest, class Src>
+    llvm::CallInst *create_memcpy(Dest *const dest_val, Src *const src_val, llvm::Type *const ty)
+    {
+        return ctx.builder.CreateMemCpy(
+                dest_val,
+                src_val,
+                ctx.data_layout->getTypeAllocSize(ty),
+                ctx.data_layout->getPrefTypeAlignment(ty)
+            );
+    }
+
     template<class String = char const* const>
     llvm::AllocaInst *create_alloca(type::type const& t, String const& name = "", llvm::Value *const array_size = nullptr)
     {
@@ -324,12 +347,7 @@ public:
         assert(ty);
         auto *const allocated = ctx.builder.CreateAlloca(ty, array_size, name);
 
-        ctx.builder.CreateMemSet(
-                allocated,
-                ctx.builder.getInt8(0u),
-                ctx.data_layout->getTypeAllocSize(ty),
-                ctx.data_layout->getPrefTypeAlignment(ty)
-            );
+        create_memset(allocated, ty);
 
         if (auto const array = type::get<type::array_type>(t)) {
             auto const& elem_type = (*array)->element_type;
@@ -433,17 +451,11 @@ public:
         assert(from->getType()->isPointerTy());
         auto *const stripped_ty = from->getType()->getPointerElementType();
 
-        ctx.builder.CreateMemCpy(
-                to,
-                from,
-                ctx.data_layout->getTypeAllocSize(stripped_ty),
-                ctx.data_layout->getPrefTypeAlignment(stripped_ty)
-            );
+        create_memcpy(to, from, stripped_ty);
 
-        // TODO:
-        // I should use visitor to visit each type.
         if (auto const tuple_ = type::get<type::tuple_type>(t)) {
             auto const& tuple = *tuple_;
+
             for (auto const idx : helper::indices(tuple->element_types)) {
                 auto const& elem_type = tuple->element_types[idx];
                 if (elem_type.is_builtin()) {
@@ -456,16 +468,20 @@ public:
                 auto *const elem_to = ctx.builder.CreateLoad(
                         ctx.builder.CreateStructGEP(to, idx)
                     );
+
                 create_deep_copy(elem_from, elem_to, elem_type);
             }
         } else if (auto const array_ = type::get<type::array_type>(t)) {
             auto const& array = *array_;
             auto const& elem_type = array->element_type;
+
             if (elem_type.is_builtin()) {
                 return;
             }
+
             auto *const array_ty = llvm::dyn_cast<llvm::ArrayType>(stripped_ty);
             assert(array_ty);
+
             for (uint64_t const idx : helper::indices(array_ty->getNumElements())) {
                 auto *const elem_from = ctx.builder.CreateLoad(
                             ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx)
@@ -473,6 +489,7 @@ public:
                 auto *const elem_to = ctx.builder.CreateLoad(
                             ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx)
                         );
+
                 create_deep_copy(elem_from, elem_to, elem_type);
             }
         } else if (auto const clazz_ = type::get<type::class_type>(t)) {
@@ -480,17 +497,20 @@ public:
             assert(clazz->param_types.empty());
             auto const scope = clazz->ref.lock();
             assert(!scope->is_template());
+
             for (auto const idx : helper::indices(scope->instance_var_symbols)) {
                 auto const& var_type = scope->instance_var_symbols[idx]->type;
                 if (var_type.is_builtin()) {
                     continue;
                 }
+
                 auto *const elem_from = ctx.builder.CreateLoad(
                             ctx.builder.CreateStructGEP(from, idx)
                         );
                 auto *const elem_to = ctx.builder.CreateLoad(
                             ctx.builder.CreateStructGEP(to, idx)
                         );
+
                 create_deep_copy(elem_from, elem_to, var_type);
             }
         } else if (auto const generic_func = type::get<type::generic_func_type>(t)){
@@ -517,6 +537,7 @@ public:
                 auto *const elem_to = ctx.builder.CreateLoad(
                             ctx.builder.CreateStructGEP(to, capture.offset)
                         );
+
                 create_deep_copy(elem_from, elem_to, capture_type);
             }
         } else {
