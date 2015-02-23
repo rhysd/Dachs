@@ -321,7 +321,84 @@ public:
     llvm::AllocaInst *create_alloca(type::type const& t, String const& name = "", llvm::Value *const array_size = nullptr)
     {
         auto *const ty = type_emitter.emit_alloc_type(t);
-        return ctx.builder.CreateAlloca(ty, array_size, name);
+        assert(ty);
+        auto *const allocated = ctx.builder.CreateAlloca(ty, array_size, name);
+
+        ctx.builder.CreateMemSet(
+                allocated,
+                ctx.builder.getInt8(0u),
+                ctx.data_layout->getTypeAllocSize(ty),
+                ctx.data_layout->getPrefTypeAlignment(ty)
+            );
+
+        if (auto const array = type::get<type::array_type>(t)) {
+            auto const& elem_type = (*array)->element_type;
+            if (elem_type.is_builtin()) {
+                return allocated;
+            }
+
+            auto *const array_ty = llvm::dyn_cast<llvm::ArrayType>(ty);
+            assert(array_ty);
+            for (uint32_t const idx : helper::indices(array_ty->getNumElements())) {
+                ctx.builder.CreateStore(
+                        create_alloca(elem_type),
+                        ctx.builder.CreateConstInBoundsGEP2_32(allocated, 0u, idx)
+                    );
+            }
+        } else if (auto const tuple = type::get<type::tuple_type>(t)) {
+            for (auto const idx : helper::indices((*tuple)->element_types)) {
+                auto const& elem_type = (*tuple)->element_types[idx];
+                if (elem_type.is_builtin()) {
+                    continue;
+                }
+
+                ctx.builder.CreateStore(
+                        create_alloca(elem_type),
+                        ctx.builder.CreateStructGEP(allocated, idx)
+                    );
+            }
+        } else if (auto const clazz = type::get<type::class_type>(t)) {
+            auto const& c = *clazz;
+            assert(c->param_types.empty());
+            auto const scope = c->ref.lock();
+            assert(!scope->is_template());
+            for (auto const idx : helper::indices(scope->instance_var_symbols)) {
+                auto const& var_type = scope->instance_var_symbols[idx]->type;
+                if (var_type.is_builtin()) {
+                    continue;
+                }
+
+                ctx.builder.CreateStore(
+                        create_alloca(var_type),
+                        ctx.builder.CreateStructGEP(allocated, idx)
+                    );
+            }
+        } else if (auto const generic_func = type::get<type::generic_func_type>(t)) {
+            auto const& g = *generic_func;
+            if (!g->ref || g->ref->expired()) {
+                return allocated;
+            }
+
+            auto const itr = lambda_captures.find(g);
+            if (itr == std::end(lambda_captures)) {
+                return allocated;
+            }
+
+            auto const& captures = itr->second;
+            for (auto const& capture : captures) {
+                auto const& capture_type = capture.introduced->type;
+                if (capture_type.is_builtin()) {
+                    continue;
+                }
+
+                ctx.builder.CreateStore(
+                        create_alloca(capture_type),
+                        ctx.builder.CreateStructGEP(allocated, capture.offset)
+                    );
+            }
+        }
+
+        return allocated;
     }
 
     template<class V, class String = char const* const>
@@ -403,16 +480,16 @@ public:
             assert(clazz->param_types.empty());
             auto const scope = clazz->ref.lock();
             assert(!scope->is_template());
-            for (uint32_t const idx : helper::indices(scope->instance_var_symbols)) {
+            for (auto const idx : helper::indices(scope->instance_var_symbols)) {
                 auto const& var_type = scope->instance_var_symbols[idx]->type;
                 if (var_type.is_builtin()) {
                     continue;
                 }
                 auto *const elem_from = ctx.builder.CreateLoad(
-                            ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx)
+                            ctx.builder.CreateStructGEP(from, idx)
                         );
                 auto *const elem_to = ctx.builder.CreateLoad(
-                            ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx)
+                            ctx.builder.CreateStructGEP(to, idx)
                         );
                 create_deep_copy(elem_from, elem_to, var_type);
             }
@@ -434,12 +511,11 @@ public:
                     continue;
                 }
 
-                uint32_t offset = capture.offset;
                 auto *const elem_from = ctx.builder.CreateLoad(
-                            ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, offset)
+                            ctx.builder.CreateStructGEP(from, capture.offset)
                         );
                 auto *const elem_to = ctx.builder.CreateLoad(
-                            ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, offset)
+                            ctx.builder.CreateStructGEP(to, capture.offset)
                         );
                 create_deep_copy(elem_from, elem_to, capture_type);
             }

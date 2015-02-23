@@ -1749,15 +1749,7 @@ public:
 
     val emit_class_object_construct(ast::node::object_construct const& obj, type::class_type const& t, std::vector<val> && arg_values)
     {
-        auto const type_ir = type_emitter.emit_alloc_type(t);
-        assert(type_ir);
-        auto const obj_val = ctx.builder.CreateAlloca(type_ir);
-        ctx.builder.CreateMemSet(
-                obj_val,
-                ctx.builder.getInt8(0u),
-                ctx.data_layout->getTypeAllocSize(type_ir),
-                ctx.data_layout->getPrefTypeAlignment(type_ir)
-            );
+        auto const obj_val = alloc_emitter.create_alloca(t);
 
         arg_values.insert(std::begin(arg_values), obj_val);
 
