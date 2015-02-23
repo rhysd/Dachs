@@ -40,16 +40,16 @@ using captured_offset_map
             lambda_capture,
             mi::indexed_by<
                 mi::ordered_unique<
-                        mi::tag<tags::offset>,
-                        mi::member<lambda_capture, std::size_t, &lambda_capture::offset>
+                    mi::tag<tags::offset>,
+                    mi::member<lambda_capture, std::size_t, &lambda_capture::offset>
                 >,
                 mi::ordered_unique<
-                        mi::tag<tags::introduced>,
-                        mi::member<lambda_capture, ast::node::ufcs_invocation, &lambda_capture::introduced>
+                    mi::tag<tags::introduced>,
+                    mi::member<lambda_capture, ast::node::ufcs_invocation, &lambda_capture::introduced>
                 >,
                 mi::ordered_unique<
-                        mi::tag<tags::refered_symbol>,
-                        mi::member<lambda_capture, symbol::var_symbol, &lambda_capture::refered_symbol>
+                    mi::tag<tags::refered_symbol>,
+                    mi::member<lambda_capture, symbol::var_symbol, &lambda_capture::refered_symbol>
                 >
             >
         >;

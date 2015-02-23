@@ -39,7 +39,7 @@ struct member_variable_checker : boost::static_visitor<boost::variant<type::type
     {
         if (member_name == "size") {
             return builtin_type("uint");
-        } else if (member_name == "first" || member_name == "last") {
+        } else if (member_name == "first") {
             if (tuple->element_types.empty()) {
                 return "  index out of bounds for tuple '()'";
             }
@@ -49,6 +49,11 @@ struct member_variable_checker : boost::static_visitor<boost::variant<type::type
                 return "  index out of bounds for tuple " + tuple->to_string();
             }
             return tuple->element_types[1];
+        } else if (member_name == "last") {
+            if (tuple->element_types.empty()) {
+                return "  index out of bounds for tuple '()'";
+            }
+            return tuple->element_types.back();
         }
 
         return type::type{};

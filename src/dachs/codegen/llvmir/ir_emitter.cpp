@@ -469,6 +469,22 @@ class llvm_ir_emitter {
         return v;
     }
 
+    // Note:
+    // Aggregate elements in aggregates are stored as a pointer to it.
+    // e.g.
+    //  [{i32, i32}*], {[i32 x 1]*, {i32, i32}*}
+    // However, built-in type is embedded in aggregates directly.
+    // So it is necessary to check the type is built-in type and, if not, load instruction
+    // needs to be emitted.
+    llvm::Value *load_aggregate_elem(llvm::Value *const v, type::type const& elem_type)
+    {
+        if (elem_type.is_builtin()) {
+            return v;
+        }
+
+        return ctx.builder.CreateLoad(v);
+    }
+
     template<class Node>
     llvm::Value *load_if_ref(llvm::Value *const v, Node const& hint)
     {
@@ -774,7 +790,10 @@ public:
 
                 auto const offset = clazz->get_instance_var_offset_of(p->name.substr(1u)/* omit '@' */);
                 assert(offset);
-                auto *const dest_val = ctx.builder.CreateStructGEP(self_val, *offset);
+                auto *const dest_val = load_aggregate_elem(
+                        ctx.builder.CreateStructGEP(self_val, *offset),
+                        p->type
+                    );
                 assert(dest_val);
                 alloc_emitter.create_deep_copy(initializer_val, dest_val, p->type);
             }
@@ -938,29 +957,12 @@ public:
         return emit_non_builtin_callee(n, scope);
     }
 
-    template<class Expr>
-    val emit_arg_value(Expr const& expr)
-    {
-        auto v = emit(expr);
-        if (!v->getType()->isPointerTy()) {
-            return v;
-        }
-
-        if (auto const builtin = type::get<type::builtin_type>(type::type_of(expr))) {
-            if ((*builtin)->name != "string") {
-                v = ctx.builder.CreateLoad(v);
-            }
-        }
-
-        return v;
-    }
-
     val emit(ast::node::func_invocation const& invocation)
     {
         std::vector<val> args;
         args.reserve(invocation->args.size());
         for (auto const& a : invocation->args) {
-            args.push_back(emit_arg_value(a));
+            args.push_back(load_if_ref(emit(a), a));
         }
 
         auto const child_type = type::type_of(invocation->child);
@@ -1090,9 +1092,10 @@ public:
             return emit_tuple_constant(type::get_unit_type(), {});
         }
 
-        return child_val->getType()->isStructTy() ?
-            ctx.builder.CreateExtractValue(child_val, capture->offset) :
-            ctx.builder.CreateStructGEP(child_val, capture->offset);
+        return load_aggregate_elem(
+                ctx.builder.CreateStructGEP(child_val, capture->offset),
+                ufcs->type
+            );
     }
 
     boost::optional<val> emit_instance_var_access(scope::class_scope const& scope, ast::node::ufcs_invocation const& ufcs)
@@ -1117,7 +1120,11 @@ public:
 
         if (auto const maybe_idx = offset_of(ufcs->member_name)) {
             auto const& idx = *maybe_idx;
-            return ctx.builder.CreateStructGEP(child_val, idx);
+
+            return load_aggregate_elem(
+                    ctx.builder.CreateStructGEP(child_val, idx),
+                    ufcs->type
+                );
         }
 
         return boost::none;
@@ -1176,7 +1183,7 @@ public:
                 member_emitter.emit_builtin_instance_var(
                     child_value,
                     ufcs->member_name,
-                    type::type_of(ufcs->child)
+                    child_type
                 ),
                 "data member access"
             );
@@ -1191,7 +1198,7 @@ public:
         assert(!ufcs->callee_scope.expired());
 
         std::vector<val> args = {
-                emit_arg_value(ufcs->child)
+                load_if_ref(emit(ufcs->child), ufcs->child)
             };
         auto const callee = ufcs->callee_scope.lock();
 

@@ -400,7 +400,7 @@ public:
             assert(clazz->param_types.empty());
             auto const scope = clazz->ref.lock();
             assert(!scope->is_template());
-            for (auto const idx : helper::indices(scope->instance_var_symbols)) {
+            for (uint32_t const idx : helper::indices(scope->instance_var_symbols)) {
                 auto const& var_type = scope->instance_var_symbols[idx]->type;
                 if (var_type.is_builtin()) {
                     continue;
