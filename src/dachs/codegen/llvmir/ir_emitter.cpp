@@ -86,6 +86,7 @@ class llvm_ir_emitter {
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
     builder::alloc_helper alloc_emitter;
     builder::inst_emit_helper inst_emitter;
+    llvm::GlobalVariable *unit_constant = nullptr;
 
     val lookup_var(symbol::var_symbol const& s) const
     {
@@ -464,6 +465,10 @@ class llvm_ir_emitter {
             if ((*builtin)->name != "string" && v->getType()->isPointerTy()) {
                 assert(!v->getType()->getPointerElementType()->isPointerTy());
                 return ctx.builder.CreateLoad(v);
+            } else if ((*builtin)->name == "string" && v->getType()->getPointerElementType()->isPointerTy()) {
+                // Note:
+                // When the type of string is i8**
+                return ctx.builder.CreateLoad(v);
             }
         }
         return v;
@@ -573,6 +578,14 @@ public:
 
     val emit_tuple_constant(type::tuple_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
     {
+        if (elem_exprs.empty()) {
+            if (!unit_constant) {
+                unit_constant = new llvm::GlobalVariable(*module, llvm::StructType::get(ctx.llvm_context, {}), true, llvm::GlobalValue::PrivateLinkage, llvm::ConstantStruct::getAnon(ctx.llvm_context, {}));
+                unit_constant->setUnnamedAddr(true);
+            }
+            return unit_constant;
+        }
+
         std::vector<val> elem_values;
         elem_values.reserve(elem_exprs.size());
         for (auto const& e : elem_exprs) {
