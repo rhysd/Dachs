@@ -486,7 +486,7 @@ public:
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , member_emitter(ctx)
         , builtin_ctor_emitter(ctx, type_emitter)
-        , alloc_emitter(ctx, type_emitter)
+        , alloc_emitter(ctx, type_emitter, sc.lambda_captures)
         , inst_emitter(ctx)
     {}
 
@@ -1049,9 +1049,12 @@ public:
         }
 
         if (auto const g = type::get<type::generic_func_type>(var->type)) {
-            auto *const ty = llvm::dyn_cast<llvm::StructType>(type_emitter.emit_alloc_type(*g));
-            assert(ty);
-            return llvm::ConstantStruct::get(ty, {});
+            // Note:
+            // Reach here when the variable is function variable and it is not a lambda object.
+            // This is because a lambda object has already been emitted as a variable and lookup_var()
+            // returns the corresponding llvm::Value.
+            assert(llvm::dyn_cast<llvm::StructType>(type_emitter.emit_alloc_type(*g))->getNumElements() == 0u);
+            return emit_tuple_constant(type::get_unit_type(), {});
         } else {
             error(var, boost::format("Invalid variable reference '%1%'. Its type is '%2%'") % var->name % var->type.to_string());
         }

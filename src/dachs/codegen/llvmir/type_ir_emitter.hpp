@@ -25,7 +25,7 @@ namespace llvmir {
 
 class type_ir_emitter_impl {
     llvm::LLVMContext &context;
-    semantics::lambda_captures_type lambda_captures;
+    semantics::lambda_captures_type const& lambda_captures;
     std::unordered_map<scope::class_scope, llvm::PointerType *const> class_table;
 
     template<class String>

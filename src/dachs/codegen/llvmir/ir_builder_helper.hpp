@@ -309,11 +309,12 @@ public:
 class alloc_helper {
     context &ctx;
     type_ir_emitter &type_emitter;
+    semantics::lambda_captures_type const& lambda_captures;
 
 public:
 
-    alloc_helper(context &c, type_ir_emitter &e)
-        : ctx(c), type_emitter(e)
+    alloc_helper(context &c, type_ir_emitter &e, decltype(lambda_captures) const& cs)
+        : ctx(c), type_emitter(e), lambda_captures(cs)
     {}
 
     template<class String = char const* const>
@@ -411,6 +412,33 @@ public:
                             ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx)
                         );
                 create_deep_copy(elem_from, elem_to, var_type);
+            }
+        } else if (auto const generic_func = type::get<type::generic_func_type>(t)){
+            auto const& g = *generic_func;
+            if (!g->ref || g->ref->expired()) {
+                return;
+            }
+
+            auto const itr = lambda_captures.find(g);
+            if (itr == std::end(lambda_captures)) {
+                return;
+            }
+
+            auto const& captures = itr->second;
+            for (auto const& capture : captures) {
+                auto const& capture_type = capture.introduced->type;
+                if (capture_type.is_builtin()) {
+                    continue;
+                }
+
+                uint32_t offset = capture.offset;
+                auto *const elem_from = ctx.builder.CreateLoad(
+                            ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, offset)
+                        );
+                auto *const elem_to = ctx.builder.CreateLoad(
+                            ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, offset)
+                        );
+                create_deep_copy(elem_from, elem_to, capture_type);
             }
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
