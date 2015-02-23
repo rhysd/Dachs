@@ -150,6 +150,21 @@ BOOST_AUTO_TEST_CASE(ufcs)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(new_expr)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            new [symbol]{10u}
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            new [symbol]{10u, "aaa"}
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(let)
 {
     CHECK_THROW_SEMANTIC_ERROR(R"(
