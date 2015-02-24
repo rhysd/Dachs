@@ -484,10 +484,22 @@ class llvm_ir_emitter {
     llvm::Value *load_aggregate_elem(llvm::Value *const v, type::type const& elem_type)
     {
         if (elem_type.is_builtin()) {
+            // Note:
+            // When the value is not an aggregate
             return v;
         }
 
-        return ctx.builder.CreateLoad(v);
+        if (v->getType()->getPointerElementType()->isPointerTy()) {
+            // Note:
+            // If the value is an aggregate element of aggregate,
+            // the value should be a pointer to pointer to aggregate
+            // e.g.
+            //   {[int]*}* -> [int]**
+            return ctx.builder.CreateLoad(v);
+        } else {
+            return v;
+        }
+
     }
 
     template<class Node>
@@ -593,9 +605,8 @@ public:
             elem_values.push_back(emit(e));
         }
 
-        auto *const ty = type_emitter.emit_alloc_type(t);
-
         if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
+            auto *const ty = type_emitter.emit_alloc_type(t);
             std::vector<llvm::Constant *> elem_consts;
             for (auto const v : elem_values) {
                 auto *const constant = llvm::dyn_cast<llvm::Constant>(v);
@@ -615,7 +626,7 @@ public:
             return constant;
         } else {
             // XXX
-            auto *const alloca_inst = ctx.builder.CreateAlloca(ty);
+            auto *const alloca_inst = alloc_emitter.create_alloca(t);
 
             for (auto const idx : helper::indices(elem_values)) {
                 alloc_emitter.create_deep_copy(
@@ -647,9 +658,9 @@ public:
             elem_values.push_back(emit(e));
         }
 
-        auto *const ty = type_emitter.emit_alloc_type(t);
-
         if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
+            auto *const ty = type_emitter.emit_alloc_type(t);
+
             std::vector<llvm::Constant *> elem_consts;
             for (auto const v : elem_values) {
                 auto *const constant = llvm::dyn_cast<llvm::Constant>(v);
@@ -667,7 +678,13 @@ public:
             constant->setUnnamedAddr(true);
             return constant;
         } else {
-            auto *const alloca_inst = ctx.builder.CreateAlloca(ty);
+            if (t->element_type.is_builtin()) {
+                // Note:
+                // Allocate and initialize by zero
+                return alloc_emitter.create_alloca(t);
+            }
+
+            auto *const alloca_inst = alloc_emitter.create_alloca(t, false/*not initialize*/);
             for (auto const idx : helper::indices(elem_exprs.size())) {
                 alloc_emitter.create_deep_copy(
                         elem_values[idx],
@@ -1377,7 +1394,7 @@ public:
                     assert(self_val);
                     assert(self_val->getType()->isPointerTy());
 
-                    auto *const dest_val = ctx.builder.CreateStructGEP(self_val, *offset);
+                    auto *const dest_val = load_aggregate_elem(ctx.builder.CreateStructGEP(self_val, *offset), type);
                     assert(dest_val);
 
                     alloc_emitter.create_deep_copy(value, dest_val, type);
@@ -1509,7 +1526,14 @@ public:
                         );
                 }
 
-                alloc_emitter.create_deep_copy(value_to_assign, lhs_value, lhs_type);
+                alloc_emitter.create_deep_copy(
+                        value_to_assign,
+                        load_aggregate_elem(
+                            lhs_value,
+                            lhs_type
+                        ), 
+                        lhs_type
+                    );
             };
 
         helper::each(assignment_emitter, assign->assignees, rhs_values);
