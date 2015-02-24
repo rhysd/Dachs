@@ -415,6 +415,40 @@ BOOST_AUTO_TEST_CASE(array)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(aggregates)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func print_1_0(a)
+            a[1][0].println
+        end
+        func main
+            do
+                var a := [1]
+                var t := ('a', a)
+                print_1_0(t)
+            end
+
+            do
+                var a := [1]
+                t := ('a', a)
+                print_1_0(t)
+            end
+
+            do
+                var t := (-1, -2)
+                var a := [t, t]
+                print_1_0(a)
+            end
+
+            do
+                var t := (-1, -2)
+                a := [t, t]
+                print_1_0(a)
+            end
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(object_construction)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(

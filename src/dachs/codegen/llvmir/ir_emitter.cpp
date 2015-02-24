@@ -629,10 +629,14 @@ public:
             auto *const alloca_inst = alloc_emitter.create_alloca(t);
 
             for (auto const idx : helper::indices(elem_values)) {
+                auto const elem_type = type::type_of(elem_exprs[idx]);
                 alloc_emitter.create_deep_copy(
                         elem_values[idx],
-                        ctx.builder.CreateStructGEP(alloca_inst, idx),
-                        type::type_of(elem_exprs[idx])
+                        load_aggregate_elem(
+                            ctx.builder.CreateStructGEP(alloca_inst, idx),
+                            elem_type
+                        ),
+                        elem_type
                     );
             }
 
@@ -678,17 +682,14 @@ public:
             constant->setUnnamedAddr(true);
             return constant;
         } else {
-            if (t->element_type.is_builtin()) {
-                // Note:
-                // Allocate and initialize by zero
-                return alloc_emitter.create_alloca(t);
-            }
-
             auto *const alloca_inst = alloc_emitter.create_alloca(t, false/*not initialize*/);
-            for (auto const idx : helper::indices(elem_exprs.size())) {
+            for (auto const idx : helper::indices(elem_exprs)) {
                 alloc_emitter.create_deep_copy(
                         elem_values[idx],
-                        ctx.builder.CreateStructGEP(alloca_inst, idx),
+                        load_aggregate_elem(
+                            ctx.builder.CreateStructGEP(alloca_inst, idx),
+                            t->element_type
+                        ),
                         t->element_type
                     );
             }
