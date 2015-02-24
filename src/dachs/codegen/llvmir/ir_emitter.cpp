@@ -1267,7 +1267,9 @@ public:
         auto const& param = for_->iter_vars[0];
         auto const sym = param->param_symbol;
         auto *const allocated =
-            param->is_var ? alloc_emitter.create_alloca(param->type, param->name, nullptr) : nullptr;
+            param->is_var
+                ? alloc_emitter.create_alloca(param->type, false /*zero init?*/, param->name)
+                : nullptr;
 
         // Note:
         // Do not emit parameter by emit(ast::node::parameter const&)

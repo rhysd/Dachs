@@ -341,13 +341,15 @@ public:
     }
 
     template<class String = char const* const>
-    llvm::AllocaInst *create_alloca(type::type const& t, String const& name = "", llvm::Value *const array_size = nullptr)
+    llvm::AllocaInst *create_alloca(type::type const& t, bool const init_by_zero = true, String const& name = "")
     {
         auto *const ty = type_emitter.emit_alloc_type(t);
         assert(ty);
-        auto *const allocated = ctx.builder.CreateAlloca(ty, array_size, name);
+        auto *const allocated = ctx.builder.CreateAlloca(ty, nullptr/*array_size*/, name);
 
-        create_memset(allocated, ty);
+        if (init_by_zero) {
+            create_memset(allocated, ty);
+        }
 
         if (auto const array = type::get<type::array_type>(t)) {
             auto const& elem_type = (*array)->element_type;
@@ -359,7 +361,7 @@ public:
             assert(array_ty);
             for (uint32_t const idx : helper::indices(array_ty->getNumElements())) {
                 ctx.builder.CreateStore(
-                        create_alloca(elem_type),
+                        create_alloca(elem_type, init_by_zero, name),
                         ctx.builder.CreateConstInBoundsGEP2_32(allocated, 0u, idx)
                     );
             }
@@ -371,7 +373,7 @@ public:
                 }
 
                 ctx.builder.CreateStore(
-                        create_alloca(elem_type),
+                        create_alloca(elem_type, init_by_zero, name),
                         ctx.builder.CreateStructGEP(allocated, idx)
                     );
             }
@@ -387,7 +389,7 @@ public:
                 }
 
                 ctx.builder.CreateStore(
-                        create_alloca(var_type),
+                        create_alloca(var_type, init_by_zero, name),
                         ctx.builder.CreateStructGEP(allocated, idx)
                     );
             }
@@ -410,7 +412,7 @@ public:
                 }
 
                 ctx.builder.CreateStore(
-                        create_alloca(capture_type),
+                        create_alloca(capture_type, init_by_zero, name),
                         ctx.builder.CreateStructGEP(allocated, capture.offset)
                     );
             }
@@ -420,9 +422,9 @@ public:
     }
 
     template<class V, class String = char const* const>
-    llvm::AllocaInst *alloc_and_deep_copy(V *const from, type::type const& t, String const& name = "", llvm::Value *const array_size = nullptr)
+    llvm::AllocaInst *alloc_and_deep_copy(V *const from, type::type const& t, String const& name = "")
     {
-        auto *const allocated = create_alloca(t, name, array_size);
+        auto *const allocated = create_alloca(t, false, name);
         assert(allocated);
 
         create_deep_copy(from, allocated, t);
