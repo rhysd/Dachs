@@ -330,8 +330,12 @@ public:
     }
 
     template<class Dest, class Src>
-    llvm::CallInst *create_memcpy(Dest *const dest_val, Src *const src_val, llvm::Type *const ty)
+    llvm::CallInst *create_memcpy(Dest *const dest_val, Src *const src_val)
     {
+        assert(dest_val->getType()->isPointerTy());
+        assert(src_val->getType()->isPointerTy());
+
+        auto const ty = dest_val->getType()->getPointerElementType();
         return ctx.builder.CreateMemCpy(
                 dest_val,
                 src_val,
@@ -361,7 +365,7 @@ public:
             assert(array_ty);
             for (uint32_t const idx : helper::indices(array_ty->getNumElements())) {
                 ctx.builder.CreateStore(
-                        create_alloca(elem_type, init_by_zero, name),
+                        create_alloca(elem_type, init_by_zero),
                         ctx.builder.CreateConstInBoundsGEP2_32(allocated, 0u, idx)
                     );
             }
@@ -373,7 +377,7 @@ public:
                 }
 
                 ctx.builder.CreateStore(
-                        create_alloca(elem_type, init_by_zero, name),
+                        create_alloca(elem_type, init_by_zero),
                         ctx.builder.CreateStructGEP(allocated, idx)
                     );
             }
@@ -389,7 +393,7 @@ public:
                 }
 
                 ctx.builder.CreateStore(
-                        create_alloca(var_type, init_by_zero, name),
+                        create_alloca(var_type, init_by_zero),
                         ctx.builder.CreateStructGEP(allocated, idx)
                     );
             }
@@ -412,7 +416,7 @@ public:
                 }
 
                 ctx.builder.CreateStore(
-                        create_alloca(capture_type, init_by_zero, name),
+                        create_alloca(capture_type, init_by_zero),
                         ctx.builder.CreateStructGEP(allocated, capture.offset)
                     );
             }
@@ -424,6 +428,10 @@ public:
     template<class V, class String = char const* const>
     llvm::AllocaInst *alloc_and_deep_copy(V *const from, type::type const& t, String const& name = "")
     {
+        // TODO:
+        // Do allocate and copy from 'from' at once.
+        // It enables to use memcpy instead of load and store insts for each element of aggregates
+        // by calling memset() at first and then emitting alloc inst for each aggregate elements.
         auto *const allocated = create_alloca(t, false, name);
         assert(allocated);
 
@@ -433,51 +441,49 @@ public:
     }
 
     template<class V1, class V2>
-    void create_deep_copy(V1 *const from, V2 *const to, type::type const& t)
+    void copy_builtin_value(type::builtin_type const& b, V1 *const from, V2 *const to)
+    {
+        if (b->name != "string" && from->getType()->isPointerTy()) {
+            auto const loaded = ctx.builder.CreateLoad(from);
+            ctx.builder.CreateStore(loaded, to);
+        } else if (b->name == "string" && from->getType()->getPointerElementType()->isPointerTy()) {
+            auto const loaded = ctx.builder.CreateLoad(from);
+            ctx.builder.CreateStore(loaded, to);
+        } else {
+            ctx.builder.CreateStore(from, to);
+        }
+    }
+
+    template<class V1, class V2>
+    void create_deep_copy_impl(V1 *const from, V2 *const to, type::type const& t)
     {
         assert(to->getType()->isPointerTy());
-
-        if (auto const builtin = type::get<type::builtin_type>(t)) {
-            if ((*builtin)->name != "string" && from->getType()->isPointerTy()) {
-                auto const loaded = ctx.builder.CreateLoad(from);
-                ctx.builder.CreateStore(loaded, to);
-            } else if ((*builtin)->name == "string" && from->getType()->getPointerElementType()->isPointerTy()) {
-                auto const loaded = ctx.builder.CreateLoad(from);
-                ctx.builder.CreateStore(loaded, to);
-            } else {
-                ctx.builder.CreateStore(from, to);
-            }
-            return;
-        }
-
         assert(from->getType()->isPointerTy());
-        auto *const stripped_ty = from->getType()->getPointerElementType();
+        assert(!t.is_builtin());
 
-        create_memcpy(to, from, stripped_ty);
+        auto *const stripped_ty = from->getType()->getPointerElementType();
 
         if (auto const tuple_ = type::get<type::tuple_type>(t)) {
             auto const& tuple = *tuple_;
 
             for (auto const idx : helper::indices(tuple->element_types)) {
                 auto const& elem_type = tuple->element_types[idx];
-                if (elem_type.is_builtin()) {
+                auto *const elem_from = ctx.builder.CreateStructGEP(from, idx);
+                auto *const elem_to = ctx.builder.CreateStructGEP(to, idx);
+
+                if (auto const b = type::get<type::builtin_type>(elem_type)) {
+                    copy_builtin_value(*b, elem_from, elem_to);
                     continue;
                 }
 
-                auto *const elem_from = ctx.builder.CreateLoad(
-                        ctx.builder.CreateStructGEP(from, idx)
-                    );
-                auto *const elem_to = ctx.builder.CreateLoad(
-                        ctx.builder.CreateStructGEP(to, idx)
-                    );
-
-                create_deep_copy(elem_from, elem_to, elem_type);
+                create_deep_copy(ctx.builder.CreateLoad(elem_from), ctx.builder.CreateLoad(elem_to), elem_type);
             }
         } else if (auto const array_ = type::get<type::array_type>(t)) {
             auto const& array = *array_;
             auto const& elem_type = array->element_type;
 
             if (elem_type.is_builtin()) {
+                create_memcpy(to, from);
                 return;
             }
 
@@ -502,18 +508,15 @@ public:
 
             for (auto const idx : helper::indices(scope->instance_var_symbols)) {
                 auto const& var_type = scope->instance_var_symbols[idx]->type;
-                if (var_type.is_builtin()) {
+                auto *const elem_from = ctx.builder.CreateStructGEP(from, idx);
+                auto *const elem_to = ctx.builder.CreateStructGEP(to, idx);
+
+                if (auto const b = type::get<type::builtin_type>(var_type)) {
+                    copy_builtin_value(*b, elem_from, elem_to);
                     continue;
                 }
 
-                auto *const elem_from = ctx.builder.CreateLoad(
-                            ctx.builder.CreateStructGEP(from, idx)
-                        );
-                auto *const elem_to = ctx.builder.CreateLoad(
-                            ctx.builder.CreateStructGEP(to, idx)
-                        );
-
-                create_deep_copy(elem_from, elem_to, var_type);
+                create_deep_copy(ctx.builder.CreateLoad(elem_from), ctx.builder.CreateLoad(elem_to), var_type);
             }
         } else if (auto const generic_func = type::get<type::generic_func_type>(t)){
             auto const& g = *generic_func;
@@ -529,23 +532,32 @@ public:
             auto const& captures = itr->second;
             for (auto const& capture : captures) {
                 auto const& capture_type = capture.introduced->type;
-                if (capture_type.is_builtin()) {
+                auto *const elem_from = ctx.builder.CreateStructGEP(from, capture.offset);
+                auto *const elem_to = ctx.builder.CreateStructGEP(to, capture.offset);
+
+                if (auto const b = type::get<type::builtin_type>(capture_type)) {
+                    copy_builtin_value(*b, elem_from, elem_to);
                     continue;
                 }
 
-                auto *const elem_from = ctx.builder.CreateLoad(
-                            ctx.builder.CreateStructGEP(from, capture.offset)
-                        );
-                auto *const elem_to = ctx.builder.CreateLoad(
-                            ctx.builder.CreateStructGEP(to, capture.offset)
-                        );
-
-                create_deep_copy(elem_from, elem_to, capture_type);
+                create_deep_copy(ctx.builder.CreateLoad(elem_from), ctx.builder.CreateLoad(elem_to), capture_type);
             }
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
     }
+
+    template<class V1, class V2>
+    void create_deep_copy(V1 *const from, V2 *const to, type::type const& t)
+    {
+        if (auto const builtin = type::get<type::builtin_type>(t)) {
+            copy_builtin_value(*builtin, from, to);
+            return;
+        }
+
+        create_deep_copy_impl(from, to, t);
+    }
+
 };
 
 } // namespace builder
