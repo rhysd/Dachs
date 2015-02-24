@@ -7,7 +7,7 @@
 
 #include <boost/test/included/unit_test.hpp>
 
-#include "dachs/runtime/runtime.hpp"
+#include "dachs/runtime.hpp"
 
 std::mt19937 random_engine{std::random_device{}()};
 

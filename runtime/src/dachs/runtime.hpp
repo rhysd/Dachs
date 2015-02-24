@@ -211,4 +211,24 @@ private:
 } // namespace runtime
 } // namespace dachs
 
+extern "C" {
+    std::uint64_t __dachs_cityhash__(char const* const s);
+    void __dachs_println_float__(double const d);
+    void __dachs_println_int__(std::int64_t const i);
+    void __dachs_println_uint__(std::uint64_t const u);
+    void __dachs_println_char__(char const c);
+    void __dachs_println_string__(char const* const s);
+    void __dachs_println_symbol__(std::uint64_t const u);
+    void __dachs_println_bool__(bool const b);
+    void __dachs_print_float__(double const d);
+    void __dachs_print_int__(std::int64_t const i);
+    void __dachs_print_uint__(std::uint64_t const u);
+    void __dachs_print_char__(char const c);
+    void __dachs_print_string__(char const* const s);
+    void __dachs_print_symbol__(std::uint64_t const s);
+    void __dachs_print_bool__(bool const b);
+    void __dachs_printf__(char const* const fmt, ...);
+    void* __dachs_malloc__(std::uint64_t const size);
+}
+
 #endif    // DACHS_RUNTIME_RUNTIME_HPP_INCLUDED

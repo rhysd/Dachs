@@ -46,7 +46,7 @@
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/semantics_context.hpp"
-#include "dachs/runtime/runtime.hpp"
+#include "dachs/runtime.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"

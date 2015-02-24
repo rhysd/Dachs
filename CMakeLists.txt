@@ -180,6 +180,7 @@ add_definitions(${DACHS_DEFINITIONS})
 # }}}
 
 include_directories("${PROJECT_SOURCE_DIR}/src")
+include_directories("${PROJECT_SOURCE_DIR}/runtime/src")
 find_package(Boost 1.55.0)
 include_directories(${Boost_INCLUDE_DIRS})
 add_definitions(-std=c++1y -Wall -Wextra)
@@ -193,4 +194,5 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 
 add_subdirectory(src)
+add_subdirectory(runtime)
 add_subdirectory(test)

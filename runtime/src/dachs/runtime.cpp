@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "dachs/runtime/runtime.hpp"
+#include "dachs/runtime.hpp"
 
 extern "C" {
     std::uint64_t __dachs_cityhash__(char const* const s)
