@@ -1,3 +1,6 @@
+# I use C as a language setting because OS X on Travis doesn't support C++.
+# This setting is actually irrelevant because C++ compilers will be installed
+# and specified manually.
 language: c
 os:
     - linux
