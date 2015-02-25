@@ -455,6 +455,18 @@ BOOST_AUTO_TEST_CASE(object_construction)
         class X
         end
 
+        class Y
+            a
+        end
+
+        class Z
+            a
+
+            init(b)
+                @a := b(42)
+            end
+        end
+
         func main
             a := new [char]{4u}
             var b := new [float]{4u}
@@ -480,6 +492,14 @@ BOOST_AUTO_TEST_CASE(object_construction)
 
             xx := new X
             bb := new [X]{4u, xx}
+            y := new Y{42}
+            yy := new Y(int)
+
+            z := new Z {|j| j * j }
+            zz := new Z do |i|
+                    r := z.a + i
+                    ret r * r
+                end
         end
     )");
 }

@@ -415,9 +415,9 @@ public:
 
         object_construct
             = (
-                DACHS_KWD("new") >> qualified_type >> constructor_call
+                DACHS_KWD("new") >> qualified_type >> constructor_call >> -do_block
             ) [
-                _val = make_node_ptr<ast::node::object_construct>(_1, _2)
+                _val = make_node_ptr<ast::node::object_construct>(_1, _2, _3)
             ];
 
         // Note:

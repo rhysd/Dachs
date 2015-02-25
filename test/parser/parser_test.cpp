@@ -1094,6 +1094,27 @@ BOOST_AUTO_TEST_CASE(object_construct)
             new int
             new [int]
             new {int => string}
+
+            new X
+            new X(int)
+            new X(int, char){1, 'a'}
+
+            new X {|i| i + 1 }
+            new X do
+                ret 42 + 42
+            end
+
+            new X(T, U) {|i| i + 1 }
+            new X(T, U) do
+                ret 42 + 42
+            end
+
+            new X(T, U){1, 'a'} {|i| i + 1 }
+            new X(T, U){1, 'a'} do
+                ret 42 + 42
+            end
+
+            new X{}{ 42 }
         end
         )"));
 }

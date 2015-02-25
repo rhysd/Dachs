@@ -1528,6 +1528,19 @@ BOOST_AUTO_TEST_SUITE(class_definition)
                 new Y(int, Y(X, X))
             end
         )");
+
+        // Ctor arguments have higher priority than do-end block
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                init(block)
+                    block().println
+                end
+            end
+
+            func main
+                new X { 42 }
+            end
+        )");
     }
 
     BOOST_AUTO_TEST_CASE(implicit_memberwise_constructor)

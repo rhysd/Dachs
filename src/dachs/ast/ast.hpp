@@ -469,10 +469,20 @@ struct object_construct final : public expression {
     scope::weak_class_scope constructed_class_scope;
     scope::weak_func_scope callee_ctor_scope;
 
-    object_construct(node::any_type const& t,
-                     decltype(args) const& args = {}) noexcept
-        : expression(), obj_type(t), args(args)
-    {}
+    object_construct(
+            node::any_type const& t,
+            decltype(args) const& a = {},
+            boost::optional<node::function_definition> const& do_block = boost::none
+        )
+        : expression(), obj_type(t), args(a)
+    {
+        if (do_block) {
+            auto lambda = helper::make<node::lambda_expr>(*do_block);
+            lambda->set_source_location(**do_block);
+            lambda->receiver->set_source_location(**do_block);
+            args.push_back(std::move(lambda));
+        }
+    }
 
     template<class CS, class FS>
     object_construct(node::any_type const& t,
