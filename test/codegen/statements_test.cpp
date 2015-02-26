@@ -586,6 +586,40 @@ BOOST_AUTO_TEST_CASE(main_func)
             end
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main : ()
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            ret 0
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main : int
+            ret 0
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main(args)
+            ret 0
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main(args) : int
+            ret 0
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

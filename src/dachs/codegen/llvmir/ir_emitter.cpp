@@ -225,6 +225,68 @@ class llvm_ir_emitter {
         }
     }
 
+    template<class FuncValue, class ParamTypes>
+    void emit_program_entry_point(FuncValue *const main_func_value, ParamTypes const& param_tys, type::type const& ret_type)
+    {
+        auto *const entry_func_ty = llvm::FunctionType::get(
+                ctx.builder.getInt64Ty(),
+                param_tys,
+                false
+            );
+
+        auto *const entry_func_value = llvm::Function::Create(
+                entry_func_ty,
+                llvm::Function::ExternalLinkage,
+                "main",
+                module
+            );
+        entry_func_value->addFnAttr(llvm::Attribute::NoUnwind);
+
+        auto const entry_block = llvm::BasicBlock::Create(ctx.llvm_context, "entry", entry_func_value);
+        ctx.builder.SetInsertPoint(entry_block);
+
+        auto const emit_inner_main_call
+            = [&param_tys, main_func_value, entry_func_value, this]
+            {
+                std::vector<llvm::Value *> call_args;
+
+                if (param_tys.empty()) {
+                    return ctx.builder.CreateCall(
+                            main_func_value,
+                            "main_ret"
+                        );
+                } else {
+                    assert(param_tys.size() == 2u);
+
+                    auto arg_itr = entry_func_value->arg_begin();
+
+                    arg_itr->setName("dachs.entry.argc");
+                    call_args.push_back(arg_itr);
+
+                    ++arg_itr;
+                    arg_itr->setName("dachs.entry.argv");
+                    call_args.push_back(arg_itr);
+
+                    return ctx.builder.CreateCall(
+                            main_func_value,
+                            std::move(call_args),
+                            "main_ret"
+                        );
+                }
+            };
+
+        if (ret_type.is_unit()) {
+            emit_inner_main_call();
+            ctx.builder.CreateRet(
+                    ctx.builder.getInt64(0u)
+                );
+        } else {
+            ctx.builder.CreateRet(
+                    emit_inner_main_call()
+                );
+        }
+    }
+
     void emit_main_func_prototype(ast::node::function_definition const& main_def, scope::func_scope const& main_scope)
     {
         assert(main_scope->params.size() < 2u);
@@ -232,7 +294,7 @@ class llvm_ir_emitter {
         auto const has_cmdline_arg = main_scope->params.size() == 1u;
 
         using params_type = std::vector<llvm::Type *>;
-        auto param_tys
+        auto const param_tys
             = has_cmdline_arg
                 ? params_type{{
                     ctx.builder.getInt32Ty(),
@@ -251,7 +313,7 @@ class llvm_ir_emitter {
         auto *const func_value = llvm::Function::Create(
                 func_ty,
                 llvm::Function::ExternalLinkage,
-                "main",
+                "dachs.main",
                 module
             );
 
@@ -270,7 +332,10 @@ class llvm_ir_emitter {
         }
 
         func_value->addFnAttr(llvm::Attribute::NoUnwind);
+        func_value->addFnAttr(llvm::Attribute::InlineHint);
         func_table.emplace(main_scope, func_value);
+
+        emit_program_entry_point(func_value, param_tys, *main_def->ret_type);
     }
 
     void emit_func_prototype(ast::node::function_definition const& func_def, scope::func_scope const& scope)
