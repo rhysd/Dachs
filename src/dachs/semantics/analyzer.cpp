@@ -1396,6 +1396,53 @@ public:
         return boost::none;
     }
 
+    // Note:
+    // When 'foo.bar(...)' invocation, check if object 'foo' has an instance variable 'bar',
+    // then when 'bar' is callable, calling (foo.bar)(...) has higher priority than 'bar(foo, ...)'
+    // UFCS invocation.
+    //
+    // @return: success?
+    void visit_instance_var_invocation(ast::node::func_invocation const& invocation)
+    {
+        assert(invocation->is_ufcs);
+        assert(invocation->args.size() > 0u);
+
+        auto const var_ref = get_as<ast::node::var_ref>(invocation->child);
+        if (!var_ref) {
+            return;
+        }
+        auto const& name = (*var_ref)->name;
+
+        auto const receiver_type = type::get<type::class_type>(type::type_of(invocation->args[0]));
+        if (!receiver_type) {
+            return;
+        }
+
+        auto const receiver_class = (*receiver_type)->ref.lock();
+
+        auto const instance_var = helper::find_if(
+                receiver_class->instance_var_symbols,
+                [&name](auto const& s){ return s->name == name; }
+            );
+        if (!instance_var) {
+            return;
+        }
+
+        if (!type::is_a<type::generic_func_type>((*instance_var)->type)) {
+            return;
+        }
+
+        // bar(foo, ...)
+        // foo.bar(...)
+
+        auto const instance_var_access = helper::make<ast::node::ufcs_invocation>(invocation->args[0], name);
+        instance_var_access->set_source_location(*invocation);
+        instance_var_access->type = (*instance_var)->type;
+
+        invocation->args.erase(std::begin(invocation->args));
+        invocation->child = instance_var_access;
+    }
+
     // TODO:
     // If return type of function is not determined, interrupt current parsing and parse the
     // function at first.  Add the function to the list which are already visited and check it at
@@ -1404,6 +1451,10 @@ public:
     void visit(ast::node::func_invocation const& invocation, Walker const& w)
     {
         w();
+
+        if (invocation->is_ufcs) {
+            visit_instance_var_invocation(invocation);
+        }
 
         auto const child_type = type::type_of(invocation->child);
         if (!child_type) {

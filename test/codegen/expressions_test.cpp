@@ -500,6 +500,12 @@ BOOST_AUTO_TEST_CASE(object_construction)
                     r := z.a + i
                     ret r * r
                 end
+
+            y2 := new Y{-42}
+            yy2 := new Y do |i, j|
+                ret y2.a * (i + j)
+            end
+            yy2.a(5, 1).println
         end
     )");
 }

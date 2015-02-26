@@ -410,6 +410,7 @@ struct func_invocation final : public expression {
     std::vector<node::any_expr> args;
     bool is_monad_invocation = false;
     scope::weak_func_scope callee_scope;
+    bool is_ufcs = false;
 
     void set_do_block(node::function_definition const& def)
     {
@@ -424,7 +425,7 @@ struct func_invocation final : public expression {
             std::vector<node::any_expr> const& a,
             boost::optional<node::function_definition> const& do_block = boost::none
         ) noexcept
-        : expression(), child(c), args(a)
+        : expression(), child(c), args(a), is_ufcs(false)
     {
         if (do_block) {
             set_do_block(*do_block);
@@ -438,7 +439,7 @@ struct func_invocation final : public expression {
             std::vector<node::any_expr> const& tail,
             boost::optional<node::function_definition> const& do_block= boost::none
         ) noexcept
-        : expression(), child(c), args({head})
+        : expression(), child(c), args({head}), is_ufcs(true)
     {
         args.insert(args.end(), tail.begin(), tail.end());
         if (do_block) {
@@ -452,10 +453,19 @@ struct func_invocation final : public expression {
             node::any_expr const& c,
             node::any_expr const& arg
         ) noexcept
-        : expression(), child(c), args({arg})
+        : expression(), child(c), args({arg}), is_ufcs(true)
     {
         set_do_block(do_block);
     }
+
+    // Note: For deep-copying ast::node::func_invocation
+    func_invocation(
+            node::any_expr const& c,
+            std::vector<node::any_expr> const& a,
+            bool const ufcs
+        ) noexcept
+        : expression(), child(c), args(a), is_ufcs(ufcs)
+    {}
 
     std::string to_string() const noexcept override
     {

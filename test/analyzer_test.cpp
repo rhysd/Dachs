@@ -2371,4 +2371,83 @@ BOOST_AUTO_TEST_CASE(invalid_var_def_without_init)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(instance_var_invocation_vs_ufcs_invocation)
+{
+    // instance variable has higher priority so it wins
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            foo
+
+            func foo(i)
+                println("member func")
+            end
+        end
+
+        func main
+            x := new X {|i| println("instance var")}
+            x.foo(42) # "instance var"
+        end
+    )");
+
+    // member function is invoked becaues @foo is not callable
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            foo
+
+            func foo(i)
+                println("member func")
+            end
+        end
+
+        func main
+            x := new X{42}
+            x.foo(42) # "member func"
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            foo
+        end
+
+        func main
+            x := new X{42}
+            x.foo()
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            foo
+
+            func foo
+                println("member func")
+            end
+        end
+
+        func main
+            x := new X {-> println("instance var")}
+            x.foo() # "instance var"
+        end
+    )");
+
+    // member function is invoked becaues @foo is not callable
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            foo
+
+            func foo
+                println("member func")
+            end
+        end
+
+        func main
+            x := new X{42}
+            x.foo # "member func"
+        end
+    )");
+
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()
