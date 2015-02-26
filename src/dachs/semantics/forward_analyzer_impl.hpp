@@ -53,13 +53,13 @@ class forward_symbol_analyzer {
         failed++;
     }
 
-    template<class Node>
-    std::string get_lambda_name(Node const& n) const noexcept
+    std::string get_lambda_name(ast::node::lambda_expr const& l) const noexcept
     {
         return "lambda."
-            + std::to_string(n->line)
-            + '.' + std::to_string(n->col)
-            + '.' + std::to_string(n->length);
+            + std::to_string(l->line)
+            + '.' + std::to_string(l->col)
+            + '.' + std::to_string(l->length)
+            + '.' + helper::hex_string_of_ptr(l->def.get());
     }
 
     template<class Predicate>

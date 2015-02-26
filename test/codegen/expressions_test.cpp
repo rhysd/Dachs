@@ -860,7 +860,31 @@ BOOST_AUTO_TEST_CASE(string)
             println(h2[i])
         end
     )");
-
 }
+
+BOOST_AUTO_TEST_CASE(lambda)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func compose(f, g)
+            ret -> x in f(g(x))
+        end
+
+        func square(x)
+            print("square: "); println(x)
+            ret x * x
+        end
+
+        func twice(x)
+            print("twice: "); println(x)
+            ret x + x
+        end
+
+        func main
+            f := compose(compose(square, twice), twice)
+            f(10).println
+        end
+    )");
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
