@@ -12,11 +12,14 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Intrinsics.h>
 
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
+#include "dachs/codegen/llvmir/type_ir_emitter.hpp"
+#include "dachs/exception.hpp"
 
 namespace dachs {
 namespace codegen {
@@ -25,18 +28,21 @@ namespace llvmir {
 class builtin_function_emitter {
     llvm::Module *module = nullptr;
     context &c;
+    type_ir_emitter &type_emitter;
 
     // Argument type name -> Function
     using print_func_table_type = std::unordered_map<std::string, llvm::Function *const>;
+    using address_of_func_table_type = print_func_table_type;
     print_func_table_type print_func_table;
     print_func_table_type println_func_table;
     llvm::Function *cityhash_func = nullptr;
     llvm::Function *malloc_func = nullptr;
+    address_of_func_table_type address_of_func_table;
 
 public:
 
-    explicit builtin_function_emitter(decltype(c) &ctx)
-        : c(ctx)
+    builtin_function_emitter(decltype(c) &ctx, type_ir_emitter &e)
+        : c(ctx), type_emitter(e)
     {}
 
     void set_module(llvm::Module *m) noexcept
@@ -51,8 +57,6 @@ public:
         if (func_itr != std::end(table)) {
             return func_itr->second;
         }
-
-        llvm::Function *target = nullptr;
 
         auto const define_func_prototype =
             [&](llvm::Type *arg_type_ir)
@@ -73,21 +77,10 @@ public:
             };
 
         assert(module);
-        auto const& n = arg_type->name;
-        if (n == "string") {
-            target = define_func_prototype(c.builder.getInt8PtrTy());
-        } else if (n == "int" || n == "uint" || n == "symbol") {
-            target = define_func_prototype(c.builder.getInt64Ty());
-        } else if (n == "float") {
-            target = define_func_prototype(c.builder.getDoubleTy());
-        } else if (n == "char") {
-            target = define_func_prototype(c.builder.getInt8Ty());
-        } else if (n == "bool") {
-            target = define_func_prototype(c.builder.getInt1Ty());
-        }
+        auto *const target_func = define_func_prototype(type_emitter.emit(arg_type));
 
-        table.insert(std::make_pair(arg_type->name, target));
-        return target;
+        table.emplace(arg_type->name, target_func);
+        return target_func;
     }
 
     llvm::Function *emit_malloc_func()
@@ -182,6 +175,53 @@ public:
         return llvm::Intrinsic::getDeclaration(module, llvm::Intrinsic::readcyclecounter);
     }
 
+    llvm::Function *emit_address_of_func(type::type const& arg_type)
+    {
+        auto *const arg_ty = type_emitter.emit(arg_type);
+        if (!arg_ty->isPointerTy()) {
+            throw code_generation_error{
+                "LLVM IR generator", "\n  Failed to emit builtin function: "
+                "argument of __builtin_address_of(" + arg_type.to_string() + ") must be pointer"
+            };
+        }
+
+        std::string type_str = arg_type.to_string();
+
+        auto const func_itr = address_of_func_table.find(type_str);
+        if (func_itr != std::end(address_of_func_table)) {
+            return func_itr->second;
+        }
+
+        auto *const func_ty = llvm::FunctionType::get(
+                c.builder.getInt64Ty(),
+                (llvm::Type *[1]){arg_ty},
+                false
+            );
+
+        auto *const prototype = llvm::Function::Create(
+                func_ty,
+                llvm::Function::ExternalLinkage,
+                "__builtin_address_of",
+                module
+            );
+        prototype->addFnAttr(llvm::Attribute::NoUnwind);
+        prototype->addFnAttr(llvm::Attribute::InlineHint);
+
+        auto const arg_value = prototype->arg_begin();
+        arg_value->setName("ptr");
+
+        auto const block = llvm::BasicBlock::Create(c.llvm_context, "entry", prototype);
+        llvm::ReturnInst::Create(
+                c.llvm_context,
+                new llvm::PtrToIntInst(arg_value, c.builder.getInt64Ty(), "", block),
+                block
+            );
+
+        address_of_func_table.emplace(std::move(type_str), prototype);
+
+        return prototype;
+    }
+
     llvm::Function *emit(std::string const& name, std::vector<type::type> const& arg_types)
     {
         if (name == "print") {
@@ -198,6 +238,8 @@ public:
             }
         } else if (name == "__builtin_read_cycle_counter") {
             return emit_read_cycle_counter_func();
+        } else if (name == "__builtin_address_of") {
+            return emit_address_of_func(arg_types[0]);
         } // else ...
 
         return nullptr;

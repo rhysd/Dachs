@@ -55,6 +55,21 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
             scope_root->force_define_constant(std::move(func_var_sym));
         }
 
+        {
+            // func address_of(x)
+            auto address_of_func = scope::make<scope::func_scope>(nullptr, scope_root, "__builtin_address_of", true);
+            address_of_func->body = scope::make<scope::local_scope>(address_of_func);
+            address_of_func->ret_type = type::get_builtin_type("uint");
+            auto param = symbol::make<symbol::var_symbol>(nullptr, "ptr", true, true);
+            param->type = dummy_template_type;
+            address_of_func->define_param(std::move(param));
+            scope_root->define_function(address_of_func);
+            auto func_var_sym = symbol::make<symbol::var_symbol>(nullptr, address_of_func->name, true, true);
+            func_var_sym->type = type::make<type::generic_func_type>(address_of_func);
+            func_var_sym->is_global = true;
+            scope_root->force_define_constant(std::move(func_var_sym));
+        }
+
         // Operators
         // cast functions
     }

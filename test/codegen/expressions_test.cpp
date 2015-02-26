@@ -886,5 +886,34 @@ BOOST_AUTO_TEST_CASE(lambda)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(address_of)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+        end
+
+        func main
+            __builtin_address_of([1, 2, 3])
+            __builtin_address_of((1, 'a', 1.1))
+            __builtin_address_of(new X)
+            __builtin_address_of(-> println("foo"))
+            __builtin_address_of("aaa")
+        end
+    )");
+
+    CHECK_THROW_CODEGEN_ERROR(R"(
+        func main
+            var i := 42
+            __builtin_address_of(i)
+        end
+    )");
+
+    CHECK_THROW_CODEGEN_ERROR(R"(
+        func main
+            __builtin_address_of(3.14)
+        end
+    )");
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -77,10 +77,10 @@ class llvm_ir_emitter {
     semantics::semantics_context const& semantics_ctx;
     var_table_type var_table;
     std::unordered_map<scope::func_scope, llvm::Function *const> func_table;
-    builtin_function_emitter builtin_func_emitter;
     std::string const& file;
     std::stack<llvm::BasicBlock *> loop_stack; // Loop stack for continue and break statements
     type_ir_emitter type_emitter;
+    builtin_function_emitter builtin_func_emitter;
     tmp_member_ir_emitter member_emitter;
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
     builder::alloc_helper alloc_emitter;
@@ -579,9 +579,9 @@ public:
         : ctx(c)
         , semantics_ctx(sc)
         , var_table()
-        , builtin_func_emitter(ctx)
         , file(f)
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
+        , builtin_func_emitter(ctx, type_emitter)
         , member_emitter(ctx)
         , alloc_emitter(ctx, type_emitter, sc.lambda_captures)
         , inst_emitter(ctx)
