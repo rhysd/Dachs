@@ -147,7 +147,7 @@ std::string get_tmpdir()
         }
     }
 
-    return "/tmp";
+    return "/tmp/";
 }
 
 } // namespace cmdline
