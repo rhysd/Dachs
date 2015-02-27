@@ -478,11 +478,15 @@ public:
                     )
             ];
 
+        let_expr
+            = ;// TODO
+
         primary_expr
             = (
                   object_construct
                 | lambda_expr
                 | begin_end_expr
+                | let_expr
                 | primary_literal
                 | array_literal
                 | symbol_literal
@@ -981,15 +985,6 @@ public:
                 _val = make_node_ptr<ast::node::postfix_if_stmt>(_1, _2, _3)
             ];
 
-        let_stmt
-            = (
-                DACHS_KWD("let")
-                >> -qi::eol >> initialize_stmt % sep >> -qi::eol
-                >> DACHS_KWD("in") >> -qi::eol >> compound_stmt
-            ) [
-                _val = make_node_ptr<ast::node::let_stmt>(_1, _2)
-            ];
-
         do_stmt
             = (
                 DACHS_KWD("do")
@@ -1004,7 +999,6 @@ public:
                 | switch_stmt
                 | for_stmt
                 | while_stmt
-                | let_stmt
                 | do_stmt
                 | initialize_stmt
                 | postfix_if_stmt
@@ -1153,6 +1147,7 @@ public:
             , array_literal
             , tuple_literal
             , lambda_expr
+            , let_expr
             , symbol_literal
             , dict_literal
             , var_ref
@@ -1193,7 +1188,6 @@ public:
             , assignment_stmt
             , postfix_if_return_stmt
             , postfix_if_stmt
-            , let_stmt
             , do_stmt
             , function_definition
             , constructor
@@ -1248,6 +1242,7 @@ public:
         tuple_literal.name("tuple literal");
         lambda_expr.name("lambda expression");
         begin_end_expr.name("begin-end expression");
+        let_expr.name("let-in expression");
         symbol_literal.name("symbol literal");
         dict_literal.name("dictionary literal");
         var_ref.name("variable reference");
@@ -1291,7 +1286,6 @@ public:
         variable_decl_without_init.name("variable declaration without initialization");
         initialize_stmt.name("initialize statement");
         assignment_stmt.name("assignment statement");
-        let_stmt.name("let statement");
         do_stmt.name("do statement");
         compound_stmt.name("compound statement");
         function_definition.name("function definition");
@@ -1354,7 +1348,6 @@ private:
     DACHS_DEFINE_RULE(initialize_stmt);
     DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(postfix_if_stmt);
-    DACHS_DEFINE_RULE(let_stmt);
     DACHS_DEFINE_RULE(compound_stmt);
     DACHS_DEFINE_RULE(function_definition);
     DACHS_DEFINE_RULE_WITH_LOCALS(class_definition, std::vector<ast::node::variable_decl>, std::vector<ast::node::function_definition>);
@@ -1399,6 +1392,7 @@ private:
         , typed_expr
         , var_ref_before_space
         , begin_end_expr
+        , let_expr
     ;
 
     rule<ast::node::any_expr(), qi::locals<std::vector<ast::node::any_expr>>> tuple_literal;

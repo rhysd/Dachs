@@ -2392,13 +2392,6 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::let_stmt const& let, Walker const& w)
-    {
-        assert(!let->scope.expired());
-        introduce_scope_and_walk(let->scope.lock(), w);
-    }
-
-    template<class Walker>
     void visit(ast::node::case_stmt const& case_, Walker const& w)
     {
         w();

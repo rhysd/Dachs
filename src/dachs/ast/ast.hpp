@@ -966,23 +966,6 @@ struct postfix_if_stmt final : public statement {
     }
 };
 
-struct let_stmt final : public statement {
-    std::vector<node::initialize_stmt> inits;
-    node::compound_stmt child_stmt;
-    scope::weak_local_scope scope;
-
-    let_stmt(decltype(inits) const& i, node::compound_stmt const& s)
-        : statement(), inits(i), child_stmt(s)
-    {
-        assert(inits.size() > 0);
-    }
-
-    std::string to_string() const noexcept override
-    {
-        return "LET_STMT: " + std::to_string(inits.size()) + " inits";
-    }
-};
-
 struct statement_block final : public base {
     using block_type
         = std::vector<node::compound_stmt>;

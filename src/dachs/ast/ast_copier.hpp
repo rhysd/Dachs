@@ -245,11 +245,6 @@ public:
         return copy_node<node::postfix_if_stmt>(pif, copy(pif->body), pif->kind, copy(pif->condition));
     }
 
-    auto copy(node::let_stmt const& ls) const
-    {
-        return copy_node<node::let_stmt>(ls, copy(ls->inits), copy(ls->child_stmt));
-    }
-
     auto copy(node::function_definition const& fd) const
     {
         return copy_node<node::function_definition>(
