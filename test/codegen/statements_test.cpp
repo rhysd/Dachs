@@ -563,6 +563,16 @@ BOOST_AUTO_TEST_CASE(unit_type)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(compound_assign)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            var i := 10
+            i += 10
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(return_stmt_in_the_middle_of_basic_block)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(

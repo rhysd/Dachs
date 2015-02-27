@@ -2446,8 +2446,34 @@ BOOST_AUTO_TEST_CASE(instance_var_invocation_vs_ufcs_invocation)
             x.foo # "member func"
         end
     )");
-
 }
 
+BOOST_AUTO_TEST_CASE(operator_type_check)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            10 + 1u
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            10.0 / 5
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            var i := 10u
+            i += 1
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            'a' < 1
+        end
+    )");
+}
 
 BOOST_AUTO_TEST_SUITE_END()

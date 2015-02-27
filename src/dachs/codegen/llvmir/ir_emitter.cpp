@@ -1532,6 +1532,7 @@ public:
 
         // Load rhs value
         std::vector<val> rhs_values;
+        std::vector<type::type> rhs_types;
 
         auto const assignee_size = assign->assignees.size();
         auto const assigner_size = assign->rhs_exprs.size();
@@ -1542,20 +1543,26 @@ public:
             helper::each(
                     [&](auto const& lhs, auto const& rhs)
                     {
-                        if (is_compound_assign && !is_available_type_for_binary_expression(type::type_of(lhs), type::type_of(rhs))) {
+                        auto rhs_type = type::type_of(rhs);
+                        if (is_compound_assign && !is_available_type_for_binary_expression(type::type_of(lhs), rhs_type)) {
                             error(assign, "Binary expression now only supports float, int, bool and uint");
                         }
                         rhs_values.push_back(emit(rhs));
+                        rhs_types.push_back(std::move(rhs_type));
                     }, assign->assignees, assign->rhs_exprs);
         } else if (assigner_size == 1) {
             assert(assignee_size > 1);
+            auto rhs_tuple_type = type::get<type::tuple_type>(type::type_of(assign->rhs_exprs[0]));
+            assert(rhs_tuple_type);
+
             auto *const rhs_value = emit(assign->rhs_exprs[0]);
             auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_value->getType()->getPointerElementType());
-            assert(rhs_struct_type);
 
             for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
                 rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
             }
+
+            rhs_types = std::move((*rhs_tuple_type)->element_types);
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
@@ -1563,7 +1570,7 @@ public:
         assert(assignee_size == rhs_values.size());
 
         auto const assignment_emitter =
-            [&, this](auto const& lhs_expr, auto *const rhs_value)
+            [&, this](auto const& lhs_expr, auto *const rhs_value, auto const& rhs_type)
             {
                 val value_to_assign = rhs_value;
 
@@ -1583,7 +1590,7 @@ public:
                             tmp_builtin_bin_op_ir_emitter{
                                 ctx,
                                 ctx.builder.CreateLoad(lhs_value),
-                                rhs_value,
+                                load_if_ref(rhs_value, rhs_type),
                                 bin_op
                             }.emit(lhs_type),
                             boost::format("binary expression (operator is '%1%', operand type is '%2%')")
@@ -1602,7 +1609,7 @@ public:
                     );
             };
 
-        helper::each(assignment_emitter, assign->assignees, rhs_values);
+        helper::each(assignment_emitter, assign->assignees, rhs_values, rhs_types);
     }
 
     void emit(ast::node::case_stmt const& case_)
