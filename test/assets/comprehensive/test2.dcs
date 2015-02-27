@@ -1,10 +1,8 @@
 proc huga()
-begin
 ensure
 end
 
 func poyo()
-begin
     hoge
 ensure
     hoge

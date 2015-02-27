@@ -458,10 +458,31 @@ public:
                 _val = make_node_ptr<ast::node::lambda_expr>(_1)
             ];
 
+        begin_end_expr
+            = (
+                DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
+            ) [
+                _val = phx::bind(
+                        [](auto const& statements)
+                        {
+                            return helper::make<ast::node::func_invocation>(
+                                    helper::make<ast::node::lambda_expr>(
+                                        helper::make<ast::node::function_definition>(
+                                            std::vector<ast::node::parameter>{},
+                                            statements
+                                        )
+                                    )
+                                );
+                        }
+                        , _1
+                    )
+            ];
+
         primary_expr
             = (
                   object_construct
                 | lambda_expr
+                | begin_end_expr
                 | primary_literal
                 | array_literal
                 | symbol_literal
@@ -1002,7 +1023,7 @@ public:
         // FIXME: Temporary
         // Spec of precondition is not determined yet...
         func_precondition
-            = -("begin" > sep);
+            = -("this_keyword_will_be___do___after_do_statement_is_removed"/*XXX*/ > sep);
 
         func_body_stmt_block
             = (
@@ -1226,6 +1247,7 @@ public:
         array_literal.name("array literal");
         tuple_literal.name("tuple literal");
         lambda_expr.name("lambda expression");
+        begin_end_expr.name("begin-end expression");
         symbol_literal.name("symbol literal");
         dict_literal.name("dictionary literal");
         var_ref.name("variable reference");
@@ -1376,6 +1398,7 @@ private:
         , if_expr
         , typed_expr
         , var_ref_before_space
+        , begin_end_expr
     ;
 
     rule<ast::node::any_expr(), qi::locals<std::vector<ast::node::any_expr>>> tuple_literal;

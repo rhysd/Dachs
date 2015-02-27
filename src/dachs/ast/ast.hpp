@@ -411,6 +411,7 @@ struct func_invocation final : public expression {
     bool is_monad_invocation = false;
     scope::weak_func_scope callee_scope;
     bool is_ufcs = false;
+    bool is_begin_end = false;
 
     void set_do_block(node::function_definition const& def)
     {
@@ -462,9 +463,17 @@ struct func_invocation final : public expression {
     func_invocation(
             node::any_expr const& c,
             std::vector<node::any_expr> const& a,
-            bool const ufcs
+            bool const ufcs,
+            bool const begin_end
         ) noexcept
-        : expression(), child(c), args(a), is_ufcs(ufcs)
+        : expression(), child(c), args(a), is_ufcs(ufcs), is_begin_end(begin_end)
+    {}
+
+    // Note: For begin-end expression
+    func_invocation(
+            node::lambda_expr const& lambda
+        ) noexcept
+        : expression(), child(lambda), args(), is_ufcs(false), is_begin_end(true)
     {}
 
     std::string to_string() const noexcept override
