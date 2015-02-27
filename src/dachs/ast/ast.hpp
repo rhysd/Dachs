@@ -412,6 +412,7 @@ struct func_invocation final : public expression {
     scope::weak_func_scope callee_scope;
     bool is_ufcs = false;
     bool is_begin_end = false;
+    bool is_let = false;
 
     void set_do_block(node::function_definition const& def)
     {
@@ -464,16 +465,19 @@ struct func_invocation final : public expression {
             node::any_expr const& c,
             std::vector<node::any_expr> const& a,
             bool const ufcs,
-            bool const begin_end
+            bool const begin_end,
+            bool const let
         ) noexcept
-        : expression(), child(c), args(a), is_ufcs(ufcs), is_begin_end(begin_end)
+        : expression(), child(c), args(a), is_ufcs(ufcs), is_begin_end(begin_end), is_let(let)
     {}
 
-    // Note: For begin-end expression
+    // Note: For begin-end and let-in expression
     func_invocation(
-            node::lambda_expr const& lambda
+            node::lambda_expr const& lambda,
+            bool const begin_end,
+            bool const let
         ) noexcept
-        : expression(), child(lambda), args(), is_ufcs(false), is_begin_end(true)
+        : expression(), child(lambda), args(), is_ufcs(false), is_begin_end(begin_end), is_let(let)
     {}
 
     std::string to_string() const noexcept override

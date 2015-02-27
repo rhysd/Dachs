@@ -471,15 +471,65 @@ public:
                                             std::vector<ast::node::parameter>{},
                                             statements
                                         )
-                                    )
+                                    ),
+                                    false, true // Note: Not let-in, but begin-end
                                 );
                         }
                         , _1
                     )
             ];
 
+        // TODO:
+        // Deal with 'let ... in begin ... end' as a special case because it generates lambda expression
+        // twice.
         let_expr
-            = ;// TODO
+            = (
+                DACHS_KWD("let")
+                >> -qi::eol >> initialize_stmt % sep >> -qi::eol
+                >> DACHS_KWD("in") >> -qi::eol
+                >> typed_expr
+            )[
+                _val = phx::bind(
+                        [](auto const& inits, auto const& body_expr)
+                        {
+                            auto stmts = helper::make<ast::node::statement_block>();
+                            stmts->value.reserve(inits.size() + 1);
+                            for (auto const& i : inits) {
+                                stmts->value.emplace_back(i);
+                            }
+
+                            {
+                                auto ret = helper::make<ast::node::return_stmt>(body_expr);
+                                ret->set_source_location(ast::node::location_of(body_expr));
+                                stmts->value.push_back(
+                                        std::move(ret)
+                                    );
+                            }
+
+                            return helper::make<ast::node::func_invocation>(
+                                    helper::make<ast::node::lambda_expr>(
+                                        helper::make<ast::node::function_definition>(
+                                            std::vector<ast::node::parameter>{},
+                                            std::move(stmts)
+                                        )
+                                    ),
+                                    false, true // Note: Not begin-end, but let-in
+                                );
+                        },
+                        _1, _2
+                    )
+            ];
+
+        /*
+        let_stmt
+            = (
+                DACHS_KWD("let")
+                >> -qi::eol >> initialize_stmt % sep >> -qi::eol
+                >> DACHS_KWD("in") >> -qi::eol >> compound_stmt
+            ) [
+                _val = make_node_ptr<ast::node::let_stmt>(_1, _2)
+            ];
+        */
 
         primary_expr
             = (
