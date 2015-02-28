@@ -1017,5 +1017,36 @@ BOOST_AUTO_TEST_CASE(let_expr)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(getchar_builtin_function)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func gets(var buf)
+            s := buf.size
+            var pos := 0u
+            for pos < s
+                c := __builtin_getchar()
+                if c == '\n'
+                    ret buf
+                end
+
+                buf[pos] = c
+                pos += 1u
+            end
+            ret buf
+        end
+
+        func main
+            s := gets(new [char]{256u})
+            for c in s
+                if c == '\0'
+                    ret 0
+                end
+                print(c)
+            end
+
+            ret 0
+        end
+    )");
+}
 
 BOOST_AUTO_TEST_SUITE_END()

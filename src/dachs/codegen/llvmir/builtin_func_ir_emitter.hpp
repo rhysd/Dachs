@@ -38,6 +38,7 @@ class builtin_function_emitter {
     llvm::Function *cityhash_func = nullptr;
     llvm::Function *malloc_func = nullptr;
     address_of_func_table_type address_of_func_table;
+    llvm::Function *getchar_func = nullptr;
 
 public:
 
@@ -51,7 +52,7 @@ public:
     }
 
     template<class Table>
-    llvm::Function *emit_builtin_func_prototype(Table &table, std::string const& prefix, type::builtin_type const& arg_type)
+    llvm::Function *emit_print_func_prototype(Table &table, std::string const& prefix, type::builtin_type const& arg_type)
     {
         auto const func_itr = table.find(arg_type->name);
         if (func_itr != std::end(table)) {
@@ -161,18 +162,40 @@ public:
     // This is temporary implementation.
     llvm::Function *emit_print_func(type::builtin_type const& arg_type)
     {
-        return emit_builtin_func_prototype(print_func_table, "__dachs_print_", arg_type);
+        return emit_print_func_prototype(print_func_table, "__dachs_print_", arg_type);
     }
 
     llvm::Function *emit_println_func(type::builtin_type const& arg_type)
     {
-        return emit_builtin_func_prototype(println_func_table, "__dachs_println_", arg_type);
+        return emit_print_func_prototype(println_func_table, "__dachs_println_", arg_type);
     }
 
     llvm::Function *emit_read_cycle_counter_func()
     {
         assert(module);
         return llvm::Intrinsic::getDeclaration(module, llvm::Intrinsic::readcyclecounter);
+    }
+
+    llvm::Function *emit_getchar_func()
+    {
+        if (getchar_func) {
+            return getchar_func;
+        }
+
+        auto const func_type = llvm::FunctionType::get(
+                c.builder.getInt8Ty(),
+                false
+            );
+
+        getchar_func
+            = llvm::Function::Create(
+                    func_type,
+                    llvm::Function::ExternalLinkage,
+                    "__dachs_getchar__",
+                    module
+                );
+
+        return getchar_func;
     }
 
     llvm::Function *emit_address_of_func(type::type const& arg_type)
@@ -240,6 +263,9 @@ public:
             return emit_read_cycle_counter_func();
         } else if (name == "__builtin_address_of") {
             return emit_address_of_func(arg_types[0]);
+        } else if (name == "__builtin_getchar") {
+            assert(arg_types.empty());
+            return emit_getchar_func();
         } // else ...
 
         return nullptr;

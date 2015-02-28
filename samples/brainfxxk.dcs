@@ -36,8 +36,7 @@ class BrainFxxk
     end
 
   - func get
-        println("Warning!! ',' is not implemented yet!!")
-        # TODO: input is not implemented yet in Dachs
+        @memory[@pointer] = __builtin_getchar() as int
     end
 
   - func loop

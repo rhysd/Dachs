@@ -94,4 +94,9 @@ extern "C" {
     {
         return std::malloc(size);
     }
+
+    char __dachs_getchar__()
+    {
+        return std::getchar();
+    }
 }

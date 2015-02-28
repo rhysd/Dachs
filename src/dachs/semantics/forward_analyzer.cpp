@@ -49,7 +49,7 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
         }
 
         {
-            // func read_cycle_counter()
+            // func read_cycle_counter() : uint
             detail::make_global_func(scope_root, "__builtin_read_cycle_counter", type::get_builtin_type("uint"));
         }
 
@@ -57,6 +57,11 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
             // func address_of(x)
             auto address_of_func = detail::make_global_func(scope_root, "__builtin_address_of", type::get_builtin_type("uint"));
             address_of_func->define_param(detail::make_global_func_param("ptr", dummy_template_type));
+        }
+
+        {
+            // func getchar() : char
+            detail::make_global_func(scope_root, "__builtin_getchar", type::get_builtin_type("char"));
         }
 
         // Operators
