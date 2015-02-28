@@ -312,7 +312,8 @@ public:
         visitor.visit(p, walker_for(
             p->functions,
             p->global_constants,
-            p->classes
+            p->classes,
+            p->imports
         ));
     }
 

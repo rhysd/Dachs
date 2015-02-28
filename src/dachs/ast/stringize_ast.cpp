@@ -144,9 +144,10 @@ public:
     String visit(node::inu const& p, String const& indent) const noexcept
     {
         return prefix_of(p, indent)
-            + visit_nodes(p->functions, indent + "   ", p->global_constants.empty() && p->classes.empty())
-            + visit_nodes(p->global_constants, indent + "   ", p->classes.empty())
-            + visit_nodes(p->classes, indent + "   ", true);
+            + visit_nodes(p->functions, indent + "   ", p->global_constants.empty() && p->classes.empty() && p->imports.empty())
+            + visit_nodes(p->global_constants, indent + "   ", p->classes.empty() && p->imports.empty())
+            + visit_nodes(p->classes, indent + "   ", p->imports.empty())
+            + visit_nodes(p->imports, indent + "   ", true);
     }
 
     String visit(node::array_literal const& al, String const& indent, char const* const lead) const noexcept

@@ -2130,6 +2130,30 @@ BOOST_AUTO_TEST_CASE(clazz)
     )"));
 }
 
+
+BOOST_AUTO_TEST_CASE(import)
+{
+    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+        import foo
+        import foo2_
+        import foo.bar
+        import foo.bar.baz
+        import foo.bar
+    )"));
+
+    CHECK_PARSE_THROW(R"(
+        import foo.
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        import .foo
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        import foo..bar
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(do_not_degrade)
 {
     // :foo was parsed as the return type of function 'main'
