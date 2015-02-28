@@ -12,6 +12,7 @@
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/adaptor/sliced.hpp>
 #include <boost/range/numeric.hpp>
+#include <boost/algorithm/string/join.hpp>
 
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/stringize_ast.hpp"
@@ -316,9 +317,18 @@ public:
         return prefix_of(ss, indent)
                 + '\n' + visit(ss->target_expr, indent+lead, ss->when_stmts_list.empty() && !ss->maybe_else_stmts ? "   " : "|  ")
                 + visit_nodes_with_predicate(ss->when_stmts_list,
-                        [this, indent, lead](auto const& cond_and_when_stmts, auto const l){
-                            return visit_nodes(cond_and_when_stmts.first, indent+lead, false)
-                                + visit(cond_and_when_stmts.second, indent+lead, l);
+                        [this, &indent, lead](auto const& cond_and_when_stmts, auto const l)
+                        {
+                            // XXX: Workaround!
+                            return boost::algorithm::join(
+                                    cond_and_when_stmts.first | transformed(
+                                            [this, &indent, lead](auto const& cond)
+                                            {
+                                                return visit(cond, indent+lead, "|  ");
+                                            }
+                                        ),
+                                    "\n"
+                                ) + '\n' + visit(cond_and_when_stmts.second, indent+lead, l);
                         }, !ss->maybe_else_stmts)
                 + (ss->maybe_else_stmts ? visit(*(ss->maybe_else_stmts), indent+lead, "   ") : "");
     }
