@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <iterator>
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
@@ -82,6 +83,29 @@ int do_compiler_action(Action const& action)
     }
 }
 
+auto get_substitution_option(std::string const& s, char const* const prefix)
+{
+    auto const value_str = s.substr(std::strlen(prefix));
+    std::vector<std::string> result;
+    boost::algorithm::split(
+            result,
+            value_str,
+            boost::is_any_of(",")
+        );
+    return result;
+}
+
+template<class T>
+auto &operator+=(std::vector<T> &lhs, std::vector<T> &&rhs)
+{
+    lhs.insert(
+            std::end(lhs),
+            std::make_move_iterator(std::begin(rhs)),
+            std::make_move_iterator(std::end(rhs))
+        );
+    return lhs;
+}
+
 template<class ArgPtr>
 auto get_command_options(ArgPtr arg)
 {
@@ -94,6 +118,7 @@ auto get_command_options(ArgPtr arg)
         bool run = false;
         codegen::opt_level opt = codegen::opt_level::none;
         std::vector<std::string> run_args;
+        std::vector<std::string> importdirs;
     } cmdopts;
 
     std::string const debug_compiler_str = "--debug-compiler";
@@ -103,15 +128,8 @@ auto get_command_options(ArgPtr arg)
     std::string const release_str = "--release";
 
     for (; *arg; ++arg) {
-        if (boost::algorithm::starts_with(*arg, "--libdir=")) {
-            auto libs_str = std::string{*arg}.substr(std::strlen("--libdir="));
-            std::vector<std::string> libs;
-            boost::algorithm::split(
-                    libs,
-                    libs_str,
-                    boost::is_any_of(",")
-                );
-            cmdopts.libdirs.insert(std::end(cmdopts.libdirs), std::begin(libs), std::end(libs));
+        if (boost::algorithm::starts_with(*arg, "--runtimedir=")) {
+            cmdopts.libdirs += get_substitution_option(*arg, "--runtimedir=");
         } else if (boost::algorithm::ends_with(*arg, ".dcs")) {
             cmdopts.source_files.emplace_back(*arg);
         } else if (*arg == debug_compiler_str) {
@@ -128,6 +146,8 @@ auto get_command_options(ArgPtr arg)
             cmdopts.opt = codegen::opt_level::debug;
         } else if (*arg == release_str) {
             cmdopts.opt = codegen::opt_level::release;
+        } else if (boost::algorithm::starts_with(*arg, "--libdir=")) {
+            cmdopts.importdirs += get_substitution_option(*arg, "--libdir=");
         } else {
             cmdopts.rest_args.emplace_back(*arg);
         }
@@ -177,7 +197,7 @@ int main(int const, char const* const argv[])
     auto const show_usage =
         [argv]()
         {
-            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj|--check-syntax] [--debug-compiler] [--debug|--release] [--libdir={path}] [--disable-color] {file} [--run [args...]]\n";
+            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj|--check-syntax] [--debug-compiler] [--debug|--release] [--libdir={path}] [--runtimedir={path}] [--disable-color] {file} [--run [args...]]\n";
         };
 
     // TODO: Use Boost.ProgramOptions
@@ -202,7 +222,8 @@ int main(int const, char const* const argv[])
                 {
                     compiler.dump_asts(
                         std::cout,
-                        cmdopts.source_files
+                        cmdopts.source_files,
+                        cmdopts.importdirs
                     );
                 }
             );
@@ -212,7 +233,8 @@ int main(int const, char const* const argv[])
                 {
                     compiler.dump_scope_trees(
                         std::cout,
-                        cmdopts.source_files
+                        cmdopts.source_files,
+                        cmdopts.importdirs
                     );
                 }
             );
@@ -223,6 +245,7 @@ int main(int const, char const* const argv[])
                     compiler.dump_llvm_irs(
                         std::cout,
                         cmdopts.source_files
+                        , cmdopts.importdirs
                     );
                 }
             );
@@ -231,7 +254,8 @@ int main(int const, char const* const argv[])
                 [&]
                 {
                     compiler.compile_to_objects(
-                        cmdopts.source_files
+                        cmdopts.source_files,
+                        cmdopts.importdirs
                     );
                 }
             );
@@ -240,7 +264,8 @@ int main(int const, char const* const argv[])
                 [&]
                 {
                     compiler.check_syntax(
-                        cmdopts.source_files
+                        cmdopts.source_files,
+                        cmdopts.importdirs
                     );
                 }
             );
@@ -261,6 +286,7 @@ int main(int const, char const* const argv[])
                         auto const executable = compiler.compile(
                                 cmdopts.source_files,
                                 cmdopts.libdirs,
+                                cmdopts.importdirs,
                                 std::move(tmpdir)
                             );
 
@@ -286,7 +312,8 @@ int main(int const, char const* const argv[])
                 {
                     compiler.compile(
                         cmdopts.source_files,
-                        cmdopts.libdirs
+                        cmdopts.libdirs,
+                        cmdopts.importdirs
                     );
                 }
             );

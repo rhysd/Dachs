@@ -1,9 +1,10 @@
 #if !defined DACHS_PARSER_PARSER_HPP_INCLUDED
 #define      DACHS_PARSER_PARSER_HPP_INCLUDED
 
-#include <cstddef>
 #include <string>
+#include <vector>
 #include <utility>
+#include <cstddef>
 
 #include <boost/format.hpp>
 
@@ -14,7 +15,11 @@ namespace syntax {
 
 class parser final {
 public:
-    ast::ast parse(std::string const& code, std::string const& file_name) const;
+    ast::ast parse(
+            std::string const& code,
+            std::string const& file_name,
+            std::vector<std::string> const& importdirs = {}
+        ) const;
 };
 
 } // namespace syntax
