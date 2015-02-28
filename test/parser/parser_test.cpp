@@ -1808,13 +1808,17 @@ BOOST_AUTO_TEST_CASE(let_stmt)
                 ret 99
             end
 
-            let
-                var a := 42
-                var b := 42
-            in for a < 50
-                println(a)
-                a += 1
-            end
+            result :=
+                let
+                    var a := 42
+                    var b := 42
+                begin
+                    for a < 50
+                        println(a)
+                        a += 1
+                    end
+                    ret a
+                end
         end
         )"));
 }

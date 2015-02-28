@@ -249,7 +249,44 @@ BOOST_AUTO_TEST_CASE(some_samples)
                     ret s
                 end
 
+            sum3 :=
+                let
+                    var s := 0
+                begin
+                    for e in a
+                        s += e
+                    end
+                    ret s
+                end
+
+            sum4 :=
+                let
+                    var s := 0
+                begin
+                    for e in a
+                        s += e
+                    end
+                    ret s
+                end
+
+            let
+                var s := 1
+            begin
+                case s
+                when 0
+                    ret sum
+                when 1
+                    ret sum2
+                when 2
+                    ret sum3
+                when 3
+                    ret sum4
+                end
+            end.println
+
             println(sum == sum2)
+            println(sum == sum3)
+            println(sum == sum4)
         end
     )");
 }

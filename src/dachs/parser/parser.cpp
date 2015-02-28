@@ -503,20 +503,16 @@ public:
                 ] >> -qi::eol
                 >> (
                     (
-                        DACHS_KWD("in") >> -qi::eol >> compound_stmt
+                        DACHS_KWD("in") >> -qi::eol >> typed_expr
                     ) [
                         phx::bind(
-                            [](auto const& body, auto && stmt)
+                            [](auto const& body, auto const& expr)
                             {
-                                if (auto const expr = helper::variant::get_as<ast::node::any_expr>(stmt)) {
-                                    auto ret = helper::make<ast::node::return_stmt>(*expr);
-                                    ret->set_source_location(ast::node::location_of(stmt));
-                                    body->value.emplace_back(
-                                            std::move(ret)
-                                        );
-                                } else {
-                                    body->value.emplace_back(std::forward<decltype(stmt)>(stmt));
-                                }
+                                auto ret = helper::make<ast::node::return_stmt>(expr);
+                                ret->set_source_location(ast::node::location_of(expr));
+                                body->value.emplace_back(
+                                        std::move(ret)
+                                    );
                             },
                             _a, _1
                         )
