@@ -643,9 +643,10 @@ public:
         }
 
         if (invocation->is_begin_end || invocation->is_let) {
-            auto const lambda = *get_as<ast::node::lambda_expr>(invocation->child);
-            lambda->set_source_location(*invocation);
-            lambda->def->set_source_location(*invocation);
+            auto const lambda = get_as<ast::node::lambda_expr>(invocation->child);
+            assert(lambda);
+            (*lambda)->set_source_location(*invocation);
+            (*lambda)->def->set_source_location(*invocation);
         }
 
         w();
