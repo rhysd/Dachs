@@ -1089,11 +1089,6 @@ public:
                 ) > ')'
             );
 
-        // FIXME: Temporary
-        // Spec of precondition is not determined yet...
-        func_precondition
-            = -("this_keyword_will_be___do___after_do_statement_is_removed"/*XXX*/ > sep);
-
         func_body_stmt_block
             = (
                 -((compound_stmt - DACHS_KWD("ensure") - DACHS_KWD("end")) % sep)
@@ -1104,7 +1099,6 @@ public:
         function_definition
             = (
                 DACHS_KWD(func_kind) > func_def_name > function_param_decls > -((':' >> -qi::eol) > qualified_type) > sep
-                > func_precondition
                 > func_body_stmt_block > -sep
                 > -(
                     "ensure" > sep > stmt_block_before_end > -sep
@@ -1382,7 +1376,6 @@ public:
         func_def_name.name("name of function definition");
         variable_name.name("variable name");
         type_name.name("type name");
-        func_precondition.name("precondition in function");
         postfix_if_return_stmt.name("return statement in postfix if statement");
         lambda_expr_oneline.name("\"in\" lambda expression");
         lambda_expr_do_end.name("\"do-end\" lambda expression");
@@ -1511,7 +1504,6 @@ private:
                       , assign_operator
                       , class_name
                     ;
-    rule<qi::unused_type()/*TMP*/> func_precondition;
     decltype(return_stmt) postfix_if_return_stmt;
 
 #undef DACHS_DEFINE_RULE
