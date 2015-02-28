@@ -479,44 +479,73 @@ public:
                     )
             ];
 
-        // TODO:
-        // Deal with 'let ... in begin ... end' as a special case because it generates lambda expression
-        // twice.
         let_expr
             = (
-                DACHS_KWD("let")
-                >> -qi::eol >> initialize_stmt % sep >> -qi::eol
-                >> DACHS_KWD("in") >> -qi::eol
-                >> typed_expr
+                DACHS_KWD("let") >> -qi::eol
+                >> (
+                    initialize_stmt % sep
+                ) [
+                    _a = phx::bind(
+                        [](auto && inits)
+                        {
+                            assert(!inits.empty());
+                            auto stmts = helper::make<ast::node::statement_block>();
+                            stmts->value.reserve(inits.size() + 1u);
+                            stmts->set_source_location(*inits[0]);
+
+                            for (auto && i : std::forward<decltype(inits)>(inits)) {
+                                stmts->value.emplace_back(std::forward<decltype(i)>(i));
+                            }
+
+                            return stmts;
+                        }, _1
+                    )
+                ] >> -qi::eol
+                >> (
+                    (
+                        DACHS_KWD("in") >> -qi::eol >> compound_stmt
+                    ) [
+                        phx::bind(
+                            [](auto const& body, auto && stmt)
+                            {
+                                if (auto const expr = helper::variant::get_as<ast::node::any_expr>(stmt)) {
+                                    auto ret = helper::make<ast::node::return_stmt>(*expr);
+                                    ret->set_source_location(ast::node::location_of(stmt));
+                                    body->value.emplace_back(
+                                            std::move(ret)
+                                        );
+                                } else {
+                                    body->value.emplace_back(std::forward<decltype(stmt)>(stmt));
+                                }
+                            },
+                            _a, _1
+                        )
+                    ] | (
+                        DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
+                    ) [
+                        phx::bind(
+                            [](auto const& body, auto && stmts)
+                            {
+                                std::move(std::begin(stmts->value), std::end(stmts->value), std::back_inserter(body->value));
+                            },
+                            _a, _1
+                        )
+                    ]
+                )
             )[
                 _val = phx::bind(
-                        [](auto const& inits, auto const& body_expr)
+                        [](auto && body)
                         {
-                            auto stmts = helper::make<ast::node::statement_block>();
-                            stmts->value.reserve(inits.size() + 1);
-                            for (auto const& i : inits) {
-                                stmts->value.emplace_back(i);
-                            }
-
-                            {
-                                auto ret = helper::make<ast::node::return_stmt>(body_expr);
-                                ret->set_source_location(ast::node::location_of(body_expr));
-                                stmts->value.push_back(
-                                        std::move(ret)
-                                    );
-                            }
-
                             return helper::make<ast::node::func_invocation>(
                                     helper::make<ast::node::lambda_expr>(
                                         helper::make<ast::node::function_definition>(
                                             std::vector<ast::node::parameter>{},
-                                            std::move(stmts)
+                                            std::forward<decltype(body)>(body)
                                         )
                                     ),
                                     false, true // Note: Not begin-end, but let-in
                                 );
-                        },
-                        _1, _2
+                        }, _a
                     )
             ];
 
@@ -1442,7 +1471,6 @@ private:
         , typed_expr
         , var_ref_before_space
         , begin_end_expr
-        , let_expr
     ;
 
     rule<ast::node::any_expr(), qi::locals<std::vector<ast::node::any_expr>>> tuple_literal;
@@ -1454,6 +1482,8 @@ private:
             std::vector<ast::node::parameter>
         >
     >  lambda_expr_oneline;
+
+    rule<ast::node::any_expr(), qi::locals<ast::node::statement_block>> let_expr;
 
     rule<ast::node::any_type()>
           primary_type

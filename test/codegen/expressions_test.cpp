@@ -983,6 +983,36 @@ BOOST_AUTO_TEST_CASE(let_expr)
             let var a := 42 in begin a = 21 end
 
             let var a := 42 in begin b := a end
+
+            let
+                var a := 42
+                var b := 42
+            begin
+                for a < 50
+                    println(a)
+                    a += 1
+                end
+            end
+
+            let
+                a := 42
+            begin
+                case a
+                when 42
+                    println("42")
+                end
+            end
+
+            let
+                a := 42
+            begin
+                case a
+                when 42
+                    ret "aaa"
+                when -42
+                    ret "bbb"
+                end
+            end
         end
     )");
 }

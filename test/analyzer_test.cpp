@@ -173,6 +173,23 @@ BOOST_AUTO_TEST_CASE(let)
             println(a)
         end
     )");
+
+    // Note: Edge case for if statement and if expression
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            let
+                a := 42
+            in if true then 12 else 13
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            let
+                a := 42
+            in (if true then 12 else 13)
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(do_)
