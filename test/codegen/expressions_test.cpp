@@ -915,5 +915,77 @@ BOOST_AUTO_TEST_CASE(address_of)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(let_expr)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo
+            ret let
+                a := 42
+            in a
+        end
+
+        func main
+            let a := 42 in println(42)
+
+            let
+                a := 42
+            in println(42)
+
+            let
+                a := 42
+            in
+            println(42)
+
+            let
+                a := 42
+                b := 'a'
+            in println(42)
+
+            let
+                var a,b := 42,'b'
+            in println(42)
+
+            let a := 42; b := 'a' in println(42)
+
+            let
+                var a := 42
+                b := 'a'
+            in if a == 4
+                println(a)
+            else
+                println(b)
+
+            let
+                a, var b := 42, 'a'
+            in if a == 4 then a else (b as int)
+
+            let
+                var a := 42
+                var b := 42
+            in begin
+                for a < 50
+                    println(a)
+                    a += 1
+                end
+            end
+
+            foo().println
+
+            let
+                a := 42
+            in begin
+                case a
+                when 42
+                    println("42")
+                end
+            end
+
+            let var a := 42 in begin a = 21 end
+
+            let var a := 42 in begin b := a end
+        end
+    )");
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

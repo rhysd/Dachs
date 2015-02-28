@@ -1776,24 +1776,22 @@ BOOST_AUTO_TEST_CASE(let_stmt)
             let
                 a := 42
                 b := 'a'
-            in if a == 4
-                println(a)
-            else
-                println(b)
-            end
+            in if a == 4 then a else b
 
             let
                 var a := 42
                 var b := 42
-            in for a < 50
-                println(a)
-                a += 1
+            in begin
+                for a < 50
+                    println(a)
+                    a += 1
+                end
             end
 
             let
                 a := 42
                 b := 42
-            in do
+            in begin
                 if true
                     println(42)
                 end

@@ -1739,7 +1739,7 @@ public:
         auto *const else_val = load_if_ref(emit(if_->else_expr), if_->else_expr);
         helper.terminate_with_br(merge_block, merge_block);
 
-        auto *const phi = ctx.builder.CreatePHI(type_emitter.emit_alloc_type(if_->type), 2, "expr.if.tmp");
+        auto *const phi = ctx.builder.CreatePHI(type_emitter.emit(if_->type), 2, "expr.if.tmp");
         phi->addIncoming(then_val, then_block);
         phi->addIncoming(else_val, else_block);
         return phi;

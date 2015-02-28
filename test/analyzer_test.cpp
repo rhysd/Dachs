@@ -1943,14 +1943,14 @@ BOOST_AUTO_TEST_CASE(typed_expression)
         func main
             let
                 x := new X{24}
-            in do
+            in begin
                 x : X(int)
                 x : X
             end
 
             let
                 y := new Y{new X{42}, new X{3.14}}
-            in do
+            in begin
                 y : Y(X(int), X(float))
                 y : Y(X, X(float))
                 y : Y(X(int), X)
@@ -1960,7 +1960,7 @@ BOOST_AUTO_TEST_CASE(typed_expression)
 
             let
                 x := new X{new X{new X{42}}}
-            in do
+            in begin
                 x : X(X(X(int)))
                 x : X(X(X))
                 x : X(X)
