@@ -225,6 +225,70 @@ BOOST_AUTO_TEST_CASE(some_samples)
             f2 := -> 42
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            a := [1, 2, 3, 4, 5]
+
+            sum :=
+                let
+                    var s := 0
+                in begin
+                    for e in a
+                        s += e
+                    end
+                    ret s
+                end
+
+            sum2 :=
+                begin
+                    var s := 0
+                    for e in a
+                        s += e
+                    end
+                    ret s
+                end
+
+            sum3 :=
+                let
+                    var s := 0
+                begin
+                    for e in a
+                        s += e
+                    end
+                    ret s
+                end
+
+            sum4 :=
+                let
+                    var s := 0
+                begin
+                    for e in a
+                        s += e
+                    end
+                    ret s
+                end
+
+            let
+                var s := 1
+            begin
+                case s
+                when 0
+                    ret sum
+                when 1
+                    ret sum2
+                when 2
+                    ret sum3
+                when 3
+                    ret sum4
+                end
+            end.println
+
+            println(sum == sum2)
+            println(sum == sum3)
+            println(sum == sum4)
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

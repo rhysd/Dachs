@@ -169,8 +169,16 @@ BOOST_AUTO_TEST_CASE(let)
 {
     CHECK_THROW_SEMANTIC_ERROR(R"(
         func main
-            let a := 42 in pritln(a)
+            let a := 42 in println(a)
             println(a)
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            let
+                a := 42
+            in if true then 12 else 13
         end
     )");
 }
@@ -1943,14 +1951,14 @@ BOOST_AUTO_TEST_CASE(typed_expression)
         func main
             let
                 x := new X{24}
-            in do
+            begin
                 x : X(int)
                 x : X
             end
 
             let
                 y := new Y{new X{42}, new X{3.14}}
-            in do
+            begin
                 y : Y(X(int), X(float))
                 y : Y(X, X(float))
                 y : Y(X(int), X)
@@ -1960,7 +1968,7 @@ BOOST_AUTO_TEST_CASE(typed_expression)
 
             let
                 x := new X{new X{new X{42}}}
-            in do
+            begin
                 x : X(X(X(int)))
                 x : X(X(X))
                 x : X(X)

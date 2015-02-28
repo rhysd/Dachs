@@ -30,15 +30,19 @@ end
 func mandel'(xmin, xmax, xstep, ymin, ymax, ystep)
     let
         var y := ymin
-    in for y < ymax
-        let
-            var x := xmin
-        in for x < xmax
-            print_density(mandel_converge(x, y))
-            x += xstep
+    in begin
+        for y < ymax
+            let
+                var x := xmin
+            in begin
+                for x < xmax
+                    print_density(mandel_converge(x, y))
+                    x += xstep
+                end
+                println("")
+                y += ystep
+            end
         end
-        println("")
-        y += ystep
     end
 end
 

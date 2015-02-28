@@ -482,20 +482,25 @@ class llvm_ir_emitter {
 
         val emit(ast::node::ufcs_invocation const& ufcs)
         {
-            auto const receiver_type = type::get<type::class_type>(type::type_of(ufcs->child));
+            auto const child_type = type::type_of(ufcs->child);
+
+            // Note:
+            // When the UFCS invocation is generated for lambda capture access
+            if (auto const g = type::get<type::generic_func_type>(child_type)) {
+                if (helper::exists(emitter.semantics_ctx.lambda_captures, *g)) {
+                    return emitter.emit_lambda_capture_access(*g, ufcs);
+                }
+            }
+
+            auto const receiver_type = type::get<type::class_type>(child_type);
             if (!receiver_type) {
                 return nullptr;
             }
 
-            auto const receiver_val = emitter.emit(ufcs->child);
-            assert(receiver_val->getType()->isPointerTy() && receiver_val->getType()->getPointerElementType()->isStructTy());
-
             assert(!(*receiver_type)->ref.expired());
-            auto const clazz = (*receiver_type)->ref.lock();
-            auto const offset = clazz->get_instance_var_offset_of(ufcs->member_name);
-            assert(offset);
+            auto const emitted = emitter.emit_instance_var_access((*receiver_type)->ref.lock(), ufcs);
 
-            return emitter.ctx.builder.CreateStructGEP(receiver_val, *offset);
+            return emitted ? *emitted : nullptr;
         }
 
         template<class... Args>
@@ -1229,10 +1234,11 @@ public:
 
     val emit_data_member(ast::node::ufcs_invocation const& ufcs)
     {
+        auto const child_type = type::type_of(ufcs->child);
 
         // Note:
         // When the UFCS invocation is generated for lambda capture access
-        if (auto const g = type::get<type::generic_func_type>(type::type_of(ufcs->child))) {
+        if (auto const g = type::get<type::generic_func_type>(child_type)) {
             if (helper::exists(semantics_ctx.lambda_captures, *g)) {
                 return emit_lambda_capture_access(*g, ufcs);
             }
@@ -1241,7 +1247,6 @@ public:
         // Note:
         // When accessing the data member.
         // Now, built-in data member is only available.
-        auto const child_type = type::type_of(ufcs->child);
         if (auto const clazz = type::get<type::class_type>(child_type)) {
             if (auto const v = emit_instance_var_access((*clazz)->ref.lock(), ufcs)) {
                 return *v;
@@ -1251,6 +1256,7 @@ public:
         // Note:
         // When the argument is 'argv', which is an argument of 'main' function
         auto *const child_value = emit(ufcs->child);
+        // auto *const child_value = load_if_ref(emit(ufcs->child));
         auto *const ty = child_value->getType();
         if (ty->isPointerTy()
             && ty->getPointerElementType()->isPointerTy()
@@ -1733,7 +1739,7 @@ public:
         auto *const else_val = load_if_ref(emit(if_->else_expr), if_->else_expr);
         helper.terminate_with_br(merge_block, merge_block);
 
-        auto *const phi = ctx.builder.CreatePHI(type_emitter.emit_alloc_type(if_->type), 2, "expr.if.tmp");
+        auto *const phi = ctx.builder.CreatePHI(type_emitter.emit(if_->type), 2, "expr.if.tmp");
         phi->addIncoming(then_val, then_block);
         phi->addIncoming(else_val, else_block);
         return phi;
@@ -1759,14 +1765,6 @@ public:
 
         emit(postfix_if->body);
         helper.terminate_with_br(end_block, end_block);
-    }
-
-    void emit(ast::node::let_stmt const& let)
-    {
-        for (auto const& i : let->inits) {
-            emit(i);
-        }
-        emit(let->child_stmt);
     }
 
     val emit(ast::node::cast_expr const& cast)

@@ -113,7 +113,7 @@ public:
 
     auto copy(node::func_invocation const& fc) const
     {
-        return copy_node<node::func_invocation>(fc, copy(fc->child), copy(fc->args), fc->is_ufcs);
+        return copy_node<node::func_invocation>(fc, copy(fc->child), copy(fc->args), fc->is_ufcs, fc->is_begin_end, fc->is_let);
     }
 
     auto copy(node::object_construct const& oc) const
@@ -243,11 +243,6 @@ public:
     auto copy(node::postfix_if_stmt const& pif) const
     {
         return copy_node<node::postfix_if_stmt>(pif, copy(pif->body), pif->kind, copy(pif->condition));
-    }
-
-    auto copy(node::let_stmt const& ls) const
-    {
-        return copy_node<node::let_stmt>(ls, copy(ls->inits), copy(ls->child_stmt));
     }
 
     auto copy(node::function_definition const& fd) const

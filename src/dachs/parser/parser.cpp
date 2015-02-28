@@ -458,10 +458,110 @@ public:
                 _val = make_node_ptr<ast::node::lambda_expr>(_1)
             ];
 
+        begin_end_expr
+            = (
+                DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
+            ) [
+                _val = phx::bind(
+                        [](auto const& statements)
+                        {
+                            return helper::make<ast::node::func_invocation>(
+                                    helper::make<ast::node::lambda_expr>(
+                                        helper::make<ast::node::function_definition>(
+                                            std::vector<ast::node::parameter>{},
+                                            statements
+                                        )
+                                    ),
+                                    false, true // Note: Not let-in, but begin-end
+                                );
+                        }
+                        , _1
+                    )
+            ];
+
+        let_expr
+            = (
+                DACHS_KWD("let") >> -qi::eol
+                >> (
+                    initialize_stmt % sep
+                ) [
+                    _a = phx::bind(
+                        [](auto && inits)
+                        {
+                            assert(!inits.empty());
+                            auto stmts = helper::make<ast::node::statement_block>();
+                            stmts->value.reserve(inits.size() + 1u);
+                            stmts->set_source_location(*inits[0]);
+
+                            for (auto && i : std::forward<decltype(inits)>(inits)) {
+                                stmts->value.emplace_back(std::forward<decltype(i)>(i));
+                            }
+
+                            return stmts;
+                        }, _1
+                    )
+                ] >> -qi::eol
+                >> (
+                    (
+                        DACHS_KWD("in") >> -qi::eol >> typed_expr
+                    ) [
+                        phx::bind(
+                            [](auto const& body, auto const& expr)
+                            {
+                                auto ret = helper::make<ast::node::return_stmt>(expr);
+                                ret->set_source_location(ast::node::location_of(expr));
+                                body->value.emplace_back(
+                                        std::move(ret)
+                                    );
+                            },
+                            _a, _1
+                        )
+                    ] | (
+                        DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
+                    ) [
+                        phx::bind(
+                            [](auto const& body, auto && stmts)
+                            {
+                                std::move(std::begin(stmts->value), std::end(stmts->value), std::back_inserter(body->value));
+                            },
+                            _a, _1
+                        )
+                    ]
+                )
+            )[
+                _val = phx::bind(
+                        [](auto && body)
+                        {
+                            return helper::make<ast::node::func_invocation>(
+                                    helper::make<ast::node::lambda_expr>(
+                                        helper::make<ast::node::function_definition>(
+                                            std::vector<ast::node::parameter>{},
+                                            std::forward<decltype(body)>(body)
+                                        )
+                                    ),
+                                    false, true // Note: Not begin-end, but let-in
+                                );
+                        }, _a
+                    )
+            ];
+
+        /*
+        let_stmt
+            = (
+                DACHS_KWD("let")
+                >> -qi::eol >> initialize_stmt % sep >> -qi::eol
+                >> DACHS_KWD("in") >> -qi::eol >> compound_stmt
+            ) [
+                _val = make_node_ptr<ast::node::let_stmt>(_1, _2)
+            ];
+        */
+
         primary_expr
             = (
                   object_construct
                 | lambda_expr
+                | begin_end_expr
+                | let_expr
                 | primary_literal
                 | array_literal
                 | symbol_literal
@@ -886,7 +986,7 @@ public:
 
         case_when_stmt_block
             = (
-                *((compound_stmt - DACHS_KWD("end") - DACHS_KWD("else")) >> sep)
+                *((compound_stmt - DACHS_KWD("end") - DACHS_KWD("else") - DACHS_KWD("when")) >> sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
@@ -960,15 +1060,6 @@ public:
                 _val = make_node_ptr<ast::node::postfix_if_stmt>(_1, _2, _3)
             ];
 
-        let_stmt
-            = (
-                DACHS_KWD("let")
-                >> -qi::eol >> initialize_stmt % sep >> -qi::eol
-                >> DACHS_KWD("in") >> -qi::eol >> compound_stmt
-            ) [
-                _val = make_node_ptr<ast::node::let_stmt>(_1, _2)
-            ];
-
         do_stmt
             = (
                 DACHS_KWD("do")
@@ -983,7 +1074,6 @@ public:
                 | switch_stmt
                 | for_stmt
                 | while_stmt
-                | let_stmt
                 | do_stmt
                 | initialize_stmt
                 | postfix_if_stmt
@@ -999,11 +1089,6 @@ public:
                 ) > ')'
             );
 
-        // FIXME: Temporary
-        // Spec of precondition is not determined yet...
-        func_precondition
-            = -("begin" > sep);
-
         func_body_stmt_block
             = (
                 -((compound_stmt - DACHS_KWD("ensure") - DACHS_KWD("end")) % sep)
@@ -1014,7 +1099,6 @@ public:
         function_definition
             = (
                 DACHS_KWD(func_kind) > func_def_name > function_param_decls > -((':' >> -qi::eol) > qualified_type) > sep
-                > func_precondition
                 > func_body_stmt_block > -sep
                 > -(
                     "ensure" > sep > stmt_block_before_end > -sep
@@ -1132,6 +1216,7 @@ public:
             , array_literal
             , tuple_literal
             , lambda_expr
+            , let_expr
             , symbol_literal
             , dict_literal
             , var_ref
@@ -1172,7 +1257,6 @@ public:
             , assignment_stmt
             , postfix_if_return_stmt
             , postfix_if_stmt
-            , let_stmt
             , do_stmt
             , function_definition
             , constructor
@@ -1226,6 +1310,8 @@ public:
         array_literal.name("array literal");
         tuple_literal.name("tuple literal");
         lambda_expr.name("lambda expression");
+        begin_end_expr.name("begin-end expression");
+        let_expr.name("let-in expression");
         symbol_literal.name("symbol literal");
         dict_literal.name("dictionary literal");
         var_ref.name("variable reference");
@@ -1269,7 +1355,6 @@ public:
         variable_decl_without_init.name("variable declaration without initialization");
         initialize_stmt.name("initialize statement");
         assignment_stmt.name("assignment statement");
-        let_stmt.name("let statement");
         do_stmt.name("do statement");
         compound_stmt.name("compound statement");
         function_definition.name("function definition");
@@ -1291,7 +1376,6 @@ public:
         func_def_name.name("name of function definition");
         variable_name.name("variable name");
         type_name.name("type name");
-        func_precondition.name("precondition in function");
         postfix_if_return_stmt.name("return statement in postfix if statement");
         lambda_expr_oneline.name("\"in\" lambda expression");
         lambda_expr_do_end.name("\"do-end\" lambda expression");
@@ -1332,7 +1416,6 @@ private:
     DACHS_DEFINE_RULE(initialize_stmt);
     DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(postfix_if_stmt);
-    DACHS_DEFINE_RULE(let_stmt);
     DACHS_DEFINE_RULE(compound_stmt);
     DACHS_DEFINE_RULE(function_definition);
     DACHS_DEFINE_RULE_WITH_LOCALS(class_definition, std::vector<ast::node::variable_decl>, std::vector<ast::node::function_definition>);
@@ -1376,6 +1459,7 @@ private:
         , if_expr
         , typed_expr
         , var_ref_before_space
+        , begin_end_expr
     ;
 
     rule<ast::node::any_expr(), qi::locals<std::vector<ast::node::any_expr>>> tuple_literal;
@@ -1387,6 +1471,8 @@ private:
             std::vector<ast::node::parameter>
         >
     >  lambda_expr_oneline;
+
+    rule<ast::node::any_expr(), qi::locals<ast::node::statement_block>> let_expr;
 
     rule<ast::node::any_type()>
           primary_type
@@ -1418,7 +1504,6 @@ private:
                       , assign_operator
                       , class_name
                     ;
-    rule<qi::unused_type()/*TMP*/> func_precondition;
     decltype(return_stmt) postfix_if_return_stmt;
 
 #undef DACHS_DEFINE_RULE

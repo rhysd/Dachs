@@ -411,6 +411,8 @@ struct func_invocation final : public expression {
     bool is_monad_invocation = false;
     scope::weak_func_scope callee_scope;
     bool is_ufcs = false;
+    bool is_begin_end = false;
+    bool is_let = false;
 
     void set_do_block(node::function_definition const& def)
     {
@@ -462,9 +464,20 @@ struct func_invocation final : public expression {
     func_invocation(
             node::any_expr const& c,
             std::vector<node::any_expr> const& a,
-            bool const ufcs
+            bool const ufcs,
+            bool const begin_end,
+            bool const let
         ) noexcept
-        : expression(), child(c), args(a), is_ufcs(ufcs)
+        : expression(), child(c), args(a), is_ufcs(ufcs), is_begin_end(begin_end), is_let(let)
+    {}
+
+    // Note: For begin-end and let-in expression
+    func_invocation(
+            node::lambda_expr const& lambda,
+            bool const begin_end,
+            bool const let
+        ) noexcept
+        : expression(), child(lambda), args(), is_ufcs(false), is_begin_end(begin_end), is_let(let)
     {}
 
     std::string to_string() const noexcept override
@@ -954,23 +967,6 @@ struct postfix_if_stmt final : public statement {
     std::string to_string() const noexcept override
     {
         return "POSTFIX_IF_STMT: " + symbol::to_string(kind);
-    }
-};
-
-struct let_stmt final : public statement {
-    std::vector<node::initialize_stmt> inits;
-    node::compound_stmt child_stmt;
-    scope::weak_local_scope scope;
-
-    let_stmt(decltype(inits) const& i, node::compound_stmt const& s)
-        : statement(), inits(i), child_stmt(s)
-    {
-        assert(inits.size() > 0);
-    }
-
-    std::string to_string() const noexcept override
-    {
-        return "LET_STMT: " + std::to_string(inits.size()) + " inits";
     }
 };
 

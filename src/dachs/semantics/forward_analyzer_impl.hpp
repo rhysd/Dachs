@@ -571,19 +571,6 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::let_stmt const& let, Walker const& w)
-    {
-        auto const new_local_scope = scope::make<scope::local_scope>(current_scope);
-        let->scope = new_local_scope;
-        if (auto current_local = get_as<scope::local_scope>(current_scope)) {
-            (*current_local)->define_child(new_local_scope);
-        } else {
-            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-        }
-        introduce_scope_and_walk(std::move(new_local_scope), w);
-    }
-
-    template<class Walker>
     void visit(ast::node::lambda_expr const& lambda, Walker const&)
     {
         lambda->def->name = get_lambda_name(lambda);
@@ -653,6 +640,13 @@ public:
                 var->name = var->name.substr(1u); // omit '@'
                 invocation->args.insert(std::begin(invocation->args), generate_self_ref(*invocation));
             }
+        }
+
+        if (invocation->is_begin_end || invocation->is_let) {
+            auto const lambda = get_as<ast::node::lambda_expr>(invocation->child);
+            assert(lambda);
+            (*lambda)->set_source_location(*invocation);
+            (*lambda)->def->set_source_location(*invocation);
         }
 
         w();

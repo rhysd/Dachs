@@ -121,7 +121,6 @@ struct switch_stmt;
 struct for_stmt;
 struct while_stmt;
 struct postfix_if_stmt;
-struct let_stmt;
 struct statement_block;
 struct function_definition;
 struct class_definition;
@@ -190,7 +189,6 @@ DACHS_DEFINE_NODE_PTR(return_stmt);
 DACHS_DEFINE_NODE_PTR(for_stmt);
 DACHS_DEFINE_NODE_PTR(while_stmt);
 DACHS_DEFINE_NODE_PTR(postfix_if_stmt);
-DACHS_DEFINE_NODE_PTR(let_stmt);
 DACHS_DEFINE_NODE_PTR(statement_block);
 DACHS_DEFINE_NODE_PTR(function_definition);
 DACHS_DEFINE_NODE_PTR(class_definition);
@@ -236,7 +234,6 @@ using compound_stmt =
         , assignment_stmt
         , initialize_stmt
         , postfix_if_stmt
-        , let_stmt
         , statement_block
         , any_expr
     >;
