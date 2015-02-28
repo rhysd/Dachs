@@ -986,7 +986,7 @@ public:
 
         case_when_stmt_block
             = (
-                *((compound_stmt - DACHS_KWD("end") - DACHS_KWD("else")) >> sep)
+                *((compound_stmt - DACHS_KWD("end") - DACHS_KWD("else") - DACHS_KWD("when")) >> sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
