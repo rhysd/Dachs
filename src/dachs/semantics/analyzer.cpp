@@ -1221,9 +1221,6 @@ public:
                     );
             }
             bin_expr->type = type::get_builtin_type("bool", type::no_opt);
-        } else if (bin_expr->op == ".." || bin_expr->op == "...") {
-            // TODO: Range type
-            throw not_implemented_error{bin_expr, __FILE__, __func__, __LINE__, "builtin range type"};
         } else {
             bin_expr->type = lhs_type;
         }

@@ -791,7 +791,7 @@ public:
                       | ".."_p
                     ) >> -qi::eol >> logical_or_expr
                 )[
-                    _val = make_node_ptr<ast::node::binary_expr>(_val, _1, _2)
+                    _val = make_node_ptr<ast::node::object_construct>(_1, _val, _2)
                 ]
             ;
 

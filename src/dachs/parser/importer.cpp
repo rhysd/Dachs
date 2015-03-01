@@ -147,8 +147,6 @@ public:
         if (!source_file.has_root_directory()) {
             source_file = fs::current_path() / source_file;
         }
-
-        assert(fs::exists(source_file));
     }
 
     ast::ast &import(ast::ast &program)

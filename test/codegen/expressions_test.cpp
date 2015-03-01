@@ -8,6 +8,7 @@
 
 #include "dachs/ast/ast.hpp"
 #include "dachs/parser/parser.hpp"
+#include "dachs/parser/importer.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/semantic_analysis.hpp"
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
@@ -20,14 +21,14 @@ using namespace dachs::test;
 static dachs::syntax::parser p;
 
 #define CHECK_NO_THROW_CODEGEN_ERROR(...) do { \
-            auto t = p.parse((__VA_ARGS__), "test_file"); \
+            auto t = dachs::syntax::import(p.parse((__VA_ARGS__), "test_file"), {}, p, "test_file"); \
             auto s = dachs::semantics::analyze_semantics(t); \
             dachs::codegen::llvmir::context c; \
             BOOST_CHECK_NO_THROW(dachs::codegen::llvmir::emit_llvm_ir(t, s, c)); \
         } while (false);
 
 #define CHECK_THROW_CODEGEN_ERROR(...) do { \
-            auto t = p.parse((__VA_ARGS__), "test_file"); \
+            auto t = dachs::syntax::import(p.parse((__VA_ARGS__), "test_file"), {}, p, "test_file"); \
             auto s = dachs::semantics::analyze_semantics(t); \
             dachs::codegen::llvmir::context c; \
             BOOST_CHECK_THROW(dachs::codegen::llvmir::emit_llvm_ir(t, s, c), dachs::code_generation_error); \
@@ -1045,6 +1046,19 @@ BOOST_AUTO_TEST_CASE(getchar_builtin_function)
             end
 
             ret 0
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(range)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        import std.range
+
+        func main
+            (1..10).each do |i|
+                i.println
+            end
         end
     )");
 }

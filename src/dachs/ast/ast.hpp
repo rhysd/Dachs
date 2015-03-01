@@ -519,6 +519,16 @@ struct object_construct final : public expression {
         , callee_ctor_scope(ctor)
     {}
 
+    // Note:
+    // This ctor is used for range expression ".." and "..."
+    object_construct(std::string const& op, node::any_expr lhs, node::any_expr rhs)
+        : expression()
+        , obj_type(helper::make<node::primary_type>("range"))
+        , args({std::move(lhs), std::move(rhs)})
+    {
+        args.emplace_back(helper::make<node::primary_literal>(op == "..."));
+    }
+
     object_construct(object_construct const&) = default;
 
     std::string to_string() const noexcept override
