@@ -12,8 +12,8 @@ namespace syntax {
 
 using dirs_type = std::vector<std::string>;
 
-ast::node::inu &import(ast::node::inu &, dirs_type const&, parser const&, std::string const&);
-ast::node::inu &&import(ast::node::inu &&, dirs_type const&, parser const&, std::string const&);
+ast::ast &import(ast::ast &, dirs_type const&, parser const&, std::string const&);
+ast::ast &&import(ast::ast &&, dirs_type const&, parser const&, std::string const&);
 
 } // namespace parser
 } // namespace dachs

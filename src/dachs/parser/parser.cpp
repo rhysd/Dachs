@@ -1548,7 +1548,7 @@ private:
     // }}}
 };
 
-ast::ast parser::parse(std::string const& code, std::string const& file_name, std::vector<std::string> const& importdirs) const
+ast::ast parser::parse(std::string const& code, std::string const& file_name) const
 {
     auto itr = detail::line_pos_iterator(std::begin(code));
     using iterator_type = decltype(itr);

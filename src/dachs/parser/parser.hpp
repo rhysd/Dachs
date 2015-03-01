@@ -17,8 +17,7 @@ class parser final {
 public:
     ast::ast parse(
             std::string const& code,
-            std::string const& file_name,
-            std::vector<std::string> const& importdirs = {}
+            std::string const& file_name
         ) const;
 };
 

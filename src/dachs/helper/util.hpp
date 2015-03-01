@@ -22,7 +22,7 @@ namespace helper {
 // Note: Never defined
 extern void* enabler;
 
-template <class String>
+template <class String = std::string>
 inline boost::optional<String> read_file(std::string const& file_name)
 {
     typedef typename String::value_type CharT;

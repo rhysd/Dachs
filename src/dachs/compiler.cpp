@@ -9,9 +9,10 @@
 #include <llvm/Support/raw_ostream.h>
 
 #include "dachs/compiler.hpp"
-#include "dachs/semantics/semantic_analysis.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/stringize_ast.hpp"
+#include "dachs/parser/importer.hpp"
+#include "dachs/semantics/semantic_analysis.hpp"
 #include "dachs/semantics/stringize_scope_tree.hpp"
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
 #include "dachs/codegen/llvmir/executable_generator.hpp"
@@ -47,7 +48,8 @@ std::string compiler::compile(compiler::files_type const& files, std::vector<std
             std::cerr << "file: " << f << '\n';
         }
 
-        auto ast = parser.parse(code, f, importdirs);
+        auto ast = parser.parse(code, f);
+        syntax::import(ast, importdirs, parser, f);
         if (debug) {
             std::cerr << ast::stringize_ast(ast) << "\n\n";
         }
@@ -78,7 +80,8 @@ std::vector<std::string> compiler::compile_to_objects(compiler::files_type const
 
     for (auto const& f : files) {
         auto const code = read(f);
-        auto ast = parser.parse(code, f, importdirs);
+        auto ast = parser.parse(code, f);
+        import(ast, importdirs, parser, f);
         auto semantics = semantics::analyze_semantics(ast);
         auto &module = codegen::llvmir::emit_llvm_ir(ast, semantics, context);
         if (debug) {
@@ -97,19 +100,28 @@ std::vector<std::string> compiler::compile_to_objects(compiler::files_type const
 
 std::string compiler::report_ast(std::string const& file, std::string const& code, files_type const& importdirs) const
 {
-    return ast::stringize_ast(parser.parse(code, file, importdirs));
+    return ast::stringize_ast(
+            import(
+                parser.parse(code, file),
+                importdirs,
+                parser,
+                file
+            )
+        );
 }
 
 std::string compiler::report_scope_tree(std::string const& file, std::string const& code, files_type const& importdirs) const
 {
-    auto ast = parser.parse(code, file, importdirs);
+    auto ast = parser.parse(code, file);
+    import(ast, importdirs, parser, file);
     auto ctx = semantics::analyze_semantics(ast);
     return scope::stringize_scope_tree(ctx.scopes);
 }
 
 std::string compiler::report_llvm_ir(std::string const& file, std::string const& code, files_type const& importdirs) const
 {
-    auto ast = parser.parse(code, file, importdirs);
+    auto ast = parser.parse(code, file);
+    import(ast, importdirs, parser, file);
     auto ctx = semantics::analyze_semantics(ast);
 
     std::string result;
@@ -126,7 +138,12 @@ bool compiler::check_syntax(std::vector<std::string> const& files, files_type co
 
     for (auto const& f : files) {
         try {
-            parser.parse(read(f), f, importdirs);
+            import(
+                parser.parse(read(f), f),
+                importdirs,
+                parser,
+                f
+            );
         }
         catch (parse_error const& e) {
             failed = e;
