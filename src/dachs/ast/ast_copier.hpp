@@ -269,6 +269,14 @@ public:
                 );
     }
 
+    auto copy(node::import const& i) const
+    {
+        return copy_node<node::import>(
+                    i,
+                    i->path
+                );
+    }
+
     auto copy(node::lambda_expr const& le) const
     {
         return copy_node<node::lambda_expr>(le, copy(le->def));
@@ -276,7 +284,7 @@ public:
 
     auto copy(node::inu const& p) const
     {
-        return copy_node<node::inu>(p, copy(p->functions), copy(p->global_constants), copy(p->classes));
+        return copy_node<node::inu>(p, copy(p->functions), copy(p->global_constants), copy(p->classes), copy(p->imports));
     }
 
 };

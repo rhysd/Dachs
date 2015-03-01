@@ -1,0 +1,1 @@
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/lib/dachs DESTINATION lib)

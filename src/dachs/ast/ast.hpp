@@ -1133,26 +1133,44 @@ struct class_definition final : public statement {
     }
 };
 
+struct import final : public base {
+    std::string path;
+
+    template<class String>
+    explicit import(String && p)
+        : path(std::forward<String>(p))
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "IMPORT: " + path;
+    }
+};
+
 struct inu final : public base {
     std::vector<node::function_definition> functions;
     std::vector<node::initialize_stmt> global_constants;
     std::vector<node::class_definition> classes;
+    std::vector<node::import> imports;
 
     inu(
         decltype(functions) const& fs,
         decltype(global_constants) const& gs,
-        decltype(classes) const& cs
+        decltype(classes) const& cs,
+        decltype(imports) const& is
     ) noexcept
         : base()
         , functions(fs)
         , global_constants(gs)
         , classes(cs)
+        , imports(is)
     {}
 
     std::string to_string() const noexcept override
     {
         return "PROGRAM: functions: " + std::to_string(functions.size())
-            + ", constants: " + std::to_string(global_constants.size());
+            + ", constants: " + std::to_string(global_constants.size())
+            + ", imports: " + std::to_string(imports.size());
     }
 };
 

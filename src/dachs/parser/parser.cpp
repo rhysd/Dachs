@@ -50,6 +50,7 @@ using qi::_6;
 using qi::_a;
 using qi::_b;
 using qi::_c;
+using qi::_d;
 using qi::_val;
 using qi::alnum;
 using qi::lexeme;
@@ -178,7 +179,8 @@ class dachs_grammar final
         qi::locals<
             std::vector<ast::node::function_definition>,
             std::vector<ast::node::initialize_stmt>,
-            std::vector<ast::node::class_definition>
+            std::vector<ast::node::class_definition>,
+            std::vector<ast::node::import>
         >
     > {
     template<class Value, class... Extra>
@@ -215,10 +217,11 @@ public:
                         function_definition[phx::push_back(_a, _1)]
                       | constant_definition[phx::push_back(_b, _1)]
                       | class_definition[phx::push_back(_c, _1)]
+                      | import[phx::push_back(_d, _1)]
                     ) % sep
                 ) > -sep > (qi::eol | qi::eoi)
             ) [
-                _val = make_node_ptr<ast::node::inu>(_a, _b, _c)
+                _val = make_node_ptr<ast::node::inu>(_a, _b, _c, _d)
             ];
 
         character_literal
@@ -544,17 +547,6 @@ public:
                         }, _a
                     )
             ];
-
-        /*
-        let_stmt
-            = (
-                DACHS_KWD("let")
-                >> -qi::eol >> initialize_stmt % sep >> -qi::eol
-                >> DACHS_KWD("in") >> -qi::eol >> compound_stmt
-            ) [
-                _val = make_node_ptr<ast::node::let_stmt>(_1, _2)
-            ];
-        */
 
         primary_expr
             = (
@@ -1198,6 +1190,16 @@ public:
                 _val = make_node_ptr<ast::node::class_definition>(_1, _a, _b)
             ];
 
+        import
+            = (
+                    DACHS_KWD("import")
+                    > (
+                        +(alnum | '_'_p)[_a += _1] % '.'_p[_a += _1]
+                    )
+            ) [
+                _val = make_node_ptr<ast::node::import>(_a)
+            ];
+
     #undef DACHS_KWD
 
         // Set callback to get the position of node and show obvious compile error {{{
@@ -1273,6 +1275,7 @@ public:
             , lambda_expr_do_end
             , method_definition
             , instance_variable_decl
+            , import
         );
 
         qi::on_error<qi::fail>(
@@ -1384,6 +1387,7 @@ public:
         method_definition.name("member function definition");
         class_name.name("name of class");
         access_specifier.name("access_specifier");
+        import.name("import module");
         // }}}
     }
 
@@ -1402,7 +1406,8 @@ private:
             inu,
             std::vector<ast::node::function_definition>,
             std::vector<ast::node::initialize_stmt>,
-            std::vector<ast::node::class_definition>
+            std::vector<ast::node::class_definition>,
+            std::vector<ast::node::import>
         );
     DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE(object_construct);
@@ -1419,6 +1424,7 @@ private:
     DACHS_DEFINE_RULE(compound_stmt);
     DACHS_DEFINE_RULE(function_definition);
     DACHS_DEFINE_RULE_WITH_LOCALS(class_definition, std::vector<ast::node::variable_decl>, std::vector<ast::node::function_definition>);
+    DACHS_DEFINE_RULE_WITH_LOCALS(import, std::string);
 
     rule<char()> character_literal;
     rule<double()> float_literal;
