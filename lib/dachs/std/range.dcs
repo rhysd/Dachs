@@ -1,0 +1,74 @@
+class range
+  - start, last, exclude_end : bool
+
+    init(@start, @last, @exclude_end)
+    end
+
+    init(@start, @last)
+        @exclude_end := true
+    end
+
+  - func next(x : uint)
+        ret x + 1u
+    end
+
+  - func next(x : int)
+        ret x + 1
+    end
+
+  - func next(c : char)
+        ret c + (1 as char)
+    end
+
+    func valid?
+        ret @start <= @last
+    end
+
+    func first
+        ret @start
+    end
+
+    func last
+        ret @last
+    end
+
+  - func lower?(x)
+        ret (if @exclude_end then x < @last else x <= @last)
+    end
+
+    func include?(x)
+        ret @start <= x && @lower?(x)
+    end
+
+    func exclude_end?
+        ret @exclude_end
+    end
+
+    func cover?(rng)
+        ret @start <= rng.begin && @lower?(rng.end)
+    end
+
+    func step(n, pred)
+        var i := @start
+        for i < @last
+            pred(i)
+            i += n
+        end
+        pred(i) if i == @last && !@exclude_end
+    end
+
+    func each(pred)
+        var i := @start
+        for i != @last
+            pred(i)
+            i = @next(i)
+        end
+        pred(i) unless @exclude_end
+    end
+
+    func dump
+        print(@start)
+        print("..")
+        print(@last)
+    end
+end
