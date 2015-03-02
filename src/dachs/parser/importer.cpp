@@ -121,7 +121,15 @@ class importer final {
             return *found;
         }
 
-        error(node, boost::format("  File %1% is not found in any import paths") % specified_path);
+        std::string notes =
+                "  Note: Import directories are below\n"
+                "    System:    " DACHS_INSTALL_PREFIX "/lib/dachs";
+        for (auto const& i : import_dirs) {
+            notes += "\n    Specified: " + i;
+        }
+        notes += "\n    Relative:  " + source_file.parent_path().string();
+
+        error(node, "  File \"" + specified_path.string() + "\" is not found in any import paths\n" + notes);
     }
 
     ast::ast parse(ast::node::import const& i, fs::path const& p, std::string const& code, fs::path const& f)

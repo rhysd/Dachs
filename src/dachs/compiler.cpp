@@ -138,12 +138,9 @@ bool compiler::check_syntax(std::vector<std::string> const& files, files_type co
 
     for (auto const& f : files) {
         try {
-            import(
-                parser.parse(read(f), f),
-                importdirs,
-                parser,
-                f
-            );
+            // Note:
+            // Do not import in terms of performance
+            parser.parse(read(f), f);
         }
         catch (parse_error const& e) {
             failed = e;

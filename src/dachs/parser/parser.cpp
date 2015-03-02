@@ -282,7 +282,7 @@ public:
                     ("0x" >> qi::hex)
                   | ("0b" >> qi::bin)
                   | ("0o" >> qi::oct)
-                  | qi::uint_ 
+                  | qi::uint_
                 ) >> 'u') > !(qi::alnum | '_')
             ];
 
@@ -456,7 +456,7 @@ public:
 
         lambda_expr
             =  (
-                lambda_expr_do_end | lambda_expr_oneline 
+                lambda_expr_do_end | lambda_expr_oneline
             ) [
                 _val = make_node_ptr<ast::node::lambda_expr>(_1)
             ];
@@ -1278,6 +1278,35 @@ public:
             , import
         );
 
+        // Note:
+        // begin_end_expr and let_expr generates multiple nodes.
+        // Source location should be set to all generated nodes.
+        detail::set_position_getter_on_success(
+                phx::bind(
+                    [code_begin](auto const& invocation, Iterator const before, Iterator const after)
+                    {
+                        auto const d = std::distance(before.base(), after.base());
+                        invocation->line = spirit::get_line(before);
+                        invocation->col = spirit::get_column(code_begin, before);
+                        invocation->length = d < 0 ? 0 : d;
+
+                        if (invocation->is_begin_end || invocation->is_let) {
+                            auto const lambda
+                                = helper::variant::get_as<ast::node::lambda_expr>(invocation->child);
+                            assert(lambda);
+                            (*lambda)->set_source_location(*invocation);
+                            (*lambda)->def->set_source_location(*invocation);
+                        }
+                    },
+                    _val,
+                    _1,
+                    _3
+                ),
+                let_expr,
+                begin_end_expr
+            );
+
+
         qi::on_error<qi::fail>(
             inu,
             // _1 : begin of string to parse
@@ -1465,8 +1494,10 @@ private:
         , if_expr
         , typed_expr
         , var_ref_before_space
-        , begin_end_expr
     ;
+
+    rule<ast::node::func_invocation()> begin_end_expr;
+    rule<ast::node::func_invocation(), qi::locals<ast::node::statement_block>> let_expr;
 
     rule<ast::node::any_expr(), qi::locals<std::vector<ast::node::any_expr>>> tuple_literal;
     rule<ast::node::any_expr(), qi::locals<std::string>> symbol_literal;
@@ -1477,8 +1508,6 @@ private:
             std::vector<ast::node::parameter>
         >
     >  lambda_expr_oneline;
-
-    rule<ast::node::any_expr(), qi::locals<ast::node::statement_block>> let_expr;
 
     rule<ast::node::any_type()>
           primary_type

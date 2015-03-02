@@ -107,7 +107,7 @@ auto &operator+=(std::vector<T> &lhs, std::vector<T> &&rhs)
 }
 
 template<class ArgPtr>
-auto get_command_options(ArgPtr arg)
+auto parse_command_options(ArgPtr arg)
 {
     struct {
         std::vector<char const*> rest_args;
@@ -119,6 +119,7 @@ auto get_command_options(ArgPtr arg)
         codegen::opt_level opt = codegen::opt_level::none;
         std::vector<std::string> run_args;
         std::vector<std::string> importdirs;
+        bool help = false;
     } cmdopts;
 
     std::string const debug_compiler_str = "--debug-compiler";
@@ -126,6 +127,7 @@ auto get_command_options(ArgPtr arg)
     std::string const run_str = "--run";
     std::string const debug_str = "--debug";
     std::string const release_str = "--release";
+    std::string const help_str = "--help";
 
     for (; *arg; ++arg) {
         if (boost::algorithm::starts_with(*arg, "--runtimedir=")) {
@@ -148,6 +150,8 @@ auto get_command_options(ArgPtr arg)
             cmdopts.opt = codegen::opt_level::release;
         } else if (boost::algorithm::starts_with(*arg, "--libdir=")) {
             cmdopts.importdirs += get_substitution_option(*arg, "--libdir=");
+        } else if (*arg == help_str) {
+            cmdopts.help = true;
         } else {
             cmdopts.rest_args.emplace_back(*arg);
         }
@@ -197,12 +201,38 @@ int main(int const, char const* const argv[])
     auto const show_usage =
         [argv]()
         {
-            std::cerr << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj|--check-syntax] [--debug-compiler] [--debug|--release] [--libdir={path}] [--runtimedir={path}] [--disable-color] {file} [--run [args...]]\n";
+            std::cerr << "Overview: Dachs compiler\n\n"
+                      << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj|--check-syntax] [--debug-compiler] [--debug|--release] [--libdir={path}] [--runtimedir={path}] [--disable-color] {file} [--run [args...]]\n" <<
+R"(
+OPTIONS
+  --dump-ast           Output AST to STDOUT
+  --dump-sym-table     Output symbol table to STDOUT
+  --emit-llvm          Print LLVM IR to STDOUT
+  --output-obj         Generate object file instead of executable
+  --check-syntax       Check syntax and output parse error if exists
+  --debug-compiler     Output debug information to STDERR
+  --debug              Do not optimize (equivalent to -O0)
+  --release            Do aggressive optimization (equivalent to -O3)
+  --libdir={path}      Add import path
+  --runtimedir={path}  Specify path of runtime directory
+  --disable-color      Disable colorful output
+  --run [ARGS]...      Instantly run the program instead of generating executable
+                       All arguments after --run are treated as runtime options
+  --help               Show this help
+
+URL
+  https://github.com/rhysd/Dachs
+)";
         };
 
     // TODO: Use Boost.ProgramOptions
 
-    auto const cmdopts = dachs::cmdline::get_command_options(&argv[1]);
+    auto const cmdopts = dachs::cmdline::parse_command_options(&argv[1]);
+
+    if (cmdopts.help) {
+        show_usage();
+        return 0;
+    }
 
     if (cmdopts.source_files.empty()) {
         std::cerr << "No input file: Source file must end with '.dcs'.\n";
