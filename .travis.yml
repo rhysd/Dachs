@@ -23,8 +23,8 @@ script: |
     /usr/bin/clang++${LLVM_VERSION} -v
     mkdir -p build && cd build
     cmake --version
-    cmake .. $CMAKE_OPTS -DCMAKE_BUILD_TYPE=Release
-    make VERBOSE=1 && (make test || (cat Testing/Temporary/LastTestsFailed.log && ../test/output_error.sh && false))
+    cmake .. $CMAKE_OPTS -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=.
+    make VERBOSE=1 install && (make test || (cat Testing/Temporary/LastTestsFailed.log && ../test/output_error.sh && false))
 before_install: |
     case $TRAVIS_OS_NAME in
     linux)
