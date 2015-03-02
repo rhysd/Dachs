@@ -8,6 +8,7 @@
 
 #include "dachs/ast/ast.hpp"
 #include "dachs/parser/parser.hpp"
+#include "dachs/parser/importer.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/semantic_analysis.hpp"
 #include "dachs/exception.hpp"
@@ -18,12 +19,14 @@ static dachs::syntax::parser p;
 
 #define CHECK_THROW_SEMANTIC_ERROR(...) do { \
             auto t = p.parse((__VA_ARGS__), "test_file"); \
-            BOOST_CHECK_THROW(dachs::semantics::analyze_semantics(t), dachs::semantic_check_error); \
+            dachs::syntax::importer i{{}, "test_file"}; \
+            BOOST_CHECK_THROW(dachs::semantics::analyze_semantics(t, i), dachs::semantic_check_error); \
         } while (false);
 
 #define CHECK_NO_THROW_SEMANTIC_ERROR(...) do { \
             auto t = p.parse((__VA_ARGS__), "test_file"); \
-            BOOST_CHECK_NO_THROW(dachs::semantics::analyze_semantics(t)); \
+            dachs::syntax::importer i{{}, "test_file"}; \
+            BOOST_CHECK_NO_THROW(dachs::semantics::analyze_semantics(t, i)); \
         } while (false);
 
 BOOST_AUTO_TEST_SUITE(analyzer)

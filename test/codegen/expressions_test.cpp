@@ -3,36 +3,9 @@
 #define BOOST_TEST_MAIN
 
 #include "../test_helper.hpp"
-
-#include <string>
-
-#include "dachs/ast/ast.hpp"
-#include "dachs/parser/parser.hpp"
-#include "dachs/parser/importer.hpp"
-#include "dachs/semantics/scope.hpp"
-#include "dachs/semantics/semantic_analysis.hpp"
-#include "dachs/codegen/llvmir/ir_emitter.hpp"
-#include "dachs/exception.hpp"
-
-#include <boost/test/included/unit_test.hpp>
+#include "./codegen_test_helper.hpp"
 
 using namespace dachs::test;
-
-static dachs::syntax::parser p;
-
-#define CHECK_NO_THROW_CODEGEN_ERROR(...) do { \
-            auto t = dachs::syntax::import(p.parse((__VA_ARGS__), "test_file"), {}, p, "test_file"); \
-            auto s = dachs::semantics::analyze_semantics(t); \
-            dachs::codegen::llvmir::context c; \
-            BOOST_CHECK_NO_THROW(dachs::codegen::llvmir::emit_llvm_ir(t, s, c)); \
-        } while (false);
-
-#define CHECK_THROW_CODEGEN_ERROR(...) do { \
-            auto t = dachs::syntax::import(p.parse((__VA_ARGS__), "test_file"), {}, p, "test_file"); \
-            auto s = dachs::semantics::analyze_semantics(t); \
-            dachs::codegen::llvmir::context c; \
-            BOOST_CHECK_THROW(dachs::codegen::llvmir::emit_llvm_ir(t, s, c), dachs::code_generation_error); \
-        } while (false);
 
 BOOST_AUTO_TEST_SUITE(codegen_llvm)
 

@@ -367,6 +367,7 @@ class symbol_analyzer {
     scope::global_scope const global;
     std::vector<ast::node::lambda_expr> lambdas;
     size_t failed = 0u;
+    syntax::importer &importer;
     std::unordered_set<ast::node::function_definition> already_visited_functions;
     std::unordered_set<ast::node::class_definition> already_visited_classes;
     std::unordered_set<ast::node::function_definition> already_visited_ctors;
@@ -463,7 +464,7 @@ class symbol_analyzer {
 
         // Note: No need to check functions duplication
         // Note: Type of parameters are analyzed here
-        failed += dispatch_forward_analyzer(instantiated_func_def, enclosing_scope);
+        failed += dispatch_forward_analyzer(instantiated_func_def, enclosing_scope, importer);
         assert(!instantiated_func_def->scope.expired());
         auto instantiated_func_scope = instantiated_func_def->scope.lock();
 
@@ -639,8 +640,8 @@ class symbol_analyzer {
 public:
 
     template<class Scope>
-    explicit symbol_analyzer(Scope const& root, scope::global_scope const& global) noexcept
-        : current_scope{root}, global{global}
+    symbol_analyzer(Scope const& root, scope::global_scope const& global, syntax::importer &i) noexcept
+        : current_scope{root}, global{global}, importer(i)
     {}
 
     size_t num_errors() const noexcept
@@ -2027,7 +2028,7 @@ public:
 
         auto copied_def = ast::copy_ast(def);
         auto const enclosing_scope = enclosing_scope_of(def->scope.lock());
-        failed += dispatch_forward_analyzer(copied_def, enclosing_scope);
+        failed += dispatch_forward_analyzer(copied_def, enclosing_scope, importer);
         assert(!copied_def->scope.expired());
 
         def->instantiated.push_back(copied_def);
@@ -2839,9 +2840,9 @@ bool check_main_func(std::vector<Func> const& funcs)
 
 } // namespace detail
 
-semantics_context check_semantics(ast::ast &a, scope::scope_tree &t)
+semantics_context check_semantics(ast::ast &a, scope::scope_tree &t, syntax::importer &i)
 {
-    detail::symbol_analyzer resolver{t.root, t.root};
+    detail::symbol_analyzer resolver{t.root, t.root, i};
     ast::walk_topdown(a.root, resolver);
     auto const lambda_captures = resolver.resolve_lambda(a.root);
     auto const failed = resolver.num_errors();

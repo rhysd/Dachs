@@ -11,6 +11,7 @@
 #include <boost/variant/static_visitor.hpp>
 #include <boost/variant/apply_visitor.hpp>
 
+#include "dachs/parser/importer.hpp"
 #include "dachs/semantics/forward_analyzer.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/type.hpp"
@@ -34,6 +35,7 @@ using helper::variant::apply_lambda;
 class forward_symbol_analyzer {
 
     scope::any_scope current_scope;
+    syntax::importer &importer;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -210,13 +212,15 @@ public:
     size_t failed;
 
     template<class Scope>
-    explicit forward_symbol_analyzer(Scope const& s) noexcept
-        : current_scope(s), failed(0)
+    forward_symbol_analyzer(Scope const& s, syntax::importer &i) noexcept
+        : current_scope(s), importer(i), failed(0)
     {}
 
     template<class Walker>
     void visit(ast::node::inu const& inu, Walker const& w)
     {
+        importer.import(inu);
+
         // Note:
         // Add receiver parameter to member functions' parameters here because this operation makes side effect to AST
         // and it causes a problem when re-visiting class_definition to instantiate class template
@@ -670,10 +674,10 @@ public:
 } // namespace detail
 
 template<class Node, class Scope>
-std::size_t dispatch_forward_analyzer(Node &node, Scope const& scope_root)
+std::size_t dispatch_forward_analyzer(Node &node, Scope const& scope_root, syntax::importer &i)
 {
     // Generate scope tree
-    detail::forward_symbol_analyzer forward_resolver{scope_root};
+    detail::forward_symbol_analyzer forward_resolver{scope_root, i};
     ast::walk_topdown(node, forward_resolver);
 
     return forward_resolver.failed;
@@ -682,10 +686,10 @@ std::size_t dispatch_forward_analyzer(Node &node, Scope const& scope_root)
 // TODO:
 // Consider class scope.  Now global scope is only considered.
 template<class Node, class Scope>
-Scope analyze_ast_node_forward(Node &node, Scope const& scope_root)
+Scope analyze_ast_node_forward(Node &node, Scope const& scope_root, syntax::importer &i)
 {
     {
-        std::size_t const failed = dispatch_forward_analyzer(node, scope_root);
+        std::size_t const failed = dispatch_forward_analyzer(node, scope_root, i);
         if (failed > 0) {
             throw dachs::semantic_check_error{failed, "forward symbol resolution"};
         }

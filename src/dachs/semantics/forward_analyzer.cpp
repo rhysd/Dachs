@@ -28,7 +28,7 @@ inline auto make_global_func(S const& scope, char const* const name, T && ret)
 
 } // namespace detail
 
-scope::scope_tree analyze_symbols_forward(ast::ast &a)
+scope::scope_tree analyze_symbols_forward(ast::ast &a, syntax::importer &i)
 {
     auto const scope_root = scope::make<scope::global_scope>(a.root);
 
@@ -72,7 +72,7 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a)
     // Check function duplication after generating scope tree because overload resolution requires
     // of arguments and types of arguments require class information which should be forward-analyzed.
 
-    return scope::scope_tree{analyze_ast_node_forward(a.root, scope_root)};
+    return scope::scope_tree{analyze_ast_node_forward(a.root, scope_root, i)};
 }
 
 } // namespace semantics

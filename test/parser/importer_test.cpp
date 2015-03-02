@@ -13,7 +13,7 @@
 #include "dachs/parser/parser.hpp"
 #include "dachs/parser/importer.hpp"
 #include "dachs/exception.hpp"
-
+#include "dachs/semantics/semantic_analysis.hpp"
 
 using namespace dachs::test;
 
@@ -21,26 +21,22 @@ static dachs::syntax::parser p;
 static std::vector<std::string> importdirs = {DACHS_ROOT_DIR "/test/assets/import_test"};
 static std::string dummy_file = DACHS_ROOT_DIR "/test/assets/import_test/dummy/dummy.dcs";
 
-#define CHECK_THROW_IMPORT(...) \
+#define CHECK_THROW_IMPORT(...) do { \
+        auto t = p.parse((__VA_ARGS__ "\nfunc main; end"), dummy_file); \
+        dachs::syntax::importer i{importdirs, dummy_file}; \
         BOOST_CHECK_THROW( \
-            dachs::syntax::import( \
-                p.parse((__VA_ARGS__), dummy_file), \
-                importdirs, \
-                p, \
-                dummy_file \
-            ), \
+            dachs::semantics::analyze_semantics(t, i), \
             dachs::parse_error \
-        )
+        ); \
+    } while (false)
 
-#define CHECK_NO_THROW_IMPORT(...) \
+#define CHECK_NO_THROW_IMPORT(...) do { \
+        auto t = p.parse((__VA_ARGS__ "\nfunc main; end"), dummy_file); \
+        dachs::syntax::importer i{importdirs, dummy_file}; \
         BOOST_CHECK_NO_THROW( \
-            dachs::syntax::import( \
-                p.parse((__VA_ARGS__), dummy_file), \
-                importdirs, \
-                p, \
-                dummy_file \
-            ) \
-        )
+            dachs::semantics::analyze_semantics(t, i) \
+        ); \
+    } while (false)
 
 BOOST_AUTO_TEST_SUITE(importer)
 

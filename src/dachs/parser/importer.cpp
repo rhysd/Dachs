@@ -20,20 +20,19 @@ namespace syntax {
 
 namespace detail {
 
-namespace fs = boost::filesystem;
 namespace algo = boost::algorithm;
 
 using boost::adaptors::transformed;
 
-class importer final {
+class importer_impl final {
 
     using maybe_path = boost::optional<fs::path>;
 
     dirs_type const& import_dirs;
-    parser const& file_parser;
+    parser file_parser;
     helper::colorizer c;
     fs::path source_file;
-    std::set<fs::path> already_imported;
+    std::set<fs::path> &already_imported;
 
     template<class Node, class Message>
     [[noreturn]]
@@ -59,7 +58,7 @@ class importer final {
         throw parse_error{i->line, i->col};
     }
 
-    ast::ast &merge(ast::ast &lhs, ast::ast &&rhs)
+    ast::node::inu const& merge(ast::node::inu const& lhs, ast::node::inu &&rhs)
     {
         auto const merge_vector
             = [](auto &l, auto &&r)
@@ -71,10 +70,9 @@ class importer final {
                 );
             };
 
-        auto const& inu = lhs.root;
-        merge_vector(inu->functions, std::move(rhs.root->functions));
-        merge_vector(inu->global_constants, std::move(rhs.root->global_constants));
-        merge_vector(inu->classes, std::move(rhs.root->classes));
+        merge_vector(lhs->functions, std::move(rhs->functions));
+        merge_vector(lhs->global_constants, std::move(rhs->global_constants));
+        merge_vector(lhs->classes, std::move(rhs->classes));
 
         return lhs;
     }
@@ -132,12 +130,12 @@ class importer final {
         error(node, "  File \"" + specified_path.string() + "\" is not found in any import paths\n" + notes);
     }
 
-    ast::ast parse(ast::node::import const& i, fs::path const& p, std::string const& code, fs::path const& f)
+    ast::node::inu parse(ast::node::import const& i, fs::path const& p, std::string const& code, fs::path const& f)
     {
         try {
             auto ast = file_parser.parse(code, p.c_str());
-            this->import(ast, p);
-            return ast;
+            this->import(ast.root, p);
+            return ast.root;
         } catch(parse_error const& err) {
             report(i, boost::format(
                         "  Error occurred while parsing imported file %1%\n"
@@ -149,24 +147,24 @@ class importer final {
 
 public:
 
-    importer(dirs_type const& dirs, parser const& p, std::string const& source)
-        : import_dirs(dirs), file_parser(p), source_file(source), already_imported()
+    importer_impl(dirs_type const& dirs, fs::path const& source, std::set<fs::path> &already)
+        : import_dirs(dirs), file_parser(), source_file(source), already_imported(already)
     {
         if (!source_file.has_root_directory()) {
             source_file = fs::current_path() / source_file;
         }
     }
 
-    ast::ast &import(ast::ast &program)
+    ast::node::inu const& import(ast::node::inu const& program)
     {
         return import(program, source_file);
     }
 
-    ast::ast &import(ast::ast &program, fs::path const& file)
+    ast::node::inu const& import(ast::node::inu const& program, fs::path const& file)
     {
         already_imported.insert(file);
 
-        for (auto &i : program.root->imports) {
+        for (auto &i : program->imports) {
             auto const p = find_path(i);
             if (already_imported.find(p) != std::end(already_imported)) {
                 continue;
@@ -186,16 +184,10 @@ public:
 
 } // namespace detail
 
-ast::ast &import(ast::ast &a, dirs_type const& dirs, parser const& p, std::string const& file)
+ast::node::inu const& importer::import(ast::node::inu const& prog)
 {
-    detail::importer importer{dirs, p, file};
-    return importer.import(a);
-}
-
-ast::ast &&import(ast::ast &&a, dirs_type const& dirs, parser const& p, std::string const& file)
-{
-    import(a, dirs, p, file);
-    return std::move(a);
+    detail::importer_impl impl{import_dirs, source, already_imported};
+    return impl.import(prog);
 }
 
 } // namespace parser

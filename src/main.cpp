@@ -252,8 +252,7 @@ URL
                 {
                     compiler.dump_asts(
                         std::cout,
-                        cmdopts.source_files,
-                        cmdopts.importdirs
+                        cmdopts.source_files
                     );
                 }
             );
@@ -294,8 +293,7 @@ URL
                 [&]
                 {
                     compiler.check_syntax(
-                        cmdopts.source_files,
-                        cmdopts.importdirs
+                        cmdopts.source_files
                     );
                 }
             );

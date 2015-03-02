@@ -37,12 +37,12 @@ public:
             std::string parent = ""
         ) const;
 
-    std::string report_ast(std::string const& file, std::string const& code, files_type const& importdirs) const;
+    std::string report_ast(std::string const& file, std::string const& code) const;
     std::string report_scope_tree(std::string const& file, std::string const& code, files_type const& importdirs) const;
     std::string report_llvm_ir(std::string const& file, std::string const& code, files_type const& importdirs) const;
-    bool check_syntax(std::vector<std::string> const& files, files_type const& importdirs) const;
+    bool check_syntax(std::vector<std::string> const& files) const;
 
-    void dump_asts(std::ostream &out, files_type const& files, files_type const& importdirs) const;
+    void dump_asts(std::ostream &out, files_type const& files) const;
     void dump_scope_trees(std::ostream &out, files_type const& files, files_type const& importdirs) const;
     void dump_llvm_irs(std::ostream &out, files_type const& files, files_type const& importdirs) const;
 };
