@@ -201,8 +201,8 @@ int main(int const, char const* const argv[])
     auto const show_usage =
         [argv]()
         {
-            std::cerr << "Overview: Dachs compiler\n\n"
-                      << "Usage: " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj|--check-syntax] [--debug-compiler] [--debug|--release] [--libdir={path}] [--runtimedir={path}] [--disable-color] {file} [--run [args...]]\n" <<
+            std::cerr << "OVERVIEW\n  Dachs compiler\n\n"
+                      << "USAGE\n  " << argv[0] << " [--dump-ast|--dump-sym-table|--emit-llvm|--output-obj|--check-syntax] [--debug-compiler] [--debug|--release] [--libdir={path}] [--runtimedir={path}] [--disable-color] {file} [--run [args...]]\n" <<
 R"(
 OPTIONS
   --dump-ast           Output AST to STDOUT
@@ -222,7 +222,7 @@ OPTIONS
 
 URL
   https://github.com/rhysd/Dachs
-)";
+)" << std::endl;
         };
 
     // TODO: Use Boost.ProgramOptions
