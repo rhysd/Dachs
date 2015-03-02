@@ -69,10 +69,16 @@ namespace detail {
 
     template<class Node>
     struct make_shared {
+        bool do_not_allocate;
+
         template<class... Args>
-        auto operator()(Args &&... args) const
+        std::shared_ptr<Node> operator()(Args &&... args) const
         {
-            return std::make_shared<Node>(std::forward<Args>(args)...);
+            if (do_not_allocate) {
+                return nullptr;
+            } else {
+                return std::make_shared<Node>(std::forward<Args>(args)...);
+            }
         }
     };
 
@@ -110,20 +116,11 @@ namespace detail {
             apply_lambda(
                 [before, after, this](auto const& node)
                 {
-                    auto const d = std::distance(before.base(), after.base());
-                    node->line = spirit::get_line(before);
-                    node->col = spirit::get_column(code_begin, before);
-                    node->length = d < 0 ? 0 : d;
+                    (*this)(node, before, after);
                 }, node_variant);
         }
     };
 } // namespace detail
-
-template<class NodeType, class... Holders>
-inline auto make_node_ptr(Holders &&... holders)
-{
-    return phx::bind(detail::make_shared<typename NodeType::element_type>{}, std::forward<Holders>(holders)...);
-}
 
 template<class Holder>
 inline auto as_vector(Holder && h)
@@ -183,13 +180,22 @@ class dachs_grammar final
             std::vector<ast::node::import>
         >
     > {
+
     template<class Value, class... Extra>
     using rule = qi::rule<Iterator, Value, comment_skipper<Iterator>, Extra...>;
+
     helper::colorizer c;
+    bool check_only;
+
+    template<class NodeType, class... Holders>
+    inline auto make_node_ptr(Holders &&... holders)
+    {
+        return phx::bind(detail::make_shared<typename NodeType::element_type>{check_only}, std::forward<Holders>(holders)...);
+    }
 
 public:
-    dachs_grammar(Iterator const code_begin) noexcept
-        : dachs_grammar::base_type(inu)
+    dachs_grammar(Iterator const code_begin, bool const check_only) noexcept
+        : dachs_grammar::base_type(inu), check_only(check_only)
     {
 
         // XXX:
@@ -466,8 +472,12 @@ public:
                 DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
             ) [
                 _val = phx::bind(
-                        [](auto const& statements)
+                        [check_only](auto const& statements)
                         {
+                            if (check_only) {
+                                return ast::node::func_invocation{};
+                            }
+
                             return helper::make<ast::node::func_invocation>(
                                     helper::make<ast::node::lambda_expr>(
                                         helper::make<ast::node::function_definition>(
@@ -489,8 +499,12 @@ public:
                     initialize_stmt % sep
                 ) [
                     _a = phx::bind(
-                        [](auto && inits)
+                        [check_only](auto && inits)
                         {
+                            if (check_only) {
+                                return ast::node::statement_block{};
+                            }
+
                             assert(!inits.empty());
                             auto stmts = helper::make<ast::node::statement_block>();
                             stmts->value.reserve(inits.size() + 1u);
@@ -509,8 +523,12 @@ public:
                         DACHS_KWD("in") >> -qi::eol >> typed_expr
                     ) [
                         phx::bind(
-                            [](auto const& body, auto const& expr)
+                            [check_only](auto const& body, auto const& expr)
                             {
+                                if (check_only) {
+                                    return;
+                                }
+
                                 auto ret = helper::make<ast::node::return_stmt>(expr);
                                 ret->set_source_location(ast::node::location_of(expr));
                                 body->value.emplace_back(
@@ -523,8 +541,12 @@ public:
                         DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
                     ) [
                         phx::bind(
-                            [](auto const& body, auto && stmts)
+                            [check_only](auto const& body, auto && stmts)
                             {
+                                if (check_only) {
+                                    return;
+                                }
+
                                 std::move(std::begin(stmts->value), std::end(stmts->value), std::back_inserter(body->value));
                             },
                             _a, _1
@@ -533,8 +555,12 @@ public:
                 )
             )[
                 _val = phx::bind(
-                        [](auto && body)
+                        [check_only](auto && body)
                         {
+                            if (check_only) {
+                                return ast::node::func_invocation{};
+                            }
+
                             return helper::make<ast::node::func_invocation>(
                                     helper::make<ast::node::lambda_expr>(
                                         helper::make<ast::node::function_definition>(
@@ -1154,6 +1180,10 @@ public:
                 phx::bind(
                     [](auto const& node, bool const is_public)
                     {
+                        if (!node) {
+                            return;
+                        }
+
                         node->accessibility = is_public;
                     }
                   , _val
@@ -1203,109 +1233,112 @@ public:
     #undef DACHS_KWD
 
         // Set callback to get the position of node and show obvious compile error {{{
-        detail::set_position_getter_on_success(
+        if (!check_only) {
 
-            // _val : parsed value
-            // _1   : position before parsing
-            // _2   : end of string to parse
-            // _3   : position after parsing
-            phx::bind(
-                detail::position_getter<Iterator>{code_begin}
-                , _val, _1, _3)
+            detail::set_position_getter_on_success(
 
-            , inu
-            , primary_literal
-            , array_literal
-            , tuple_literal
-            , lambda_expr
-            , let_expr
-            , symbol_literal
-            , dict_literal
-            , var_ref
-            , var_ref_before_space
-            , parameter
-            , object_construct
-            , postfix_expr
-            , unary_expr
-            , primary_type
-            , array_type
-            , dict_type
-            , tuple_type
-            , func_type
-            , qualified_type
-            , cast_expr
-            , mult_expr
-            , additive_expr
-            , shift_expr
-            , relational_expr
-            , equality_expr
-            , and_expr
-            , xor_expr
-            , or_expr
-            , logical_and_expr
-            , logical_or_expr
-            , range_expr
-            , if_expr
-            , typed_expr
-            , if_stmt
-            , return_stmt
-            , case_stmt
-            , switch_stmt
-            , for_stmt
-            , while_stmt
-            , variable_decl
-            , variable_decl_without_init
-            , initialize_stmt
-            , assignment_stmt
-            , postfix_if_return_stmt
-            , postfix_if_stmt
-            , do_stmt
-            , function_definition
-            , constructor
-            , class_definition
-            , constant_decl
-            , constant_definition
-            , do_block
-            , stmt_block_before_end
-            , if_then_stmt_block
-            , if_else_stmt_block
-            , case_when_stmt_block
-            , func_body_stmt_block
-            , lambda_expr_oneline
-            , lambda_expr_do_end
-            , method_definition
-            , instance_variable_decl
-            , import
-        );
-
-        // Note:
-        // begin_end_expr and let_expr generates multiple nodes.
-        // Source location should be set to all generated nodes.
-        detail::set_position_getter_on_success(
+                // _val : parsed value
+                // _1   : position before parsing
+                // _2   : end of string to parse
+                // _3   : position after parsing
                 phx::bind(
-                    [code_begin](auto const& invocation, Iterator const before, Iterator const after)
-                    {
-                        auto const d = std::distance(before.base(), after.base());
-                        invocation->line = spirit::get_line(before);
-                        invocation->col = spirit::get_column(code_begin, before);
-                        invocation->length = d < 0 ? 0 : d;
+                    detail::position_getter<Iterator>{code_begin}
+                    , _val, _1, _3)
 
-                        if (invocation->is_begin_end || invocation->is_let) {
-                            auto const lambda
-                                = helper::variant::get_as<ast::node::lambda_expr>(invocation->child);
-                            assert(lambda);
-                            (*lambda)->set_source_location(*invocation);
-                            (*lambda)->def->set_source_location(*invocation);
-                        }
-                    },
-                    _val,
-                    _1,
-                    _3
-                ),
-                let_expr,
-                begin_end_expr
+                , inu
+                , primary_literal
+                , array_literal
+                , tuple_literal
+                , lambda_expr
+                , let_expr
+                , symbol_literal
+                , dict_literal
+                , var_ref
+                , var_ref_before_space
+                , parameter
+                , object_construct
+                , postfix_expr
+                , unary_expr
+                , primary_type
+                , array_type
+                , dict_type
+                , tuple_type
+                , func_type
+                , qualified_type
+                , cast_expr
+                , mult_expr
+                , additive_expr
+                , shift_expr
+                , relational_expr
+                , equality_expr
+                , and_expr
+                , xor_expr
+                , or_expr
+                , logical_and_expr
+                , logical_or_expr
+                , range_expr
+                , if_expr
+                , typed_expr
+                , if_stmt
+                , return_stmt
+                , case_stmt
+                , switch_stmt
+                , for_stmt
+                , while_stmt
+                , variable_decl
+                , variable_decl_without_init
+                , initialize_stmt
+                , assignment_stmt
+                , postfix_if_return_stmt
+                , postfix_if_stmt
+                , do_stmt
+                , function_definition
+                , constructor
+                , class_definition
+                , constant_decl
+                , constant_definition
+                , do_block
+                , stmt_block_before_end
+                , if_then_stmt_block
+                , if_else_stmt_block
+                , case_when_stmt_block
+                , func_body_stmt_block
+                , lambda_expr_oneline
+                , lambda_expr_do_end
+                , method_definition
+                , instance_variable_decl
+                , import
             );
 
+            // Note:
+            // begin_end_expr and let_expr generates multiple nodes.
+            // Source location should be set to all generated nodes.
+            detail::set_position_getter_on_success(
+                    phx::bind(
+                        [code_begin](auto const& invocation, Iterator const before, Iterator const after)
+                        {
+                            auto const d = std::distance(before.base(), after.base());
+                            invocation->line = spirit::get_line(before);
+                            invocation->col = spirit::get_column(code_begin, before);
+                            invocation->length = d < 0 ? 0 : d;
+
+                            if (invocation->is_begin_end || invocation->is_let) {
+                                auto const lambda
+                                    = helper::variant::get_as<ast::node::lambda_expr>(invocation->child);
+                                assert(lambda);
+                                (*lambda)->set_source_location(*invocation);
+                                (*lambda)->def->set_source_location(*invocation);
+                            }
+                        },
+                        _val,
+                        _1,
+                        _3
+                    ),
+                    let_expr,
+                    begin_end_expr
+                );
+
+        } // if (!check_only) {
 
         qi::on_error<qi::fail>(
             inu,
@@ -1583,7 +1616,7 @@ ast::ast parser::parse(std::string const& code, std::string const& file_name) co
     using iterator_type = decltype(itr);
     auto const begin = itr;
     auto const end = detail::line_pos_iterator(std::end(code));
-    dachs_grammar<iterator_type> dachs_parser(begin);
+    dachs_grammar<iterator_type> dachs_parser(begin, false);
     comment_skipper<iterator_type> skipper;
     ast::node::inu root;
 
@@ -1592,6 +1625,21 @@ ast::ast parser::parse(std::string const& code, std::string const& file_name) co
     }
 
     return {root, file_name};
+}
+
+void parser::check_syntax(std::string const& code) const
+{
+    auto itr = detail::line_pos_iterator(std::begin(code));
+    using iterator_type = decltype(itr);
+    auto const begin = itr;
+    auto const end = detail::line_pos_iterator(std::end(code));
+    dachs_grammar<iterator_type> dachs_parser(begin, true);
+    comment_skipper<iterator_type> skipper;
+    ast::node::inu root;
+
+    if (!qi::phrase_parse(itr, end, dachs_parser, skipper, root) || itr != end) {
+        throw parse_error{spirit::get_line(itr), spirit::get_column(begin, itr)};
+    }
 }
 
 } // namespace syntax

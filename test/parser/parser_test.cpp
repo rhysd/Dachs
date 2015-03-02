@@ -19,14 +19,6 @@ using namespace dachs::test;
 static dachs::syntax::parser p;
 
 // TODO: More checks
-struct test_visitor {
-    template<class T, class W>
-    void visit(T &, W const& w)
-    {
-        w();
-    }
-};
-
 struct test_var_searcher {
     bool found = false;
 
@@ -69,17 +61,6 @@ struct test_as_searcher {
     }
 };
 
-inline void validate(dachs::ast::ast const& a)
-{
-    auto root = a.root;
-    dachs::ast::walk_topdown(root, test_visitor{});
-}
-
-inline void parse_and_validate(std::string const& code)
-{
-    validate(p.parse(code, "test_file"));
-}
-
 #define CHECK_PARSE_THROW(...) BOOST_CHECK_THROW(p.parse((__VA_ARGS__), "test_file"), dachs::parse_error)
 
 
@@ -88,7 +69,7 @@ BOOST_AUTO_TEST_SUITE(parser)
 
 BOOST_AUTO_TEST_CASE(comment)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
             # line comment
             # escapable \# hoge huga
 
@@ -135,10 +116,10 @@ BOOST_AUTO_TEST_CASE(comment)
 BOOST_AUTO_TEST_CASE(function)
 {
     // minimal
-    BOOST_CHECK_NO_THROW(parse_and_validate("func main; end"));
+    BOOST_CHECK_NO_THROW(p.check_syntax("func main; end"));
 
     // general cases
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func hoge()
         end
 
@@ -347,9 +328,9 @@ BOOST_AUTO_TEST_CASE(function)
 BOOST_AUTO_TEST_CASE(procedure)
 {
     // minimal
-    BOOST_CHECK_NO_THROW(parse_and_validate("proc p; end"));
+    BOOST_CHECK_NO_THROW(p.check_syntax("proc p; end"));
 
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         proc hoge
         end
 
@@ -434,7 +415,7 @@ BOOST_AUTO_TEST_CASE(procedure)
 
 BOOST_AUTO_TEST_CASE(variable_name)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             aaa
             aaa_bbb
@@ -448,7 +429,7 @@ BOOST_AUTO_TEST_CASE(variable_name)
 
 BOOST_AUTO_TEST_CASE(literals)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             # character
             'a'
@@ -584,7 +565,7 @@ BOOST_AUTO_TEST_CASE(literals)
     CHECK_PARSE_THROW("func main; 0b010121 end");
     CHECK_PARSE_THROW("func main; 0o45678 end");
 
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
             func main
                 [(42, 'a'), (53, 'd')]
                 ([42, 13, 22], {:aaa => :BBB}, (42, [42, 42], 42), "aaaa", ["aaa", "bbb", "ccc"])
@@ -611,7 +592,7 @@ BOOST_AUTO_TEST_CASE(literals)
 
 BOOST_AUTO_TEST_CASE(postfix_expr)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             foo.awesome_member_func
             foo.
@@ -662,7 +643,7 @@ BOOST_AUTO_TEST_CASE(postfix_expr)
 
 BOOST_AUTO_TEST_CASE(type)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             expr : int
             expr : string
@@ -804,7 +785,7 @@ BOOST_AUTO_TEST_CASE(type)
 
 BOOST_AUTO_TEST_CASE(primary_expr)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             (1 + 2 * 3)
             (
@@ -826,7 +807,7 @@ BOOST_AUTO_TEST_CASE(primary_expr)
 
 BOOST_AUTO_TEST_CASE(unary_expr)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             -42
             +42
@@ -840,7 +821,7 @@ BOOST_AUTO_TEST_CASE(unary_expr)
 
 BOOST_AUTO_TEST_CASE(cast_expression)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             expr as int
             expr as int
@@ -873,7 +854,7 @@ BOOST_AUTO_TEST_CASE(cast_expression)
 
 BOOST_AUTO_TEST_CASE(binary_expression)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             1 + 1
             1 - 1
@@ -1013,7 +994,7 @@ BOOST_AUTO_TEST_CASE(binary_expression)
 
 BOOST_AUTO_TEST_CASE(assignment_expr)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             aaa = 42
             aaa, bbb = 42, 31
@@ -1039,7 +1020,7 @@ BOOST_AUTO_TEST_CASE(assignment_expr)
 
 BOOST_AUTO_TEST_CASE(if_expr)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             (if true then 42 else 24)
             hoge(if true then 3.14 else 4.12)
@@ -1077,7 +1058,7 @@ BOOST_AUTO_TEST_CASE(if_expr)
 
 BOOST_AUTO_TEST_CASE(object_construct)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             new int{42}
             new int{
@@ -1121,7 +1102,7 @@ BOOST_AUTO_TEST_CASE(object_construct)
 
 BOOST_AUTO_TEST_CASE(lambda_expr)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             l := -> a, b in a + b
             foo(
@@ -1216,7 +1197,7 @@ BOOST_AUTO_TEST_CASE(lambda_expr)
     )");
 
     // Corner cases
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             p := -> ()
             q := -> p()
@@ -1230,7 +1211,7 @@ BOOST_AUTO_TEST_CASE(lambda_expr)
 
 BOOST_AUTO_TEST_CASE(variable_decl)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             a := 42
             var a := 42
@@ -1307,7 +1288,7 @@ BOOST_AUTO_TEST_CASE(variable_decl)
 
 BOOST_AUTO_TEST_CASE(return_statement)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             ret
             ret 42
@@ -1327,7 +1308,7 @@ BOOST_AUTO_TEST_CASE(return_statement)
 
 BOOST_AUTO_TEST_CASE(constant_decl)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         a := 42
         a := new int{42}
         a, b := 42, 24
@@ -1363,7 +1344,7 @@ BOOST_AUTO_TEST_CASE(constant_decl)
 
 BOOST_AUTO_TEST_CASE(if_statement)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             if aaaa
                 expr
@@ -1505,7 +1486,7 @@ BOOST_AUTO_TEST_CASE(if_statement)
 
 BOOST_AUTO_TEST_CASE(switch_statement)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             case aaa
             when true
@@ -1561,7 +1542,7 @@ BOOST_AUTO_TEST_CASE(switch_statement)
 
 BOOST_AUTO_TEST_CASE(case_statement)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             case
             when true
@@ -1631,7 +1612,7 @@ BOOST_AUTO_TEST_CASE(case_statement)
 
 BOOST_AUTO_TEST_CASE(for_statement)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             for a in arr
             end
@@ -1675,7 +1656,7 @@ BOOST_AUTO_TEST_CASE(for_statement)
 
 BOOST_AUTO_TEST_CASE(while_statement)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             for true
                 moudameda
@@ -1703,7 +1684,7 @@ BOOST_AUTO_TEST_CASE(while_statement)
 
 BOOST_AUTO_TEST_CASE(function_invocation)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             foo()
             foo?()
@@ -1732,7 +1713,7 @@ BOOST_AUTO_TEST_CASE(function_invocation)
 
 BOOST_AUTO_TEST_CASE(postfix_if)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             42 if true
             ret if true
@@ -1753,7 +1734,7 @@ BOOST_AUTO_TEST_CASE(postfix_if)
 
 BOOST_AUTO_TEST_CASE(let_stmt)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             let a := 42 in println(42)
 
@@ -1825,7 +1806,7 @@ BOOST_AUTO_TEST_CASE(let_stmt)
 
 BOOST_AUTO_TEST_CASE(do_stmt)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             do
             end
@@ -1856,7 +1837,7 @@ BOOST_AUTO_TEST_CASE(do_stmt)
 
 BOOST_AUTO_TEST_CASE(do_block)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             foo(42) do
                 blah
@@ -1913,7 +1894,7 @@ BOOST_AUTO_TEST_CASE(do_block)
     )"));
 
     /* TODO: Not fixed yet
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func do_corner_case(p)
         end
 
@@ -1938,7 +1919,7 @@ BOOST_AUTO_TEST_CASE(do_block)
 
 BOOST_AUTO_TEST_CASE(do_block2)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             foo(bar) { blah }
             foo(42) {
@@ -2010,7 +1991,7 @@ BOOST_AUTO_TEST_CASE(do_block2)
 BOOST_AUTO_TEST_CASE(clazz)
 {
     // Instance variables
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         class foo
             var1
             var2
@@ -2045,7 +2026,7 @@ BOOST_AUTO_TEST_CASE(clazz)
     )"));
 
     // Methods
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         class foo
             func method1
             end
@@ -2062,7 +2043,7 @@ BOOST_AUTO_TEST_CASE(clazz)
     )"));
 
     // Integration
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         class foo
         end
 
@@ -2086,7 +2067,7 @@ BOOST_AUTO_TEST_CASE(clazz)
     )"));
 
     // Constructors
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         class foo
             init
             end
@@ -2111,7 +2092,7 @@ BOOST_AUTO_TEST_CASE(clazz)
     )");
 
     // Instance variable access
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         class foo
             aaa, bbb
 
@@ -2133,7 +2114,7 @@ BOOST_AUTO_TEST_CASE(clazz)
 
 BOOST_AUTO_TEST_CASE(import)
 {
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         import foo
         import foo2_
         import foo.bar
@@ -2157,7 +2138,7 @@ BOOST_AUTO_TEST_CASE(import)
 BOOST_AUTO_TEST_CASE(do_not_degrade)
 {
     // :foo was parsed as the return type of function 'main'
-    BOOST_CHECK_NO_THROW(parse_and_validate(R"(
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             :foo.println
         end

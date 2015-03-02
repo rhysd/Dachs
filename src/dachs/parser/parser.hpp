@@ -19,6 +19,10 @@ public:
             std::string const& code,
             std::string const& file_name
         ) const;
+
+    void check_syntax(
+            std::string const& code
+        ) const;
 };
 
 } // namespace syntax
