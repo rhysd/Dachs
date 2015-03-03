@@ -67,18 +67,21 @@ namespace detail {
         return boost::spirit::line_pos_iterator<Iterator>{i};
     }
 
-    template<class Node>
+    template<class Node, bool DoNotAllocate>
     struct make_shared {
-        bool do_not_allocate;
-
         template<class... Args>
         std::shared_ptr<Node> operator()(Args &&... args) const
         {
-            if (do_not_allocate) {
-                return nullptr;
-            } else {
-                return std::make_shared<Node>(std::forward<Args>(args)...);
-            }
+            return std::make_shared<Node>(std::forward<Args>(args)...);
+        }
+    };
+
+    template<class Node>
+    struct make_shared<Node, true> {
+        template<class... Args>
+        std::shared_ptr<Node> operator()(Args &&...) const
+        {
+            return nullptr;
         }
     };
 
@@ -167,7 +170,7 @@ struct strict_real_policies_disallowing_trailing_dot final
     // static bool const allow_leading_dot = false;
 };
 
-template<class Iterator>
+template<class Iterator, bool CheckOnly>
 class dachs_grammar final
     : public qi::grammar<
         Iterator,
@@ -185,17 +188,31 @@ class dachs_grammar final
     using rule = qi::rule<Iterator, Value, comment_skipper<Iterator>, Extra...>;
 
     helper::colorizer c;
-    bool check_only;
 
     template<class NodeType, class... Holders>
-    inline auto make_node_ptr(Holders &&... holders)
+    auto make_node_ptr(Holders &&... holders)
     {
-        return phx::bind(detail::make_shared<typename NodeType::element_type>{check_only}, std::forward<Holders>(holders)...);
+        return phx::bind(detail::make_shared<typename NodeType::element_type, CheckOnly>{}, std::forward<Holders>(holders)...);
+    }
+
+    // Note:
+    // 'make_and_assign_to_val()' is equivalent to '_val = make_node_ptr()'.
+    // I use this function to suppress warning "multiple unsequenced modifications to '_val'".
+    // Tha warning occurs because sequence order of assignment is not determined in rules like below:
+    //
+    //   foo = bar [_val = f()] | baz [_val = f()]
+    //
+    // Ref: https://github.com/stan-dev/stan/issues/221
+    //
+    template<class NodeType, class... Holders>
+    auto make_and_assign_to_val(Holders &&... holders)
+    {
+        return _val = phx::bind(detail::make_shared<typename NodeType::element_type, CheckOnly>{}, std::forward<Holders>(holders)...);
     }
 
 public:
-    dachs_grammar(Iterator const code_begin, bool const check_only) noexcept
-        : dachs_grammar::base_type(inu), check_only(check_only)
+    dachs_grammar(Iterator const code_begin) noexcept
+        : dachs_grammar::base_type(inu)
     {
 
         // XXX:
@@ -472,9 +489,9 @@ public:
                 DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
             ) [
                 _val = phx::bind(
-                        [check_only](auto const& statements)
+                        [](auto const& statements)
                         {
-                            if (check_only) {
+                            if (CheckOnly) {
                                 return ast::node::func_invocation{};
                             }
 
@@ -499,9 +516,9 @@ public:
                     initialize_stmt % sep
                 ) [
                     _a = phx::bind(
-                        [check_only](auto && inits)
+                        [](auto && inits)
                         {
-                            if (check_only) {
+                            if (CheckOnly) {
                                 return ast::node::statement_block{};
                             }
 
@@ -523,9 +540,9 @@ public:
                         DACHS_KWD("in") >> -qi::eol >> typed_expr
                     ) [
                         phx::bind(
-                            [check_only](auto const& body, auto const& expr)
+                            [](auto const& body, auto const& expr)
                             {
-                                if (check_only) {
+                                if (CheckOnly) {
                                     return;
                                 }
 
@@ -541,9 +558,9 @@ public:
                         DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
                     ) [
                         phx::bind(
-                            [check_only](auto const& body, auto && stmts)
+                            [](auto const& body, auto && stmts)
                             {
-                                if (check_only) {
+                                if (CheckOnly) {
                                     return;
                                 }
 
@@ -555,9 +572,9 @@ public:
                 )
             )[
                 _val = phx::bind(
-                        [check_only](auto && body)
+                        [](auto && body)
                         {
-                            if (check_only) {
+                            if (CheckOnly) {
                                 return ast::node::func_invocation{};
                             }
 
@@ -595,11 +612,11 @@ public:
                     '|' >> (parameter % comma) >> '|'
                 ) >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
             ) [
-                _val = make_node_ptr<ast::node::function_definition>(as_vector(_1), _2)
+                make_and_assign_to_val<ast::node::function_definition>(as_vector(_1), _2)
             ] | (
                 '{' >> -('|' >> (parameter % comma) >> '|') >> -qi::eol >> typed_expr >> -qi::eol >> '}'
             ) [
-                _val = make_node_ptr<ast::node::function_definition>(
+                make_and_assign_to_val<ast::node::function_definition>(
                         as_vector(_1),
                         make_node_ptr<ast::node::statement_block>(
                             make_node_ptr<ast::node::return_stmt>(_2)
@@ -626,14 +643,62 @@ public:
                 // Third case doesn't permit using unary operator '+' and '-' in parameter because it is confusing if user intends to use binary operator '+' or '-'.
                 // (e.g. (a.b + 10) should not be treated as a.b(+10))
                 primary_expr[_val = _1] >> *(
-                      (-qi::eol >> '.' >> -qi::eol >> var_ref >> '(' >> -(typed_expr % comma) >> trailing_comma >> ')' >> -do_block)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, as_vector(_2), _3)]
-                    | (-qi::eol >> '.' >> -qi::eol >> var_ref_before_space >> (typed_expr - "do") % comma >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2, _3)]
-                    | (-qi::eol >> '.' >> -qi::eol >> var_ref_before_space >> !('+'_l | '-') >> (typed_expr - "do") % comma)[_val = make_node_ptr<ast::node::func_invocation>(_1, _val, _2)]
-                    | (-qi::eol >> '.' >> -qi::eol >> (var_ref - "do") >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_2, _1, _val)]
-                    | (-qi::eol >> '.' >> -qi::eol >> called_function_name)[_val = make_node_ptr<ast::node::ufcs_invocation>(_val, _1, ast::node_type::ufcs_invocation::set_location_tag{})]
-                    | (qi::no_skip[&' '_l] >> !DACHS_KWD("as") >> (typed_expr - "do") % comma >> do_block)[_val = make_node_ptr<ast::node::func_invocation>(_val, _1, _2)]
-                    | ('[' >> -qi::eol >> typed_expr >> -qi::eol >> ']')[_val = make_node_ptr<ast::node::index_access>(_val, _1)]
-                    | ('(' >> -qi::eol >> -(typed_expr % comma) >> trailing_comma >> ')' >> -do_block)[_val = make_node_ptr<ast::node::func_invocation>(_val, as_vector(_1), _2)]
+
+                    // primary.name(...) [do-end]
+                    (
+                        -qi::eol >> '.' >> -qi::eol >> var_ref >> '(' >> -(typed_expr % comma) >> trailing_comma >> ')' >> -do_block
+                    ) [
+                        make_and_assign_to_val<ast::node::func_invocation>(_1, _val, as_vector(_2), _3)
+                    ]
+
+                    // primary.name ... do-end
+                    | (
+                        -qi::eol >> '.' >> -qi::eol >> var_ref_before_space >> (typed_expr - "do") % comma >> do_block
+                    ) [
+                        make_and_assign_to_val<ast::node::func_invocation>(_1, _val, _2, _3)
+                    ]
+
+                    // primary.name ...
+                    | (
+                        -qi::eol >> '.' >> -qi::eol >> var_ref_before_space >> !('+'_l | '-') >> (typed_expr - "do") % comma
+                    ) [
+                        make_and_assign_to_val<ast::node::func_invocation>(_1, _val, _2)
+                    ]
+
+                    // primary.name [do-end]
+                    | (
+                        -qi::eol >> '.' >> -qi::eol >> (var_ref - "do") >> do_block
+                    ) [
+                        make_and_assign_to_val<ast::node::func_invocation>(_2, _1, _val)
+                    ]
+
+                    // primary.name
+                    | (
+                        -qi::eol >> '.' >> -qi::eol >> called_function_name
+                    ) [
+                        make_and_assign_to_val<ast::node::ufcs_invocation>(_val, _1, ast::node_type::ufcs_invocation::set_location_tag{})
+                    ]
+
+                    // primary ... do-end
+                    | (
+                        qi::no_skip[&' '_l] >> !DACHS_KWD("as") >> (typed_expr - "do") % comma >> do_block
+                    ) [
+                        make_and_assign_to_val<ast::node::func_invocation>(_val, _1, _2)
+                    ]
+
+                    // primary[...]
+                    | (
+                        '[' >> -qi::eol >> typed_expr >> -qi::eol >> ']'
+                    ) [
+                        make_and_assign_to_val<ast::node::index_access>(_val, _1)
+                    ]
+
+                    // primary(...)
+                    | (
+                        '(' >> -qi::eol >> -(typed_expr % comma) >> trailing_comma >> ')' >> -do_block
+                    ) [
+                        make_and_assign_to_val<ast::node::func_invocation>(_val, as_vector(_1), _2)
+                    ]
                 )
             ;
 
@@ -884,11 +949,11 @@ public:
                 "func" >> -('(' >> -(-qi::eol >> qualified_type % comma >> trailing_comma) >> ')') >>
                 -qi::eol >> ':' >> -qi::eol >> qualified_type
             ) [
-                _val = make_node_ptr<ast::node::func_type>(as_vector(_1), _2)
+                make_and_assign_to_val<ast::node::func_type>(as_vector(_1), _2)
             ] | (
                 DACHS_KWD("proc") >> -('(' >> -(-qi::eol >> qualified_type % comma >> trailing_comma) >> ')')
             ) [
-                _val = make_node_ptr<ast::node::func_type>(as_vector(_1))
+                make_and_assign_to_val<ast::node::func_type>(as_vector(_1))
             ];
 
         compound_type
@@ -955,14 +1020,14 @@ public:
                     // Note:
                     // Disallow trailing comma in here because unexpected line continuation suffers
                 ) [
-                    _val = make_node_ptr<ast::node::initialize_stmt>(_1, _2)
+                    make_and_assign_to_val<ast::node::initialize_stmt>(_1, _2)
                 ]
             ) |
             (
                 (
                     variable_decl_without_init % comma
                 ) [
-                    _val = make_node_ptr<ast::node::initialize_stmt>(_1)
+                    make_and_assign_to_val<ast::node::initialize_stmt>(_1)
                 ]
             );
 
@@ -1233,7 +1298,7 @@ public:
     #undef DACHS_KWD
 
         // Set callback to get the position of node and show obvious compile error {{{
-        if (!check_only) {
+        if (!CheckOnly) {
 
             detail::set_position_getter_on_success(
 
@@ -1338,7 +1403,7 @@ public:
                     begin_end_expr
                 );
 
-        } // if (!check_only) {
+        } // if (!CheckOnly) {
 
         qi::on_error<qi::fail>(
             inu,
@@ -1616,7 +1681,7 @@ ast::ast parser::parse(std::string const& code, std::string const& file_name) co
     using iterator_type = decltype(itr);
     auto const begin = itr;
     auto const end = detail::line_pos_iterator(std::end(code));
-    dachs_grammar<iterator_type> dachs_parser(begin, false);
+    dachs_grammar<iterator_type, false> dachs_parser(begin);
     comment_skipper<iterator_type> skipper;
     ast::node::inu root;
 
@@ -1633,7 +1698,7 @@ void parser::check_syntax(std::string const& code) const
     using iterator_type = decltype(itr);
     auto const begin = itr;
     auto const end = detail::line_pos_iterator(std::end(code));
-    dachs_grammar<iterator_type> dachs_parser(begin, true);
+    dachs_grammar<iterator_type, true> dachs_parser(begin);
     comment_skipper<iterator_type> skipper;
     ast::node::inu root;
 
