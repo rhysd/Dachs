@@ -57,6 +57,33 @@ BOOST_AUTO_TEST_CASE(normal_cases)
         import foo.bbb
     )");
 
+    CHECK_NO_THROW_IMPORT(R"(
+        import std.range
+        import std.range
+        import std.range
+        import std.range
+        import std.range
+        import foo
+        import foo
+        import foo
+        import foo
+        import foo
+    )");
+
+    CHECK_NO_THROW_IMPORT(R"(
+        func foo
+            ret 0..10
+        end
+    )");
+
+    CHECK_NO_THROW_IMPORT(R"(
+        import std.range
+
+        func foo
+            ret 0..10
+        end
+    )");
+
     CHECK_NO_THROW_IMPORT("import self_import");
 }
 

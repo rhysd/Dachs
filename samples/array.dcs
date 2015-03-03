@@ -1,0 +1,125 @@
+class Array
+  - buf
+  - capacity
+  - size
+
+    init(@buf)
+        @capacity := @buf.size
+        @size := 0u
+    end
+
+    func assign(rhs)
+        if rhs.size > @capacity
+            ret false
+        end
+
+        var i := 0u
+        for i < rhs.size
+            @buf[i] = rhs[i]
+        end
+        @size = rhs.size
+
+        ret true
+    end
+
+    func clear
+        @size = 0u
+    end
+
+    func size
+        ret @size
+    end
+
+    func capacity
+        ret @capacity
+    end
+
+    func out_of_bounds?(idx)
+        i := idx as int
+        ret i < 0 || @size <= i
+    end
+
+    func each(predicate)
+        var i := 0u
+        for i < @size
+            predicate(@buf[i])
+            i += 1u
+        end
+    end
+
+    func each(first, last, predicate)
+        ret false if @out_of_bounds?(first)
+        ret false if @out_of_bounds?(last)
+        ret false if first > last
+
+        for first <= last
+            predicate(@buf[first])
+            first += 1
+        end
+
+        ret true
+    end
+
+    func each_with_index(predicate)
+        var i := 0u
+        for i < @size
+            predicate(@buf[i], i)
+            i += 1u
+        end
+    end
+
+    func each_with_object(var obj, predicate)
+        self.each do |i|
+            predicate(obj, i)
+        end
+    end
+
+    func append(elem)
+        if @size+1u > @capacity
+            ret false
+        end
+
+        @buf[@size] = elem
+        @size += 1u
+        ret true
+    end
+
+    func at(idx)
+        if idx as uint >= @size
+            ret @buf[0], true
+        end
+
+        ret @buf[idx], false
+    end
+end
+
+func main
+    var a :=
+        new Array{
+            new [int]{100u}
+        }
+
+    a.append(2)
+    a.append(3)
+    a.append(5)
+    a.append(7)
+
+    a.each do |i|
+        i.println
+    end
+
+    a.each_with_index do |i, idx|
+        idx.print; ": ".print; i.println
+    end
+
+    e, err := a.at(5)
+
+    println("out of bounds") if err
+    print("size: "); a.size.println
+    print("capacity: "); a.capacity.println
+
+    a.each_with_object('a') do |var c, i|
+        c += i as char
+        c.println
+    end
+end
