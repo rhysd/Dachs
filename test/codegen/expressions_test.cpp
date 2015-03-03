@@ -1034,6 +1034,14 @@ BOOST_AUTO_TEST_CASE(range)
             end
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            (1..10).each do |i|
+                i.println
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

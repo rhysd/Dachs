@@ -23,9 +23,10 @@
 #include <boost/spirit/include/phoenix_bind.hpp>
 #include <boost/fusion/include/std_pair.hpp>
 
+#include "dachs/ast/ast.hpp"
 #include "dachs/parser/parser.hpp"
 #include "dachs/parser/comment_skipper.hpp"
-#include "dachs/ast/ast.hpp"
+#include "dachs/parser/implicit_import.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/colorizer.hpp"
@@ -211,6 +212,9 @@ class dachs_grammar final
     }
 
 public:
+
+    implicit_import implicit_import_installer;
+
     dachs_grammar(Iterator const code_begin) noexcept
         : dachs_grammar::base_type(inu)
     {
@@ -883,6 +887,8 @@ public:
                     ) >> -qi::eol >> logical_or_expr
                 )[
                     _val = make_node_ptr<ast::node::object_construct>(_1, _val, _2)
+                ][
+                    phx::bind([this]{ implicit_import_installer.range_expr_found = true; })
                 ]
             ;
 
@@ -1675,13 +1681,14 @@ private:
     // }}}
 };
 
-ast::ast parser::parse(std::string const& code, std::string const& file_name) const
+template<bool CheckOnly>
+static inline ast::node::inu parse_impl(std::string const& code)
 {
     auto itr = detail::line_pos_iterator(std::begin(code));
     using iterator_type = decltype(itr);
     auto const begin = itr;
     auto const end = detail::line_pos_iterator(std::end(code));
-    dachs_grammar<iterator_type, false> dachs_parser(begin);
+    dachs_grammar<iterator_type, false> dachs_parser{begin};
     comment_skipper<iterator_type> skipper;
     ast::node::inu root;
 
@@ -1689,22 +1696,19 @@ ast::ast parser::parse(std::string const& code, std::string const& file_name) co
         throw parse_error{spirit::get_line(itr), spirit::get_column(begin, itr)};
     }
 
-    return {root, file_name};
+    dachs_parser.implicit_import_installer.install(root);
+
+    return root;
+}
+
+ast::ast parser::parse(std::string const& code, std::string const& file_name) const
+{
+    return {parse_impl<false>(code), file_name};
 }
 
 void parser::check_syntax(std::string const& code) const
 {
-    auto itr = detail::line_pos_iterator(std::begin(code));
-    using iterator_type = decltype(itr);
-    auto const begin = itr;
-    auto const end = detail::line_pos_iterator(std::end(code));
-    dachs_grammar<iterator_type, true> dachs_parser(begin);
-    comment_skipper<iterator_type> skipper;
-    ast::node::inu root;
-
-    if (!qi::phrase_parse(itr, end, dachs_parser, skipper, root) || itr != end) {
-        throw parse_error{spirit::get_line(itr), spirit::get_column(begin, itr)};
-    }
+    parse_impl<true>(code);
 }
 
 } // namespace syntax
