@@ -1044,4 +1044,19 @@ BOOST_AUTO_TEST_CASE(range)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(fatal)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            fatal()
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            fatal("because you use such a Dachs!")
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <array>
 #include <utility>
 #include <cstdint>
 
@@ -39,6 +40,7 @@ class builtin_function_emitter {
     llvm::Function *malloc_func = nullptr;
     address_of_func_table_type address_of_func_table;
     llvm::Function *getchar_func = nullptr;
+    std::array<llvm::Function *, 2> fatal_funcs = {{nullptr, nullptr}};
 
 public:
 
@@ -204,7 +206,7 @@ public:
         if (!arg_ty->isPointerTy()) {
             throw code_generation_error{
                 "LLVM IR generator", "\n  Failed to emit builtin function: "
-                "argument of __builtin_address_of(" + arg_type.to_string() + ") must be pointer"
+                "Argument of __builtin_address_of(" + arg_type.to_string() + ") must be pointer"
             };
         }
 
@@ -245,6 +247,65 @@ public:
         return prototype;
     }
 
+    llvm::Function *emit_fatal_func()
+    {
+        auto &func = fatal_funcs[0];
+        if (func) {
+            return func;
+        }
+
+        auto *const func_ty = llvm::FunctionType::get(
+                type_emitter.emit(type::get_unit_type()),
+                false
+            );
+
+        auto *const prototype = llvm::Function::Create(
+                func_ty,
+                llvm::Function::ExternalLinkage,
+                "__dachs_fatal__",
+                module
+            );
+
+        prototype->addFnAttr(llvm::Attribute::NoUnwind);
+        prototype->addFnAttr(llvm::Attribute::InlineHint);
+
+        func = prototype;
+
+        return func;
+    }
+
+    llvm::Function *emit_fatal_func(type::builtin_type const& arg_type)
+    {
+        assert(arg_type->name == "string");
+        auto &func = fatal_funcs[1];
+        if (func) {
+            return func;
+        }
+
+        auto *const func_ty = llvm::FunctionType::get(
+                type_emitter.emit(type::get_unit_type()),
+                (llvm::Type *[1]){type_emitter.emit(arg_type)},
+                false
+            );
+
+        auto *const prototype = llvm::Function::Create(
+                func_ty,
+                llvm::Function::ExternalLinkage,
+                "__dachs_fatal_reason__",
+                module
+            );
+
+        prototype->addFnAttr(llvm::Attribute::NoUnwind);
+        prototype->addFnAttr(llvm::Attribute::InlineHint);
+
+        auto const arg_value = prototype->arg_begin();
+        arg_value->setName("reason");
+
+        func = prototype;
+
+        return func;
+    }
+
     llvm::Function *emit(std::string const& name, std::vector<type::type> const& arg_types)
     {
         if (name == "print") {
@@ -266,6 +327,12 @@ public:
         } else if (name == "__builtin_getchar") {
             assert(arg_types.empty());
             return emit_getchar_func();
+        } else if (name == "fatal") {
+            if (arg_types.empty()) {
+                return emit_fatal_func();
+            } else {
+                return emit_fatal_func(*type::get<type::builtin_type>(arg_types[0]));
+            }
         } // else ...
 
         return nullptr;

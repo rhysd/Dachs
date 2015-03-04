@@ -99,4 +99,15 @@ extern "C" {
     {
         return std::getchar();
     }
+
+    void __dachs_fatal__()
+    {
+        std::abort();
+    }
+
+    void __dachs_fatal_reason__(char const* const reason)
+    {
+        std::fprintf(stderr, "Reason: %s\n", reason);
+        std::abort();
+    }
 }

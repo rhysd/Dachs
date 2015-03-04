@@ -159,7 +159,7 @@ class llvm_ir_emitter {
         // Dump builder's debug information and context's information
         throw code_generation_error{
                 "LLVM IR generator",
-                (boost::format(" in line:%1%:col:%2%\n  %3%\n") % n->line % n->col % msg).str()
+                (boost::format(" in line:%1%, col:%2%\n  %3%\n") % n->line % n->col % msg).str()
             };
     }
 
@@ -1052,7 +1052,7 @@ public:
             return check(
                     n,
                     builtin_func_emitter.emit(scope->name, param_types),
-                    boost::format("builtin function '%1%' can't be emit") % scope->to_string()
+                    boost::format("builtin function '%1%'") % scope->to_string()
                 );
         }
 

@@ -230,6 +230,8 @@ extern "C" {
     void __dachs_printf__(char const* const fmt, ...);
     void* __dachs_malloc__(std::uint64_t const size);
     char __dachs_getchar__();
+    void __dachs_fatal__();
+    void __dachs_fatal_reason__(char const* const reason);
 }
 
 #endif    // DACHS_RUNTIME_RUNTIME_HPP_INCLUDED
