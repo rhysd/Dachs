@@ -70,9 +70,14 @@ class importer_impl final {
                 );
             };
 
-        merge_vector(lhs->functions, std::move(rhs->functions));
         merge_vector(lhs->global_constants, std::move(rhs->global_constants));
         merge_vector(lhs->classes, std::move(rhs->classes));
+
+        for (auto &f : rhs->functions) {
+            if (f->name != "main") {
+                lhs->functions.push_back(std::move(f));
+            }
+        }
 
         return lhs;
     }

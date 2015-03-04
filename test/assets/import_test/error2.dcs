@@ -1,0 +1,7 @@
+import error2_imported
+
+func duplicated_func
+end
+
+func main
+end

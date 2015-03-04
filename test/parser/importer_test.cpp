@@ -30,6 +30,15 @@ static std::string dummy_file = DACHS_ROOT_DIR "/test/assets/import_test/dummy/d
         ); \
     } while (false)
 
+#define CHECK_THROW_SEMANTC_ERROR(...) do { \
+        auto t = p.parse((__VA_ARGS__ "\nfunc main; end"), dummy_file); \
+        dachs::syntax::importer i{importdirs, dummy_file}; \
+        BOOST_CHECK_THROW( \
+            dachs::semantics::analyze_semantics(t, i), \
+            dachs::semantic_check_error \
+        ); \
+    } while (false)
+
 #define CHECK_NO_THROW_IMPORT(...) do { \
         auto t = p.parse((__VA_ARGS__ "\nfunc main; end"), dummy_file); \
         dachs::syntax::importer i{importdirs, dummy_file}; \
@@ -85,6 +94,9 @@ BOOST_AUTO_TEST_CASE(normal_cases)
     )");
 
     CHECK_NO_THROW_IMPORT("import self_import");
+
+    // Ignore 'main' functions in imported files
+    CHECK_NO_THROW_IMPORT("import main2");
 }
 
 BOOST_AUTO_TEST_CASE(abnormal_cases)
@@ -92,6 +104,7 @@ BOOST_AUTO_TEST_CASE(abnormal_cases)
     CHECK_THROW_IMPORT("import unknown_file");
     CHECK_THROW_IMPORT("import foo.moudame");
     CHECK_THROW_IMPORT("import error1");
+    CHECK_THROW_SEMANTC_ERROR("import error2");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
