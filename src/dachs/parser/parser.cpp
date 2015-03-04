@@ -55,6 +55,8 @@ using qi::_d;
 using qi::_val;
 using qi::alnum;
 using qi::lexeme;
+
+using helper::variant::get_as;
 // }}}
 
 // Helpers {{{
@@ -97,6 +99,15 @@ namespace detail {
         detail::set_position_getter_on_success(getter, tail...);
     }
 
+    template<class T, class Iter>
+    void set_location_impl(std::shared_ptr<T> const& node, Iter const before, Iter const after, Iter const code_begin)
+    {
+        auto const d = std::distance(before.base(), after.base());
+        node->line = spirit::get_line(before);
+        node->col = spirit::get_column(code_begin, before);
+        node->length = d < 0 ? 0 : d;
+    }
+
     template<class CodeIter>
     struct position_getter {
         CodeIter const code_begin;
@@ -108,10 +119,7 @@ namespace detail {
         template<class T, class Iter>
         void operator()(std::shared_ptr<T> const& node_ptr, Iter const before, Iter const after) const noexcept
         {
-            auto const d = std::distance(before.base(), after.base());
-            node_ptr->line = spirit::get_line(before);
-            node_ptr->col = spirit::get_column(code_begin, before);
-            node_ptr->length = d < 0 ? 0 : d;
+            set_location_impl(node_ptr, before, after, code_begin);
         }
 
         template<class Iter, class... Args>
@@ -319,7 +327,22 @@ public:
                     -qi::eol >> typed_expr % comma >> trailing_comma
                 ) >> ']'
             ) [
-                _val = make_node_ptr<ast::node::array_literal>(as_vector(_1))
+                _val = phx::bind(
+                    [this](auto && exprs)
+                    {
+                        auto literal = helper::make<ast::node::array_literal>(std::forward<decltype(exprs)>(exprs));
+                        auto type = helper::make<ast::node::primary_type>("array");
+                        auto construct = helper::make<ast::node::object_construct>(
+                                    std::move(type),
+                                    std::vector<ast::node::any_expr>{std::move(literal)}
+                                );
+
+                        implicit_import_installer.array_found = true;
+
+                        return construct;
+                    }
+                    , as_vector(_1)
+                )
             ];
 
         tuple_literal
@@ -933,6 +956,8 @@ public:
                 '[' >> -qi::eol >> qualified_type >> -qi::eol >> ']'
             ) [
                 _val = make_node_ptr<ast::node::array_type>(_1)
+            ] [
+                phx::bind([this]{ implicit_import_installer.array_found = true; })
             ];
 
         dict_type
@@ -1322,7 +1347,6 @@ public:
 
                 , inu
                 , primary_literal
-                , array_literal
                 , tuple_literal
                 , lambda_expr
                 , let_expr
@@ -1385,6 +1409,9 @@ public:
                 , import
             );
 
+            // TODO:
+            // I want to say good-bye to below boiler plates...
+
             // Note:
             // begin_end_expr and let_expr generates multiple nodes.
             // Source location should be set to all generated nodes.
@@ -1392,14 +1419,11 @@ public:
                     phx::bind(
                         [code_begin](auto const& invocation, Iterator const before, Iterator const after)
                         {
-                            auto const d = std::distance(before.base(), after.base());
-                            invocation->line = spirit::get_line(before);
-                            invocation->col = spirit::get_column(code_begin, before);
-                            invocation->length = d < 0 ? 0 : d;
+                            detail::set_location_impl(invocation, before, after, code_begin);
 
                             if (invocation->is_begin_end || invocation->is_let) {
                                 auto const lambda
-                                    = helper::variant::get_as<ast::node::lambda_expr>(invocation->child);
+                                    = get_as<ast::node::lambda_expr>(invocation->child);
                                 assert(lambda);
                                 (*lambda)->set_source_location(*invocation);
                                 (*lambda)->def->set_source_location(*invocation);
@@ -1413,6 +1437,21 @@ public:
                     begin_end_expr
                 );
 
+            qi::on_success(
+                    array_literal,
+                    phx::bind(
+                        [code_begin](auto const& array_construct, Iterator const before, Iterator const after)
+                        {
+                            detail::set_location_impl(array_construct, before, after, code_begin);
+
+                            ast::node::set_location(array_construct->obj_type, array_construct);
+                            ast::node::set_location(array_construct->args[0], array_construct);
+                        },
+                        _val,
+                        _1,
+                        _3
+                    )
+                );
         } // if (!CheckOnly) {
 
         qi::on_error<qi::fail>(
@@ -1581,7 +1620,6 @@ private:
 
     rule<ast::node::any_expr()>
           primary_literal
-        , array_literal
         , dict_literal
         , lambda_expr
         , var_ref
@@ -1607,6 +1645,7 @@ private:
 
     rule<ast::node::func_invocation()> begin_end_expr;
     rule<ast::node::func_invocation(), qi::locals<ast::node::statement_block>> let_expr;
+    rule<ast::node::object_construct()> array_literal;
 
     rule<ast::node::any_expr(), qi::locals<std::vector<ast::node::any_expr>>> tuple_literal;
     rule<ast::node::any_expr(), qi::locals<std::string>> symbol_literal;
