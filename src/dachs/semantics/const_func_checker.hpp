@@ -181,6 +181,11 @@ public:
         ast::walk_topdown(expr->lhs, *this);
     }
 
+    void apply(ast::node::index_access &access) noexcept
+    {
+        ast::walk_topdown(access->child, *this);
+    }
+
     auto get_result() const noexcept
     {
         return result;

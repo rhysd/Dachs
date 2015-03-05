@@ -539,6 +539,7 @@ struct object_construct final : public expression {
 
 struct index_access final : public expression {
     node::any_expr child, index_expr;
+    scope::weak_func_scope callee_scope;
 
     index_access(node::any_expr const& c, node::any_expr const& idx_expr) noexcept
         : expression(), child(c), index_expr(idx_expr)

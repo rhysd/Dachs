@@ -1079,6 +1079,110 @@ public:
         lambdas.push_back(lambda);
     }
 
+    template<class Outer>
+    struct index_access_analyzer : boost::static_visitor<boost::optional<std::string>> {
+        ast::node::index_access const& access;
+        type::type const& index_type;
+        Outer &outer;
+
+        explicit index_access_analyzer(ast::node::index_access const& a, type::type const& i, Outer &o) noexcept
+            : access(a), index_type(i), outer(o)
+        {}
+
+        template<class T>
+        std::string not_found(T const& t) const
+        {
+            return "  Index of string must be int or uint but actually '" + t->to_string() + "'";
+        }
+
+        result_type operator()(type::array_type const& arr) const
+        {
+            if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
+                return "  Index of array must be int or uint but actually '" + index_type.to_string() + "'";
+            }
+            access->type = arr->element_type;
+            return boost::none;
+        }
+
+        result_type operator()(type::tuple_type const& tpl) const
+        {
+            auto const maybe_primary_literal = get_as<ast::node::primary_literal>(access->index_expr);
+            if (!maybe_primary_literal ||
+                    (!has<int>((*maybe_primary_literal)->value)
+                     && !has<uint>((*maybe_primary_literal)->value))
+               ) {
+                return std::string{"  Index of tuple must be int or uint literal"};
+            }
+
+            auto const& literal = (*maybe_primary_literal)->value;
+            if (auto const maybe_int_lit = get_as<int>(literal)) {
+                auto const idx = *maybe_int_lit;
+                if (idx < 0 || static_cast<unsigned int>(idx) >= tpl->element_types.size()) {
+                    return "  Index access is out of bounds\n  Note: Index is " + std::to_string(idx);
+                }
+                access->type = tpl->element_types[idx];
+            } else if (auto const maybe_uint_lit = get_as<unsigned int>(literal)) {
+                auto const idx = *maybe_uint_lit;
+                if (idx >= tpl->element_types.size()) {
+                    return "  Index access is out of bounds\n  Note: Index is " + std::to_string(idx);
+                }
+                access->type = tpl->element_types[idx];
+            } else {
+                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+            }
+
+            return boost::none;
+        }
+
+        result_type operator()(type::dict_type const& dict) const
+        {
+            if (index_type != dict->key_type) {
+                return "  Index type of dictionary mismatches\n"
+                       "  Note: Expected '" + dict->key_type.to_string() + "' but actually '" + index_type.to_string() + "'";
+            }
+            access->type = dict->value_type;
+
+            return boost::none;
+        }
+
+        result_type operator()(type::builtin_type const& builtin) const
+        {
+            if (builtin->name == "string") {
+                if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
+                    return "  Index of string must be int or uint but actually '" + index_type.to_string() + "'";
+                }
+                access->type = type::get_builtin_type("char", type::no_opt);
+                return boost::none;
+            } else {
+                return not_found(builtin);
+            }
+        }
+
+        template<class Type>
+        result_type operator()(Type const& t) const
+        {
+            auto const error = outer.visit_invocation(
+                        access,
+                        "[]",
+                        std::vector<type::type>{
+                            t, index_type
+                        }
+                    );
+
+            if (error) {
+                return error;
+            }
+
+            if (auto const violated = is_const_violated_invocation(access)) {
+                return "  Member function '" + access->callee_scope.lock()->to_string()
+                     + "' modifies member(s) of immutable object '" + (*violated)->name + "'\n"
+                       "  Note: this function is called for index access operator '[]'";
+            }
+
+            return boost::none;
+        }
+    };
+
     template<class Walker>
     void visit(ast::node::index_access const& access, Walker const& w)
     {
@@ -1091,89 +1195,10 @@ public:
             return;
         }
 
-        // TODO
-        // Below implementation is temporary.
-        // Resolve operator [] function and get the return type of it.
-
-        if (auto const maybe_array_type = type::get<type::array_type>(child_type)) {
-            if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
-                semantic_error(
-                        access,
-                        boost::format("  Index of array must be int or uint but actually '%1%'")
-                            % index_type.to_string()
-                    );
-                return;
-            }
-            access->type = (*maybe_array_type)->element_type;
-        } else if (auto const maybe_tuple_type = type::get<type::tuple_type>(child_type)) {
-            auto const& tuple_type = *maybe_tuple_type;
-
-            auto const maybe_primary_literal = get_as<ast::node::primary_literal>(access->index_expr);
-            if (!maybe_primary_literal ||
-                    (!has<int>((*maybe_primary_literal)->value)
-                     && !has<uint>((*maybe_primary_literal)->value))
-               ) {
-                semantic_error(access, "  Index of tuple must be int or uint literal");
-                return;
-            }
-
-            auto const& literal = (*maybe_primary_literal)->value;
-            auto const out_of_bounds
-                = [this, &access](auto const i)
-                {
-                    semantic_error(
-                            access,
-                            boost::format(
-                                "  Index access is out of bounds\n"
-                                "  Note: Index is %1%"
-                            ) % i
-                        );
-                };
-            if (auto const maybe_int_lit = get_as<int>(literal)) {
-                auto const idx = *maybe_int_lit;
-                if (idx < 0 || static_cast<unsigned int>(idx) >= tuple_type->element_types.size()) {
-                    out_of_bounds(*maybe_int_lit);
-                    return;
-                }
-                access->type = tuple_type->element_types[idx];
-            } else if (auto const maybe_uint_lit = get_as<unsigned int>(literal)) {
-                if (*maybe_uint_lit >= tuple_type->element_types.size()) {
-                    out_of_bounds(*maybe_uint_lit);
-                    return;
-                }
-                access->type = tuple_type->element_types[*maybe_uint_lit];
-            } else {
-                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-            }
-        } else if (auto const maybe_dict_type = type::get<type::dict_type>(child_type)) {
-            auto const& dict_type = *maybe_dict_type;
-            if (index_type != dict_type->key_type) {
-                semantic_error(
-                    access,
-                    boost::format(
-                        "  Index type of dictionary mismatches\n"
-                        "  Note: Expected '%1%' but actually '%2%'"
-                    ) % dict_type->key_type.to_string()
-                      % index_type.to_string()
-                );
-                return;
-            }
-            access->type = dict_type->value_type;
-        } else if (child_type.is_builtin("string")) {
-            if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
-                semantic_error(
-                        access,
-                        boost::format("  Index of string must be int or uint but actually '%1%'")
-                            % index_type.to_string()
-                    );
-                return;
-            }
-            access->type = type::get_builtin_type("char", type::no_opt);
-        } else {
-            semantic_error(
-                access,
-                boost::format("  '%1%' type value is not accessible by index.") % child_type.to_string()
-            );
+        index_access_analyzer<symbol_analyzer> analyzer{access, index_type, *this};
+        auto const error = child_type.apply_visitor(analyzer);
+        if (error) {
+            semantic_error(access, *error);
         }
     }
 
