@@ -716,9 +716,7 @@ public:
 
         binary_operator
             =
-                "..."_p
-              | ".."_p
-              | ">>"_p
+                ">>"_p
               | "<<"_p
               | "<="_p
               | ">="_p
@@ -736,6 +734,7 @@ public:
               | "&"_p
               | "^"_p
               | "|"_p
+              | "[]"_p
             ;
 
         unary_expr

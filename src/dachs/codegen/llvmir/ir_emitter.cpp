@@ -403,7 +403,7 @@ class llvm_ir_emitter {
         }
     }
 
-    bool is_available_type_for_binary_expression(type::type const& lhs, type::type const& rhs) const noexcept
+    bool check_builtin_binary_expr_arg_types(type::type const& lhs, type::type const& rhs) const noexcept
     {
         if (type::is_a<type::tuple_type>(lhs) && type::is_a<type::tuple_type>(rhs)) {
             // XXX:
@@ -1125,23 +1125,47 @@ public:
         auto const lhs_type = type::type_of(bin_expr->lhs);
         auto const rhs_type = type::type_of(bin_expr->rhs);
 
-        if (!is_available_type_for_binary_expression(lhs_type, rhs_type)) {
-            error(bin_expr, "Binary expression now supports only some builtin types");
+        auto *const lhs_value = load_if_ref(emit(bin_expr->lhs), lhs_type);
+        auto *const rhs_value = load_if_ref(emit(bin_expr->rhs), rhs_type);
+
+        if (check_builtin_binary_expr_arg_types(lhs_type, rhs_type)) {
+            return check(
+                bin_expr,
+                tmp_builtin_bin_op_ir_emitter{
+                    ctx,
+                    lhs_value,
+                    rhs_value,
+                    bin_expr->op
+                }.emit(lhs_type),
+                boost::format("binary operator '%1%' (lhs type is '%2%', rhs type is '%3%')")
+                    % bin_expr->op
+                    % type::to_string(lhs_type)
+                    % type::to_string(rhs_type)
+            );
         }
 
+        if (bin_expr->callee_scope.expired()) {
+            error(
+                bin_expr,
+                boost::format("Invalid binary expression is found.  No operator function '%1%' for lhs type '%2%' and rhs type '%3%'")
+                    % bin_expr->op % lhs_type.to_string() % rhs_type.to_string()
+            );
+        }
+
+        auto const callee = bin_expr->callee_scope.lock();
+        assert(!callee->is_anonymous());
+        assert(!callee->is_builtin);
+
         return check(
-            bin_expr,
-            tmp_builtin_bin_op_ir_emitter{
-                ctx,
-                load_if_ref(emit(bin_expr->lhs), lhs_type),
-                load_if_ref(emit(bin_expr->rhs), rhs_type),
-                bin_expr->op
-            }.emit(lhs_type),
-            boost::format("binary operator '%1%' (lhs type is '%2%', rhs type is '%3%')")
-                % bin_expr->op
-                % type::to_string(lhs_type)
-                % type::to_string(rhs_type)
-        );
+                bin_expr,
+                ctx.builder.CreateCall2(
+                    emit_non_builtin_callee(bin_expr, callee),
+                    lhs_value,
+                    rhs_value
+                ),
+                "invalid binary expression function call"
+            );
+
     }
 
     val emit(ast::node::var_ref const& var)
@@ -1550,7 +1574,7 @@ public:
                     [&](auto const& lhs, auto const& rhs)
                     {
                         auto rhs_type = type::type_of(rhs);
-                        if (is_compound_assign && !is_available_type_for_binary_expression(type::type_of(lhs), rhs_type)) {
+                        if (is_compound_assign && !check_builtin_binary_expr_arg_types(type::type_of(lhs), rhs_type)) {
                             error(assign, "Binary expression now only supports float, int, bool and uint");
                         }
                         rhs_values.push_back(emit(rhs));
@@ -1681,7 +1705,7 @@ public:
                 auto *const next_cond_block = helper.create_block("switch.cond.next");
                 auto const cmp_type = type::type_of(cmp_expr);
 
-                if (!is_available_type_for_binary_expression(target_type, cmp_type)) {
+                if (!check_builtin_binary_expr_arg_types(target_type, cmp_type)) {
                     error(switch_, "Case statement condition now only supports some builtin types");
                 }
 

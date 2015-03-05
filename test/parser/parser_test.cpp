@@ -279,10 +279,7 @@ BOOST_AUTO_TEST_CASE(function)
         func ||(l, r)
         end
 
-        func ..(l, r)
-        end
-
-        func ...(l, r)
+        func [](l, r)
         end
 
         # Keyword corner cases
@@ -2035,6 +2032,12 @@ BOOST_AUTO_TEST_CASE(clazz)
             end
 
           - func method2(a, b)
+            end
+
+            func +(a)
+            end
+
+            func +
             end
         end
 

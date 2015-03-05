@@ -1177,22 +1177,8 @@ public:
         }
     }
 
-    template<class Walker>
-    void visit(ast::node::binary_expr const& bin_expr, Walker const& w)
+    void visit_builtin_binary_expr(ast::node::binary_expr const& bin_expr, type::type const& lhs_type, type::type const& rhs_type)
     {
-        w();
-
-        auto const lhs_type = type_of(bin_expr->lhs);
-        auto const rhs_type = type_of(bin_expr->rhs);
-
-        if (!lhs_type || !rhs_type) {
-            return;
-        }
-
-        // TODO:
-        // Resolve oeprator function overload and get the result type.
-        // Below implementation is temporary.
-
         if (lhs_type != rhs_type) {
             semantic_error(
                     bin_expr,
@@ -1225,6 +1211,52 @@ public:
         } else {
             bin_expr->type = lhs_type;
         }
+    }
+
+    void visit_binary_expr_call(ast::node::binary_expr const& bin_expr, type::type const& lhs_type, type::type const& rhs_type)
+    {
+        auto const error = visit_invocation(
+                bin_expr,
+                bin_expr->op,
+                std::vector<type::type>{
+                    lhs_type, rhs_type
+                }
+            );
+
+        if (error) {
+            semantic_error(bin_expr, *error);
+            return;
+        }
+
+        if (auto const violated = is_const_violated_invocation(bin_expr)) {
+            semantic_error(
+                    bin_expr,
+                    boost::format(
+                        "  Member function '%1%' modifies member(s) of immutable object '%2%'\n"
+                        "  Note: this function is called for binary operator '%3%'"
+                    ) % bin_expr->callee_scope.lock()->to_string() % (*violated)->name % bin_expr->op
+                    );
+        }
+    }
+
+    template<class Walker>
+    void visit(ast::node::binary_expr const& bin_expr, Walker const& w)
+    {
+        w();
+
+        auto const lhs_type = type_of(bin_expr->lhs);
+        auto const rhs_type = type_of(bin_expr->rhs);
+
+        if (!lhs_type || !rhs_type) {
+            return;
+        }
+
+        if (lhs_type.is_builtin() && rhs_type.is_builtin()) {
+            visit_builtin_binary_expr(bin_expr, lhs_type, rhs_type);
+            return;
+        }
+
+        visit_binary_expr_call(bin_expr, lhs_type, rhs_type);
     }
 
     template<class Walker>
@@ -1300,10 +1332,6 @@ public:
     template<class Node, class ArgTypes>
     boost::optional<std::string> visit_invocation(Node const& node, std::string const& func_name, ArgTypes const& arg_types)
     {
-        if (func_name.back() == '!') {
-            throw not_implemented_error{node, __FILE__, __func__, __LINE__, "  function invocation with monad"};
-        }
-
         // Note:
         // generic_func_type::ref is not available because it is not updated
         // even if overload functions are resolved.
@@ -1669,7 +1697,7 @@ public:
         if (auto const violated = is_const_violated_invocation(ufcs)) {
             semantic_error(
                     ufcs,
-                    boost::format("  Member function '%1%' modifies member(s) of immutable object '%2%'.")
+                    boost::format("  Member function '%1%' modifies member(s) of immutable object '%2%'")
                         % ufcs->callee_scope.lock()->to_string() % (*violated)->name
                     );
         }

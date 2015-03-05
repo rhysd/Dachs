@@ -176,6 +176,11 @@ public:
         ast::walk_topdown(invocation->child, *this);
     }
 
+    void apply(ast::node::binary_expr &expr) noexcept
+    {
+        ast::walk_topdown(expr->lhs, *this);
+    }
+
     auto get_result() const noexcept
     {
         return result;

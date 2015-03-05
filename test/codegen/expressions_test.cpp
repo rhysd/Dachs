@@ -1059,4 +1059,36 @@ BOOST_AUTO_TEST_CASE(fatal)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(binary_operator)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            v
+
+            func <(r : X)
+            end
+
+            func ==(r : X)
+            end
+        end
+
+        func +(l : X, r : X)
+        end
+
+        func /(l, r)
+        end
+
+        func main
+            l := new X{42}
+            r := new X{10}
+
+            l < r
+            l == r
+            l + r
+            l / 40
+            3.14 / r
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

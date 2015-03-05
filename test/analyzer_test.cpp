@@ -2485,6 +2485,16 @@ BOOST_AUTO_TEST_CASE(operator_type_check)
             'a' < 1
         end
     )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+        end
+
+        func main
+            new X{10} < new X{11}
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

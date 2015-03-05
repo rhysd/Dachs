@@ -617,6 +617,7 @@ struct cast_expr final : public expression {
 struct binary_expr final : public expression {
     node::any_expr lhs, rhs;
     std::string op;
+    scope::weak_func_scope callee_scope;
 
     binary_expr(node::any_expr const& lhs
                     , std::string const& op
