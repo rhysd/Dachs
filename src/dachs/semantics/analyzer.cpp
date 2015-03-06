@@ -1092,7 +1092,7 @@ public:
         template<class T>
         std::string not_found(T const& t) const
         {
-            return "  Index of string must be int or uint but actually '" + t->to_string() + "'";
+            return "  Index access operator '[]' for '" + t->to_string() + "' indexed by '" + index_type.to_string() + "' is not found";
         }
 
         result_type operator()(type::array_type const& arr) const

@@ -1089,6 +1089,26 @@ BOOST_AUTO_TEST_CASE(binary_operator)
             3.14 / r
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            v
+
+            func [](idx)
+                ret @v[idx as uint]
+            end
+        end
+
+        func [](x : X, c : char)
+            ret x.v[(c - 'a') as int]
+        end
+
+        func main
+            x := new X{[1, 3, 5, 7]}
+            x[2].println
+            x['c'].println
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -16,6 +16,7 @@ class Array
         var i := 0u
         for i < rhs.size
             @buf[i] = rhs[i]
+            i += 1u
         end
         @size = rhs.size
 
@@ -91,6 +92,14 @@ class Array
 
         ret @buf[idx], false
     end
+
+    func [](idx : uint)
+        ret @buf[idx]
+    end
+
+    func [](idx : int)
+        ret @buf[idx]
+    end
 end
 
 func main
@@ -122,4 +131,7 @@ func main
         c += i as char
         c.println
     end
+
+    a[1].println
+    a[2u].println
 end

@@ -1190,9 +1190,25 @@ public:
 
     val emit(ast::node::index_access const& access)
     {
-        auto const result = inst_emitter.emit_element_access(
+        if (!access->callee_scope.expired()) {
+            auto const callee = access->callee_scope.lock();
+            assert(!callee->is_anonymous());
+            assert(!callee->is_builtin);
+
+            return check(
+                    access,
+                    ctx.builder.CreateCall2(
+                        emit_non_builtin_callee(access, callee),
+                        load_if_ref(emit(access->child), access->child),
+                        load_if_ref(emit(access->index_expr), access->index_expr)
+                    ),
+                    "user-defined index access operator"
+                );
+        }
+
+        auto const result = inst_emitter.emit_builtin_element_access(
                 emit(access->child),
-                load_if_ref(emit(access->index_expr), type::type_of(access->index_expr)),
+                load_if_ref(emit(access->index_expr), access->index_expr),
                 type::type_of(access->child)
             );
 

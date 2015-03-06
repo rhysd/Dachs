@@ -2497,4 +2497,26 @@ BOOST_AUTO_TEST_CASE(operator_type_check)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(builtin_type_operator_check)
+{
+    // Binary operators for built-in types can't be defined by user.
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func [](i : int, j : int)
+        end
+
+        func main
+            3[4]
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func >>(s : string, j : int)
+        end
+
+        func main
+            "aaaaa" >> 3
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
