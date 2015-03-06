@@ -2632,4 +2632,52 @@ BOOST_AUTO_TEST_CASE(operator_arguments_check)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(compound_asssignment)
+{
+    // Built-in
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            var i := 0
+            i += 1u
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            v : int
+
+            func +(i : int)
+                ret new X{@v + i}
+            end
+        end
+
+        func +(i : int, x : X)
+            ret i + x.v
+        end
+
+        func main
+            var x := new X{10}
+            x += 11
+
+            var i := 3
+            i += x
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            v : int
+
+            func +(i : int)
+            end
+        end
+
+        func main
+            var x := new X{10}
+            x += 3.14
+        end
+    )");
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()

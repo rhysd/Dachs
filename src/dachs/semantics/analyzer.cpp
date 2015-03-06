@@ -1202,39 +1202,39 @@ public:
         }
     }
 
-    void visit_builtin_binary_expr(ast::node::binary_expr const& bin_expr, type::type const& lhs_type, type::type const& rhs_type)
+    template<class Node>
+    type::type visit_builtin_binary_expr(Node const& node, std::string const& op, type::type const& lhs_type, type::type const& rhs_type)
     {
         if (lhs_type != rhs_type) {
             semantic_error(
-                    bin_expr,
+                    node,
                     boost::format(
-                        "  Type mismatch in binary operator '%1%'\n"
+                        "  Type mismatch in built-in binary operator '%1%'\n"
                         "  Note: Type of lhs is %2%\n"
-                        "  Note: Type of rhs is %3%"
-                    ) % bin_expr->op
+                        "  Note: Type of rhs is %3%\n"
+                        "  Note: User-defined operators for builtin-types are not permitted"
+                    ) % op
                       % lhs_type.to_string()
                       % rhs_type.to_string()
                     );
-            return;
+            return {};
         }
 
-        // TODO:
-        // Find operator function and get the result type of it
-        if (helper::any_of({"==", "!=", ">", "<", ">=", "<="}, bin_expr->op)) {
-            bin_expr->type = type::get_builtin_type("bool", type::no_opt);
-        } else if (bin_expr->op == "&&" || bin_expr->op == "||") {
+        if (helper::any_of({"==", "!=", ">", "<", ">=", "<="}, op)) {
+            return type::get_builtin_type("bool", type::no_opt);
+        } else if (op == "&&" || op == "||") {
             if (lhs_type != type::get_builtin_type("bool", type::no_opt)) {
                 semantic_error(
-                        bin_expr,
+                        node,
                         boost::format(
                             "  Operator '%1%' for type '%2%' is found\n"
                             "  Note: User-defined operators for builtin-types are not permitted"
-                        ) % bin_expr->op % lhs_type.to_string()
+                        ) % op % lhs_type.to_string()
                     );
             }
-            bin_expr->type = type::get_builtin_type("bool", type::no_opt);
+            return type::get_builtin_type("bool", type::no_opt);
         } else {
-            bin_expr->type = lhs_type;
+            return lhs_type;
         }
     }
 
@@ -1277,7 +1277,7 @@ public:
         }
 
         if (lhs_type.is_builtin() && rhs_type.is_builtin()) {
-            visit_builtin_binary_expr(bin_expr, lhs_type, rhs_type);
+            bin_expr->type = visit_builtin_binary_expr(bin_expr, bin_expr->op, lhs_type, rhs_type);
             return;
         }
 
@@ -1384,8 +1384,9 @@ public:
         if_->type = then_type;
     }
 
-    template<class Node, class ArgTypes>
-    boost::optional<std::string> visit_invocation(Node const& node, std::string const& func_name, ArgTypes const& arg_types)
+    template<class ArgTypes>
+    boost::variant<scope::func_scope, std::string>
+    resolve_func_call(std::string const& func_name, ArgTypes const& arg_types)
     {
         // Note:
         // generic_func_type::ref is not available because it is not updated
@@ -1412,9 +1413,7 @@ public:
 
         if (func->is_builtin) {
             assert(func->ret_type);
-            node->type = *func->ret_type;
-            node->callee_scope = func;
-            return boost::none;
+            return func;
         }
 
         auto func_def = func->get_ast_node();
@@ -1471,8 +1470,22 @@ public:
             }
         }
 
-        node->type = *func->ret_type;
-        node->callee_scope = func;
+        return func;
+    }
+
+    template<class Node, class ArgTypes>
+    boost::optional<std::string> visit_invocation(Node const& node, std::string const& func_name, ArgTypes const& arg_types)
+    {
+        auto const resolved = resolve_func_call(func_name, arg_types);
+        if (auto const error = get_as<std::string>(resolved)) {
+            return *error;
+        }
+
+        auto const func = get_as<scope::func_scope>(resolved);
+        assert(func);
+
+        node->type = *(*func)->ret_type;
+        node->callee_scope = *func;
 
         return boost::none;
     }
@@ -2740,25 +2753,73 @@ public:
             }
         }
 
+        auto const is_compound_assign = assign->op != "=";
+
         auto const check_types =
-            [this, &assign](auto const& t1, auto const& t2)
+            [&, this](auto const& t1, auto const& t2)
             {
-                if (!t1) {
+                if (!t1 || !t2) {
                     // Note:
                     // When lhs is '_' variable
+                    // When rhs has an error
                     return;
                 }
 
-                if (t1 != t2) {
-                    semantic_error(
-                            assign,
-                            boost::format(
-                                "  Types mismatch on assignment\n"
-                                "  Note: Type of lhs is '%1%', type of rhs is '%2%'"
-                            ) % type::to_string(t1)
-                              % type::to_string(t2)
-                        );
+                auto const mismatch_error
+                    = [this, &assign](auto const& t1, auto const& t2)
+                    {
+                        semantic_error(
+                                assign,
+                                boost::format(
+                                    "  Types mismatch on assignment '%1%'\n"
+                                    "  Note: Type of lhs is '%2%', type of rhs is '%3%'"
+                                ) % assign->op
+                                  % type::to_string(t1)
+                                  % type::to_string(t2)
+                            );
+                    };
+
+                if (is_compound_assign) {
+                    auto const compound_op = assign->op.substr(0, assign->op.size()-1);
+
+                    if (t1.is_builtin() && t2.is_builtin()) {
+                        auto const ret_type = visit_builtin_binary_expr(assign, compound_op, t1, t2);
+                        if (!ret_type) {
+                            return;
+                        }
+                        if (t1 != ret_type) {
+                            mismatch_error(t1, ret_type);
+                        }
+                        return;
+                    }
+
+                    auto const resolved = resolve_func_call(compound_op, std::vector<type::type>{t1, t2});
+                    if (auto const error = get_as<std::string>(resolved)) {
+                        semantic_error(assign, *error);
+                        semantic_error(
+                                assign,
+                                boost::format(
+                                    "  Error at calling binary operator '%1%' on assignment\n"
+                                    "  Note: Type of lhs is '%2%', type of rhs is '%3%'"
+                                ) % compound_op % type::to_string(t1) % type::to_string(t2)
+                            );
+                        return;
+                    }
+
+                    auto const func = get_as<scope::func_scope>(resolved);
+
+                    assign->callee_scopes.emplace_back(*func);
+                    auto const& ret_type = *(*func)->ret_type;
+
+                    if (t1 != ret_type) {
+                        mismatch_error(t1, ret_type);
+                    }
+                } else {
+                    if (t1 != t2) {
+                        mismatch_error(t1, t2);
+                    }
                 }
+
             };
 
         auto const check_type_seqs =
@@ -2769,7 +2830,7 @@ public:
                             , type_seq1, type_seq2);
             };
 
-        auto const to_type_seq = transformed([](auto const& e){ return type::type_of(e); });
+        auto const to_types = transformed([](auto const& e){ return type::type_of(e); });
 
         if (assign->assignees.size() == 1) {
             auto const assignee_type = type_of(assign->assignees[0]);
@@ -2789,8 +2850,10 @@ public:
                     return;
                 }
 
-                check_type_seqs(assign->assignees | to_type_seq
-                              , (*maybe_tuple_type)->element_types);
+                check_type_seqs(
+                        assign->assignees | to_types,
+                        (*maybe_tuple_type)->element_types
+                    );
             } else {
                 if (assign->assignees.size() != assign->rhs_exprs.size()) {
                     semantic_error(
@@ -2804,8 +2867,10 @@ public:
                     return;
                 }
 
-                check_type_seqs(assign->assignees | to_type_seq
-                              , assign->rhs_exprs | to_type_seq);
+                check_type_seqs(
+                        assign->assignees | to_types,
+                        assign->rhs_exprs | to_types
+                    );
             }
         }
     }

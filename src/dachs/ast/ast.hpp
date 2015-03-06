@@ -831,6 +831,7 @@ struct assignment_stmt final : public statement {
     std::vector<node::any_expr> assignees;
     std::string op;
     std::vector<node::any_expr> rhs_exprs;
+    std::vector<scope::weak_func_scope> callee_scopes;
 
     assignment_stmt(decltype(assignees) const& assignees,
                     std::string const& op,
