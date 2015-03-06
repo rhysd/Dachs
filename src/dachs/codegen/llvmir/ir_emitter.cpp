@@ -1607,16 +1607,10 @@ public:
         assert(assignee_size > 0 && assigner_size > 0);
 
         if (assignee_size == assigner_size) {
-            helper::each(
-                    [&](auto const& lhs, auto const& rhs)
-                    {
-                        auto rhs_type = type::type_of(rhs);
-                        if (is_compound_assign && !check_builtin_binary_expr_arg_types(type::type_of(lhs), rhs_type)) {
-                            error(assign, "Binary expression now only supports float, int, bool and uint");
-                        }
-                        rhs_values.push_back(emit(rhs));
-                        rhs_types.push_back(std::move(rhs_type));
-                    }, assign->assignees, assign->rhs_exprs);
+            for (auto const& rhs : assign->rhs_exprs) {
+                rhs_values.push_back(emit(rhs));
+                rhs_types.push_back(type::type_of(rhs));
+            }
         } else if (assigner_size == 1) {
             assert(assignee_size > 1);
             auto rhs_tuple_type = type::get<type::tuple_type>(type::type_of(assign->rhs_exprs[0]));
@@ -1636,47 +1630,145 @@ public:
 
         assert(assignee_size == rhs_values.size());
 
-        auto const assignment_emitter =
-            [&, this](auto const& lhs_expr, auto *const rhs_value, auto const& rhs_type)
-            {
-                val value_to_assign = rhs_value;
+        if (!is_compound_assign) {
 
-                auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
-                auto const lhs_type = type::type_of(lhs_expr);
+            helper::each(
+                [&, this](auto const& lhs_expr, auto *const rhs_value)
+                {
+                    val value_to_assign = rhs_value;
 
-                if (!lhs_value) {
-                    DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+                    auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
+                    auto const lhs_type = type::type_of(lhs_expr);
+
+                    if (!lhs_value) {
+                        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+                    }
+                    assert(lhs_value->getType()->isPointerTy());
+
+                    // if (is_compound_assign) {
+                    //     auto const bin_op = assign->op.substr(0, assign->op.size()-1);
+                    //     value_to_assign =
+                    //         check(
+                    //             assign,
+                    //             tmp_builtin_bin_op_ir_emitter{
+                    //                 ctx,
+                    //                 ctx.builder.CreateLoad(lhs_value),
+                    //                 load_if_ref(rhs_value, rhs_type),
+                    //                 bin_op
+                    //             }.emit(lhs_type),
+                    //             boost::format("binary expression (operator is '%1%', operand type is '%2%')")
+                    //                 % bin_op
+                    //                 % type::to_string(lhs_type)
+                    //         );
+                    // }
+
+                    alloc_emitter.create_deep_copy(
+                            value_to_assign,
+                            load_aggregate_elem(
+                                lhs_value,
+                                lhs_type
+                            ),
+                            lhs_type
+                        );
                 }
-                assert(lhs_value->getType()->isPointerTy());
+                , assign->assignees, rhs_values
+            );
 
-                if (is_compound_assign) {
-                    auto const bin_op = assign->op.substr(0, assign->op.size()-1);
-                    value_to_assign =
-                        check(
+        } else if (assign->callee_scopes.empty()) {
+
+            // Note:
+            // When lhs and rhs have the same built-in type
+            auto const bin_op = assign->op.substr(0, assign->op.size()-1);
+            helper::each(
+                [&, this](auto const& lhs_expr, auto *const rhs_value, auto const& rhs_type)
+                {
+                    auto const lhs_type = type::type_of(lhs_expr);
+                    if (!check_builtin_binary_expr_arg_types(lhs_type, rhs_type)) {
+                        error(
+                            assign,
+                            boost::format("Invalid compound binary operator '%1%'. Type of lhs is '%2%', rhs is '%3%'")
+                                % assign->op % lhs_type.to_string() % rhs_type.to_string()
+                        );
+                    }
+
+                    auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
+
+                    auto const v = check(
                             assign,
                             tmp_builtin_bin_op_ir_emitter{
                                 ctx,
-                                ctx.builder.CreateLoad(lhs_value),
+                                load_if_ref(lhs_value, lhs_type),
                                 load_if_ref(rhs_value, rhs_type),
                                 bin_op
                             }.emit(lhs_type),
-                            boost::format("binary expression (operator is '%1%', operand type is '%2%')")
+                            boost::format("compound binary operator '%1%' (lhs type is '%2%', rhs type is '%3%')")
                                 % bin_op
                                 % type::to_string(lhs_type)
+                                % type::to_string(rhs_type)
+                        );
+
+                    alloc_emitter.create_deep_copy(
+                            v,
+                            load_aggregate_elem(
+                                lhs_value,
+                                lhs_type
+                            ),
+                            lhs_type
                         );
                 }
+                , assign->assignees, rhs_values, rhs_types
+            );
 
-                alloc_emitter.create_deep_copy(
-                        value_to_assign,
-                        load_aggregate_elem(
-                            lhs_value,
+        } else {
+
+            assert(assignee_size == assign->callee_scopes.size());
+
+            // Note:
+            // When the compound assignment invokes binary operator function
+            auto const bin_op = assign->op.substr(0, assign->op.size()-1);
+
+            helper::each(
+                [&, this](auto const& lhs_expr, auto *const rhs_value, auto const& rhs_type, auto const& callee)
+                {
+                    auto const lhs_type = type::type_of(lhs_expr);
+
+                    if (callee.expired()) {
+                        error(
+                            assign,
+                            boost::format("Invalid compound binary expression '%1%'.  Lhs type is '%2%' and Rhs type is '%3%'")
+                                % bin_op % lhs_type.to_string() % rhs_type.to_string()
+                        );
+                    }
+
+                    auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
+                    auto const func = callee.lock();
+                    assert(!func->is_anonymous());
+                    assert(!func->is_builtin);
+
+                    auto *const v = check(
+                            assign,
+                            ctx.builder.CreateCall2(
+                                emit_non_builtin_callee(assign, func),
+                                load_if_ref(lhs_value, lhs_type),
+                                load_if_ref(rhs_value, rhs_type)
+                            ),
+                            "invalid compound binary expression function call"
+                        );
+
+                    alloc_emitter.create_deep_copy(
+                            load_if_ref(v, *func->ret_type),
+                            load_aggregate_elem(
+                                lhs_value,
+                                lhs_type
+                            ),
                             lhs_type
-                        ), 
-                        lhs_type
-                    );
-            };
+                        );
+                }
+                , assign->assignees, rhs_values, rhs_types, assign->callee_scopes
+            );
+            // TODO
+        }
 
-        helper::each(assignment_emitter, assign->assignees, rhs_values, rhs_types);
     }
 
     void emit(ast::node::case_stmt const& case_)
