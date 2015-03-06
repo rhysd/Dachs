@@ -1227,8 +1227,8 @@ public:
                 semantic_error(
                         bin_expr,
                         boost::format(
-                            "  Opeartor '%1%' only takes bool type operand\n"
-                            "  Note: Operand type is '%2%'"
+                            "  Operator '%1%' for type '%2%' is found\n"
+                            "  Note: User-defined operators for builtin-types are not permitted"
                         ) % bin_expr->op % lhs_type.to_string()
                     );
             }
@@ -1260,7 +1260,7 @@ public:
                         "  Member function '%1%' modifies member(s) of immutable object '%2%'\n"
                         "  Note: this function is called for binary operator '%3%'"
                     ) % bin_expr->callee_scope.lock()->to_string() % (*violated)->name % bin_expr->op
-                    );
+                );
         }
     }
 
@@ -1284,6 +1284,48 @@ public:
         visit_binary_expr_call(bin_expr, lhs_type, rhs_type);
     }
 
+    void visit_builtin_unary_expr(ast::node::unary_expr const& unary, type::type const& operand_type)
+    {
+        if (unary->op == "!") {
+            if (operand_type != type::get_builtin_type("bool", type::no_opt)) {
+                semantic_error(
+                        unary,
+                        boost::format(
+                            "  Operator '%1%' for type '%2%' is found\n"
+                            "  Note: User-defined operators for builtin-types are not permitted"
+                        ) % unary->op % operand_type.to_string()
+                    );
+            }
+            unary->type = type::get_builtin_type("bool", type::no_opt);
+        } else {
+            unary->type = operand_type;
+        }
+    }
+
+    void visit_unary_expr_call(ast::node::unary_expr const& unary, type::type const& operand_type)
+    {
+        auto const error = visit_invocation(
+                    unary,
+                    unary->op,
+                    std::vector<type::type>{ operand_type }
+                );
+
+        if (error) {
+            semantic_error(unary, *error);
+            return;
+        }
+
+        if (auto const violated = is_const_violated_invocation(unary)) {
+            semantic_error(
+                    unary,
+                    boost::format(
+                        "  Member function '%1%' modifies member(s) of immutable object '%2%'\n"
+                        "  Note: this function is called for unary operator '%3%'"
+                    ) % unary->callee_scope.lock()->to_string() % (*violated)->name % unary->op
+                );
+        }
+    }
+
     template<class Walker>
     void visit(ast::node::unary_expr const& unary, Walker const& w)
     {
@@ -1295,24 +1337,12 @@ public:
             return;
         }
 
-        // TODO:
-        // Below is temporary implementation.
-        // Resolve functions for unary operator and get the return type of it.
-
-        if (unary->op == "!") {
-            if (operand_type != type::get_builtin_type("bool", type::no_opt)) {
-                semantic_error(
-                        unary,
-                        boost::format(
-                            "  Opeartor '%1%' only takes bool type operand\n"
-                            "  Note: Operand type is '%2%'"
-                        ) % unary->op % operand_type.to_string()
-                    );
-            }
-            unary->type = type::get_builtin_type("bool", type::no_opt);
-        } else {
-            unary->type = operand_type;
+        if (operand_type.is_builtin()) {
+            visit_builtin_unary_expr(unary, operand_type);
+            return;
         }
+
+        visit_unary_expr_call(unary, operand_type);
     }
 
     template<class Walker>

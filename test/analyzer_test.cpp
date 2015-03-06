@@ -2517,6 +2517,36 @@ BOOST_AUTO_TEST_CASE(builtin_type_operator_check)
             "aaaaa" >> 3
         end
     )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func >>(s, j)
+        end
+
+        func main
+            "aaaaa" >> 3
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func !(i : int)
+            ret i == 0
+        end
+
+        func main
+            !42
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func !(i)
+            ret (i as int) == 0
+        end
+
+        func main
+            !42
+        end
+    )");
+
 }
 
 BOOST_AUTO_TEST_SUITE_END()

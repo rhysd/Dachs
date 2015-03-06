@@ -1111,4 +1111,48 @@ BOOST_AUTO_TEST_CASE(binary_operator)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(unary_operator)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class MyInt
+          - value : int
+
+            func +(rhs : MyInt)
+                ret new MyInt{@value + rhs.value}
+            end
+
+            func -
+                ret new MyInt{-@value}
+            end
+
+            func !
+                ret @value == 0
+            end
+
+            func to_int
+                ret @value
+            end
+        end
+
+        func -(lhs : MyInt, rhs : MyInt)
+            ret new MyInt{lhs.to_int - rhs.to_int}
+        end
+
+        func +(operand : MyInt)
+            ret operand
+        end
+
+        func main
+            i := new MyInt{42}
+            j := new MyInt{10}
+            i + j
+            i - j
+            -i
+            (+j).to_int.println
+            (!!i).println
+        end
+    )");
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()

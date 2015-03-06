@@ -589,6 +589,7 @@ struct ufcs_invocation final : public expression {
 struct unary_expr final : public expression {
     std::string op;
     node::any_expr expr;
+    scope::weak_func_scope callee_scope;
 
     unary_expr(std::string const& op, node::any_expr const& expr) noexcept
         : expression(), op(op), expr(expr)

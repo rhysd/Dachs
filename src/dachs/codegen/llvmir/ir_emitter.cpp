@@ -1099,25 +1099,47 @@ public:
 
     val emit(ast::node::unary_expr const& unary)
     {
-        auto const val_type = type::type_of(unary->expr);
-        if (!val_type.is_builtin()) {
-            error(unary, "Unary expression now only supports float, int, bool and uint");
+        auto const operand_type = type::type_of(unary->expr);
+        auto *const operand_value = load_if_ref(emit(unary->expr), operand_type);
+
+        if (auto const b = type::get<type::builtin_type>(operand_type)) {
+            auto const& builtin = *b;
+            auto const& name = builtin->name;
+
+            if (name != "int" && name != "float" && name != "bool" && name != "uint") {
+                error(unary, "Unary expression now only supports float, int, bool and uint");
+            }
+
+            return check(
+                unary,
+                tmp_builtin_unary_op_ir_emitter{ctx, operand_value, unary->op}.emit(builtin),
+                boost::format("unary operator '%1%' (operand's type is '%2%')")
+                    % unary->op
+                    % builtin->to_string()
+            );
         }
 
-        auto const builtin = *type::get<type::builtin_type>(val_type);
-        auto const& name = builtin->name;
-
-        if (name != "int" && name != "float" && name != "bool" && name != "uint") {
-            error(unary, "Unary expression now only supports float, int, bool and uint");
+        if (unary->callee_scope.expired()) {
+            error(
+                unary,
+                boost::format("Invalid unary expression is found.  No operator function '%1%' for type '%2%'")
+                    % unary->op % operand_type.to_string()
+            );
         }
+
+        auto const callee = unary->callee_scope.lock();
+        assert(!callee->is_anonymous());
+        assert(!callee->is_builtin);
 
         return check(
-            unary,
-            tmp_builtin_unary_op_ir_emitter{ctx, load_if_ref(emit(unary->expr), val_type), unary->op}.emit(builtin),
-            boost::format("unary operator '%1%' (operand's type is '%2%')")
-                % unary->op
-                % builtin->to_string()
-        );
+                unary,
+                ctx.builder.CreateCall(
+                    emit_non_builtin_callee(unary, callee),
+                    operand_value
+                ),
+                "invalid unary expression function call"
+            );
+
     }
 
     val emit(ast::node::binary_expr const& bin_expr)
@@ -1165,7 +1187,6 @@ public:
                 ),
                 "invalid binary expression function call"
             );
-
     }
 
     val emit(ast::node::var_ref const& var)
