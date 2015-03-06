@@ -1129,6 +1129,10 @@ BOOST_AUTO_TEST_CASE(unary_operator)
                 ret @value == 0
             end
 
+            func <<(rhs : MyInt)
+                ret new MyInt{@value << rhs.value}
+            end
+
             func to_int
                 ret @value
             end
@@ -1142,11 +1146,17 @@ BOOST_AUTO_TEST_CASE(unary_operator)
             ret operand
         end
 
+        func >>(lhs : MyInt, rhs : MyInt)
+            ret new MyInt{lhs.to_int >> rhs.to_int}
+        end
+
         func main
             i := new MyInt{42}
             j := new MyInt{10}
             i + j
             i - j
+            i << j
+            i >> j
             -i
             (+j).to_int.println
             (!!i).println

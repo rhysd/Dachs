@@ -2546,7 +2546,90 @@ BOOST_AUTO_TEST_CASE(builtin_type_operator_check)
             !42
         end
     )");
+}
 
+BOOST_AUTO_TEST_CASE(operator_arguments_check)
+{
+    // Unary only
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func !
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func !(x, y)
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func !(x)
+            end
+        end
+
+        func main
+        end
+    )");
+
+    // Binary only
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func >>(i, j, k)
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func >>
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func >>(x, y)
+            end
+        end
+
+        func main
+        end
+    )");
+
+    // Unary or binary
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func +(i, j, k)
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func +
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func +(x, y)
+            end
+        end
+
+        func main
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
