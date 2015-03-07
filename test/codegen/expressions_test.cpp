@@ -1152,7 +1152,7 @@ BOOST_AUTO_TEST_CASE(unary_operator)
 
         func main
             i := new MyInt{42}
-            j := new MyInt{10}
+            var j := new MyInt{10}
             i + j
             i - j
             i << j
@@ -1160,9 +1160,63 @@ BOOST_AUTO_TEST_CASE(unary_operator)
             -i
             (+j).to_int.println
             (!!i).println
+
+            var a := [i, j]
+            k := a[0] + a[1]
+            a[0] = k + a[1]
         end
     )");
 }
 
+BOOST_AUTO_TEST_CASE(compound_assignments)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+    class X
+        a
+
+        func +(r : X)
+            ret new X{@a + r.a}
+        end
+    end
+
+    func f
+        ret (11, '0', new X{11})
+    end
+
+    func main
+        var x := new X{42}
+        var y, var z := x, x
+
+        x += y
+        z = x
+        x, y += y, z
+
+        var a := [x, y, z]
+        a[0], a[1] += a[1], a[2]
+
+        var t := (1, 'a', x)
+
+        var i := 42
+        var c := 'a'
+
+        i, c += 10, 'c'
+
+        i, c, z += t
+
+        x, i, z += z, 10, x
+
+        y += begin
+            var i := 42
+            var c := 'b'
+            var z := x
+
+            i, c, z += t
+            i, c, z += f()
+
+            ret t[2]
+        end
+    end
+    )");
+}
 
 BOOST_AUTO_TEST_SUITE_END()

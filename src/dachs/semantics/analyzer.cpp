@@ -2783,6 +2783,7 @@ public:
                     auto const compound_op = assign->op.substr(0, assign->op.size()-1);
 
                     if (t1.is_builtin() && t2.is_builtin()) {
+                        assign->callee_scopes.emplace_back();
                         auto const ret_type = visit_builtin_binary_expr(assign, compound_op, t1, t2);
                         if (!ret_type) {
                             return;
@@ -2835,8 +2836,7 @@ public:
         if (assign->assignees.size() == 1) {
             auto const assignee_type = type_of(assign->assignees[0]);
             if (assign->rhs_exprs.size() == 1) {
-                auto const rhs_type = type_of(assign->rhs_exprs[0]);
-                check_types(assignee_type, rhs_type);
+                check_types(assignee_type, type_of(assign->rhs_exprs[0]));
             } else {
                 semantic_error(assign, "  Assigning multiple values to lhs tuple value is not permitted.");
                 return;

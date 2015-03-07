@@ -569,7 +569,21 @@ class llvm_ir_emitter {
         } else {
             return v;
         }
+    }
 
+    llvm::Value *deref(llvm::Value *const v, type::type const& t)
+    {
+        if (t.is_builtin()) {
+            return load_if_ref(v, t);
+        } else {
+            return load_aggregate_elem(v, t);
+        }
+    }
+
+    template<class Expr>
+    llvm::Value *deref(llvm::Value *const v, Expr const& e)
+    {
+        return deref(v, type::type_of(e));
     }
 
     template<class Node>
@@ -1655,51 +1669,6 @@ public:
                 , assign->assignees, rhs_values
             );
 
-        } else if (assign->callee_scopes.empty()) {
-
-            // Note:
-            // When lhs and rhs have the same built-in type
-            auto const bin_op = assign->op.substr(0, assign->op.size()-1);
-            helper::each(
-                [&, this](auto const& lhs_expr, auto *const rhs_value, auto const& rhs_type)
-                {
-                    auto const lhs_type = type::type_of(lhs_expr);
-                    if (!check_builtin_binary_expr_arg_types(lhs_type, rhs_type)) {
-                        error(
-                            assign,
-                            boost::format("Invalid compound binary operator '%1%'. Type of lhs is '%2%', rhs is '%3%'")
-                                % assign->op % lhs_type.to_string() % rhs_type.to_string()
-                        );
-                    }
-
-                    auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
-
-                    auto const v = check(
-                            assign,
-                            tmp_builtin_bin_op_ir_emitter{
-                                ctx,
-                                load_if_ref(lhs_value, lhs_type),
-                                load_if_ref(rhs_value, rhs_type),
-                                bin_op
-                            }.emit(lhs_type),
-                            boost::format("compound binary operator '%1%' (lhs type is '%2%', rhs type is '%3%')")
-                                % bin_op
-                                % type::to_string(lhs_type)
-                                % type::to_string(rhs_type)
-                        );
-
-                    alloc_emitter.create_deep_copy(
-                            v,
-                            load_aggregate_elem(
-                                lhs_value,
-                                lhs_type
-                            ),
-                            lhs_type
-                        );
-                }
-                , assign->assignees, rhs_values, rhs_types
-            );
-
         } else {
 
             assert(assignee_size == assign->callee_scopes.size());
@@ -1712,32 +1681,86 @@ public:
                 [&, this](auto const& lhs_expr, auto *const rhs_value, auto const& rhs_type, auto const& callee)
                 {
                     auto const lhs_type = type::type_of(lhs_expr);
-
-                    if (callee.expired()) {
-                        error(
-                            assign,
-                            boost::format("Invalid compound binary expression '%1%'.  Lhs type is '%2%' and Rhs type is '%3%'")
-                                % bin_op % lhs_type.to_string() % rhs_type.to_string()
-                        );
+                    if (!lhs_type) {
+                        return;
                     }
 
                     auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
-                    auto const func = callee.lock();
-                    assert(!func->is_anonymous());
-                    assert(!func->is_builtin);
 
-                    auto *const v = check(
-                            assign,
-                            ctx.builder.CreateCall2(
-                                emit_non_builtin_callee(assign, func),
-                                load_if_ref(lhs_value, lhs_type),
-                                load_if_ref(rhs_value, rhs_type)
-                            ),
-                            "invalid compound binary expression function call"
-                        );
+                    struct compounded_rhs {
+                        val const value;
+                        type::type const type;
+                    };
+
+                    auto const emit_builtin
+                        = [&, this]() -> compounded_rhs
+                        {
+                            if (!callee.expired()) {
+                                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+                            }
+
+                            return {
+                                check(
+                                    assign,
+                                    tmp_builtin_bin_op_ir_emitter{
+                                        ctx,
+                                        load_if_ref(lhs_value, lhs_type),
+                                        load_if_ref(rhs_value, rhs_type),
+                                        bin_op
+                                    }.emit(lhs_type),
+                                    boost::format("compound binary operator '%1%' (lhs type is '%2%', rhs type is '%3%')")
+                                        % bin_op
+                                        % type::to_string(lhs_type)
+                                        % type::to_string(rhs_type)
+                                ),
+                                rhs_type
+                            };
+                        };
+
+                    auto const emit_non_builtin
+                        = [&, this]() -> compounded_rhs
+                        {
+                            if (callee.expired()) {
+                                error(
+                                    assign,
+                                    boost::format("Invalid compound binary expression '%1%'.  Lhs type is '%2%' and rhs type is '%3%'")
+                                        % bin_op % lhs_type.to_string() % rhs_type.to_string()
+                                );
+                            }
+
+                            auto const func = callee.lock();
+                            assert(!func->is_anonymous());
+                            assert(!func->is_builtin);
+                            assert(func->ret_type);
+
+                            return {
+                                check(
+                                    assign,
+                                    ctx.builder.CreateCall2(
+                                        emit_non_builtin_callee(assign, func),
+                                        load_aggregate_elem(lhs_value, lhs_type),
+                                        load_aggregate_elem(rhs_value, rhs_type)
+                                    ),
+                                    "invalid compound binary expression function call"
+                                ),
+                                *func->ret_type
+                            };
+                        };
+
+                    auto const emit_compound_op
+                        = [&, this]
+                        {
+                            if (check_builtin_binary_expr_arg_types(lhs_type, rhs_type)) {
+                                return emit_builtin();
+                            } else {
+                                return emit_non_builtin();
+                            }
+                        };
+
+                    auto const compounded = emit_compound_op();
 
                     alloc_emitter.create_deep_copy(
-                            load_if_ref(v, *func->ret_type),
+                            load_if_ref(compounded.value, compounded.type),
                             load_aggregate_elem(
                                 lhs_value,
                                 lhs_type
