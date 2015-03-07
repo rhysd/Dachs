@@ -915,6 +915,7 @@ struct switch_stmt final : public statement {
     node::any_expr target_expr;
     std::vector<when_type> when_stmts_list;
     boost::optional<node::statement_block> maybe_else_stmts;
+    std::vector<std::vector<scope::weak_func_scope>> when_callee_scopes;
 
     switch_stmt(node::any_expr const& target,
                 decltype(when_stmts_list) const& whens,

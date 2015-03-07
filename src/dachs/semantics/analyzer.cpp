@@ -2498,22 +2498,45 @@ public:
     void visit(ast::node::switch_stmt const& switch_, Walker const& w)
     {
         w();
+
         auto const switcher_type = type_of(switch_->target_expr);
         for (auto const& when : switch_->when_stmts_list) {
+            switch_->when_callee_scopes.emplace_back();
+            auto &callees = switch_->when_callee_scopes.back();
+
             for (auto const& cond : when.first) {
                 auto const t = type_of(cond);
-                if (t != switcher_type) {
-                    apply_lambda(
-                            [this, &t, &switcher_type](auto const& node)
-                            {
-                                semantic_error(
-                                    node,
-                                    boost::format("  Type of 'when' condition must be '%1%' but actually '%2%'")
-                                        % switcher_type.to_string()
-                                        % t.to_string()
-                                    );
-                            }, cond
+
+                if (switcher_type.is_builtin() && t.is_builtin()) {
+                    callees.emplace_back();
+                    auto const ret_type = visit_builtin_binary_expr(ast::node::location_of(cond), "==", switcher_type, t);
+                    assert(ret_type.is_builtin("bool"));
+                    continue;
+                }
+
+                auto const resolved = resolve_func_call("==", std::vector<type::type>{switcher_type, t});
+                if (auto const error = get_as<std::string>(resolved)) {
+                    auto const location = ast::node::location_of(cond);
+                    semantic_error(location, *error);
+                    semantic_error(location, "  In 'when' clause of case-when statement");
+                    continue;
+                }
+
+                auto const f = get_as<scope::func_scope>(resolved);
+                assert(f);
+                auto const& callee = *f;
+
+                if (!callee->ret_type || !callee->ret_type->is_builtin("bool")) {
+                    auto const s = callee->ret_type ? callee->ret_type->to_string() : "UNKNOWN";
+                    auto const def = callee->get_ast_node();
+                    semantic_error(
+                            ast::node::location_of(cond),
+                            boost::format(
+                                "  Compare operator '==' must returns 'bool' but actually returns '%1%' in 'when' clause\n"
+                                "  Note: '%2%' is used, which is defined in line:%3%, col:%4%"
+                                ) % s % callee->to_string() % def->line % def->col
                         );
+                    continue;
                 }
             }
         }
