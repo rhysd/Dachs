@@ -176,6 +176,21 @@ public:
         ast::walk_topdown(invocation->child, *this);
     }
 
+    void apply(ast::node::binary_expr &bin) noexcept
+    {
+        ast::walk_topdown(bin->lhs, *this);
+    }
+
+    void apply(ast::node::unary_expr &unary) noexcept
+    {
+        ast::walk_topdown(unary->expr, *this);
+    }
+
+    void apply(ast::node::index_access &access) noexcept
+    {
+        ast::walk_topdown(access->child, *this);
+    }
+
     auto get_result() const noexcept
     {
         return result;

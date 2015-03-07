@@ -539,6 +539,7 @@ struct object_construct final : public expression {
 
 struct index_access final : public expression {
     node::any_expr child, index_expr;
+    scope::weak_func_scope callee_scope;
 
     index_access(node::any_expr const& c, node::any_expr const& idx_expr) noexcept
         : expression(), child(c), index_expr(idx_expr)
@@ -588,6 +589,7 @@ struct ufcs_invocation final : public expression {
 struct unary_expr final : public expression {
     std::string op;
     node::any_expr expr;
+    scope::weak_func_scope callee_scope;
 
     unary_expr(std::string const& op, node::any_expr const& expr) noexcept
         : expression(), op(op), expr(expr)
@@ -617,6 +619,7 @@ struct cast_expr final : public expression {
 struct binary_expr final : public expression {
     node::any_expr lhs, rhs;
     std::string op;
+    scope::weak_func_scope callee_scope;
 
     binary_expr(node::any_expr const& lhs
                     , std::string const& op
@@ -828,6 +831,7 @@ struct assignment_stmt final : public statement {
     std::vector<node::any_expr> assignees;
     std::string op;
     std::vector<node::any_expr> rhs_exprs;
+    std::vector<scope::weak_func_scope> callee_scopes;
 
     assignment_stmt(decltype(assignees) const& assignees,
                     std::string const& op,
@@ -911,6 +915,7 @@ struct switch_stmt final : public statement {
     node::any_expr target_expr;
     std::vector<when_type> when_stmts_list;
     boost::optional<node::statement_block> maybe_else_stmts;
+    std::vector<std::vector<scope::weak_func_scope>> when_callee_scopes;
 
     switch_stmt(node::any_expr const& target,
                 decltype(when_stmts_list) const& whens,

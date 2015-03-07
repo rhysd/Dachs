@@ -2485,6 +2485,233 @@ BOOST_AUTO_TEST_CASE(operator_type_check)
             'a' < 1
         end
     )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+        end
+
+        func main
+            new X{10} < new X{11}
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(builtin_type_operator_check)
+{
+    // Binary operators for built-in types can't be defined by user.
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func [](i : int, j : int)
+        end
+
+        func main
+            3[4]
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func >>(s : string, j : int)
+        end
+
+        func main
+            "aaaaa" >> 3
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func >>(s, j)
+        end
+
+        func main
+            "aaaaa" >> 3
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func !(i : int)
+            ret i == 0
+        end
+
+        func main
+            !42
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func !(i)
+            ret (i as int) == 0
+        end
+
+        func main
+            !42
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(operator_arguments_check)
+{
+    // Unary only
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func !
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func !(x, y)
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func !(x)
+            end
+        end
+
+        func main
+        end
+    )");
+
+    // Binary only
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func >>(i, j, k)
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func >>
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func >>(x, y)
+            end
+        end
+
+        func main
+        end
+    )");
+
+    // Unary or binary
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func +(i, j, k)
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func +
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func +(x, y)
+            end
+        end
+
+        func main
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(compound_asssignment)
+{
+    // Built-in
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            var i := 0
+            i += 1u
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            v : int
+
+            func +(i : int)
+                ret new X{@v + i}
+            end
+        end
+
+        func +(i : int, x : X)
+            ret i + x.v
+        end
+
+        func main
+            var x := new X{10}
+            x += 11
+
+            var i := 3
+            i += x
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            v : int
+
+            func +(i : int)
+            end
+        end
+
+        func main
+            var x := new X{10}
+            x += 3.14
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(switch_stmt)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            case 42
+            when bool
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func main
+            x := new X
+            case x
+            when 42
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func main
+            x := new X
+            case x
+            when 42
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

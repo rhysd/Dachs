@@ -1079,6 +1079,110 @@ public:
         lambdas.push_back(lambda);
     }
 
+    template<class Outer>
+    struct index_access_analyzer : boost::static_visitor<boost::optional<std::string>> {
+        ast::node::index_access const& access;
+        type::type const& index_type;
+        Outer &outer;
+
+        explicit index_access_analyzer(ast::node::index_access const& a, type::type const& i, Outer &o) noexcept
+            : access(a), index_type(i), outer(o)
+        {}
+
+        template<class T>
+        std::string not_found(T const& t) const
+        {
+            return "  Index access operator '[]' for '" + t->to_string() + "' indexed by '" + index_type.to_string() + "' is not found";
+        }
+
+        result_type operator()(type::array_type const& arr) const
+        {
+            if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
+                return "  Index of array must be int or uint but actually '" + index_type.to_string() + "'";
+            }
+            access->type = arr->element_type;
+            return boost::none;
+        }
+
+        result_type operator()(type::tuple_type const& tpl) const
+        {
+            auto const maybe_primary_literal = get_as<ast::node::primary_literal>(access->index_expr);
+            if (!maybe_primary_literal ||
+                    (!has<int>((*maybe_primary_literal)->value)
+                     && !has<uint>((*maybe_primary_literal)->value))
+               ) {
+                return std::string{"  Index of tuple must be int or uint literal"};
+            }
+
+            auto const& literal = (*maybe_primary_literal)->value;
+            if (auto const maybe_int_lit = get_as<int>(literal)) {
+                auto const idx = *maybe_int_lit;
+                if (idx < 0 || static_cast<unsigned int>(idx) >= tpl->element_types.size()) {
+                    return "  Index access is out of bounds\n  Note: Index is " + std::to_string(idx);
+                }
+                access->type = tpl->element_types[idx];
+            } else if (auto const maybe_uint_lit = get_as<unsigned int>(literal)) {
+                auto const idx = *maybe_uint_lit;
+                if (idx >= tpl->element_types.size()) {
+                    return "  Index access is out of bounds\n  Note: Index is " + std::to_string(idx);
+                }
+                access->type = tpl->element_types[idx];
+            } else {
+                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+            }
+
+            return boost::none;
+        }
+
+        result_type operator()(type::dict_type const& dict) const
+        {
+            if (index_type != dict->key_type) {
+                return "  Index type of dictionary mismatches\n"
+                       "  Note: Expected '" + dict->key_type.to_string() + "' but actually '" + index_type.to_string() + "'";
+            }
+            access->type = dict->value_type;
+
+            return boost::none;
+        }
+
+        result_type operator()(type::builtin_type const& builtin) const
+        {
+            if (builtin->name == "string") {
+                if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
+                    return "  Index of string must be int or uint but actually '" + index_type.to_string() + "'";
+                }
+                access->type = type::get_builtin_type("char", type::no_opt);
+                return boost::none;
+            } else {
+                return not_found(builtin);
+            }
+        }
+
+        template<class Type>
+        result_type operator()(Type const& t) const
+        {
+            auto const error = outer.visit_invocation(
+                        access,
+                        "[]",
+                        std::vector<type::type>{
+                            t, index_type
+                        }
+                    );
+
+            if (error) {
+                return error;
+            }
+
+            if (auto const violated = is_const_violated_invocation(access)) {
+                return "  Member function '" + access->callee_scope.lock()->to_string()
+                     + "' modifies member(s) of immutable object '" + (*violated)->name + "'\n"
+                       "  Note: this function is called for index access operator '[]'";
+            }
+
+            return boost::none;
+        }
+    };
+
     template<class Walker>
     void visit(ast::node::index_access const& access, Walker const& w)
     {
@@ -1091,89 +1195,72 @@ public:
             return;
         }
 
-        // TODO
-        // Below implementation is temporary.
-        // Resolve operator [] function and get the return type of it.
+        index_access_analyzer<symbol_analyzer> analyzer{access, index_type, *this};
+        auto const error = child_type.apply_visitor(analyzer);
+        if (error) {
+            semantic_error(access, *error);
+        }
+    }
 
-        if (auto const maybe_array_type = type::get<type::array_type>(child_type)) {
-            if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
-                semantic_error(
-                        access,
-                        boost::format("  Index of array must be int or uint but actually '%1%'")
-                            % index_type.to_string()
-                    );
-                return;
-            }
-            access->type = (*maybe_array_type)->element_type;
-        } else if (auto const maybe_tuple_type = type::get<type::tuple_type>(child_type)) {
-            auto const& tuple_type = *maybe_tuple_type;
-
-            auto const maybe_primary_literal = get_as<ast::node::primary_literal>(access->index_expr);
-            if (!maybe_primary_literal ||
-                    (!has<int>((*maybe_primary_literal)->value)
-                     && !has<uint>((*maybe_primary_literal)->value))
-               ) {
-                semantic_error(access, "  Index of tuple must be int or uint literal");
-                return;
-            }
-
-            auto const& literal = (*maybe_primary_literal)->value;
-            auto const out_of_bounds
-                = [this, &access](auto const i)
-                {
-                    semantic_error(
-                            access,
-                            boost::format(
-                                "  Index access is out of bounds\n"
-                                "  Note: Index is %1%"
-                            ) % i
-                        );
-                };
-            if (auto const maybe_int_lit = get_as<int>(literal)) {
-                auto const idx = *maybe_int_lit;
-                if (idx < 0 || static_cast<unsigned int>(idx) >= tuple_type->element_types.size()) {
-                    out_of_bounds(*maybe_int_lit);
-                    return;
-                }
-                access->type = tuple_type->element_types[idx];
-            } else if (auto const maybe_uint_lit = get_as<unsigned int>(literal)) {
-                if (*maybe_uint_lit >= tuple_type->element_types.size()) {
-                    out_of_bounds(*maybe_uint_lit);
-                    return;
-                }
-                access->type = tuple_type->element_types[*maybe_uint_lit];
-            } else {
-                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-            }
-        } else if (auto const maybe_dict_type = type::get<type::dict_type>(child_type)) {
-            auto const& dict_type = *maybe_dict_type;
-            if (index_type != dict_type->key_type) {
-                semantic_error(
-                    access,
-                    boost::format(
-                        "  Index type of dictionary mismatches\n"
-                        "  Note: Expected '%1%' but actually '%2%'"
-                    ) % dict_type->key_type.to_string()
-                      % index_type.to_string()
-                );
-                return;
-            }
-            access->type = dict_type->value_type;
-        } else if (child_type.is_builtin("string")) {
-            if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
-                semantic_error(
-                        access,
-                        boost::format("  Index of string must be int or uint but actually '%1%'")
-                            % index_type.to_string()
-                    );
-                return;
-            }
-            access->type = type::get_builtin_type("char", type::no_opt);
-        } else {
+    template<class Node>
+    type::type visit_builtin_binary_expr(Node const& node, std::string const& op, type::type const& lhs_type, type::type const& rhs_type)
+    {
+        if (lhs_type != rhs_type) {
             semantic_error(
-                access,
-                boost::format("  '%1%' type value is not accessible by index.") % child_type.to_string()
+                    node,
+                    boost::format(
+                        "  Type mismatch in built-in binary operator '%1%'\n"
+                        "  Note: Type of lhs is %2%\n"
+                        "  Note: Type of rhs is %3%\n"
+                        "  Note: User-defined operators for builtin-types are not permitted"
+                    ) % op
+                      % lhs_type.to_string()
+                      % rhs_type.to_string()
+                    );
+            return {};
+        }
+
+        if (helper::any_of({"==", "!=", ">", "<", ">=", "<="}, op)) {
+            return type::get_builtin_type("bool", type::no_opt);
+        } else if (op == "&&" || op == "||") {
+            if (lhs_type != type::get_builtin_type("bool", type::no_opt)) {
+                semantic_error(
+                        node,
+                        boost::format(
+                            "  Operator '%1%' for type '%2%' is found\n"
+                            "  Note: User-defined operators for builtin-types are not permitted"
+                        ) % op % lhs_type.to_string()
+                    );
+            }
+            return type::get_builtin_type("bool", type::no_opt);
+        } else {
+            return lhs_type;
+        }
+    }
+
+    void visit_binary_expr_call(ast::node::binary_expr const& bin_expr, type::type const& lhs_type, type::type const& rhs_type)
+    {
+        auto const error = visit_invocation(
+                bin_expr,
+                bin_expr->op,
+                std::vector<type::type>{
+                    lhs_type, rhs_type
+                }
             );
+
+        if (error) {
+            semantic_error(bin_expr, *error);
+            return;
+        }
+
+        if (auto const violated = is_const_violated_invocation(bin_expr)) {
+            semantic_error(
+                    bin_expr,
+                    boost::format(
+                        "  Member function '%1%' modifies member(s) of immutable object '%2%'\n"
+                        "  Note: this function is called for binary operator '%3%'"
+                    ) % bin_expr->callee_scope.lock()->to_string() % (*violated)->name % bin_expr->op
+                );
         }
     }
 
@@ -1189,41 +1276,53 @@ public:
             return;
         }
 
-        // TODO:
-        // Resolve oeprator function overload and get the result type.
-        // Below implementation is temporary.
-
-        if (lhs_type != rhs_type) {
-            semantic_error(
-                    bin_expr,
-                    boost::format(
-                        "  Type mismatch in binary operator '%1%'\n"
-                        "  Note: Type of lhs is %2%\n"
-                        "  Note: Type of rhs is %3%"
-                    ) % bin_expr->op
-                      % lhs_type.to_string()
-                      % rhs_type.to_string()
-                    );
+        if (lhs_type.is_builtin() && rhs_type.is_builtin()) {
+            bin_expr->type = visit_builtin_binary_expr(bin_expr, bin_expr->op, lhs_type, rhs_type);
             return;
         }
 
-        // TODO:
-        // Find operator function and get the result type of it
-        if (helper::any_of({"==", "!=", ">", "<", ">=", "<="}, bin_expr->op)) {
-            bin_expr->type = type::get_builtin_type("bool", type::no_opt);
-        } else if (bin_expr->op == "&&" || bin_expr->op == "||") {
-            if (lhs_type != type::get_builtin_type("bool", type::no_opt)) {
+        visit_binary_expr_call(bin_expr, lhs_type, rhs_type);
+    }
+
+    void visit_builtin_unary_expr(ast::node::unary_expr const& unary, type::type const& operand_type)
+    {
+        if (unary->op == "!") {
+            if (operand_type != type::get_builtin_type("bool", type::no_opt)) {
                 semantic_error(
-                        bin_expr,
+                        unary,
                         boost::format(
-                            "  Opeartor '%1%' only takes bool type operand\n"
-                            "  Note: Operand type is '%2%'"
-                        ) % bin_expr->op % lhs_type.to_string()
+                            "  Operator '%1%' for type '%2%' is found\n"
+                            "  Note: User-defined operators for builtin-types are not permitted"
+                        ) % unary->op % operand_type.to_string()
                     );
             }
-            bin_expr->type = type::get_builtin_type("bool", type::no_opt);
+            unary->type = type::get_builtin_type("bool", type::no_opt);
         } else {
-            bin_expr->type = lhs_type;
+            unary->type = operand_type;
+        }
+    }
+
+    void visit_unary_expr_call(ast::node::unary_expr const& unary, type::type const& operand_type)
+    {
+        auto const error = visit_invocation(
+                    unary,
+                    unary->op,
+                    std::vector<type::type>{ operand_type }
+                );
+
+        if (error) {
+            semantic_error(unary, *error);
+            return;
+        }
+
+        if (auto const violated = is_const_violated_invocation(unary)) {
+            semantic_error(
+                    unary,
+                    boost::format(
+                        "  Member function '%1%' modifies member(s) of immutable object '%2%'\n"
+                        "  Note: this function is called for unary operator '%3%'"
+                    ) % unary->callee_scope.lock()->to_string() % (*violated)->name % unary->op
+                );
         }
     }
 
@@ -1238,24 +1337,12 @@ public:
             return;
         }
 
-        // TODO:
-        // Below is temporary implementation.
-        // Resolve functions for unary operator and get the return type of it.
-
-        if (unary->op == "!") {
-            if (operand_type != type::get_builtin_type("bool", type::no_opt)) {
-                semantic_error(
-                        unary,
-                        boost::format(
-                            "  Opeartor '%1%' only takes bool type operand\n"
-                            "  Note: Operand type is '%2%'"
-                        ) % unary->op % operand_type.to_string()
-                    );
-            }
-            unary->type = type::get_builtin_type("bool", type::no_opt);
-        } else {
-            unary->type = operand_type;
+        if (operand_type.is_builtin()) {
+            visit_builtin_unary_expr(unary, operand_type);
+            return;
         }
+
+        visit_unary_expr_call(unary, operand_type);
     }
 
     template<class Walker>
@@ -1297,13 +1384,10 @@ public:
         if_->type = then_type;
     }
 
-    template<class Node, class ArgTypes>
-    boost::optional<std::string> visit_invocation(Node const& node, std::string const& func_name, ArgTypes const& arg_types)
+    template<class ArgTypes>
+    boost::variant<scope::func_scope, std::string>
+    resolve_func_call(std::string const& func_name, ArgTypes const& arg_types)
     {
-        if (func_name.back() == '!') {
-            throw not_implemented_error{node, __FILE__, __func__, __LINE__, "  function invocation with monad"};
-        }
-
         // Note:
         // generic_func_type::ref is not available because it is not updated
         // even if overload functions are resolved.
@@ -1329,9 +1413,7 @@ public:
 
         if (func->is_builtin) {
             assert(func->ret_type);
-            node->type = *func->ret_type;
-            node->callee_scope = func;
-            return boost::none;
+            return func;
         }
 
         auto func_def = func->get_ast_node();
@@ -1388,8 +1470,22 @@ public:
             }
         }
 
-        node->type = *func->ret_type;
-        node->callee_scope = func;
+        return func;
+    }
+
+    template<class Node, class ArgTypes>
+    boost::optional<std::string> visit_invocation(Node const& node, std::string const& func_name, ArgTypes const& arg_types)
+    {
+        auto const resolved = resolve_func_call(func_name, arg_types);
+        if (auto const error = get_as<std::string>(resolved)) {
+            return *error;
+        }
+
+        auto const func = get_as<scope::func_scope>(resolved);
+        assert(func);
+
+        node->type = *(*func)->ret_type;
+        node->callee_scope = *func;
 
         return boost::none;
     }
@@ -1669,7 +1765,7 @@ public:
         if (auto const violated = is_const_violated_invocation(ufcs)) {
             semantic_error(
                     ufcs,
-                    boost::format("  Member function '%1%' modifies member(s) of immutable object '%2%'.")
+                    boost::format("  Member function '%1%' modifies member(s) of immutable object '%2%'")
                         % ufcs->callee_scope.lock()->to_string() % (*violated)->name
                     );
         }
@@ -2402,25 +2498,52 @@ public:
     void visit(ast::node::switch_stmt const& switch_, Walker const& w)
     {
         w();
+
         auto const switcher_type = type_of(switch_->target_expr);
         for (auto const& when : switch_->when_stmts_list) {
+            switch_->when_callee_scopes.emplace_back();
+            auto &callees = switch_->when_callee_scopes.back();
+
             for (auto const& cond : when.first) {
                 auto const t = type_of(cond);
-                if (t != switcher_type) {
-                    apply_lambda(
-                            [this, &t, &switcher_type](auto const& node)
-                            {
-                                semantic_error(
-                                    node,
-                                    boost::format("  Type of 'when' condition must be '%1%' but actually '%2%'")
-                                        % switcher_type.to_string()
-                                        % t.to_string()
-                                    );
-                            }, cond
-                        );
+
+                if (switcher_type.is_builtin() && t.is_builtin()) {
+                    callees.emplace_back();
+                    auto const ret_type = visit_builtin_binary_expr(ast::node::location_of(cond), "==", switcher_type, t);
+                    assert(!ret_type || ret_type.is_builtin("bool"));
+                    continue;
                 }
+
+                auto const resolved = resolve_func_call("==", std::vector<type::type>{switcher_type, t});
+                if (auto const error = get_as<std::string>(resolved)) {
+                    auto const location = ast::node::location_of(cond);
+                    semantic_error(location, *error);
+                    semantic_error(location, "  In 'when' clause of case-when statement");
+                    continue;
+                }
+
+                auto const f = get_as<scope::func_scope>(resolved);
+                assert(f);
+                auto const& callee = *f;
+
+                if (!callee->ret_type || !callee->ret_type->is_builtin("bool")) {
+                    auto const s = callee->ret_type ? callee->ret_type->to_string() : "UNKNOWN";
+                    auto const def = callee->get_ast_node();
+                    semantic_error(
+                            ast::node::location_of(cond),
+                            boost::format(
+                                "  Compare operator '==' must returns 'bool' but actually returns '%1%' in 'when' clause\n"
+                                "  Note: '%2%' is used, which is defined in line:%3%, col:%4%"
+                                ) % s % callee->to_string() % def->line % def->col
+                        );
+                    continue;
+                }
+
+                callees.emplace_back(callee);
             }
         }
+
+        assert(switch_->when_stmts_list.size() == switch_->when_callee_scopes.size());
     }
 
     template<class Walker>
@@ -2657,25 +2780,78 @@ public:
             }
         }
 
+        auto const is_compound_assign = assign->op != "=";
+
         auto const check_types =
-            [this, &assign](auto const& t1, auto const& t2)
+            [&, this](auto const& t1, auto const& t2)
             {
-                if (!t1) {
+                if (!t1 || !t2) {
                     // Note:
                     // When lhs is '_' variable
+                    // When rhs has an error
+
+                    if (is_compound_assign) {
+                        assign->callee_scopes.emplace_back();
+                    }
                     return;
                 }
 
-                if (t1 != t2) {
-                    semantic_error(
-                            assign,
-                            boost::format(
-                                "  Types mismatch on assignment\n"
-                                "  Note: Type of lhs is '%1%', type of rhs is '%2%'"
-                            ) % type::to_string(t1)
-                              % type::to_string(t2)
-                        );
+                auto const mismatch_error
+                    = [this, &assign](auto const& t1, auto const& t2)
+                    {
+                        semantic_error(
+                                assign,
+                                boost::format(
+                                    "  Types mismatch on assignment '%1%'\n"
+                                    "  Note: Type of lhs is '%2%', type of rhs is '%3%'"
+                                ) % assign->op
+                                  % type::to_string(t1)
+                                  % type::to_string(t2)
+                            );
+                    };
+
+                if (is_compound_assign) {
+                    auto const compound_op = assign->op.substr(0, assign->op.size()-1);
+
+                    if (t1.is_builtin() && t2.is_builtin()) {
+                        assign->callee_scopes.emplace_back();
+                        auto const ret_type = visit_builtin_binary_expr(assign, compound_op, t1, t2);
+                        if (!ret_type) {
+                            return;
+                        }
+                        if (t1 != ret_type) {
+                            mismatch_error(t1, ret_type);
+                        }
+                        return;
+                    }
+
+                    auto const resolved = resolve_func_call(compound_op, std::vector<type::type>{t1, t2});
+                    if (auto const error = get_as<std::string>(resolved)) {
+                        semantic_error(assign, *error);
+                        semantic_error(
+                                assign,
+                                boost::format(
+                                    "  Error at calling binary operator '%1%' on assignment\n"
+                                    "  Note: Type of lhs is '%2%', type of rhs is '%3%'"
+                                ) % compound_op % type::to_string(t1) % type::to_string(t2)
+                            );
+                        return;
+                    }
+
+                    auto const func = get_as<scope::func_scope>(resolved);
+
+                    assign->callee_scopes.emplace_back(*func);
+                    auto const& ret_type = *(*func)->ret_type;
+
+                    if (t1 != ret_type) {
+                        mismatch_error(t1, ret_type);
+                    }
+                } else {
+                    if (t1 != t2) {
+                        mismatch_error(t1, t2);
+                    }
                 }
+
             };
 
         auto const check_type_seqs =
@@ -2686,13 +2862,12 @@ public:
                             , type_seq1, type_seq2);
             };
 
-        auto const to_type_seq = transformed([](auto const& e){ return type::type_of(e); });
+        auto const to_types = transformed([](auto const& e){ return type::type_of(e); });
 
         if (assign->assignees.size() == 1) {
             auto const assignee_type = type_of(assign->assignees[0]);
             if (assign->rhs_exprs.size() == 1) {
-                auto const rhs_type = type_of(assign->rhs_exprs[0]);
-                check_types(assignee_type, rhs_type);
+                check_types(assignee_type, type_of(assign->rhs_exprs[0]));
             } else {
                 semantic_error(assign, "  Assigning multiple values to lhs tuple value is not permitted.");
                 return;
@@ -2706,8 +2881,10 @@ public:
                     return;
                 }
 
-                check_type_seqs(assign->assignees | to_type_seq
-                              , (*maybe_tuple_type)->element_types);
+                check_type_seqs(
+                        assign->assignees | to_types,
+                        (*maybe_tuple_type)->element_types
+                    );
             } else {
                 if (assign->assignees.size() != assign->rhs_exprs.size()) {
                     semantic_error(
@@ -2721,8 +2898,10 @@ public:
                     return;
                 }
 
-                check_type_seqs(assign->assignees | to_type_seq
-                              , assign->rhs_exprs | to_type_seq);
+                check_type_seqs(
+                        assign->assignees | to_types,
+                        assign->rhs_exprs | to_types
+                    );
             }
         }
     }

@@ -206,23 +206,23 @@ public:
         return ctx.builder.CreateLoad(v);
     }
 
-    value_or_error_type emit_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::type const& t)
+    value_or_error_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::type const& t)
     {
         index->setName("idx");
         if (auto const tuple = type::get<type::tuple_type>(t)) {
-            return emit_element_access(aggregate, index, *tuple);
+            return emit_builtin_element_access(aggregate, index, *tuple);
         } else if (auto const array = type::get<type::array_type>(t)) {
-            return emit_element_access(aggregate, index, *array);
+            return emit_builtin_element_access(aggregate, index, *array);
         } else if (auto const builtin = type::get<type::builtin_type>(t)) {
             if ((*builtin)->name == "string") {
-                return emit_element_access(aggregate, index, *builtin);
+                return emit_builtin_element_access(aggregate, index, *builtin);
             }
         }
 
         return "Value is not tuple, array and string";
     }
 
-    value_or_error_type emit_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::tuple_type const& t)
+    value_or_error_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::tuple_type const& t)
     {
         assert(aggregate->getType()->isPointerTy());
         assert(aggregate->getType()->getPointerElementType()->isStructTy());
@@ -233,10 +233,11 @@ public:
         }
 
         auto const idx = constant_index->getZExtValue();
+        assert(t->element_types.size() > idx);
         return emit_elem_value(ctx.builder.CreateStructGEP(aggregate, idx), t->element_types[idx]);
     }
 
-    value_or_error_type emit_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::array_type const& t)
+    value_or_error_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::array_type const& t)
     {
         assert(aggregate->getType()->isPointerTy());
         auto const ty = aggregate->getType()->getPointerElementType();
@@ -279,7 +280,7 @@ public:
             );
     }
 
-    value_or_error_type emit_element_access(llvm::Value *str_val, llvm::Value *const index, type::builtin_type const& t)
+    value_or_error_type emit_builtin_element_access(llvm::Value *str_val, llvm::Value *const index, type::builtin_type const& t)
     {
         // Note:
         // Workaround.  At first, allocate i8* and store the global string pointer

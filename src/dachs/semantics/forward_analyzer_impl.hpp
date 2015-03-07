@@ -3,6 +3,7 @@
 
 #include <iterator>
 #include <algorithm>
+#include <unordered_set>
 #include <cstddef>
 #include <cassert>
 
@@ -115,6 +116,64 @@ class forward_symbol_analyzer {
                         );
                     failed++;
                 }
+            }
+        }
+
+        return failed;
+    }
+
+    template<class Funcs>
+    std::size_t check_operator_function_args(Funcs const& functions) const
+    {
+        std::unordered_set<std::string> const
+            unary_only = {"~", "!"},
+            binary_only = {
+                ">>" , "<<" , "<="
+              , ">=" , "==" , "!="
+              , "&&" , "||" , "*"
+              , "/"  , "%"  , "<"
+              , ">"  , "&"  , "^"
+              , "|"  , "[]"
+            },
+            unary_or_binary{"+", "-"}
+        ;
+
+        std::size_t failed = 0u;
+
+        auto const in =
+            [](auto const& set, auto const& op)
+            {
+                return set.find(op) != std::end(set);
+            };
+
+        for (auto const& f : functions) {
+            auto const s = f->params.size();
+
+            if (in(unary_only, f->name) && s != 1u) {
+                output_semantic_error(
+                        f->get_ast_node(),
+                        "  Operator '" + f->name + "' must have just 1 parameter"
+                    );
+                ++failed;
+                continue;
+            }
+
+            if (in(binary_only, f->name) && s != 2u) {
+                output_semantic_error(
+                        f->get_ast_node(),
+                        "  Operator '" + f->name + "' must have just 2 parameters"
+                    );
+                ++failed;
+                continue;
+            }
+
+            if (in(unary_or_binary, f->name) && s != 1u && s != 2u) {
+                output_semantic_error(
+                        f->get_ast_node(),
+                        "  Operator '" + f->name + "' must have just 1 or 2 parameter(s)"
+                    );
+                ++failed;
+                continue;
             }
         }
 
@@ -261,6 +320,7 @@ public:
         auto const global = get_as<scope::global_scope>(current_scope);
         failed += check_functions_duplication((*global)->functions, "global scope");
         failed += check_classes_duplication(inu->classes);
+        failed += check_operator_function_args((*global)->functions);
     }
 
     template<class Walker>

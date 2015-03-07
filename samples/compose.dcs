@@ -1,0 +1,15 @@
+func twice(x)
+    ret x * 2
+end
+
+func square(x)
+    ret x * x
+end
+
+func >=(f, g)
+    ret -> x in g(f(x))
+end
+
+func main
+    (square >= twice >= twice)(10).println
+end

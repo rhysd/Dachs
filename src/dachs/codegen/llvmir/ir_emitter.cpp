@@ -146,20 +146,43 @@ class llvm_ir_emitter {
 
     template<class Node>
     [[noreturn]]
-    void error(Node const& n, boost::format const& msg) const
+    void error(std::shared_ptr<Node> const& n, boost::format const& msg) const
     {
         error(n, msg.str());
     }
 
+    [[noreturn]]
+    void error(ast::location_type const& l, boost::format const& msg) const
+    {
+        error(l, msg.str());
+    }
+
     template<class Node, class String>
     [[noreturn]]
-    void error(Node const& n, String const& msg) const
+    void error(std::shared_ptr<Node> const& n, String const& msg) const
     {
         // TODO:
         // Dump builder's debug information and context's information
         throw code_generation_error{
                 "LLVM IR generator",
                 (boost::format(" in line:%1%, col:%2%\n  %3%\n") % n->line % n->col % msg).str()
+            };
+    }
+
+    template<class String>
+    [[noreturn]]
+    void error(ast::location_type const& l, String const& msg) const
+    {
+        // TODO:
+        // Dump builder's debug information and context's information
+        throw code_generation_error{
+                "LLVM IR generator",
+                (
+                 boost::format(" in line:%1%, col:%2%\n  %3%\n")
+                    % std::get<ast::location::location_index::line>(l)
+                    % std::get<ast::location::location_index::col>(l)
+                    % msg
+                ).str()
             };
     }
 
@@ -403,7 +426,7 @@ class llvm_ir_emitter {
         }
     }
 
-    bool is_available_type_for_binary_expression(type::type const& lhs, type::type const& rhs) const noexcept
+    bool check_builtin_binary_expr_arg_types(type::type const& lhs, type::type const& rhs) const noexcept
     {
         if (type::is_a<type::tuple_type>(lhs) && type::is_a<type::tuple_type>(rhs)) {
             // XXX:
@@ -569,7 +592,21 @@ class llvm_ir_emitter {
         } else {
             return v;
         }
+    }
 
+    llvm::Value *deref(llvm::Value *const v, type::type const& t)
+    {
+        if (t.is_builtin()) {
+            return load_if_ref(v, t);
+        } else {
+            return load_aggregate_elem(v, t);
+        }
+    }
+
+    template<class Expr>
+    llvm::Value *deref(llvm::Value *const v, Expr const& e)
+    {
+        return deref(v, type::type_of(e));
     }
 
     template<class Node>
@@ -1099,25 +1136,96 @@ public:
 
     val emit(ast::node::unary_expr const& unary)
     {
-        auto const val_type = type::type_of(unary->expr);
-        if (!val_type.is_builtin()) {
-            error(unary, "Unary expression now only supports float, int, bool and uint");
+        auto const operand_type = type::type_of(unary->expr);
+        auto *const operand_value = load_if_ref(emit(unary->expr), operand_type);
+
+        if (auto const b = type::get<type::builtin_type>(operand_type)) {
+            auto const& builtin = *b;
+            auto const& name = builtin->name;
+
+            if (name != "int" && name != "float" && name != "bool" && name != "uint") {
+                error(unary, "Unary expression now only supports float, int, bool and uint");
+            }
+
+            return check(
+                unary,
+                tmp_builtin_unary_op_ir_emitter{ctx, operand_value, unary->op}.emit(builtin),
+                boost::format("unary operator '%1%' (operand's type is '%2%')")
+                    % unary->op
+                    % builtin->to_string()
+            );
         }
 
-        auto const builtin = *type::get<type::builtin_type>(val_type);
-        auto const& name = builtin->name;
-
-        if (name != "int" && name != "float" && name != "bool" && name != "uint") {
-            error(unary, "Unary expression now only supports float, int, bool and uint");
+        if (unary->callee_scope.expired()) {
+            error(
+                unary,
+                boost::format("Invalid unary expression is found.  No operator function '%1%' for type '%2%'")
+                    % unary->op % operand_type.to_string()
+            );
         }
+
+        auto const callee = unary->callee_scope.lock();
+        assert(!callee->is_anonymous());
+        assert(!callee->is_builtin);
 
         return check(
-            unary,
-            tmp_builtin_unary_op_ir_emitter{ctx, load_if_ref(emit(unary->expr), val_type), unary->op}.emit(builtin),
-            boost::format("unary operator '%1%' (operand's type is '%2%')")
-                % unary->op
-                % builtin->to_string()
-        );
+                unary,
+                ctx.builder.CreateCall(
+                    emit_non_builtin_callee(unary, callee),
+                    operand_value
+                ),
+                "invalid unary expression function call"
+            );
+
+    }
+
+    template<class Node>
+    val emit_binary_expr(
+            Node const& node,
+            std::string const& op,
+            type::type const& lhs_type,
+            type::type const& rhs_type,
+            val const lhs_value,
+            val const rhs_value,
+            scope::weak_func_scope const& callee_scope
+    ) {
+        if (check_builtin_binary_expr_arg_types(lhs_type, rhs_type)) {
+            return check(
+                node,
+                tmp_builtin_bin_op_ir_emitter{
+                    ctx,
+                    lhs_value,
+                    rhs_value,
+                    op
+                }.emit(lhs_type),
+                boost::format("binary operator '%1%' (lhs type is '%2%', rhs type is '%3%')")
+                    % op
+                    % type::to_string(lhs_type)
+                    % type::to_string(rhs_type)
+            );
+        }
+
+        if (callee_scope.expired()) {
+            error(
+                node,
+                boost::format("Invalid binary expression is found.  No operator function '%1%' for lhs type '%2%' and rhs type '%3%'")
+                    % op % lhs_type.to_string() % rhs_type.to_string()
+            );
+        }
+
+        auto const callee = callee_scope.lock();
+        assert(!callee->is_anonymous());
+        assert(!callee->is_builtin);
+
+        return check(
+                node,
+                ctx.builder.CreateCall2(
+                    emit_non_builtin_callee(node, callee),
+                    lhs_value,
+                    rhs_value
+                ),
+                "invalid binary expression function call"
+            );
     }
 
     val emit(ast::node::binary_expr const& bin_expr)
@@ -1125,23 +1233,15 @@ public:
         auto const lhs_type = type::type_of(bin_expr->lhs);
         auto const rhs_type = type::type_of(bin_expr->rhs);
 
-        if (!is_available_type_for_binary_expression(lhs_type, rhs_type)) {
-            error(bin_expr, "Binary expression now supports only some builtin types");
-        }
-
-        return check(
-            bin_expr,
-            tmp_builtin_bin_op_ir_emitter{
-                ctx,
+        return emit_binary_expr(
+                bin_expr,
+                bin_expr->op,
+                rhs_type,
+                lhs_type,
                 load_if_ref(emit(bin_expr->lhs), lhs_type),
                 load_if_ref(emit(bin_expr->rhs), rhs_type),
-                bin_expr->op
-            }.emit(lhs_type),
-            boost::format("binary operator '%1%' (lhs type is '%2%', rhs type is '%3%')")
-                % bin_expr->op
-                % type::to_string(lhs_type)
-                % type::to_string(rhs_type)
-        );
+                bin_expr->callee_scope
+            );
     }
 
     val emit(ast::node::var_ref const& var)
@@ -1166,9 +1266,25 @@ public:
 
     val emit(ast::node::index_access const& access)
     {
-        auto const result = inst_emitter.emit_element_access(
+        if (!access->callee_scope.expired()) {
+            auto const callee = access->callee_scope.lock();
+            assert(!callee->is_anonymous());
+            assert(!callee->is_builtin);
+
+            return check(
+                    access,
+                    ctx.builder.CreateCall2(
+                        emit_non_builtin_callee(access, callee),
+                        load_if_ref(emit(access->child), access->child),
+                        load_if_ref(emit(access->index_expr), access->index_expr)
+                    ),
+                    "user-defined index access operator"
+                );
+        }
+
+        auto const result = inst_emitter.emit_builtin_element_access(
                 emit(access->child),
-                load_if_ref(emit(access->index_expr), type::type_of(access->index_expr)),
+                load_if_ref(emit(access->index_expr), access->index_expr),
                 type::type_of(access->child)
             );
 
@@ -1546,16 +1662,10 @@ public:
         assert(assignee_size > 0 && assigner_size > 0);
 
         if (assignee_size == assigner_size) {
-            helper::each(
-                    [&](auto const& lhs, auto const& rhs)
-                    {
-                        auto rhs_type = type::type_of(rhs);
-                        if (is_compound_assign && !is_available_type_for_binary_expression(type::type_of(lhs), rhs_type)) {
-                            error(assign, "Binary expression now only supports float, int, bool and uint");
-                        }
-                        rhs_values.push_back(emit(rhs));
-                        rhs_types.push_back(std::move(rhs_type));
-                    }, assign->assignees, assign->rhs_exprs);
+            for (auto const& rhs : assign->rhs_exprs) {
+                rhs_values.push_back(emit(rhs));
+                rhs_types.push_back(type::type_of(rhs));
+            }
         } else if (assigner_size == 1) {
             assert(assignee_size > 1);
             auto rhs_tuple_type = type::get<type::tuple_type>(type::type_of(assign->rhs_exprs[0]));
@@ -1568,54 +1678,91 @@ public:
                 rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
             }
 
-            rhs_types = std::move((*rhs_tuple_type)->element_types);
+            rhs_types = (*rhs_tuple_type)->element_types;
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
 
         assert(assignee_size == rhs_values.size());
 
-        auto const assignment_emitter =
-            [&, this](auto const& lhs_expr, auto *const rhs_value, auto const& rhs_type)
-            {
-                val value_to_assign = rhs_value;
+        if (!is_compound_assign) {
 
-                auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
-                auto const lhs_type = type::type_of(lhs_expr);
+            helper::each(
+                [&, this](auto const& lhs_expr, auto *const rhs_value)
+                {
+                    auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
+                    auto const lhs_type = type::type_of(lhs_expr);
 
-                if (!lhs_value) {
-                    DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-                }
-                assert(lhs_value->getType()->isPointerTy());
+                    if (!lhs_type) {
+                        // Note: When lhs is '_'
+                        return;
+                    }
 
-                if (is_compound_assign) {
-                    auto const bin_op = assign->op.substr(0, assign->op.size()-1);
-                    value_to_assign =
-                        check(
-                            assign,
-                            tmp_builtin_bin_op_ir_emitter{
-                                ctx,
-                                ctx.builder.CreateLoad(lhs_value),
-                                load_if_ref(rhs_value, rhs_type),
-                                bin_op
-                            }.emit(lhs_type),
-                            boost::format("binary expression (operator is '%1%', operand type is '%2%')")
-                                % bin_op
-                                % type::to_string(lhs_type)
+                    if (!lhs_value) {
+                        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+                    }
+                    assert(lhs_value->getType()->isPointerTy());
+
+                    alloc_emitter.create_deep_copy(
+                            rhs_value,
+                            load_aggregate_elem(
+                                lhs_value,
+                                lhs_type
+                            ),
+                            lhs_type
                         );
                 }
+                , assign->assignees, rhs_values
+            );
 
-                alloc_emitter.create_deep_copy(
-                        value_to_assign,
-                        load_aggregate_elem(
-                            lhs_value,
+        } else {
+
+            assert(assignee_size == assign->callee_scopes.size());
+
+            // Note:
+            // When the compound assignment invokes binary operator function
+            auto const bin_op = assign->op.substr(0, assign->op.size()-1);
+
+            helper::each(
+                [&, this](auto const& lhs_expr, auto *const rhs_value, auto const& rhs_type, auto const& callee)
+                {
+                    auto const lhs_type = type::type_of(lhs_expr);
+                    if (!lhs_type) {
+                        // Note: When lhs is '_'
+                        return;
+                    }
+
+                    auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
+
+                    auto const compounded_val
+                        = emit_binary_expr(
+                                assign,
+                                bin_op,
+                                lhs_type,
+                                rhs_type,
+                                deref(lhs_value, lhs_type),
+                                deref(rhs_value, rhs_type),
+                                callee
+                            );
+
+                    alloc_emitter.create_deep_copy(
+                            load_if_ref(
+                                compounded_val,
+                                callee.expired()
+                                    ? rhs_type
+                                    : *callee.lock()->ret_type
+                            ),
+                            load_aggregate_elem(
+                                lhs_value,
+                                lhs_type
+                            ),
                             lhs_type
-                        ), 
-                        lhs_type
-                    );
-            };
+                        );
+                }
+                , assign->assignees, rhs_values, rhs_types, assign->callee_scopes
+            );
+        }
 
-        helper::each(assignment_emitter, assign->assignees, rhs_values, rhs_types);
     }
 
     void emit(ast::node::case_stmt const& case_)
@@ -1671,45 +1818,46 @@ public:
 
         // Emit when clause
         llvm::BasicBlock *else_block;
-        for (auto const& when_stmt : switch_->when_stmts_list) {
-            assert(when_stmt.first.size() > 0);
-            auto *const then_block = helper.create_block("switch.then");
-            else_block = helper.create_block("switch.else");
+        helper::each(
+            [&, this](auto const& when_stmt, auto const& callees) {
+                assert(when_stmt.first.size() > 0);
+                auto *const then_block = helper.create_block("switch.then");
+                else_block = helper.create_block("switch.else");
 
-            // Emit condition IRs
-            for (auto const& cmp_expr : when_stmt.first) {
-                auto *const next_cond_block = helper.create_block("switch.cond.next");
-                auto const cmp_type = type::type_of(cmp_expr);
+                // Emit condition IRs
+                helper::each(
+                    [&, this](auto const& cmp_expr, auto const& callee) {
+                        auto *const next_cond_block = helper.create_block("switch.cond.next");
+                        auto const cmp_type = type::type_of(cmp_expr);
 
-                if (!is_available_type_for_binary_expression(target_type, cmp_type)) {
-                    error(switch_, "Case statement condition now only supports some builtin types");
-                }
+                        auto *const compared_val
+                            = emit_binary_expr(
+                                    ast::node::location_of(cmp_expr),
+                                    "==",
+                                    target_type,
+                                    cmp_type,
+                                    target_val,
+                                    load_if_ref(emit(cmp_expr), cmp_type),
+                                    callee
+                                );
 
-                auto *const cond_val
-                    = check(
-                        switch_,
-                        tmp_builtin_bin_op_ir_emitter{
-                            ctx,
-                            target_val,
-                            load_if_ref(emit(cmp_expr), cmp_type),
-                            "=="
-                        }.emit(target_type),
-                        "condition in switch statement"
-                    );
+                        helper.create_cond_br(compared_val, then_block, next_cond_block, nullptr);
+                        helper.append_block(next_cond_block);
+                    }
+                    , when_stmt.first, callees
+                );
+                helper.create_br(else_block, nullptr);
 
-                helper.create_cond_br(cond_val, then_block, next_cond_block, nullptr);
-                helper.append_block(next_cond_block);
+                // Note:
+                // Though it is easy to insert IR for then block before condition blocks,
+                // it is less readable than the IR order implemented here.
+                helper.append_block(then_block);
+                emit(when_stmt.second);
+                helper.terminate_with_br(end_block);
+                helper.append_block(else_block);
             }
-            helper.create_br(else_block, nullptr);
-
-            // Note:
-            // Though it is easy to insert IR for then block before condition blocks,
-            // it is less readable than the IR order implemented here.
-            helper.append_block(then_block);
-            emit(when_stmt.second);
-            helper.terminate_with_br(end_block);
-            helper.append_block(else_block);
-        }
+            , switch_->when_stmts_list, switch_->when_callee_scopes
+        );
 
         if (switch_->maybe_else_stmts) {
             emit(*switch_->maybe_else_stmts);
