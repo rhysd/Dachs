@@ -1623,7 +1623,7 @@ public:
                 rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
             }
 
-            rhs_types = std::move((*rhs_tuple_type)->element_types);
+            rhs_types = (*rhs_tuple_type)->element_types;
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }

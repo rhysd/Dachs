@@ -233,6 +233,7 @@ public:
         }
 
         auto const idx = constant_index->getZExtValue();
+        assert(t->element_types.size() > idx);
         return emit_elem_value(ctx.builder.CreateStructGEP(aggregate, idx), t->element_types[idx]);
     }
 
