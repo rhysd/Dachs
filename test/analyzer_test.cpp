@@ -2679,5 +2679,39 @@ BOOST_AUTO_TEST_CASE(compound_asssignment)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(switch_stmt)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            case 42
+            when bool
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func main
+            x := new X
+            case x
+            when 42
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func main
+            x := new X
+            case x
+            when 42
+            end
+        end
+    )");
+}
 
 BOOST_AUTO_TEST_SUITE_END()

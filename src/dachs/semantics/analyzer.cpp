@@ -2510,7 +2510,7 @@ public:
                 if (switcher_type.is_builtin() && t.is_builtin()) {
                     callees.emplace_back();
                     auto const ret_type = visit_builtin_binary_expr(ast::node::location_of(cond), "==", switcher_type, t);
-                    assert(ret_type.is_builtin("bool"));
+                    assert(!ret_type || ret_type.is_builtin("bool"));
                     continue;
                 }
 
@@ -2538,8 +2538,12 @@ public:
                         );
                     continue;
                 }
+
+                callees.emplace_back(callee);
             }
         }
+
+        assert(switch_->when_stmts_list.size() == switch_->when_callee_scopes.size());
     }
 
     template<class Walker>

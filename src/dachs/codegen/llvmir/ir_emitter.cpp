@@ -146,20 +146,43 @@ class llvm_ir_emitter {
 
     template<class Node>
     [[noreturn]]
-    void error(Node const& n, boost::format const& msg) const
+    void error(std::shared_ptr<Node> const& n, boost::format const& msg) const
     {
         error(n, msg.str());
     }
 
+    [[noreturn]]
+    void error(ast::location_type const& l, boost::format const& msg) const
+    {
+        error(l, msg.str());
+    }
+
     template<class Node, class String>
     [[noreturn]]
-    void error(Node const& n, String const& msg) const
+    void error(std::shared_ptr<Node> const& n, String const& msg) const
     {
         // TODO:
         // Dump builder's debug information and context's information
         throw code_generation_error{
                 "LLVM IR generator",
                 (boost::format(" in line:%1%, col:%2%\n  %3%\n") % n->line % n->col % msg).str()
+            };
+    }
+
+    template<class String>
+    [[noreturn]]
+    void error(ast::location_type const& l, String const& msg) const
+    {
+        // TODO:
+        // Dump builder's debug information and context's information
+        throw code_generation_error{
+                "LLVM IR generator",
+                (
+                 boost::format(" in line:%1%, col:%2%\n  %3%\n")
+                    % std::get<ast::location::location_index::line>(l)
+                    % std::get<ast::location::location_index::col>(l)
+                    % msg
+                ).str()
             };
     }
 
@@ -1156,50 +1179,68 @@ public:
 
     }
 
-    val emit(ast::node::binary_expr const& bin_expr)
-    {
-        auto const lhs_type = type::type_of(bin_expr->lhs);
-        auto const rhs_type = type::type_of(bin_expr->rhs);
-
-        auto *const lhs_value = load_if_ref(emit(bin_expr->lhs), lhs_type);
-        auto *const rhs_value = load_if_ref(emit(bin_expr->rhs), rhs_type);
-
+    template<class Node>
+    val emit_binary_expr(
+            Node const& node,
+            std::string const& op,
+            type::type const& lhs_type,
+            type::type const& rhs_type,
+            val const lhs_value,
+            val const rhs_value,
+            scope::weak_func_scope const& callee_scope
+    ) {
         if (check_builtin_binary_expr_arg_types(lhs_type, rhs_type)) {
             return check(
-                bin_expr,
+                node,
                 tmp_builtin_bin_op_ir_emitter{
                     ctx,
                     lhs_value,
                     rhs_value,
-                    bin_expr->op
+                    op
                 }.emit(lhs_type),
                 boost::format("binary operator '%1%' (lhs type is '%2%', rhs type is '%3%')")
-                    % bin_expr->op
+                    % op
                     % type::to_string(lhs_type)
                     % type::to_string(rhs_type)
             );
         }
 
-        if (bin_expr->callee_scope.expired()) {
+        if (callee_scope.expired()) {
             error(
-                bin_expr,
+                node,
                 boost::format("Invalid binary expression is found.  No operator function '%1%' for lhs type '%2%' and rhs type '%3%'")
-                    % bin_expr->op % lhs_type.to_string() % rhs_type.to_string()
+                    % op % lhs_type.to_string() % rhs_type.to_string()
             );
         }
 
-        auto const callee = bin_expr->callee_scope.lock();
+        auto const callee = callee_scope.lock();
         assert(!callee->is_anonymous());
         assert(!callee->is_builtin);
 
         return check(
-                bin_expr,
+                node,
                 ctx.builder.CreateCall2(
-                    emit_non_builtin_callee(bin_expr, callee),
+                    emit_non_builtin_callee(node, callee),
                     lhs_value,
                     rhs_value
                 ),
                 "invalid binary expression function call"
+            );
+    }
+
+    val emit(ast::node::binary_expr const& bin_expr)
+    {
+        auto const lhs_type = type::type_of(bin_expr->lhs);
+        auto const rhs_type = type::type_of(bin_expr->rhs);
+
+        return emit_binary_expr(
+                bin_expr,
+                bin_expr->op,
+                rhs_type,
+                lhs_type,
+                load_if_ref(emit(bin_expr->lhs), lhs_type),
+                load_if_ref(emit(bin_expr->rhs), rhs_type),
+                bin_expr->callee_scope
             );
     }
 
@@ -1693,80 +1734,24 @@ public:
 
                     auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
 
-                    struct compounded_rhs {
-                        val const value;
-                        type::type const type;
-                    };
-
-                    auto const emit_builtin
-                        = [&, this]() -> compounded_rhs
-                        {
-                            if (!callee.expired()) {
-                                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-                            }
-
-                            return {
-                                check(
-                                    assign,
-                                    tmp_builtin_bin_op_ir_emitter{
-                                        ctx,
-                                        load_if_ref(lhs_value, lhs_type),
-                                        load_if_ref(rhs_value, rhs_type),
-                                        bin_op
-                                    }.emit(lhs_type),
-                                    boost::format("compound binary operator '%1%' (lhs type is '%2%', rhs type is '%3%')")
-                                        % bin_op
-                                        % type::to_string(lhs_type)
-                                        % type::to_string(rhs_type)
-                                ),
-                                rhs_type
-                            };
-                        };
-
-                    auto const emit_non_builtin
-                        = [&, this]() -> compounded_rhs
-                        {
-                            if (callee.expired()) {
-                                error(
-                                    assign,
-                                    boost::format("Invalid compound binary expression '%1%'.  Lhs type is '%2%' and rhs type is '%3%'")
-                                        % bin_op % lhs_type.to_string() % rhs_type.to_string()
-                                );
-                            }
-
-                            auto const func = callee.lock();
-                            assert(!func->is_anonymous());
-                            assert(!func->is_builtin);
-                            assert(func->ret_type);
-
-                            return {
-                                check(
-                                    assign,
-                                    ctx.builder.CreateCall2(
-                                        emit_non_builtin_callee(assign, func),
-                                        load_aggregate_elem(lhs_value, lhs_type),
-                                        load_aggregate_elem(rhs_value, rhs_type)
-                                    ),
-                                    "invalid compound binary expression function call"
-                                ),
-                                *func->ret_type
-                            };
-                        };
-
-                    auto const emit_compound_op
-                        = [&, this]
-                        {
-                            if (check_builtin_binary_expr_arg_types(lhs_type, rhs_type)) {
-                                return emit_builtin();
-                            } else {
-                                return emit_non_builtin();
-                            }
-                        };
-
-                    auto const compounded = emit_compound_op();
+                    auto const compounded_val
+                        = emit_binary_expr(
+                                assign,
+                                bin_op,
+                                lhs_type,
+                                rhs_type,
+                                deref(lhs_value, lhs_type),
+                                deref(rhs_value, rhs_type),
+                                callee
+                            );
 
                     alloc_emitter.create_deep_copy(
-                            load_if_ref(compounded.value, compounded.type),
+                            load_if_ref(
+                                compounded_val,
+                                callee.expired()
+                                    ? rhs_type
+                                    : *callee.lock()->ret_type
+                            ),
                             load_aggregate_elem(
                                 lhs_value,
                                 lhs_type
@@ -1833,45 +1818,46 @@ public:
 
         // Emit when clause
         llvm::BasicBlock *else_block;
-        for (auto const& when_stmt : switch_->when_stmts_list) {
-            assert(when_stmt.first.size() > 0);
-            auto *const then_block = helper.create_block("switch.then");
-            else_block = helper.create_block("switch.else");
+        helper::each(
+            [&, this](auto const& when_stmt, auto const& callees) {
+                assert(when_stmt.first.size() > 0);
+                auto *const then_block = helper.create_block("switch.then");
+                else_block = helper.create_block("switch.else");
 
-            // Emit condition IRs
-            for (auto const& cmp_expr : when_stmt.first) {
-                auto *const next_cond_block = helper.create_block("switch.cond.next");
-                auto const cmp_type = type::type_of(cmp_expr);
+                // Emit condition IRs
+                helper::each(
+                    [&, this](auto const& cmp_expr, auto const& callee) {
+                        auto *const next_cond_block = helper.create_block("switch.cond.next");
+                        auto const cmp_type = type::type_of(cmp_expr);
 
-                if (!check_builtin_binary_expr_arg_types(target_type, cmp_type)) {
-                    error(switch_, "Case statement condition now only supports some builtin types");
-                }
+                        auto *const compared_val
+                            = emit_binary_expr(
+                                    ast::node::location_of(cmp_expr),
+                                    "==",
+                                    target_type,
+                                    cmp_type,
+                                    target_val,
+                                    load_if_ref(emit(cmp_expr), cmp_type),
+                                    callee
+                                );
 
-                auto *const cond_val
-                    = check(
-                        switch_,
-                        tmp_builtin_bin_op_ir_emitter{
-                            ctx,
-                            target_val,
-                            load_if_ref(emit(cmp_expr), cmp_type),
-                            "=="
-                        }.emit(target_type),
-                        "condition in switch statement"
-                    );
+                        helper.create_cond_br(compared_val, then_block, next_cond_block, nullptr);
+                        helper.append_block(next_cond_block);
+                    }
+                    , when_stmt.first, callees
+                );
+                helper.create_br(else_block, nullptr);
 
-                helper.create_cond_br(cond_val, then_block, next_cond_block, nullptr);
-                helper.append_block(next_cond_block);
+                // Note:
+                // Though it is easy to insert IR for then block before condition blocks,
+                // it is less readable than the IR order implemented here.
+                helper.append_block(then_block);
+                emit(when_stmt.second);
+                helper.terminate_with_br(end_block);
+                helper.append_block(else_block);
             }
-            helper.create_br(else_block, nullptr);
-
-            // Note:
-            // Though it is easy to insert IR for then block before condition blocks,
-            // it is less readable than the IR order implemented here.
-            helper.append_block(then_block);
-            emit(when_stmt.second);
-            helper.terminate_with_br(end_block);
-            helper.append_block(else_block);
-        }
+            , switch_->when_stmts_list, switch_->when_callee_scopes
+        );
 
         if (switch_->maybe_else_stmts) {
             emit(*switch_->maybe_else_stmts);

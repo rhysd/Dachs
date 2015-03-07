@@ -187,6 +187,53 @@ BOOST_AUTO_TEST_CASE(switch_statement)
             end
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+    class X
+        v
+
+        func ==(lhs : int)
+            ret @v == lhs
+        end
+    end
+
+    func ==(lhs : X, rhs : X)
+        ret lhs.v == rhs.v
+    end
+
+    func forty_two
+        ret new X{42}
+    end
+
+    func main
+        x := new X{42}
+
+        case x
+        when 10, new X{10}
+            println("ng")
+        when 42
+            println("ok")
+        else
+            println("ng")
+        end
+
+        case x
+        when 0, 1, x, 10
+            println("ok")
+        end
+
+        case x
+        when forty_two()
+            println("ok")
+        end
+
+        xs := [x, x]
+        case xs[0]
+        when 42
+            println("ok")
+        end
+    end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(case_statement)
