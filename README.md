@@ -119,7 +119,7 @@ end
 - [x] Basic statements
 - [x] Basic strong type check
 - [x] Functions
-- [ ] Operator functions
+- [x] Operator functions
 - [x] Overload resolution
 - [x] Simple return type and variable type deduction
 - [ ] Type inference
