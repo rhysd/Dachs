@@ -2762,6 +2762,10 @@ public:
                     // Note:
                     // When lhs is '_' variable
                     // When rhs has an error
+
+                    if (is_compound_assign) {
+                        assign->callee_scopes.emplace_back();
+                    }
                     return;
                 }
 

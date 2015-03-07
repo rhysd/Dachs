@@ -1652,6 +1652,11 @@ public:
                     auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
                     auto const lhs_type = type::type_of(lhs_expr);
 
+                    if (!lhs_type) {
+                        // Note: When lhs is '_'
+                        return;
+                    }
+
                     if (!lhs_value) {
                         DACHS_RAISE_INTERNAL_COMPILATION_ERROR
                     }
@@ -1682,6 +1687,7 @@ public:
                 {
                     auto const lhs_type = type::type_of(lhs_expr);
                     if (!lhs_type) {
+                        // Note: When lhs is '_'
                         return;
                     }
 
