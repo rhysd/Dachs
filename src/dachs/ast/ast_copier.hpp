@@ -138,7 +138,7 @@ public:
 
     auto copy(node::cast_expr const& ce) const
     {
-        return copy_node<node::cast_expr>(ce, copy(ce->child), copy(ce->casted_type));
+        return copy_node<node::cast_expr>(ce, copy(ce->child), copy(ce->cast_type));
     }
 
     auto copy(node::binary_expr const& be) const

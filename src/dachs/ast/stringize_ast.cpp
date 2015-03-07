@@ -255,7 +255,7 @@ public:
     {
         return prefix_of(ce, indent)
                 + '\n' + visit(ce->child, indent+lead, "|  ")
-                + '\n' + visit(ce->casted_type, indent+lead, "   ");
+                + '\n' + visit(ce->cast_type, indent+lead, "   ");
     }
 
     String visit(node::binary_expr const& be, String const& indent, char const* const lead) const noexcept

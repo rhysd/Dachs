@@ -171,7 +171,7 @@ public:
     {
         visitor.visit(ce, walker_for(
             ce->child,
-            ce->casted_type
+            ce->cast_type
         ));
     }
 

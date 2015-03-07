@@ -603,11 +603,11 @@ struct unary_expr final : public expression {
 
 struct cast_expr final : public expression {
     node::any_expr child;
-    node::any_type casted_type;
+    node::any_type cast_type;
 
     cast_expr(node::any_expr const& c,
               node::any_type const& t) noexcept
-        : expression(), child(c), casted_type(t)
+        : expression(), child(c), cast_type(t)
     {}
 
     std::string to_string() const noexcept override

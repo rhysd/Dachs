@@ -1667,10 +1667,10 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::cast_expr const& casted, Walker const& w)
+    void visit(ast::node::cast_expr const& cast, Walker const& w)
     {
         w();
-        casted->type = from_type_node(casted->casted_type);
+        cast->type = from_type_node(cast->cast_type);
 
         // TODO:
         // Find cast function and get its result type
