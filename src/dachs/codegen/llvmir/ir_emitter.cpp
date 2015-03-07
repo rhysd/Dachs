@@ -1635,8 +1635,6 @@ public:
             helper::each(
                 [&, this](auto const& lhs_expr, auto *const rhs_value)
                 {
-                    val value_to_assign = rhs_value;
-
                     auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
                     auto const lhs_type = type::type_of(lhs_expr);
 
@@ -1645,25 +1643,8 @@ public:
                     }
                     assert(lhs_value->getType()->isPointerTy());
 
-                    // if (is_compound_assign) {
-                    //     auto const bin_op = assign->op.substr(0, assign->op.size()-1);
-                    //     value_to_assign =
-                    //         check(
-                    //             assign,
-                    //             tmp_builtin_bin_op_ir_emitter{
-                    //                 ctx,
-                    //                 ctx.builder.CreateLoad(lhs_value),
-                    //                 load_if_ref(rhs_value, rhs_type),
-                    //                 bin_op
-                    //             }.emit(lhs_type),
-                    //             boost::format("binary expression (operator is '%1%', operand type is '%2%')")
-                    //                 % bin_op
-                    //                 % type::to_string(lhs_type)
-                    //         );
-                    // }
-
                     alloc_emitter.create_deep_copy(
-                            value_to_assign,
+                            rhs_value,
                             load_aggregate_elem(
                                 lhs_value,
                                 lhs_type
@@ -1766,7 +1747,6 @@ public:
                 }
                 , assign->assignees, rhs_values, rhs_types, assign->callee_scopes
             );
-            // TODO
         }
 
     }
