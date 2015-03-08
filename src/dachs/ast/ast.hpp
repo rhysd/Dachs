@@ -555,14 +555,16 @@ struct ufcs_invocation final : public expression {
     node::any_expr child;
     std::string member_name;
     scope::weak_func_scope callee_scope;
+    bool is_assign = false;
 
     struct set_location_tag {};
 
     ufcs_invocation(
             node::any_expr const& c,
-            std::string const& member_name
+            std::string const& n,
+            bool const a = false
         ) noexcept
-        : expression(), child(c), member_name(member_name)
+        : expression(), child(c), member_name(n), is_assign(a)
     {}
 
     ufcs_invocation(

@@ -120,6 +120,14 @@ struct var_ref_marker_for_lhs_of_assign {
     void visit(ast::node::index_access const&, W const&)
     {}
 
+    // Do not mark var ref in UFCS data access
+    template<class W>
+    void visit(ast::node::ufcs_invocation const& u, W const&)
+    {
+        // Note:
+        // {expr}.name = ...
+        u->is_assign = true;
+    }
 
     // Otherwise, simply visit the node
     template<class N, class W>
@@ -1742,6 +1750,15 @@ public:
                 ufcs->type = *t;
                 return;
             }
+        }
+
+        if (ufcs->is_assign) {
+            semantic_error(
+                    ufcs,
+                    boost::format("  No member named '%1%' is found for assignment in '%2%'")
+                        % ufcs->member_name % child_type.to_string()
+                );
+            return;
         }
 
         // Note:
