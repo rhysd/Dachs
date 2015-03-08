@@ -540,9 +540,11 @@ struct object_construct final : public expression {
 struct index_access final : public expression {
     node::any_expr child, index_expr;
     scope::weak_func_scope callee_scope;
+    bool is_not_compound_assign = false;
+    scope::weak_func_scope callee_scope_for_assign;
 
-    index_access(node::any_expr const& c, node::any_expr const& idx_expr) noexcept
-        : expression(), child(c), index_expr(idx_expr)
+    index_access(node::any_expr const& c, node::any_expr const& idx_expr, bool const assign = false) noexcept
+        : expression(), child(c), index_expr(idx_expr), is_not_compound_assign(assign)
     {}
 
     std::string to_string() const noexcept override
