@@ -23,18 +23,8 @@ class array
         ret true
     end
 
-    func assign(rhs : array)
-        if rhs.capacity > @capacity
-            fatal("over capacity. reallocation is needed.")
-        end
-
-        @size = rhs.size
-
-        var i := 0u
-        for i < rhs.size
-            @buf[i] = rhs.at(i)
-            i += 1u
-        end
+    func []=(idx, rhs)
+        @buf[idx] = rhs
     end
 
     func clear
@@ -94,7 +84,7 @@ class array
         ret @buf[idx], false
     end
 
-    func op_at(idx)
+    func [](idx)
         ret @buf[idx]
     end
 end

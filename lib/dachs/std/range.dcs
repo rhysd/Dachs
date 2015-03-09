@@ -1,3 +1,5 @@
+import std.numeric
+
 class range
   - start, last, exclude_end : bool
 
@@ -6,18 +8,6 @@ class range
 
     init(@start, @last)
         @exclude_end := true
-    end
-
-  - func next(x : uint)
-        ret x + 1u
-    end
-
-  - func next(x : int)
-        ret x + 1
-    end
-
-  - func next(c : char)
-        ret c + (1 as char)
     end
 
     func valid?
@@ -61,7 +51,7 @@ class range
         var i := @start
         for i != @last
             pred(i)
-            i = @next(i)
+            i = i.succ
         end
         pred(i) unless @exclude_end
     end
