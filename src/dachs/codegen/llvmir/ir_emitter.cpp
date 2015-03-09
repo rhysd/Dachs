@@ -460,10 +460,9 @@ class llvm_ir_emitter {
     struct lhs_of_assign_emitter {
 
         IREmitter &emitter;
-        val const rhs_val;
 
-        lhs_of_assign_emitter(IREmitter &e, val const r)
-            : emitter(e), rhs_val(r)
+        explicit lhs_of_assign_emitter(IREmitter &e)
+            : emitter(e)
         {}
 
         val emit(ast::node::var_ref const& ref)
@@ -480,30 +479,9 @@ class llvm_ir_emitter {
 
         val emit(ast::node::index_access const& access)
         {
+            auto const child_val = emitter.emit(access->child);
+            auto const index_val = emitter.load_if_ref(emitter.emit(access->index_expr), type::type_of(access->index_expr));
             auto const child_type = type::type_of(access->child);
-            auto const child_val = emitter.deref(emitter.emit(access->child), child_type);
-            auto const index_val = emitter.deref(emitter.emit(access->index_expr), type::type_of(access->index_expr));
-
-            if (!access->callee_scope_for_assign.expired()) {
-                auto const callee = access->callee_scope_for_assign.lock();
-
-                assert(type::is_a<type::class_type>(child_type));
-                assert(!callee->is_anonymous());
-                assert(!callee->is_builtin);
-                assert(callee->name == "[]=");
-
-                return emitter.check(
-                        access,
-                        emitter.ctx.builder.CreateCall3(
-                            emitter.emit_non_builtin_callee(access, callee),
-                            child_val,
-                            index_val,
-                            rhs_val
-                        ),
-                        "user-defined indexed assign operator"
-                    );
-            }
-
             if (type::is_a<type::tuple_type>(child_type)) {
                 auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
                 if (!constant_index) {
@@ -521,7 +499,7 @@ class llvm_ir_emitter {
                     );
             } else {
                 // Note: An exception is thrown
-                emitter.error(access, "Invalid assignment for lhs of assignment");
+                emitter.error(access, "Not a tuple or array value (in assignment statement)");
             }
         }
 
@@ -1712,6 +1690,7 @@ public:
             helper::each(
                 [&, this](auto const& lhs_expr, auto *const rhs_value)
                 {
+                    auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
                     auto const lhs_type = type::type_of(lhs_expr);
 
                     if (!lhs_type) {
@@ -1719,18 +1698,6 @@ public:
                         return;
                     }
 
-                    // XXX
-                    // Too adhoc.
-                    // I think compound assignment should be separated to assignment and binary operation.
-                    if (auto const a = get_as<ast::node::index_access>(lhs_expr)) {
-                        auto const& access = *a;
-                        if (!access->callee_scope_for_assign.expired()) {
-                            lhs_of_assign_emitter<self>{*this, rhs_value}.emit(access);
-                            return;
-                        }
-                    }
-
-                    auto *const lhs_value = lhs_of_assign_emitter<self>{*this, rhs_value}.emit(lhs_expr);
                     if (!lhs_value) {
                         DACHS_RAISE_INTERNAL_COMPILATION_ERROR
                     }
@@ -1765,40 +1732,7 @@ public:
                         return;
                     }
 
-                    // XXX
-                    // Too adhoc.
-                    // I think compound assignment should be separated to assignment and binary operation.
-                    if (auto const a = get_as<ast::node::index_access>(lhs_expr)) {
-                        auto const& access = *a;
-                        if (!access->callee_scope.expired()) {
-                            auto *const lhs_value = emit(access);
-
-                            auto const compounded_val
-                                = emit_binary_expr(
-                                        assign,
-                                        bin_op,
-                                        lhs_type,
-                                        rhs_type,
-                                        deref(lhs_value, lhs_type),
-                                        deref(rhs_value, rhs_type),
-                                        callee
-                                    );
-
-                            assert(!access->callee_scope_for_assign.expired());
-
-                            lhs_of_assign_emitter<self>{
-                                *this,
-                                load_if_ref(
-                                    compounded_val,
-                                    callee.expired() ? rhs_type : *callee.lock()->ret_type
-                                )
-                            }.emit(access);
-
-                            return;
-                        }
-                    }
-
-                    auto *const lhs_value = lhs_of_assign_emitter<self>{*this, rhs_value}.emit(lhs_expr);
+                    auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
 
                     auto const compounded_val
                         = emit_binary_expr(

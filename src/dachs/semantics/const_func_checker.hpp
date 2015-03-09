@@ -210,19 +210,6 @@ boost::optional<symbol::var_symbol> is_const_violated_invocation(Invocation invo
     return checker.get_result();
 }
 
-template<class Invocation>
-boost::optional<symbol::var_symbol> is_const_violated_assign_invocation(Invocation invocation)
-{
-    auto const callee = invocation->callee_scope_for_assign.lock();
-    if (!callee->is_member_func || callee->is_const()) {
-        return boost::none;
-    }
-
-    const_func_invocation_checker checker;
-    checker.apply(invocation);
-    return checker.get_result();
-}
-
 } // namespace detail
 } // namespace semantics
 } // namespace dachs

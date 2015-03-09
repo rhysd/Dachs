@@ -135,8 +135,7 @@ class forward_symbol_analyzer {
               , ">"  , "&"  , "^"
               , "|"  , "[]"
             },
-            unary_or_binary{"+", "-"},
-            ternary_only = {"[]="}
+            unary_or_binary{"+", "-"}
         ;
 
         std::size_t failed = 0u;
@@ -148,33 +147,32 @@ class forward_symbol_analyzer {
             };
 
         for (auto const& f : functions) {
-
-            auto const err =
-                [&failed, &f](auto const& msg)
-                {
-                    output_semantic_error(f->get_ast_node(), msg);
-                    ++failed;
-                };
-
             auto const s = f->params.size();
 
             if (in(unary_only, f->name) && s != 1u) {
-                err("  Operator '" + f->name + "' must have just 1 parameter");
+                output_semantic_error(
+                        f->get_ast_node(),
+                        "  Operator '" + f->name + "' must have just 1 parameter"
+                    );
+                ++failed;
                 continue;
             }
 
             if (in(binary_only, f->name) && s != 2u) {
-                err("  Operator '" + f->name + "' must have just 2 parameters");
+                output_semantic_error(
+                        f->get_ast_node(),
+                        "  Operator '" + f->name + "' must have just 2 parameters"
+                    );
+                ++failed;
                 continue;
             }
 
             if (in(unary_or_binary, f->name) && s != 1u && s != 2u) {
-                err("  Operator '" + f->name + "' must have just 1 or 2 parameter(s)");
-                continue;
-            }
-
-            if (in(ternary_only, f->name) && s != 3u) {
-                err("  Operator '" + f->name + "' must have just 3 parameters");
+                output_semantic_error(
+                        f->get_ast_node(),
+                        "  Operator '" + f->name + "' must have just 1 or 2 parameter(s)"
+                    );
+                ++failed;
                 continue;
             }
         }

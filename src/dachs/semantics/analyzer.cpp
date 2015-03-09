@@ -108,8 +108,6 @@ struct recursive_function_return_type_resolver {
 };
 
 struct var_ref_marker_for_lhs_of_assign {
-    std::string const& op;
-
     // Mark as lhs of assignment
     template<class W>
     void visit(ast::node::var_ref const& ref, W const&)
@@ -119,12 +117,8 @@ struct var_ref_marker_for_lhs_of_assign {
 
     // Do not mark var ref in index access
     template<class W>
-    void visit(ast::node::index_access const& a, W const&)
-    {
-        // Note:
-        // {expr}[{expr}] = ...
-        a->is_not_compound_assign = op == "=";
-    }
+    void visit(ast::node::index_access const&, W const&)
+    {}
 
     // Do not mark var ref in UFCS data access
     template<class W>
@@ -1099,7 +1093,7 @@ public:
         type::type const& index_type;
         Outer &outer;
 
-        index_access_analyzer(ast::node::index_access const& a, type::type const& i, Outer &o) noexcept
+        explicit index_access_analyzer(ast::node::index_access const& a, type::type const& i, Outer &o) noexcept
             : access(a), index_type(i), outer(o)
         {}
 
@@ -1175,72 +1169,20 @@ public:
         template<class Type>
         result_type operator()(Type const& t) const
         {
-            if (access->is_not_compound_assign) {
-                // Note:
-                // Edge case!
-                // Skip analysis because type of lhs of assignment is required to analyze
-                // lhs of assignment.
-                // It will be done at visiting ast::node::assignment_stmt
-                return boost::none;
-            }
-
-            if (auto const error = outer.visit_invocation(
+            auto const error = outer.visit_invocation(
                         access,
                         "[]",
                         std::vector<type::type>{
                             t, index_type
                         }
-                    )
-            ) {
+                    );
+
+            if (error) {
                 return error;
             }
 
-            assert(!access->callee_scope.expired());
-            auto const callee = access->callee_scope.lock();
-
             if (auto const violated = is_const_violated_invocation(access)) {
-                return "  Member function '" + callee->to_string()
-                     + "' modifies member(s) of immutable object '" + (*violated)->name + "'\n"
-                       "  Note: this function is called for index access operator '[]'";
-            }
-
-            assert(callee->ret_type);
-            access->type = *callee->ret_type;
-
-            return boost::none;
-        }
-
-        // Note:
-        // I defined this function here because below is an edge case of
-        // index access.  I wanted to gather functions for index access here.
-        result_type analyze_lhs_of_assign(bool const already_has_type, type::type const& rhs_type) const
-        {
-            if (access->callee_scope.expired() && already_has_type) {
-                return boost::none;
-            }
-
-            auto const resolved = outer.resolve_func_call(
-                    "[]=",
-                    std::vector<type::type>{
-                        type_of(access->child),
-                        index_type,
-                        rhs_type
-                    }
-                );
-
-            if (auto const error = get_as<std::string>(resolved)) {
-                return *error;
-            }
-
-            auto const func = get_as<scope::func_scope>(resolved);
-            assert(func);
-            auto const& callee = *func;
-
-            assert(callee->ret_type);
-            access->callee_scope_for_assign = callee;
-
-            if (auto const violated = is_const_violated_assign_invocation(access)) {
-                return "  Member function '" + callee->to_string()
+                return "  Member function '" + access->callee_scope.lock()->to_string()
                      + "' modifies member(s) of immutable object '" + (*violated)->name + "'\n"
                        "  Note: this function is called for index access operator '[]'";
             }
@@ -1813,7 +1755,7 @@ public:
         if (ufcs->is_assign) {
             semantic_error(
                     ufcs,
-                    boost::format("  No member named '%1%' in '%2%' is found for assignment")
+                    boost::format("  No member named '%1%' is found for assignment in '%2%'")
                         % ufcs->member_name % child_type.to_string()
                 );
             return;
@@ -2814,7 +2756,7 @@ public:
     template<class Walker>
     void visit(ast::node::assignment_stmt const& assign, Walker const& w)
     {
-        ast::walk_topdown(assign->assignees, var_ref_marker_for_lhs_of_assign{assign->op});
+        ast::walk_topdown(assign->assignees, var_ref_marker_for_lhs_of_assign{});
 
         w();
 
@@ -2857,35 +2799,10 @@ public:
 
         auto const is_compound_assign = assign->op != "=";
 
-        auto const check_assignment =
-            [&, this](auto const& lhs_expr, auto const& rhs_type)
+        auto const check_types =
+            [&, this](auto const& t1, auto const& t2)
             {
-
-                auto indexed_assign = false;
-                if (auto const a = get_as<ast::node::index_access>(lhs_expr)) {
-                    // Note:
-                    // Edge case for lhs of assignment
-                    //   {expr}[{expr}] = ...
-
-                    auto const& access = *a;
-                    index_access_analyzer<symbol_analyzer> analyzer{
-                            access,
-                            type_of(access->index_expr),
-                            *this
-                        };
-
-                    if (auto const error = analyzer.analyze_lhs_of_assign(access->type, rhs_type)) {
-                        semantic_error(assign, *error);
-                        semantic_error(assign, "  Error on assignment to indexed value");
-                        return;
-                    }
-
-                    indexed_assign = true;
-                }
-
-                auto const lhs_type = type_of(lhs_expr);
-
-                if (!lhs_type || !rhs_type) {
+                if (!t1 || !t2) {
                     // Note:
                     // When lhs is '_' variable
                     // When rhs has an error
@@ -2897,7 +2814,7 @@ public:
                 }
 
                 auto const mismatch_error
-                    = [this, &assign](auto const& lhs_type, auto const& rhs_type)
+                    = [this, &assign](auto const& t1, auto const& t2)
                     {
                         semantic_error(
                                 assign,
@@ -2905,27 +2822,27 @@ public:
                                     "  Types mismatch on assignment '%1%'\n"
                                     "  Note: Type of lhs is '%2%', type of rhs is '%3%'"
                                 ) % assign->op
-                                  % type::to_string(lhs_type)
-                                  % type::to_string(rhs_type)
+                                  % type::to_string(t1)
+                                  % type::to_string(t2)
                             );
                     };
 
                 if (is_compound_assign) {
                     auto const compound_op = assign->op.substr(0, assign->op.size()-1);
 
-                    if (lhs_type.is_builtin() && rhs_type.is_builtin()) {
+                    if (t1.is_builtin() && t2.is_builtin()) {
                         assign->callee_scopes.emplace_back();
-                        auto const ret_type = visit_builtin_binary_expr(assign, compound_op, lhs_type, rhs_type);
+                        auto const ret_type = visit_builtin_binary_expr(assign, compound_op, t1, t2);
                         if (!ret_type) {
                             return;
                         }
-                        if (lhs_type != ret_type) {
-                            mismatch_error(lhs_type, ret_type);
+                        if (t1 != ret_type) {
+                            mismatch_error(t1, ret_type);
                         }
                         return;
                     }
 
-                    auto const resolved = resolve_func_call(compound_op, std::vector<type::type>{lhs_type, rhs_type});
+                    auto const resolved = resolve_func_call(compound_op, std::vector<type::type>{t1, t2});
                     if (auto const error = get_as<std::string>(resolved)) {
                         semantic_error(assign, *error);
                         semantic_error(
@@ -2933,7 +2850,7 @@ public:
                                 boost::format(
                                     "  Error at calling binary operator '%1%' on assignment\n"
                                     "  Note: Type of lhs is '%2%', type of rhs is '%3%'"
-                                ) % compound_op % type::to_string(lhs_type) % type::to_string(rhs_type)
+                                ) % compound_op % type::to_string(t1) % type::to_string(t2)
                             );
                         return;
                     }
@@ -2943,30 +2860,31 @@ public:
                     assign->callee_scopes.emplace_back(*func);
                     auto const& ret_type = *(*func)->ret_type;
 
-                    if (!indexed_assign && lhs_type != ret_type) {
-                        mismatch_error(lhs_type, ret_type);
+                    if (t1 != ret_type) {
+                        mismatch_error(t1, ret_type);
                     }
                 } else {
-                    if (!indexed_assign && lhs_type != rhs_type) {
-                        mismatch_error(lhs_type, rhs_type);
+                    if (t1 != t2) {
+                        mismatch_error(t1, t2);
                     }
                 }
 
             };
 
         auto const check_type_seqs =
-            [&](auto const& lhs_expr_seq, auto const& rhs_type_seq)
+            [&](auto const& type_seq1, auto const& type_seq2)
             {
-                helper::each([&](auto const& e, auto const& t)
-                                { check_assignment(e, t); }
-                            , lhs_expr_seq, rhs_type_seq);
+                helper::each([&](auto const& t1, auto const& t2)
+                                { check_types(t1, t2); }
+                            , type_seq1, type_seq2);
             };
 
         auto const to_types = transformed([](auto const& e){ return type::type_of(e); });
 
         if (assign->assignees.size() == 1) {
+            auto const assignee_type = type_of(assign->assignees[0]);
             if (assign->rhs_exprs.size() == 1) {
-                check_assignment(assign->assignees[0], type_of(assign->rhs_exprs[0]));
+                check_types(assignee_type, type_of(assign->rhs_exprs[0]));
             } else {
                 semantic_error(assign, "  Assigning multiple values to lhs tuple value is not permitted.");
                 return;
@@ -2981,7 +2899,7 @@ public:
                 }
 
                 check_type_seqs(
-                        assign->assignees,
+                        assign->assignees | to_types,
                         (*maybe_tuple_type)->element_types
                     );
             } else {
@@ -2998,7 +2916,7 @@ public:
                 }
 
                 check_type_seqs(
-                        assign->assignees,
+                        assign->assignees | to_types,
                         assign->rhs_exprs | to_types
                     );
             }

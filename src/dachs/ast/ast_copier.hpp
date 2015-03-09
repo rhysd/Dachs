@@ -123,7 +123,7 @@ public:
 
     auto copy(node::index_access const& ia) const
     {
-        return copy_node<node::index_access>(ia, copy(ia->child), copy(ia->index_expr), ia->is_not_compound_assign);
+        return copy_node<node::index_access>(ia, copy(ia->child), copy(ia->index_expr));
     }
 
     auto copy(node::ufcs_invocation const& ui) const
