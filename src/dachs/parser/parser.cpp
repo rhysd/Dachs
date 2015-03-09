@@ -397,7 +397,7 @@ public:
 
         func_def_name
             =
-                binary_operator | unary_operator | function_name
+                ternary_operator | binary_operator | unary_operator | function_name
             ;
 
         variable_name
@@ -735,6 +735,11 @@ public:
               | "^"_p
               | "|"_p
               | "[]"_p
+            ;
+
+        ternary_operator
+            =
+                "[]="_p
             ;
 
         unary_expr
@@ -1455,6 +1460,7 @@ public:
         object_construct.name("object contruction");
         unary_operator.name("unary operator");
         binary_operator.name("binary operator");
+        ternary_operator.name("ternary operator");
         primary_expr.name("primary expression");
         postfix_expr.name("postfix expression");
         unary_expr.name("unary expression");
@@ -1639,6 +1645,7 @@ private:
                       , type_name
                       , unary_operator
                       , binary_operator
+                      , ternary_operator
                       , assign_operator
                       , class_name
                     ;

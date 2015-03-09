@@ -136,6 +136,9 @@ class forward_symbol_analyzer {
               , ">"  , "&"  , "^"
               , "|"  , "[]"
             },
+            ternary_only = {
+                "[]="
+            },
             unary_or_binary{"+", "-"}
         ;
 
@@ -147,34 +150,27 @@ class forward_symbol_analyzer {
                 return set.find(op) != std::end(set);
             };
 
+        auto const operator_arg_error =
+            [&failed, this](auto const& f, auto const& msg)
+            {
+                output_semantic_error(
+                        f->get_ast_node(),
+                        "  Operator '" + f->name + "' must have just " + msg
+                    );
+                ++failed;
+            };
+
         for (auto const& f : functions) {
             auto const s = f->params.size();
 
             if (in(unary_only, f->name) && s != 1u) {
-                output_semantic_error(
-                        f->get_ast_node(),
-                        "  Operator '" + f->name + "' must have just 1 parameter"
-                    );
-                ++failed;
-                continue;
-            }
-
-            if (in(binary_only, f->name) && s != 2u) {
-                output_semantic_error(
-                        f->get_ast_node(),
-                        "  Operator '" + f->name + "' must have just 2 parameters"
-                    );
-                ++failed;
-                continue;
-            }
-
-            if (in(unary_or_binary, f->name) && s != 1u && s != 2u) {
-                output_semantic_error(
-                        f->get_ast_node(),
-                        "  Operator '" + f->name + "' must have just 1 or 2 parameter(s)"
-                    );
-                ++failed;
-                continue;
+                operator_arg_error(f, "1 parameter");
+            } else if (in(binary_only, f->name) && s != 2u) {
+                operator_arg_error(f, "2 parameters");
+            } else if (in(ternary_only, f->name) && s != 3u) {
+                operator_arg_error(f, "3 parameters");
+            } else if (in(unary_or_binary, f->name) && s != 1u && s != 2u) {
+                operator_arg_error(f, "1 or 2 parameter(s)");
             }
         }
 

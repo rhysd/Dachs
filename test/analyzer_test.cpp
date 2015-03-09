@@ -2630,6 +2630,16 @@ BOOST_AUTO_TEST_CASE(operator_arguments_check)
         func main
         end
     )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func []=(i)
+            end
+        end
+
+        func main
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(compound_asssignment)
@@ -2710,6 +2720,48 @@ BOOST_AUTO_TEST_CASE(switch_stmt)
             case x
             when 42
             end
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(assignment_stmt)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            var i := 42
+            var c := 'a'
+            i, c = c, i
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            var i := 42
+            var c := 'a'
+            var k := 3.14
+            i, c, k = c, i
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            var i := 42
+            var c := 'a'
+            i, c = i
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            var t := (42, 'a')
+            t = 21, 'b'
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            var t := (42, 'a')
+            t = (21, 'b')
         end
     )");
 }

@@ -1170,32 +1170,71 @@ public:
             }
         }
 
-        template<class Type>
-        result_type operator()(Type const& t) const
+        template<class Types>
+        result_type analyze_index_operator(std::string const& op, Types const& arg_types) const
         {
-            if (access->is_assign) {
-                return "  Invalid assignment to '" + type::to_string(t) + "' (TODO)";
-            }
-
-            auto const error = outer.visit_invocation(
+            if (auto const error = outer.visit_invocation(
                         access,
-                        "[]",
-                        std::vector<type::type>{
-                            t, index_type
-                        }
-                    );
-
-            if (error) {
+                        op,
+                        arg_types
+                    )
+            ) {
                 return error;
             }
 
             if (auto const violated = is_const_violated_invocation(access)) {
                 return "  Member function '" + access->callee_scope.lock()->to_string()
                      + "' modifies member(s) of immutable object '" + (*violated)->name + "'\n"
-                       "  Note: this function is called for index access operator '[]'";
+                       "  Note: this function is called for index access operator '" + op + "'";
             }
 
+            assert(!access->callee_scope.expired());
+            auto const callee = access->callee_scope.lock();
+            assert(!callee->ret_type);
+            access->type = *callee->ret_type;
+
             return boost::none;
+        }
+
+        template<class Type>
+        result_type operator()(Type const& t) const
+        {
+            if (access->is_assign) {
+                // Note:
+                // Skip analysis when the index access is at lhs of assignment.
+                // The analysis for index access at lhs of assignment will is done at
+                // visiting ast::node::assignment_stmt.
+                return boost::none;
+            }
+
+            return analyze_index_operator(
+                    "[]",
+                    std::vector<type::type>{
+                        t, index_type
+                    }
+                );
+        }
+
+
+        // Note:
+        // I defined this function here because below is an edge case of
+        // index access.  I wanted to gather functions for index access here.
+        result_type analyze_lhs_of_assign(type::type const& rhs_type) const
+        {
+            if (access->type || !rhs_type) {
+                // Note:
+                // When the type of index access is already determined,
+                // it means that it doesn't need function call and already analyzed
+                // at visiting ast::node::index_access.
+                return boost::none;
+            }
+
+            return analyze_index_operator(
+                    "[]=",
+                    std::vector<type::type>{
+                        type_of(access->child), index_type, rhs_type
+                    }
+                );
         }
     };
 
@@ -2776,6 +2815,12 @@ public:
 
         for (auto const& e : assign->rhs_exprs) {
             if (!type_of(e)) {
+                if (assign->broke_up_rhs_tuple) {
+                    semantic_error(
+                            assign,
+                            "  Error on assignment to multiple values with tuple expansion"
+                        );
+                }
                 return;
             }
         }
@@ -2811,8 +2856,29 @@ public:
         helper::each(
                 [&](auto const& lhs, auto const& rhs)
                 {
-                    auto const lhs_type = type_of(lhs);
                     auto const rhs_type = type_of(rhs);
+
+                    if (auto const a = get_as<ast::node::index_access>(lhs)) {
+                        // Note:
+                        // Edge case for lhs of assignment
+                        //    {expr}[{expr}] = rhs
+
+                        auto const& access = *a;
+                        index_access_analyzer<symbol_analyzer> analyzer {
+                                access,
+                                type_of(access->index_expr),
+                                *this
+                            };
+
+                        if (auto const error = analyzer.analyze_lhs_of_assign(rhs_type)) {
+                            semantic_error(access, *error);
+                            semantic_error(access, "  Error on assignment to indexed value");
+                        }
+
+                        return;
+                    }
+
+                    auto const lhs_type = type_of(lhs);
 
                     if (!lhs_type || !rhs_type) {
                         // Note:
@@ -2821,7 +2887,6 @@ public:
 
                         return;
                     }
-
 
                     if (lhs_type != rhs_type) {
                         semantic_error(
@@ -2836,7 +2901,7 @@ public:
                         if (assign->broke_up_rhs_tuple) {
                             semantic_error(
                                     assign,
-                                    "  Error at assignment from tuple elements to multiple values"
+                                    "  Error on assignment to multiple values with tuple expansion"
                                 );
                         }
                     }

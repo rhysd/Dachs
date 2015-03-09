@@ -460,27 +460,42 @@ class llvm_ir_emitter {
     struct lhs_of_assign_emitter {
 
         IREmitter &emitter;
+        val const rhs_value;
 
-        explicit lhs_of_assign_emitter(IREmitter &e)
-            : emitter(e)
-        {}
+        void emit_copy_to_lhs(val const lhs_value, type::type const& lhs_type)
+        {
+            if (!lhs_value) {
+                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+            }
+            assert(lhs_value->getType()->isPointerTy());
 
-        val emit(ast::node::var_ref const& ref)
+            emitter.alloc_emitter.create_deep_copy(
+                    rhs_value,
+                    emitter.load_aggregate_elem(lhs_value, lhs_type),
+                    lhs_type
+                );
+        }
+
+        void emit(ast::node::var_ref const& ref)
         {
             if (ref->is_ignored_var() && ref->symbol.expired()) {
                 // Note:
-                // Ignore '_' variable
-                return nullptr;
+                // When '_' variable is used at lhs.
+                // emit(ast::node::assignment_stmt) already treats this case.
+                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
             }
 
             assert(!ref->symbol.expired());
-            return emitter.lookup_var(ref->symbol.lock());
+            auto const sym = ref->symbol.lock();
+            emit_copy_to_lhs(emitter.lookup_var(sym), sym->type);
         }
 
-        val emit(ast::node::index_access const& access)
+        void emit(ast::node::index_access const& access)
         {
+            assert(access->is_assign);
+
             auto const child_val = emitter.emit(access->child);
-            auto const index_val = emitter.load_if_ref(emitter.emit(access->index_expr), type::type_of(access->index_expr));
+            auto const index_val = emitter.deref(emitter.emit(access->index_expr), type::type_of(access->index_expr));
             auto const child_type = type::type_of(access->child);
 
             if (type::is_a<type::tuple_type>(child_type)) {
@@ -488,63 +503,91 @@ class llvm_ir_emitter {
                 if (!constant_index) {
                     emitter.error(access, "Index is not a constant.");
                 }
-                return emitter.ctx.builder.CreateStructGEP(child_val, constant_index->getZExtValue());
+                emit_copy_to_lhs(
+                        emitter.ctx.builder.CreateStructGEP(
+                            child_val,
+                            constant_index->getZExtValue()
+                        ),
+                        access->type
+                    );
             } else if (type::is_a<type::array_type>(child_type)) {
                 assert(!index_val->getType()->isPointerTy());
-                return emitter.ctx.builder.CreateInBoundsGEP(
+                emit_copy_to_lhs(
+                    emitter.ctx.builder.CreateInBoundsGEP(
                         child_val,
                         (val [2]){
                             emitter.ctx.builder.getInt64(0u),
                             index_val
                         }
-                    );
+                    ),
+                    access->type
+                );
             } else if (!access->callee_scope.expired()) {
-                // TODO:
-                emitter.error(access, "Invalid assignment to indexed access");
+                auto const callee = access->callee_scope.lock();
+                assert(callee->name == "[]=");
+
+                emitter.check(
+                    access,
+                    emitter.ctx.builder.CreateCall3(
+                        emitter.emit_non_builtin_callee(access, callee),
+                        emitter.deref(child_val, child_type),
+                        index_val,
+                        rhs_value
+                    ),
+                    "Invalid function call '[]=' for lhs of assignment"
+                );
             } else {
                 // Note: An exception is thrown
                 emitter.error(access, "Invalid assignment to indexed access");
             }
         }
 
-        val emit(ast::node::ufcs_invocation const& ufcs)
+        void emit(ast::node::ufcs_invocation const& ufcs)
         {
+            assert(ufcs->is_assign);
+
             auto const child_type = type::type_of(ufcs->child);
 
             // Note:
             // When the UFCS invocation is generated for lambda capture access
             if (auto const g = type::get<type::generic_func_type>(child_type)) {
                 if (helper::exists(emitter.semantics_ctx.lambda_captures, *g)) {
-                    return emitter.emit_lambda_capture_access(*g, ufcs);
+                    emit_copy_to_lhs(
+                        emitter.emit_lambda_capture_access(*g, ufcs),
+                        ufcs->type
+                    );
+                    return;
                 }
             }
 
             auto const receiver_type = type::get<type::class_type>(child_type);
-            if (!receiver_type) {
-                return nullptr;
-            }
+            assert(receiver_type);
 
             assert(!(*receiver_type)->ref.expired());
             auto const emitted = emitter.emit_instance_var_access((*receiver_type)->ref.lock(), ufcs);
 
-            return emitted ? *emitted : nullptr;
+            assert(emitted);
+            emit_copy_to_lhs(
+                *emitted,
+                ufcs->type
+            );
         }
 
         template<class... Args>
-        val emit(boost::variant<Args...> const& v)
+        void emit(boost::variant<Args...> const& v)
         {
-            return apply_lambda([this](auto const& n){ return emit(n); }, v);
+            apply_lambda([this](auto const& n){ return emit(n); }, v);
         }
 
-        val emit(ast::node::typed_expr const& typed)
+        void emit(ast::node::typed_expr const& typed)
         {
-            return emit(typed->child_expr);
+            emit(typed->child_expr);
         }
 
         template<class T>
-        val emit(T const&)
+        void emit(T const&)
         {
-            return nullptr;
+            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
     };
 
@@ -1668,22 +1711,8 @@ public:
 
                 auto const rhs_type = type::type_of(rhs_expr);
 
-                auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
                 auto *const rhs_value = load_if_ref(emit(rhs_expr), rhs_type);
-
-                if (!lhs_value) {
-                    DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-                }
-                assert(lhs_value->getType()->isPointerTy());
-
-                alloc_emitter.create_deep_copy(
-                        rhs_value,
-                        load_aggregate_elem(
-                            lhs_value,
-                            lhs_type
-                        ),
-                        lhs_type
-                    );
+                lhs_of_assign_emitter<self>{*this, rhs_value}.emit(lhs_expr);
             }
             , assign->assignees, assign->rhs_exprs
         );

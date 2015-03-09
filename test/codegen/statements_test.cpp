@@ -519,6 +519,73 @@ BOOST_AUTO_TEST_CASE(compound_assign)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(indexed_assign)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+            func [](idx)
+                ret @a[idx]
+            end
+            func []=(idx, lhs)
+                @a[idx] = lhs
+            end
+        end
+        func main
+            var x := new X{[1, 2, 3]}
+            x[0] = 10
+            x[0] = x[0] + 10
+            x[0] += 10
+            x[0].println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+
+            func [](idx)
+                ret @a[idx]
+            end
+
+            func []=(idx, lhs)
+                @a[idx] = lhs
+            end
+
+            func *(lhs)
+                var i := 0u
+                for i < @a.size
+                    @a[i] *= lhs
+                    i += 1u
+                end
+                ret self
+            end
+        end
+
+        class Y
+            a
+
+            func [](idx)
+                ret @a[idx]
+            end
+
+            func []=(idx, lhs)
+                @a[idx] = lhs
+            end
+        end
+
+        func main
+            x := new X{[1, 2, 3]}
+            var y := new Y{[x, x * 2, x * 3]}
+            y[1][1].println # 12
+
+            y[1][1] *= y[0][0]
+            y[1] = y[1] * 3
+            y[1] *= 3
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(return_stmt_in_the_middle_of_basic_block)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
