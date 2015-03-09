@@ -835,13 +835,13 @@ struct assignment_stmt final : public statement {
     std::string op;
     std::vector<node::any_expr> rhs_exprs;
     std::vector<scope::weak_func_scope> callee_scopes;
-    bool broke_up_rhs_tuple = false;
+    bool rhs_tuple_expansion = false;
 
     assignment_stmt(decltype(assignees) const& assignees,
                     std::string const& op,
                     decltype(rhs_exprs) const& rhs_exprs,
                     bool const b = false) noexcept
-        : statement(), assignees(assignees), op(op), rhs_exprs(rhs_exprs), broke_up_rhs_tuple(b)
+        : statement(), assignees(assignees), op(op), rhs_exprs(rhs_exprs), rhs_tuple_expansion(b)
     {}
 
     std::string to_string() const noexcept override

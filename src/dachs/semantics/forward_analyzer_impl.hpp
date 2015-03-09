@@ -712,19 +712,19 @@ public:
     std::vector<ast::node::any_expr> break_up_tuple_access(Expr const& tuple_expr, std::size_t const num_elems)
     {
         auto const location = ast::node::location_of(tuple_expr);
-        std::vector<ast::node::any_expr> broken_up;
-        broken_up.reserve(num_elems);
+        std::vector<ast::node::any_expr> expanded;
+        expanded.reserve(num_elems);
 
-        for (auto const i : helper::indices(num_elems)) {
+        for (unsigned int const i : helper::indices(num_elems)) {
             auto index_constant = helper::make<ast::node::primary_literal>(i);
             index_constant->set_source_location(location);
 
             auto access = helper::make<ast::node::index_access>(tuple_expr, std::move(index_constant));
             access->set_source_location(location);
-            broken_up.emplace_back(std::move(access));
+            expanded.emplace_back(std::move(access));
         }
 
-        return broken_up;
+        return expanded;
     }
 
     // Note:
@@ -758,7 +758,7 @@ public:
                     return;
                 }
             } else if (rhs_size == 1) {
-                assign->broke_up_rhs_tuple = true;
+                assign->rhs_tuple_expansion = true;
                 assign->rhs_exprs = break_up_tuple_access(assign->rhs_exprs[0], lhs_size);
 
                 assert(assign->assignees.size() == assign->rhs_exprs.size());
@@ -774,7 +774,7 @@ public:
             }
         }
 
-        assert(assign->assignee.size() == assign->rhs_exprs.size());
+        assert(assign->assignees.size() == assign->rhs_exprs.size());
 
         if (assign->op != "=") {
             // Note: At compound assignment

@@ -203,7 +203,7 @@ public:
 
     auto copy(node::assignment_stmt const& as) const
     {
-        return copy_node<node::assignment_stmt>(as, copy(as->assignees), as->op, copy(as->rhs_exprs), as->broke_up_rhs_tuple);
+        return copy_node<node::assignment_stmt>(as, copy(as->assignees), as->op, copy(as->rhs_exprs), as->rhs_tuple_expansion);
     }
 
     auto copy(node::statement_block const& sb) const

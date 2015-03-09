@@ -2815,7 +2815,7 @@ public:
 
         for (auto const& e : assign->rhs_exprs) {
             if (!type_of(e)) {
-                if (assign->broke_up_rhs_tuple) {
+                if (assign->rhs_tuple_expansion) {
                     semantic_error(
                             assign,
                             "  Error on assignment to multiple values with tuple expansion"
@@ -2898,7 +2898,7 @@ public:
                                 % type::to_string(lhs_type)
                                 % type::to_string(rhs_type)
                             );
-                        if (assign->broke_up_rhs_tuple) {
+                        if (assign->rhs_tuple_expansion) {
                             semantic_error(
                                     assign,
                                     "  Error on assignment to multiple values with tuple expansion"
