@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <utility>
+#include <memory>
 #include <cstddef>
 
 #include <boost/optional.hpp>
@@ -202,7 +203,7 @@ public:
 
     auto copy(node::assignment_stmt const& as) const
     {
-        return copy_node<node::assignment_stmt>(as, copy(as->assignees), as->op, copy(as->rhs_exprs));
+        return copy_node<node::assignment_stmt>(as, copy(as->assignees), as->op, copy(as->rhs_exprs), as->broke_up_rhs_tuple);
     }
 
     auto copy(node::statement_block const& sb) const
@@ -291,11 +292,16 @@ public:
 
 } // namespace detail
 
-template<class ASTNode>
-ASTNode copy_ast(ASTNode const& node)
+template<class Node>
+auto copy_ast(std::shared_ptr<Node> const& node)
 {
-    static_assert(helper::is_shared_ptr<ASTNode>::value, "try to copy somthing which isn't AST node");
     return detail::copier{}.copy(node);
+}
+
+template<class... Nodes>
+auto copy_ast(boost::variant<Nodes...> const& variant_node)
+{
+    return detail::copier{}.copy(variant_node);
 }
 
 } // namespace ast

@@ -482,6 +482,7 @@ class llvm_ir_emitter {
             auto const child_val = emitter.emit(access->child);
             auto const index_val = emitter.load_if_ref(emitter.emit(access->index_expr), type::type_of(access->index_expr));
             auto const child_type = type::type_of(access->child);
+
             if (type::is_a<type::tuple_type>(child_type)) {
                 auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
                 if (!constant_index) {
@@ -497,9 +498,12 @@ class llvm_ir_emitter {
                             index_val
                         }
                     );
+            } else if (!access->callee_scope.expired()) {
+                // TODO:
+                emitter.error(access, "Invalid assignment to indexed access");
             } else {
                 // Note: An exception is thrown
-                emitter.error(access, "Not a tuple or array value (in assignment statement)");
+                emitter.error(access, "Invalid assignment to indexed access");
             }
         }
 
@@ -1650,119 +1654,39 @@ public:
 
     void emit(ast::node::assignment_stmt const& assign)
     {
-        assert(assign->op.back() == '=');
+        assert(assign->op == "=");
+        assert(assign->assignees.size() == assign->rhs_exprs.size());
 
-        // Load rhs value
-        std::vector<val> rhs_values;
-        std::vector<type::type> rhs_types;
-
-        auto const assignee_size = assign->assignees.size();
-        auto const assigner_size = assign->rhs_exprs.size();
-        auto const is_compound_assign = assign->op != "=";
-        assert(assignee_size > 0 && assigner_size > 0);
-
-        if (assignee_size == assigner_size) {
-            for (auto const& rhs : assign->rhs_exprs) {
-                rhs_values.push_back(emit(rhs));
-                rhs_types.push_back(type::type_of(rhs));
-            }
-        } else if (assigner_size == 1) {
-            assert(assignee_size > 1);
-            auto rhs_tuple_type = type::get<type::tuple_type>(type::type_of(assign->rhs_exprs[0]));
-            assert(rhs_tuple_type);
-
-            auto *const rhs_value = emit(assign->rhs_exprs[0]);
-            auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_value->getType()->getPointerElementType());
-
-            for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
-                rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
-            }
-
-            rhs_types = (*rhs_tuple_type)->element_types;
-        } else {
-            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-        }
-
-        assert(assignee_size == rhs_values.size());
-
-        if (!is_compound_assign) {
-
-            helper::each(
-                [&, this](auto const& lhs_expr, auto *const rhs_value)
-                {
-                    auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
-                    auto const lhs_type = type::type_of(lhs_expr);
-
-                    if (!lhs_type) {
-                        // Note: When lhs is '_'
-                        return;
-                    }
-
-                    if (!lhs_value) {
-                        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-                    }
-                    assert(lhs_value->getType()->isPointerTy());
-
-                    alloc_emitter.create_deep_copy(
-                            rhs_value,
-                            load_aggregate_elem(
-                                lhs_value,
-                                lhs_type
-                            ),
-                            lhs_type
-                        );
+        helper::each(
+            [&, this](auto const& lhs_expr, auto const& rhs_expr)
+            {
+                auto const lhs_type = type::type_of(lhs_expr);
+                if (!lhs_type) {
+                    // Note: When lhs is '_'
+                    return;
                 }
-                , assign->assignees, rhs_values
-            );
 
-        } else {
+                auto const rhs_type = type::type_of(rhs_expr);
 
-            assert(assignee_size == assign->callee_scopes.size());
+                auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
+                auto *const rhs_value = load_if_ref(emit(rhs_expr), rhs_type);
 
-            // Note:
-            // When the compound assignment invokes binary operator function
-            auto const bin_op = assign->op.substr(0, assign->op.size()-1);
-
-            helper::each(
-                [&, this](auto const& lhs_expr, auto *const rhs_value, auto const& rhs_type, auto const& callee)
-                {
-                    auto const lhs_type = type::type_of(lhs_expr);
-                    if (!lhs_type) {
-                        // Note: When lhs is '_'
-                        return;
-                    }
-
-                    auto *const lhs_value = lhs_of_assign_emitter<self>{*this}.emit(lhs_expr);
-
-                    auto const compounded_val
-                        = emit_binary_expr(
-                                assign,
-                                bin_op,
-                                lhs_type,
-                                rhs_type,
-                                deref(lhs_value, lhs_type),
-                                deref(rhs_value, rhs_type),
-                                callee
-                            );
-
-                    alloc_emitter.create_deep_copy(
-                            load_if_ref(
-                                compounded_val,
-                                callee.expired()
-                                    ? rhs_type
-                                    : *callee.lock()->ret_type
-                            ),
-                            load_aggregate_elem(
-                                lhs_value,
-                                lhs_type
-                            ),
-                            lhs_type
-                        );
+                if (!lhs_value) {
+                    DACHS_RAISE_INTERNAL_COMPILATION_ERROR
                 }
-                , assign->assignees, rhs_values, rhs_types, assign->callee_scopes
-            );
-        }
+                assert(lhs_value->getType()->isPointerTy());
 
+                alloc_emitter.create_deep_copy(
+                        rhs_value,
+                        load_aggregate_elem(
+                            lhs_value,
+                            lhs_type
+                        ),
+                        lhs_type
+                    );
+            }
+            , assign->assignees, assign->rhs_exprs
+        );
     }
 
     void emit(ast::node::case_stmt const& case_)

@@ -540,9 +540,10 @@ struct object_construct final : public expression {
 struct index_access final : public expression {
     node::any_expr child, index_expr;
     scope::weak_func_scope callee_scope;
+    bool is_assign = false;
 
-    index_access(node::any_expr const& c, node::any_expr const& idx_expr) noexcept
-        : expression(), child(c), index_expr(idx_expr)
+    index_access(node::any_expr const& c, node::any_expr const& idx_expr, bool const assign = false) noexcept
+        : expression(), child(c), index_expr(idx_expr), is_assign(assign)
     {}
 
     std::string to_string() const noexcept override
@@ -834,11 +835,13 @@ struct assignment_stmt final : public statement {
     std::string op;
     std::vector<node::any_expr> rhs_exprs;
     std::vector<scope::weak_func_scope> callee_scopes;
+    bool broke_up_rhs_tuple = false;
 
     assignment_stmt(decltype(assignees) const& assignees,
                     std::string const& op,
-                    decltype(rhs_exprs) const& rhs_exprs) noexcept
-        : statement(), assignees(assignees), op(op), rhs_exprs(rhs_exprs)
+                    decltype(rhs_exprs) const& rhs_exprs,
+                    bool const b = false) noexcept
+        : statement(), assignees(assignees), op(op), rhs_exprs(rhs_exprs), broke_up_rhs_tuple(b)
     {}
 
     std::string to_string() const noexcept override

@@ -19,6 +19,7 @@
 #include "dachs/semantics/error.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/ast_walker.hpp"
+#include "dachs/ast/ast_copier.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
@@ -704,6 +705,90 @@ public:
                 var->name = var->name.substr(1u); // omit '@'
                 invocation->args.insert(std::begin(invocation->args), generate_self_ref(*invocation));
             }
+        }
+
+        w();
+    }
+
+    // Note:
+    // t: (int, char, string) -> t[0]: int, t[1]: char, t[2]: string
+    template<class Expr>
+    std::vector<ast::node::any_expr> break_up_tuple_access(Expr const& tuple_expr, std::size_t const num_elems)
+    {
+        auto const location = ast::node::location_of(tuple_expr);
+        std::vector<ast::node::any_expr> broken_up;
+        broken_up.reserve(num_elems);
+
+        for (auto const i : helper::indices(num_elems)) {
+            auto index_constant = helper::make<ast::node::primary_literal>(i);
+            index_constant->set_source_location(location);
+
+            auto access = helper::make<ast::node::index_access>(tuple_expr, std::move(index_constant));
+            access->set_source_location(location);
+            broken_up.emplace_back(std::move(access));
+        }
+
+        return broken_up;
+    }
+
+    // Note:
+    // foo += bar  -> foo = foo + bar
+    // This function returns rhs binary expression
+    ast::node::binary_expr solve_compound_assign(
+            ast::node::any_expr const& lhs,
+            ast::node::any_expr && rhs,
+            std::string const& op)
+    {
+        auto location = ast::node::location_of(rhs);
+        auto copied_lhs = ast::copy_ast(lhs);
+        auto const bin = helper::make<ast::node::binary_expr>(std::move(copied_lhs), op, std::move(rhs));
+        bin->set_source_location(std::move(location));
+        return bin;
+    }
+
+    template<class Walker>
+    void visit(ast::node::assignment_stmt const& assign, Walker const& w)
+    {
+        {
+            auto const lhs_size = assign->assignees.size();
+            auto const rhs_size = assign->rhs_exprs.size();
+
+            if (lhs_size == 1) {
+                if (rhs_size != 1) {
+                    semantic_error(
+                            assign,
+                            "  Assigning multiple values to a tuple is not permitted.  Use tuple literal for rhs of assignment"
+                        );
+                    return;
+                }
+            } else if (rhs_size == 1) {
+                assign->broke_up_rhs_tuple = true;
+                assign->rhs_exprs = break_up_tuple_access(assign->rhs_exprs[0], lhs_size);
+
+                assert(assign->assignees.size() == assign->rhs_exprs.size());
+            } else if (lhs_size != rhs_size) {
+                semantic_error(
+                        assign,
+                        boost::format(
+                            "  The number of lhs and rhs in assignment mismatches\n"
+                            "  Note: The number of lhs is '%1%' and the one of rhs is '%2%'"
+                        ) % lhs_size % rhs_size
+                    );
+                return;
+            }
+        }
+
+        assert(assign->assignee.size() == assign->rhs_exprs.size());
+
+        if (assign->op != "=") {
+            // Note: At compound assignment
+            auto const binary_op = assign->op.substr(0, assign->op.size()-1);
+
+            for (auto const i : helper::indices(assign->rhs_exprs)) {
+                assign->rhs_exprs[i] = solve_compound_assign(assign->assignees[i], std::move(assign->rhs_exprs[i]), binary_op);
+            }
+
+            assign->op = "=";
         }
 
         w();
