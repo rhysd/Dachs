@@ -1190,8 +1190,9 @@ public:
 
             assert(!access->callee_scope.expired());
             auto const callee = access->callee_scope.lock();
-            assert(!callee->ret_type);
-            access->type = *callee->ret_type;
+            if (callee->ret_type) {
+                access->type = *callee->ret_type;
+            }
 
             return boost::none;
         }
