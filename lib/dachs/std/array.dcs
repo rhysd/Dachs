@@ -44,6 +44,14 @@ class array
         ret i < 0 || @size <= i
     end
 
+    func fill(elem)
+        var i := 0u
+        for i < @size
+            @buf[i] = elem
+            i += 1u
+        end
+    end
+
     func each(predicate)
         var i := 0u
         for i < @size

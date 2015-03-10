@@ -470,7 +470,42 @@ public:
             = (
                 DACHS_KWD("new") >> qualified_type >> constructor_call >> -do_block
             ) [
-                _val = make_node_ptr<ast::node::object_construct>(_1, _2, _3)
+                _val = phx::bind(
+                    [](auto && type, auto && args, auto && maybe_do)
+                    {
+                        auto construct = helper::make<ast::node::object_construct>(
+                                    type,
+                                    std::forward<decltype(args)>(args),
+                                    std::forward<decltype(maybe_do)>(maybe_do)
+                                );
+
+                        // Note:
+                        // Modify AST to forward all arguments from array class's ctor to builtin array ctor
+                        // to construct array class with argument.
+                        //
+                        //      new [int]{4u} -(in 'array_type')-> new array(static_array(int)){4u}
+                        //                    -----(here!)-------> new array{new static_array(int){ 4u }}
+                        //
+                        // This is temporary implementation to introduce variadic-length array (TODO)
+                        if (auto const t = get_as<ast::node::primary_type>(type)) {
+                            if ((*t)->template_name == "array" && !(*t)->holders.empty()) {
+                                if (auto const a = get_as<ast::node::array_type>((*t)->holders[0])) {
+                                    auto inner_construct
+                                        = helper::make<ast::node::object_construct>(
+                                                *a
+                                            );
+                                    inner_construct->args = std::move(construct->args);
+                                    construct->args.clear();
+                                    construct->args.push_back(std::move(inner_construct));
+                                    (*t)->holders.clear();
+                                }
+                            }
+                        }
+
+                        return construct;
+                    }
+                    , _1, _2, _3
+                )
             ];
 
         // Note:
