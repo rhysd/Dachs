@@ -201,6 +201,10 @@ public:
 
     bool is_unit() const noexcept;
 
+    bool is_array_class() const noexcept;
+
+    boost::optional<array_type const&> get_array_underlying_type() const noexcept;
+
     // Note:
     // Visitor && is not available because boost::apply_visitor
     // can't take rvalue arguments.

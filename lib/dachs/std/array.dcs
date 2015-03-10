@@ -1,7 +1,7 @@
 class array
   - buf
-  - capacity
-  - size
+  - capacity : uint
+  - size : uint
 
     init(@buf)
         @capacity := @buf.size

@@ -443,6 +443,32 @@ bool any_type::is_unit() const noexcept
     return (*t)->element_types.empty();
 }
 
+bool any_type::is_array_class() const noexcept
+{
+    auto const c = helper::variant::get_as<class_type>(value);
+    return c && (*c)->name == "array";
+}
+
+boost::optional<array_type const&> any_type::get_array_underlying_type() const noexcept
+{
+    auto const c = helper::variant::get_as<class_type>(value);
+    if (!c || (*c)->name != "array") {
+        return boost::none;
+    }
+
+    if ((*c)->param_types.size() == 1) {
+        return get<array_type>((*c)->param_types[0]);
+    } else if ((*c)->param_types.empty() && !(*c)->ref.expired()) {
+        auto const scope = (*c)->ref.lock();
+        auto const& syms = scope->instance_var_symbols;
+        if (syms.size() == 3 /*buf, capacity, size*/) {
+            return get<array_type>((*c)->param_types[0]);
+        }
+    }
+
+    return boost::none;
+}
+
 bool any_type::operator==(any_type const& rhs) const noexcept
 {
     return helper::variant::apply_lambda(

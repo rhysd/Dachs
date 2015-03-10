@@ -955,9 +955,20 @@ public:
             = (
                 '[' >> -qi::eol >> qualified_type >> -qi::eol >> ']'
             ) [
-                _val = make_node_ptr<ast::node::array_type>(_1)
-            ] [
-                phx::bind([this]{ implicit_import_installer.array_found = true; })
+                _val = phx::bind(
+                    [this](auto && param_type)
+                    {
+                        implicit_import_installer.array_found = true;
+                        return helper::make<ast::node::primary_type>(
+                                "array",
+                                std::vector<ast::node::any_type>{
+                                    helper::make<ast::node::array_type>(
+                                        std::forward<decltype(param_type)>(param_type)
+                                    )
+                                }
+                            );
+                    }, _1
+                )
             ];
 
         dict_type
