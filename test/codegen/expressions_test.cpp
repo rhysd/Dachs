@@ -1262,6 +1262,16 @@ BOOST_AUTO_TEST_CASE(static_array)
             d.show_1
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            a := [1, 2]
+            b : static_array(int) := a.data
+            (b : static_array(int))[1].println
+            (b : static_array)[1].println
+            b2 : static_array := a.data
+        end
+    )");
 }
 
 

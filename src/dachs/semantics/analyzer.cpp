@@ -1717,6 +1717,21 @@ public:
                 typed->type = actual_type;
                 return;
             }
+        } else if (auto const array = type::get<type::array_type>(specified_type)) {
+            if (actual_type.is_instantiated_from(*array)) {
+                typed->type = actual_type;
+                return;
+            }
+        }
+
+        if (auto const specified_array = type::get<type::array_type>(specified_type)) {
+            if (auto const actual_array = type::get<type::array_type>(actual_type)) {
+                assert(!(*specified_array)->size);
+                if ((*specified_array)->element_type == (*actual_array)->element_type) {
+                    typed->type = actual_type;
+                    return;
+                }
+            }
         }
 
         if (actual_type != specified_type) {
@@ -2779,7 +2794,7 @@ public:
         auto const maybe_ctor = enclosing_ctor();
 
         auto const substitute_type =
-            [this, &init, &maybe_ctor](auto const& decl, auto const& t)
+            [this, &init, &maybe_ctor](auto const& decl, type::type const& t)
             {
                 if (decl->name == "_" && decl->symbol.expired()) {
                     return;
@@ -2812,21 +2827,35 @@ public:
                     }
                 }
 
-                if (symbol->type) {
-                    if (symbol->type != t) {
-                        semantic_error(
-                                init,
-                                boost::format(
-                                    "  Types mismatch on substituting '%1%'\n"
-                                    "  Note: Type of '%1%' is '%2%' but rhs type is '%3%'"
-                                ) % symbol->name
-                                  % symbol->type.to_string()
-                                  % type::to_string(t)
-                            );
+                if (!symbol->type || symbol->type == t) {
+                    symbol->type = t;
+                    return;
+                }
+
+                if (auto const c = type::get<type::class_type>(symbol->type)) {
+                    if (t.is_instantiated_from(*c)) {
+                        symbol->type = t;
+                        return;
+                    }
+                } else if (auto const a = type::get<type::array_type>(symbol->type)) {
+                    if (auto const rhs_a = type::get<type::array_type>(t)) {
+                        if (type::is_instantiated_from(*rhs_a, *a)
+                                || (*a)->element_type == (*rhs_a)->element_type) {
+                            symbol->type = t;
+                            return;
+                        }
                     }
                 }
 
-                symbol->type = t;
+                semantic_error(
+                        init,
+                        boost::format(
+                            "  Types mismatch on substituting '%1%'\n"
+                            "  Note: Type of '%1%' is '%2%' but rhs type is '%3%'"
+                        ) % symbol->name
+                            % symbol->type.to_string()
+                            % type::to_string(t)
+                    );
             };
 
         if (init->var_decls.size() == 1) {
