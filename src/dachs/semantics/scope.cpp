@@ -47,6 +47,15 @@ inline size_t calc_depth_of_template(type::class_type const& clazz)
     return depth;
 }
 
+inline size_t calc_depth_of_template(type::array_type const& array)
+{
+    if (auto const c = type::get<type::class_type>(array->element_type)) {
+        return 1u + calc_depth_of_template(*c);
+    }
+
+    return 1u;
+}
+
 auto get_parameter_score(type::type const& arg_type, type::type const& param_type)
 {
     assert(arg_type);
@@ -101,6 +110,14 @@ auto get_parameter_score(type::type const& arg_type, type::type const& param_typ
             //  Actually '(new Foo{42}).foo()' means calling foo(Foo(int)) by UFCS
 
             return std::make_tuple(2u, 0u, static_cast<unsigned int>(calc_depth_of_template(lhs_class)));
+        }
+    }
+
+    if (auto const lhs_array = type::get<type::array_type>(param_type)) {
+        if (auto const rhs_array = type::get<type::array_type>(arg_type)) {
+            if (type::is_instantiated_from(*rhs_array, *lhs_array)) {
+                return std::make_tuple(2u, 0u, static_cast<unsigned int>(calc_depth_of_template(*lhs_array)));
+            }
         }
     }
 

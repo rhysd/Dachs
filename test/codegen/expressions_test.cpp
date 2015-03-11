@@ -1222,30 +1222,44 @@ BOOST_AUTO_TEST_CASE(compound_assignments)
 BOOST_AUTO_TEST_CASE(static_array)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func show_1(a : static_array)
+            a[1].println
+        end
+
+        func show_0(a)
+            a[0].println
+        end
+
         func main
             v := new static_array(int) {3u, 3}
             for e in v
                 e.println
             end
             v.size.println
+            show_1(v)
 
             a := [1, 2, 3]
             b : static_array(int) := a.data
             for e in b
                 e.println
             end
+            a.show_0
+            b.show_0
+            b.show_1
 
             c := new static_array {3u, 'a'}
             for e in c
                 e.println
             end
             c.size.println
+            c.show_0
 
             d := new static_array(int) {3u}
             for e in d
                 e.println
             end
             d.size.println
+            d.show_1
         end
     )");
 }

@@ -229,6 +229,7 @@ public:
     }
 
     bool is_instantiated_from(class_type const& from) const;
+    bool is_instantiated_from(array_type const& from) const;
 
     bool is_default_constructible() const noexcept;
 
@@ -589,10 +590,8 @@ struct array_type final : public basic_type {
 
     std::string to_string() const noexcept override
     {
-        return '['
-            + element_type.to_string()
-            + ']'
-            + (size ? " (" + std::to_string(*size) + ')' : "");
+        return "static_array(" + element_type.to_string()
+            + (size ? ", " + std::to_string(*size) + ')' : ")");
     }
 
     bool operator==(array_type const& rhs) const noexcept
@@ -754,6 +753,7 @@ any_type from_ast(ast::node::any_type const&, scope::any_scope const& current) n
 ast::node::any_type to_ast(any_type const&, ast::location_type &&) noexcept;
 ast::node::any_type to_ast(any_type const&, ast::location_type const&) noexcept;
 bool is_instantiated_from(class_type const& instantiated_class, class_type const& template_class);
+bool is_instantiated_from(array_type const& instantiated_array, array_type const& template_array);
 
 template<class String>
 bool any_type::is_builtin(String const& name) const noexcept

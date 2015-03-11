@@ -39,6 +39,10 @@ class array
         ret @capacity
     end
 
+    func data
+        ret @buf
+    end
+
     func out_of_bounds?(idx)
         i := idx as int
         ret i < 0 || @size <= i

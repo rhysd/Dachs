@@ -2404,6 +2404,17 @@ public:
 
         w();
 
+        // Note:
+        // Edge case when child static_array knows the its length and array class doesn't know.
+        // The static_array notifies the length to array class.
+        if (obj->type.is_array_class()) {
+            if (obj->args.size() == 1) {
+                if (auto const array_from_child = type::get<type::array_type>(type_of(obj->args[0]))) {
+                    (*type::get<type::class_type>(obj->type))->param_types.push_back(*array_from_child);
+                }
+            }
+        }
+
         {
             auto const error = apply_lambda(
                 [&t=obj->type, this](auto const& s)
