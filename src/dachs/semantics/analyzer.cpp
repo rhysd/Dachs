@@ -2485,9 +2485,11 @@ public:
         auto const check_element =
             [this, &for_, &substitute_param_type](auto const& elem_type)
             {
+                auto const iter_var_size = for_->iter_vars.size();
+
                 if (auto const maybe_elem_tuple_type = type::get<type::tuple_type>(elem_type)) {
                     auto const& elem_tuple_type = *maybe_elem_tuple_type;
-                    if (elem_tuple_type->element_types.size() != for_->iter_vars.size()) {
+                    if (iter_var_size != 1 && elem_tuple_type->element_types.size() != iter_var_size) {
                         semantic_error(
                                 for_,
                                 boost::format(
@@ -2499,12 +2501,12 @@ public:
                         return;
                     }
 
-                    helper::each([&](auto &p, auto const& e){ substitute_param_type(p, e); }
+                    helper::each(substitute_param_type
                                 , for_->iter_vars
                                 , elem_tuple_type->element_types);
 
                 } else {
-                    if (for_->iter_vars.size() != 1) {
+                    if (iter_var_size != 1) {
                         semantic_error(for_, "  Number of variable here in 'for' statement must be 1");
                         return;
                     }
@@ -2524,6 +2526,67 @@ public:
             }
             substitute_param_type(for_->iter_vars[0], dict_range_type->key_type);
             substitute_param_type(for_->iter_vars[1], dict_range_type->value_type);
+        } else if (auto const maybe_class_type = type::get<type::class_type>(range_t)) {
+            auto const& t = *maybe_class_type;
+
+            // Note: Check size(rng : range_type)
+            {
+                auto const resolved = resolve_func_call(
+                            "size",
+                            std::vector<type::type>{t}
+                        );
+
+                if (auto const error = get_as<std::string>(resolved)) {
+                    semantic_error(for_, *error);
+                    semantic_error(
+                            for_,
+                            "  Invalid range type '" + t->to_string() + "' to iterate in 'for' statement.  Range type must have size() member function"
+                        );
+                    return;
+                }
+
+                auto const c = get_as<scope::func_scope>(resolved);
+                assert(c);
+                auto const& callee = *c;
+                for_->size_callee_scope = callee;
+
+                assert(callee->ret_type);
+                if (!callee->ret_type->is_builtin("uint")) {
+                    semantic_error(
+                            for_,
+                            "  Invalid range type '" + t->to_string() + "' to iterate in 'for' statement.  '" + callee->to_string() + "' must return 'uint' value"
+                        );
+                    return;
+                }
+            }
+
+            // Note: Check [](idx : uint, rng : range_type)
+            {
+                auto const resolved = resolve_func_call(
+                            "[]",
+                            std::vector<type::type>{
+                                t,
+                                type::get_builtin_type("uint", type::no_opt)
+                            }
+                        );
+
+                if (auto const error = get_as<std::string>(resolved)) {
+                    semantic_error(for_, *error);
+                    semantic_error(
+                            for_,
+                            "  Invalid range type '" + t->to_string() + "' to iterate in 'for' statement.  Range type must have [] operator"
+                        );
+                    return;
+                }
+
+                auto const c = get_as<scope::func_scope>(resolved);
+                assert(c);
+                auto const& callee = *c;
+                for_->index_callee_scope = callee;
+
+                assert(callee->ret_type);
+                check_element(*callee->ret_type);
+            }
         } else {
             semantic_error(for_, boost::format("  Range to iterate in for statement must be range, array or dictionary but actually '%1%'") % range_t.to_string());
         }

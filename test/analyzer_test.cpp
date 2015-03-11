@@ -2766,4 +2766,71 @@ BOOST_AUTO_TEST_CASE(assignment_stmt)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(for_stmt)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func size(_ : X)
+            ret 0u
+        end
+
+        func main
+            for e in new X
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func [](_ : X, i : uint)
+            ret 'a'
+        end
+
+        func main
+            for e in new X
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func [](_ : X, i : int)
+            ret 'a'
+        end
+
+        func size(_ : X)
+            ret 3u
+        end
+
+        func main
+            for e in new X
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func [](_ : X, i : uint)
+            ret 'a'
+        end
+
+        func size(_ : X)
+            ret 3
+        end
+
+        func main
+            for e in new X
+            end
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

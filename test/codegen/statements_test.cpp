@@ -316,6 +316,26 @@ BOOST_AUTO_TEST_CASE(for_statement)
             end
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        func [](x : X, i : uint)
+            ret x
+        end
+
+        func size(_ : X)
+            ret 3u
+        end
+
+        func main
+            for x in new X{42}
+                x.a.println
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(while_statement)

@@ -959,6 +959,8 @@ struct for_stmt final : public statement {
     std::vector<node::parameter> iter_vars;
     node::any_expr range_expr;
     node::statement_block body_stmts;
+    scope::weak_func_scope index_callee_scope;
+    scope::weak_func_scope size_callee_scope;
 
     for_stmt(decltype(iter_vars) const& iters,
              node::any_expr const& range,
