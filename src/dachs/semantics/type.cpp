@@ -457,24 +457,14 @@ bool any_type::is_array_class() const noexcept
     return c && (*c)->name == "array";
 }
 
-boost::optional<array_type const&> any_type::get_array_underlying_type() const noexcept
+boost::optional<array_type const&> any_type::get_array_underlying_type() const
 {
     auto const c = get_as<class_type>(value);
     if (!c || (*c)->name != "array") {
         return boost::none;
     }
 
-    if ((*c)->param_types.size() == 1) {
-        return get<array_type>((*c)->param_types[0]);
-    } else if ((*c)->param_types.empty() && !(*c)->ref.expired()) {
-        auto const scope = (*c)->ref.lock();
-        auto const& syms = scope->instance_var_symbols;
-        if (syms.size() == 3 /*buf, capacity, size*/) {
-            return get<array_type>((*c)->param_types[0]);
-        }
-    }
-
-    return boost::none;
+    return (*c)->get_array_underlying_type();
 }
 
 bool any_type::operator==(any_type const& rhs) const noexcept
@@ -744,7 +734,11 @@ bool class_type::is_template() const
 std::string class_type::to_string() const noexcept
 {
     assert(!ref.expired());
-    return "class " + name + stringize_param_types();
+    if (auto const array = get_array_underlying_type()) {
+        return '[' + (*array)->element_type.to_string() + ']';
+    } else {
+        return "class " + name + stringize_param_types();
+    }
 }
 
 bool class_type::is_default_constructible() const noexcept
@@ -777,6 +771,21 @@ bool class_type::is_default_constructible() const noexcept
     }
 
     return true;
+}
+
+boost::optional<type::array_type const&> class_type::get_array_underlying_type() const
+{
+    if (param_types.size() == 1) {
+        return type::get<type::array_type>(param_types[0]);
+    } else if (param_types.empty() && !ref.expired()) {
+        auto const scope = ref.lock();
+        auto const& syms = scope->instance_var_symbols;
+        if (syms.size() == 3 /*buf, capacity, size*/) {
+            return type::get<type::array_type>(param_types[0]);
+        }
+    }
+
+    return boost::none;
 }
 
 } // namespace type_node

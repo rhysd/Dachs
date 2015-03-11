@@ -203,7 +203,7 @@ public:
 
     bool is_array_class() const noexcept;
 
-    boost::optional<array_type const&> get_array_underlying_type() const noexcept;
+    boost::optional<array_type const&> get_array_underlying_type() const;
 
     // Note:
     // Visitor && is not available because boost::apply_visitor
@@ -360,6 +360,8 @@ struct class_type final : public named_type {
     bool is_default_constructible() const noexcept override;
 
     bool is_instantiated_from(type::class_type const&) const;
+
+    boost::optional<type::array_type const&> get_array_underlying_type() const;
 };
 
 struct tuple_type final : public basic_type {
