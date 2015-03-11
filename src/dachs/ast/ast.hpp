@@ -708,9 +708,9 @@ struct primary_type final : public base {
 };
 
 struct array_type final : public base {
-    node::any_type elem_type;
+    boost::optional<node::any_type> elem_type;
 
-    explicit array_type(node::any_type const& elem) noexcept
+    explicit array_type(boost::optional<node::any_type> const& elem) noexcept
         : elem_type(elem)
     {}
 

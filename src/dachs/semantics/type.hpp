@@ -577,8 +577,6 @@ struct array_type final : public basic_type {
     type::any_type element_type;
     boost::optional<size_t> size = boost::none;
 
-    array_type() = default;
-
     template<class Elem>
     explicit array_type(Elem const& e) noexcept
         : element_type(e)

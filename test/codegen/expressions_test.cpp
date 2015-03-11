@@ -1234,6 +1234,18 @@ BOOST_AUTO_TEST_CASE(static_array)
             for e in b
                 e.println
             end
+
+            c := new static_array {3u, 'a'}
+            for e in c
+                e.println
+            end
+            c.size.println
+
+            d := new static_array(int) {3u}
+            for e in d
+                e.println
+            end
+            d.size.println
         end
     )");
 }

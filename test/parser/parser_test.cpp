@@ -2139,12 +2139,20 @@ BOOST_AUTO_TEST_CASE(import)
 
 BOOST_AUTO_TEST_CASE(static_array)
 {
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func main
+            new static_array(int)
+            new static_array
+        end
+    )"));
+
     CHECK_PARSE_THROW(R"(
         class static_array
+            a, b
         end
 
         func main
-            new static_array
+            new static_array(int, char)
         end
     )");
 }

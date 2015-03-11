@@ -108,9 +108,15 @@ public:
 
     any_type operator()(ast::node::array_type const& t) const noexcept
     {
-        return make<array_type>(
-                    apply_recursively(t->elem_type)
-                );
+        if (t->elem_type) {
+            return make<array_type>(
+                        apply_recursively(*t->elem_type)
+                    );
+        } else {
+            return make<array_type>(
+                        make<template_type>(t)
+                    );
+        }
     }
 
     any_type operator()(ast::node::tuple_type const& t) const noexcept

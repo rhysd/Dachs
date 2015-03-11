@@ -974,7 +974,9 @@ public:
 
         primary_type
             = (
-                    "static_array"_l > '(' > -qi::eol > qualified_type > -qi::eol > ')'
+                "static_array"_l > -(
+                    '(' > -qi::eol > qualified_type > -qi::eol > ')'
+                )
             ) [
                 make_and_assign_to_val<ast::node::array_type>(_1)
             ] | (
