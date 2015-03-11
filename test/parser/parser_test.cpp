@@ -2114,7 +2114,6 @@ BOOST_AUTO_TEST_CASE(clazz)
     )"));
 }
 
-
 BOOST_AUTO_TEST_CASE(import)
 {
     BOOST_CHECK_NO_THROW(p.check_syntax(R"(
@@ -2135,6 +2134,18 @@ BOOST_AUTO_TEST_CASE(import)
 
     CHECK_PARSE_THROW(R"(
         import foo..bar
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(static_array)
+{
+    CHECK_PARSE_THROW(R"(
+        class static_array
+        end
+
+        func main
+            new static_array
+        end
     )");
 }
 

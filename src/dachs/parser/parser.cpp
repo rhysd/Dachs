@@ -974,11 +974,15 @@ public:
 
         primary_type
             = (
-                type_name >> -(
-                    '(' >> -qi::eol >> (qualified_type % comma) >> -qi::eol >> ')'
-                )
+                    "static_array"_l > '(' > -qi::eol > qualified_type > -qi::eol > ')'
             ) [
-                _val = make_node_ptr<ast::node::primary_type>(_1, as_vector(_2))
+                make_and_assign_to_val<ast::node::array_type>(_1)
+            ] | (
+                    type_name >> -(
+                        '(' >> -qi::eol >> (qualified_type % comma) >> -qi::eol >> ')'
+                    )
+            ) [
+                make_and_assign_to_val<ast::node::primary_type>(_1, as_vector(_2))
             ];
 
         nested_type

@@ -1219,4 +1219,24 @@ BOOST_AUTO_TEST_CASE(compound_assignments)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(static_array)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            v := new static_array(int) {3u, 3}
+            for e in v
+                e.println
+            end
+            v.size.println
+
+            a := [1, 2, 3]
+            b : static_array(int) := a.data
+            for e in b
+                e.println
+            end
+        end
+    )");
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()
