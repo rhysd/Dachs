@@ -544,8 +544,6 @@ class llvm_ir_emitter {
 
         void emit(ast::node::ufcs_invocation const& ufcs)
         {
-            assert(ufcs->is_assign);
-
             auto const child_type = type::type_of(ufcs->child);
 
             // Note:
@@ -559,6 +557,8 @@ class llvm_ir_emitter {
                     return;
                 }
             }
+
+            assert(ufcs->is_assign);
 
             auto const receiver_type = type::get<type::class_type>(child_type);
             assert(receiver_type);
@@ -1509,8 +1509,6 @@ public:
                 emit(for_->range_expr),
                 type::type_of(for_->range_expr)
             );
-        assert(range_val->getType()->isPointerTy());
-        assert(range_val->getType()->getPointerElementType()->isArrayTy());
 
         val const range_size_val
             = builtin_range

@@ -2824,9 +2824,9 @@ public:
                                   % type::to_string(t)
                             );
                     }
-                } else {
-                    symbol->type = t;
                 }
+
+                symbol->type = t;
             };
 
         if (init->var_decls.size() == 1) {
