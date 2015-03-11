@@ -600,11 +600,10 @@ struct array_type final : public basic_type {
     {
         if (size && rhs.size) {
             return element_type == rhs.element_type && size == rhs.size;
-        } else {
-            // Note:
-            // Do not consider size because different sized arrays are not
-            // different type.
+        } else if (!size && !rhs.size){
             return element_type == rhs.element_type;
+        } else {
+            return false;
         }
     }
 

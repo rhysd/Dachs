@@ -735,7 +735,9 @@ std::string class_type::to_string() const noexcept
 {
     assert(!ref.expired());
     if (auto const array = get_array_underlying_type()) {
-        return '[' + (*array)->element_type.to_string() + ']';
+        auto const& a = *array;
+        return '[' + a->element_type.to_string()
+            + (a->size ? ',' + std::to_string(*a->size) + ']' : "]");
     } else {
         return "class " + name + stringize_param_types();
     }
@@ -781,7 +783,7 @@ boost::optional<type::array_type const&> class_type::get_array_underlying_type()
         auto const scope = ref.lock();
         auto const& syms = scope->instance_var_symbols;
         if (syms.size() == 3 /*buf, capacity, size*/) {
-            return type::get<type::array_type>(param_types[0]);
+            return type::get<type::array_type>(syms[0]->type);
         }
     }
 

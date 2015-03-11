@@ -1239,7 +1239,7 @@ BOOST_AUTO_TEST_CASE(static_array)
             show_1(v)
 
             a := [1, 2, 3]
-            b : static_array(int) := a.data
+            b := a.data
             for e in b
                 e.println
             end

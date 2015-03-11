@@ -16,6 +16,13 @@ void dump(llvm::Value const* const v) noexcept
     v->dump();
 }
 
+template<class T>
+T p(T const v)
+{
+    v->dump();
+    return v;
+}
+
 } // namespace helper
 } // namespace dachs
 
