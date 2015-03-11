@@ -230,6 +230,27 @@ inline location_type location_of(boost::variant<Nodes...> const& node) noexcept
             );
 }
 
+template<class NodeTo, class NodeFrom>
+inline void set_location(std::shared_ptr<NodeTo> const& to, std::shared_ptr<NodeFrom> const& from) noexcept
+{
+    to->set_source_location(*from);
+}
+
+template<class Node>
+inline void set_location(std::shared_ptr<Node> const& to, location_type const& from) noexcept
+{
+    to->set_source_location(from);
+}
+
+template<class... Nodes, class Location>
+inline void set_location(boost::variant<Nodes...> const& node, Location const& from) noexcept
+{
+    return helper::variant::apply_lambda(
+                [&from](auto const& n){ return set_location(n, from); }
+                , node
+            );
+}
+
 } // namespace node
 
 namespace node_type {
@@ -687,9 +708,9 @@ struct primary_type final : public base {
 };
 
 struct array_type final : public base {
-    node::any_type elem_type;
+    boost::optional<node::any_type> elem_type;
 
-    explicit array_type(node::any_type const& elem) noexcept
+    explicit array_type(boost::optional<node::any_type> const& elem) noexcept
         : elem_type(elem)
     {}
 
@@ -938,6 +959,8 @@ struct for_stmt final : public statement {
     std::vector<node::parameter> iter_vars;
     node::any_expr range_expr;
     node::statement_block body_stmts;
+    scope::weak_func_scope index_callee_scope;
+    scope::weak_func_scope size_callee_scope;
 
     for_stmt(decltype(iter_vars) const& iters,
              node::any_expr const& range,

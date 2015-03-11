@@ -201,6 +201,10 @@ public:
 
     bool is_unit() const noexcept;
 
+    bool is_array_class() const noexcept;
+
+    boost::optional<array_type const&> get_array_underlying_type() const;
+
     // Note:
     // Visitor && is not available because boost::apply_visitor
     // can't take rvalue arguments.
@@ -225,6 +229,7 @@ public:
     }
 
     bool is_instantiated_from(class_type const& from) const;
+    bool is_instantiated_from(array_type const& from) const;
 
     bool is_default_constructible() const noexcept;
 
@@ -355,6 +360,8 @@ struct class_type final : public named_type {
     bool is_default_constructible() const noexcept override;
 
     bool is_instantiated_from(type::class_type const&) const;
+
+    boost::optional<type::array_type const&> get_array_underlying_type() const;
 };
 
 struct tuple_type final : public basic_type {
@@ -573,8 +580,6 @@ struct array_type final : public basic_type {
     type::any_type element_type;
     boost::optional<size_t> size = boost::none;
 
-    array_type() = default;
-
     template<class Elem>
     explicit array_type(Elem const& e) noexcept
         : element_type(e)
@@ -587,10 +592,8 @@ struct array_type final : public basic_type {
 
     std::string to_string() const noexcept override
     {
-        return '['
-            + element_type.to_string()
-            + ']'
-            + (size ? " (" + std::to_string(*size) + ')' : "");
+        return "static_array(" + element_type.to_string()
+            + (size ? ", " + std::to_string(*size) + ')' : ")");
     }
 
     bool operator==(array_type const& rhs) const noexcept
@@ -752,6 +755,7 @@ any_type from_ast(ast::node::any_type const&, scope::any_scope const& current) n
 ast::node::any_type to_ast(any_type const&, ast::location_type &&) noexcept;
 ast::node::any_type to_ast(any_type const&, ast::location_type const&) noexcept;
 bool is_instantiated_from(class_type const& instantiated_class, class_type const& template_class);
+bool is_instantiated_from(array_type const& instantiated_array, array_type const& template_array);
 
 template<class String>
 bool any_type::is_builtin(String const& name) const noexcept

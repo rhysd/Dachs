@@ -2257,7 +2257,7 @@ BOOST_AUTO_TEST_CASE(main_func)
     )");
 
     CHECK_NO_THROW_SEMANTIC_ERROR(R"(
-        func main(args : [string])
+        func main(args : static_array(string))
             args[0]
             args.size
         end
@@ -2762,6 +2762,73 @@ BOOST_AUTO_TEST_CASE(assignment_stmt)
         func main
             var t := (42, 'a')
             t = (21, 'b')
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(for_stmt)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func size(_ : X)
+            ret 0u
+        end
+
+        func main
+            for e in new X
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func [](_ : X, i : uint)
+            ret 'a'
+        end
+
+        func main
+            for e in new X
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func [](_ : X, i : int)
+            ret 'a'
+        end
+
+        func size(_ : X)
+            ret 3u
+        end
+
+        func main
+            for e in new X
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func [](_ : X, i : uint)
+            ret 'a'
+        end
+
+        func size(_ : X)
+            ret 3
+        end
+
+        func main
+            for e in new X
+            end
         end
     )");
 }

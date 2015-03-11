@@ -16,6 +16,8 @@
 
 namespace dachs {
 namespace type {
+using helper::variant::get_as;
+
 namespace detail {
 
 using helper::variant::apply_lambda;
@@ -108,9 +110,15 @@ public:
 
     any_type operator()(ast::node::array_type const& t) const noexcept
     {
-        return make<array_type>(
-                    apply_recursively(t->elem_type)
-                );
+        if (t->elem_type) {
+            return make<array_type>(
+                        apply_recursively(*t->elem_type)
+                    );
+        } else {
+            return make<array_type>(
+                        make<template_type>(t)
+                    );
+        }
     }
 
     any_type operator()(ast::node::tuple_type const& t) const noexcept
@@ -435,12 +443,28 @@ tuple_type const& get_unit_type() noexcept
 
 bool any_type::is_unit() const noexcept
 {
-    auto const t = helper::variant::get_as<tuple_type>(value);
+    auto const t = get_as<tuple_type>(value);
     if (!t) {
         return false;
     }
 
     return (*t)->element_types.empty();
+}
+
+bool any_type::is_array_class() const noexcept
+{
+    auto const c = get_as<class_type>(value);
+    return c && (*c)->name == "array";
+}
+
+boost::optional<array_type const&> any_type::get_array_underlying_type() const
+{
+    auto const c = get_as<class_type>(value);
+    if (!c || (*c)->name != "array") {
+        return boost::none;
+    }
+
+    return (*c)->get_array_underlying_type();
 }
 
 bool any_type::operator==(any_type const& rhs) const noexcept
@@ -464,9 +488,11 @@ bool any_type::is_default_constructible() const noexcept
 
 bool any_type::is_template() const noexcept
 {
-    if (auto const c = helper::variant::get_as<class_type>(value)) {
+    if (auto const c = get_as<class_type>(value)) {
         // Note: When the type is a class, check if it is class template
         return (*c)->is_template();
+    } else if (auto const a = get_as<array_type>(value)){
+        return (*a)->element_type.is_template();
     } else {
         return helper::variant::has<template_type>(value);
     }
@@ -474,7 +500,11 @@ bool any_type::is_template() const noexcept
 
 bool any_type::is_class_template() const noexcept
 {
-    auto const maybe_type = helper::variant::get_as<class_type>(value);
+    if (auto const maybe_array = get_as<array_type>(value)) {
+        return (*maybe_array)->element_type.is_class_template();
+    }
+
+    auto const maybe_type = get_as<class_type>(value);
     if (!maybe_type) {
         return false;
     }
@@ -506,10 +536,28 @@ bool is_instantiated_from(class_type const& instantiated_class, class_type const
     return checker(instantiated_class, template_class);
 }
 
+bool is_instantiated_from(array_type const& instantiated_array, array_type const& template_array)
+{
+    if (!template_array->element_type.is_template()) {
+        return false;
+    }
+    detail::instantiation_checker checker;
+    return checker(instantiated_array, template_array);
+}
+
 bool any_type::is_instantiated_from(class_type const& from) const
 {
-    if (auto const c = helper::variant::get_as<class_type>(value)) {
+    if (auto const c = get_as<class_type>(value)) {
         return ::dachs::type::is_instantiated_from(*c, from);
+    } else {
+        return false;
+    }
+}
+
+bool any_type::is_instantiated_from(array_type const& from) const
+{
+    if (auto const a = get_as<array_type>(value)) {
+        return ::dachs::type::is_instantiated_from(*a, from);
     } else {
         return false;
     }
@@ -686,7 +734,11 @@ bool class_type::is_template() const
 std::string class_type::to_string() const noexcept
 {
     assert(!ref.expired());
-    return "class " + name + stringize_param_types();
+    if (auto const array = get_array_underlying_type()) {
+        return '[' + (*array)->element_type.to_string() + ']';
+    } else {
+        return "class " + name + stringize_param_types();
+    }
 }
 
 bool class_type::is_default_constructible() const noexcept
@@ -719,6 +771,21 @@ bool class_type::is_default_constructible() const noexcept
     }
 
     return true;
+}
+
+boost::optional<type::array_type const&> class_type::get_array_underlying_type() const
+{
+    if (param_types.size() == 1) {
+        return type::get<type::array_type>(param_types[0]);
+    } else if (param_types.empty() && !ref.expired()) {
+        auto const scope = ref.lock();
+        auto const& syms = scope->instance_var_symbols;
+        if (syms.size() == 3 /*buf, capacity, size*/) {
+            return type::get<type::array_type>(param_types[0]);
+        }
+    }
+
+    return boost::none;
 }
 
 } // namespace type_node

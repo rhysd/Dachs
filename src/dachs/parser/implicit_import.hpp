@@ -8,12 +8,19 @@ namespace syntax {
 
 struct implicit_import {
     bool range_expr_found = false;
+    bool array_found = false;
 
     void install(ast::node::inu const& program) const
     {
         if (range_expr_found) {
             program->imports.push_back(
                     helper::make<ast::node::import>("std.range")
+                );
+        }
+
+        if (array_found) {
+            program->imports.push_back(
+                    helper::make<ast::node::import>("std.array")
                 );
         }
     }

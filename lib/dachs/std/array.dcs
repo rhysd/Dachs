@@ -1,15 +1,11 @@
-class Array
+class array
   - buf
-  - capacity
-  - size
+  - capacity : uint
+  - size : uint
 
     init(@buf)
         @capacity := @buf.size
-        @size := 0u
-    end
-
-    init(@buf, @size)
-        @capacity := @buf.size
+        @size := @buf.size
     end
 
     func assign(rhs)
@@ -27,6 +23,10 @@ class Array
         ret true
     end
 
+    func []=(idx, rhs)
+        @buf[idx] = rhs
+    end
+
     func clear
         @size = 0u
     end
@@ -39,9 +39,21 @@ class Array
         ret @capacity
     end
 
+    func data
+        ret @buf
+    end
+
     func out_of_bounds?(idx)
         i := idx as int
         ret i < 0 || @size <= i
+    end
+
+    func fill(elem)
+        var i := 0u
+        for i < @size
+            @buf[i] = elem
+            i += 1u
+        end
     end
 
     func each(predicate)
@@ -50,19 +62,6 @@ class Array
             predicate(@buf[i])
             i += 1u
         end
-    end
-
-    func each(first, last, predicate)
-        ret false if @out_of_bounds?(first)
-        ret false if @out_of_bounds?(last)
-        ret false if first > last
-
-        for first <= last
-            predicate(@buf[first])
-            first += 1
-        end
-
-        ret true
     end
 
     func each_with_index(predicate)
@@ -97,45 +96,7 @@ class Array
         ret @buf[idx], false
     end
 
-    func [](idx : uint)
+    func [](idx)
         ret @buf[idx]
     end
-
-    func [](idx : int)
-        ret @buf[idx]
-    end
-end
-
-func main
-    var a :=
-        new Array{
-            new [int]{100u}
-        }
-
-    a.append(2)
-    a.append(3)
-    a.append(5)
-    a.append(7)
-
-    a.each do |i|
-        i.println
-    end
-
-    a.each_with_index do |i, idx|
-        idx.print; ": ".print; i.println
-    end
-
-    e, err := a.at(5)
-
-    println("out of bounds") if err
-    print("size: "); a.size.println
-    print("capacity: "); a.capacity.println
-
-    a.each_with_object('a') do |var c, i|
-        c += i as char
-        c.println
-    end
-
-    a[1].println
-    a[2u].println
 end

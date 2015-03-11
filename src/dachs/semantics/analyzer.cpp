@@ -985,10 +985,21 @@ public:
     void visit(ast::node::array_literal const& arr_lit, Walker const& w)
     {
         w();
+
         // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
-        if (arr_lit->element_exprs.empty() && !arr_lit->type) {
-            semantic_error(arr_lit, "  Empty array must be typed by ':'");
-            return;
+        if (arr_lit->element_exprs.empty()) {
+            if (!arr_lit->type) {
+                semantic_error(arr_lit, "  Empty array must be typed by ':'");
+                return;
+            }
+
+            if (auto const a = type::get<type::array_type>(arr_lit->type)) {
+                (*a)->size = 0u;
+                return;
+            } else {
+                semantic_error(arr_lit, "  Invalid type '" + arr_lit->type.to_string() + "' is specified for array literal");
+                return;
+            }
         }
 
         auto arg0_type = type_of(arr_lit->element_exprs[0]);
@@ -1676,19 +1687,16 @@ public:
     {
         auto const specified_type = from_type_node(typed->specified_type);
 
-        if (auto const maybe_child_array = get_as<ast::node::array_literal>(typed->child_expr)) {
-            auto const& child_array = *maybe_child_array;
-            if (child_array->element_exprs.empty()) {
-                if (auto const a = type::get<type::array_type>(specified_type)) {
-                    auto const& the_type = *a;
-                    the_type->size = 0u;
-                    child_array->type = the_type;
-                    typed->type = the_type;
-                    return;
-                }
-            }
-        // } else if (auto const maybe_child_dict = ...) {
-        }
+        if (specified_type.is_array_class()) {
+            // Note:
+            // Edge case when typing for empty array literals
+            apply_lambda(
+                [&](auto const& node)
+                {
+                    node->type = specified_type;
+                }, typed->child_expr
+            );
+        } // else if (auto const maybe_child_dict = ...) {
 
         w();
 
@@ -2378,6 +2386,16 @@ public:
     template<class Walker>
     void visit(ast::node::object_construct const& obj, Walker const& w)
     {
+        // Note:
+        // Edge case when typing for empty array literals
+        if (obj->type && obj->args.size() == 1) {
+            if (auto const builtin_array_type = obj->type.get_array_underlying_type()) {
+                if (auto const lit = get_as<ast::node::array_literal>(obj->args[0])) {
+                    (*lit)->type = *builtin_array_type;
+                }
+            }
+        } // else if ... for other array class constructors (TODO)
+
         obj->type = from_type_node(obj->obj_type);
         if (!obj->type) {
             semantic_error(obj, "  Invalid type for object construction");
@@ -2385,6 +2403,17 @@ public:
         }
 
         w();
+
+        // Note:
+        // Edge case when child static_array knows the its length and array class doesn't know.
+        // The static_array notifies the length to array class.
+        if (obj->type.is_array_class()) {
+            if (obj->args.size() == 1) {
+                if (auto const array_from_child = type::get<type::array_type>(type_of(obj->args[0]))) {
+                    (*type::get<type::class_type>(obj->type))->param_types.push_back(*array_from_child);
+                }
+            }
+        }
 
         {
             auto const error = apply_lambda(
@@ -2467,9 +2496,11 @@ public:
         auto const check_element =
             [this, &for_, &substitute_param_type](auto const& elem_type)
             {
+                auto const iter_var_size = for_->iter_vars.size();
+
                 if (auto const maybe_elem_tuple_type = type::get<type::tuple_type>(elem_type)) {
                     auto const& elem_tuple_type = *maybe_elem_tuple_type;
-                    if (elem_tuple_type->element_types.size() != for_->iter_vars.size()) {
+                    if (iter_var_size != 1 && elem_tuple_type->element_types.size() != iter_var_size) {
                         semantic_error(
                                 for_,
                                 boost::format(
@@ -2481,12 +2512,12 @@ public:
                         return;
                     }
 
-                    helper::each([&](auto &p, auto const& e){ substitute_param_type(p, e); }
+                    helper::each(substitute_param_type
                                 , for_->iter_vars
                                 , elem_tuple_type->element_types);
 
                 } else {
-                    if (for_->iter_vars.size() != 1) {
+                    if (iter_var_size != 1) {
                         semantic_error(for_, "  Number of variable here in 'for' statement must be 1");
                         return;
                     }
@@ -2506,6 +2537,67 @@ public:
             }
             substitute_param_type(for_->iter_vars[0], dict_range_type->key_type);
             substitute_param_type(for_->iter_vars[1], dict_range_type->value_type);
+        } else if (auto const maybe_class_type = type::get<type::class_type>(range_t)) {
+            auto const& t = *maybe_class_type;
+
+            // Note: Check size(rng : range_type)
+            {
+                auto const resolved = resolve_func_call(
+                            "size",
+                            std::vector<type::type>{t}
+                        );
+
+                if (auto const error = get_as<std::string>(resolved)) {
+                    semantic_error(for_, *error);
+                    semantic_error(
+                            for_,
+                            "  Invalid range type '" + t->to_string() + "' to iterate in 'for' statement.  Range type must have size() member function"
+                        );
+                    return;
+                }
+
+                auto const c = get_as<scope::func_scope>(resolved);
+                assert(c);
+                auto const& callee = *c;
+                for_->size_callee_scope = callee;
+
+                assert(callee->ret_type);
+                if (!callee->ret_type->is_builtin("uint")) {
+                    semantic_error(
+                            for_,
+                            "  Invalid range type '" + t->to_string() + "' to iterate in 'for' statement.  '" + callee->to_string() + "' must return 'uint' value"
+                        );
+                    return;
+                }
+            }
+
+            // Note: Check [](idx : uint, rng : range_type)
+            {
+                auto const resolved = resolve_func_call(
+                            "[]",
+                            std::vector<type::type>{
+                                t,
+                                type::get_builtin_type("uint", type::no_opt)
+                            }
+                        );
+
+                if (auto const error = get_as<std::string>(resolved)) {
+                    semantic_error(for_, *error);
+                    semantic_error(
+                            for_,
+                            "  Invalid range type '" + t->to_string() + "' to iterate in 'for' statement.  Range type must have [] operator"
+                        );
+                    return;
+                }
+
+                auto const c = get_as<scope::func_scope>(resolved);
+                assert(c);
+                auto const& callee = *c;
+                for_->index_callee_scope = callee;
+
+                assert(callee->ret_type);
+                check_element(*callee->ret_type);
+            }
         } else {
             semantic_error(for_, boost::format("  Range to iterate in for statement must be range, array or dictionary but actually '%1%'") % range_t.to_string());
         }
@@ -2732,9 +2824,9 @@ public:
                                   % type::to_string(t)
                             );
                     }
-                } else {
-                    symbol->type = t;
                 }
+
+                symbol->type = t;
             };
 
         if (init->var_decls.size() == 1) {

@@ -222,7 +222,8 @@ public:
 
     String visit(node::array_type const& at, String const& indent, char const* const lead) const noexcept
     {
-        return prefix_of(at, indent) + '\n' + visit(at->elem_type, indent+lead, "   ");
+        return prefix_of(at, indent) + '\n'
+            + visit_optional_node(at->elem_type, indent+lead, "   ");
     }
 
     String visit(node::dict_type const& mt, String const& indent, char const* const lead) const noexcept

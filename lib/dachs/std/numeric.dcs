@@ -1,0 +1,27 @@
+func succ(i : int)
+    ret i + 1
+end
+
+func succ(i : uint)
+    ret i + 1u
+end
+
+func succ(c : char)
+    ret c + (1 as char)
+end
+
+func odd?(i : int)
+    ret i % 2 == 1
+end
+
+func odd?(i : uint)
+    ret i % 2u == 1u
+end
+
+func zero?(i : int)
+    ret i == 0
+end
+
+func zero?(i : uint)
+    ret i == 0u
+end

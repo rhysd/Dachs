@@ -544,8 +544,6 @@ class llvm_ir_emitter {
 
         void emit(ast::node::ufcs_invocation const& ufcs)
         {
-            assert(ufcs->is_assign);
-
             auto const child_type = type::type_of(ufcs->child);
 
             // Note:
@@ -559,6 +557,8 @@ class llvm_ir_emitter {
                     return;
                 }
             }
+
+            assert(ufcs->is_assign);
 
             auto const receiver_type = type::get<type::class_type>(child_type);
             assert(receiver_type);
@@ -1499,18 +1499,35 @@ public:
 
     void emit(ast::node::for_stmt const& for_)
     {
+        auto const builtin_range = for_->index_callee_scope.expired() || for_->size_callee_scope.expired();
         auto helper = bb_helper(for_);
 
         // Note:
         // Now array is only supported
 
-        val range_val = emit(for_->range_expr);
-        assert(range_val->getType()->isPointerTy());
-        assert(range_val->getType()->getPointerElementType()->isArrayTy());
+        val range_val = load_aggregate_elem(
+                emit(for_->range_expr),
+                type::type_of(for_->range_expr)
+            );
 
-        auto *const range_size_val = ctx.builder.getInt32(range_val->getType()->getPointerElementType()->getArrayNumElements());
-        auto *const counter_val = ctx.builder.CreateAlloca(ctx.builder.getInt32Ty(), nullptr, "for.i");
-        ctx.builder.CreateStore(ctx.builder.getInt32(0u), counter_val);
+        val const range_size_val
+            = builtin_range
+                ? static_cast<val>(
+                        ctx.builder.getInt64(
+                            range_val->getType()->getPointerElementType()->getArrayNumElements()
+                        )
+                    )
+                : check(
+                        for_,
+                        ctx.builder.CreateCall(
+                            emit_non_builtin_callee(for_, for_->size_callee_scope.lock()),
+                            range_val
+                        ),
+                        "size() function call for user defined container"
+                    );
+
+        auto *const counter_val = ctx.builder.CreateAlloca(ctx.builder.getInt64Ty(), nullptr, "for.i");
+        ctx.builder.CreateStore(ctx.builder.getInt64(0u), counter_val);
 
         if (for_->iter_vars.size() != 1u) {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
@@ -1543,15 +1560,26 @@ public:
         // Make for's variable definition as assignment statement?
 
         if (param->name != "_" && !sym.expired()) {
-            auto *const elem_ptr_val =
-                ctx.builder.CreateInBoundsGEP(
-                    range_val,
-                    (val [2]){
-                        ctx.builder.getInt32(0u),
-                        loaded_counter_val
-                    },
-                    param->name
-                );
+            val const elem_ptr_val =
+                builtin_range
+                    ? ctx.builder.CreateInBoundsGEP(
+                            range_val,
+                            (val [2]){
+                                ctx.builder.getInt64(0u),
+                                loaded_counter_val
+                            },
+                            param->name
+                        )
+                    : check(
+                            for_,
+                            ctx.builder.CreateCall2(
+                                emit_non_builtin_callee(for_, for_->index_callee_scope.lock()),
+                                range_val,
+                                loaded_counter_val
+                            ),
+                            "index access call for 'for' statement"
+                        )
+                ;
 
             auto const s = sym.lock();
 
@@ -1566,7 +1594,7 @@ public:
 
         emit(for_->body_stmts);
 
-        ctx.builder.CreateStore(ctx.builder.CreateAdd(loaded_counter_val, ctx.builder.getInt32(1u)), counter_val);
+        ctx.builder.CreateStore(ctx.builder.CreateAdd(loaded_counter_val, ctx.builder.getInt64(1u)), counter_val);
         helper.create_br(header_block, footer_block);
     }
 

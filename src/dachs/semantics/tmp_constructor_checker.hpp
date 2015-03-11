@@ -44,7 +44,7 @@ struct ctor_checker {
         }
 
         if (a->size && *a->size <= *maybe_uint) {
-            return (boost::format("  Size is out of bounds of the array type (size:%1% , specified:%2%)") % *a->size % *maybe_uint).str();
+            return (boost::format("  Size is out of bounds of staitc_array (size:%1% , specified:%2%)") % *a->size % *maybe_uint).str();
         }
 
         a->size = *maybe_uint;
@@ -52,12 +52,17 @@ struct ctor_checker {
         if (args.size() == 1) {
             if (!a->element_type.is_default_constructible()) {
                 return (
-                        boost::format("  Element of array '%1%' is not default constructible") % a->to_string()
+                        boost::format("  Element of static_array '%1%' is not default constructible") % a->to_string()
                     ).str();
+            }
+            if (a->element_type.is_template()) {
+                return std::string{"  Element type of static_array 'can't be determined"};
             }
         } else if (args.size() == 2) {
             auto const elem_type = type::type_of(args[1]);
-            if (elem_type != a->element_type) {
+            if (a->element_type.is_template()) {
+                a->element_type = elem_type;
+            } else if (elem_type != a->element_type) {
                 return (
                     boost::format("  Type of 2nd argument '%1%' doesn't match for constructor of '%2%'\n  Note: '%3%' is expected")
                         % elem_type.to_string()

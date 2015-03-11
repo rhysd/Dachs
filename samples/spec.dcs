@@ -1,7 +1,4 @@
 func should(subject, verb)
-    # !!Below causes a bug!!
-    # if subject.verb
-
     if verb(subject)
         println("OK")
     else
@@ -9,11 +6,11 @@ func should(subject, verb)
     end
 end
 
-func equal(x)
+func eq(x)
     ret -> y in x == y
 end
 
-func equal(adverb, x)
+func eq(adverb, x)
     ret -> y in adverb(x == y)
 end
 
@@ -26,13 +23,12 @@ func not(x)
 end
 
 func main
-    42.should equal(42)
-    42.should equal(32)
+    42.should eq(42)
+    42.should eq(32)
 
     42.should be_even
     41.should be_even
 
-    # !!Below causes a bug!!
-    # 42.should not.equal(32)
-    # 42.should not.equal(42)
+    42.should not.eq(32)
+    42.should not.eq(42)
 end
