@@ -1499,7 +1499,6 @@ public:
 
     void emit(ast::node::for_stmt const& for_)
     {
-        auto const builtin_range = for_->index_callee_scope.expired() || for_->size_callee_scope.expired();
         auto helper = bb_helper(for_);
 
         // Note:
@@ -1510,11 +1509,26 @@ public:
                 type::type_of(for_->range_expr)
             );
 
+        auto const range_type = type::type_of(for_->range_expr);
+        auto const array_range_type = type::get<type::array_type>(range_type);
+        auto const class_range_type = type::get<type::class_type>(range_type);
+
+        assert(
+                (
+                    array_range_type &&
+                    (*array_range_type)->size
+                ) || (
+                    class_range_type &&
+                    !for_->index_callee_scope.expired() &&
+                    !for_->size_callee_scope.expired()
+                )
+            );
+
         val const range_size_val
-            = builtin_range
+            = array_range_type
                 ? static_cast<val>(
                         ctx.builder.getInt64(
-                            range_val->getType()->getPointerElementType()->getArrayNumElements()
+                            *(*array_range_type)->size
                         )
                     )
                 : check(
@@ -1561,7 +1575,7 @@ public:
 
         if (param->name != "_" && !sym.expired()) {
             val const elem_ptr_val =
-                builtin_range
+                array_range_type
                     ? ctx.builder.CreateInBoundsGEP(
                             range_val,
                             (val [2]){
@@ -1701,20 +1715,12 @@ public:
             // If the rhs type is a pointer, it means that rhs is allocated value
             // and I should use GEP to get the element of it.
 
-            assert(rhs_type->isStructTy() || (rhs_type->isPointerTy() && rhs_type->getPointerElementType()->isStructTy()));
+            assert(rhs_type->isPointerTy() && rhs_type->getPointerElementType()->isStructTy());
 
-            if (rhs_type->isStructTy()) {
-                auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_type);
-                assert(rhs_struct_type);
-                for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
-                    rhs_values.push_back(ctx.builder.CreateExtractValue(rhs_value, idx));
-                }
-            } else {
-                auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_type->getPointerElementType());
-                assert(rhs_struct_type);
-                for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
-                    rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
-                }
+            auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_type->getPointerElementType());
+            assert(rhs_struct_type);
+            for (auto const idx : helper::indices(rhs_struct_type->getNumElements())) {
+                rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
             }
 
             helper::each(initialize , init->var_decls, rhs_values);

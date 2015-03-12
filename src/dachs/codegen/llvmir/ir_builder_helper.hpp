@@ -257,12 +257,10 @@ public:
 
         assert(ty->isArrayTy());
 
-        auto const array_ty = llvm::dyn_cast<llvm::ArrayType>(ty);
         auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index);
-        if (constant_index) {
-            assert(array_ty);
+        if (constant_index && t->size) {
             auto const idx = constant_index->getZExtValue();
-            auto const size = array_ty->getArrayNumElements();
+            auto const size = *t->size;
 
             if (idx >= size) {
                 return format("Array index is out of bounds %1% for 0..%2%", idx, size);
@@ -362,9 +360,8 @@ public:
                 return allocated;
             }
 
-            auto *const array_ty = llvm::dyn_cast<llvm::ArrayType>(ty);
-            assert(array_ty);
-            for (uint32_t const idx : helper::indices(array_ty->getNumElements())) {
+            assert((*array)->size);
+            for (uint32_t const idx : helper::indices(*(*array)->size)) {
                 ctx.builder.CreateStore(
                         create_alloca(elem_type, init_by_zero),
                         ctx.builder.CreateConstInBoundsGEP2_32(allocated, 0u, idx)
@@ -462,8 +459,6 @@ public:
         assert(from->getType()->isPointerTy());
         assert(!t.is_builtin());
 
-        auto *const stripped_ty = from->getType()->getPointerElementType();
-
         if (auto const tuple_ = type::get<type::tuple_type>(t)) {
             auto const& tuple = *tuple_;
 
@@ -488,10 +483,9 @@ public:
                 return;
             }
 
-            auto *const array_ty = llvm::dyn_cast<llvm::ArrayType>(stripped_ty);
-            assert(array_ty);
+            assert(array->size);
 
-            for (uint64_t const idx : helper::indices(array_ty->getNumElements())) {
+            for (uint64_t const idx : helper::indices(*array->size)) {
                 auto *const elem_from = ctx.builder.CreateLoad(
                             ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx)
                         );

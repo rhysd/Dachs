@@ -64,16 +64,7 @@ class tmp_member_ir_emitter {
                 if (t->size) {
                     return ctx.builder.getInt64(*t->size);
                 } else {
-                    auto *ty = value->getType();
-                    if (ty->isPointerTy()) {
-                        ty = ty->getPointerElementType();
-                    }
-
-                    if (!llvm::isa<llvm::ArrayType>(ty)) {
-                        return nullptr;
-                    }
-
-                    return ctx.builder.getInt64(ty->getArrayNumElements());
+                    return nullptr;
                 }
             }
 
