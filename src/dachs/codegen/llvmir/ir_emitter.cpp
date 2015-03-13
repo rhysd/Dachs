@@ -1574,10 +1574,7 @@ public:
                 array_range_type
                     ? ctx.builder.CreateInBoundsGEP(
                             range_val,
-                            (val [2]){
-                                ctx.builder.getInt64(0u),
-                                loaded_counter_val
-                            },
+                            loaded_counter_val,
                             param->name
                         )
                     : check(
@@ -1585,7 +1582,8 @@ public:
                             ctx.builder.CreateCall2(
                                 emit_non_builtin_callee(for_, for_->index_callee_scope.lock()),
                                 range_val,
-                                loaded_counter_val
+                                loaded_counter_val,
+                                param->name
                             ),
                             "index access call for 'for' statement"
                         )

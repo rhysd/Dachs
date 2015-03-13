@@ -315,28 +315,52 @@ public:
     {}
 
     template<class Ptr>
-    llvm::CallInst *create_memset(Ptr *const p, llvm::Type *const ty)
+    llvm::CallInst *create_memset(Ptr *const p, llvm::Type *const ty, type::type const& t)
     {
-        return ctx.builder.CreateMemSet(
-                p,
-                ctx.builder.getInt8(0u),
-                ctx.data_layout->getTypeAllocSize(ty),
-                ctx.data_layout->getPrefTypeAlignment(ty)
-            );
+        auto const emit_memset
+            = [p, ty, this](auto const size, auto const align)
+            {
+                return ctx.builder.CreateMemSet(
+                        p,
+                        ctx.builder.getInt8(0u),
+                        size,
+                        align
+                    );
+            };
+
+        if (type::is_a<type::array_type>(t)) {
+            auto *const elem_ty = ty->getPointerElementType();
+            assert(elem_ty);
+            auto const size = ctx.data_layout->getTypeAllocSize(elem_ty);
+            auto *const array_ty = llvm::ArrayType::get(elem_ty, size);
+
+            return emit_memset(
+                    size,
+                    ctx.data_layout->getPrefTypeAlignment(array_ty)
+                );
+        } else {
+            return emit_memset(
+                    ctx.data_layout->getTypeAllocSize(ty),
+                    ctx.data_layout->getPrefTypeAlignment(ty)
+                );
+        }
     }
 
     template<class Dest, class Src>
-    llvm::CallInst *create_memcpy(Dest *const dest_val, Src *const src_val)
+    llvm::CallInst *create_memcpy_array(Dest *const dest_val, Src *const src_val, type::array_type const& t)
     {
         assert(dest_val->getType()->isPointerTy());
         assert(src_val->getType()->isPointerTy());
+        assert(t->size);
 
         auto const ty = dest_val->getType()->getPointerElementType();
+        auto const elem_size = ctx.data_layout->getTypeAllocSize(ty);
+        auto const array_ty = llvm::ArrayType::get(ty, elem_size);
         return ctx.builder.CreateMemCpy(
                 dest_val,
                 src_val,
-                ctx.data_layout->getTypeAllocSize(ty),
-                ctx.data_layout->getPrefTypeAlignment(ty)
+                elem_size * (*t->size),
+                ctx.data_layout->getPrefTypeAlignment(array_ty)
             );
     }
 
@@ -357,7 +381,7 @@ public:
         auto *const allocated = create_alloca_impl(t, name);
 
         if (init_by_zero) {
-            create_memset(allocated, allocated->getType());
+            create_memset(allocated, allocated->getType(), t);
         }
 
         if (auto const array = type::get<type::array_type>(t)) {
@@ -374,6 +398,8 @@ public:
                     );
             }
         } else if (auto const tuple = type::get<type::tuple_type>(t)) {
+            // TODO:
+            // If all members are built-in type, use memcpy to copy all elements
             for (auto const idx : helper::indices((*tuple)->element_types)) {
                 auto const& elem_type = (*tuple)->element_types[idx];
                 if (elem_type.is_builtin()) {
@@ -485,7 +511,7 @@ public:
             auto const& elem_type = array->element_type;
 
             if (elem_type.is_builtin()) {
-                create_memcpy(to, from);
+                create_memcpy_array(to, from, array);
                 return;
             }
 
