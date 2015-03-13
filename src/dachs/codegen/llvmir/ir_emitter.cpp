@@ -515,10 +515,7 @@ class llvm_ir_emitter {
                 emit_copy_to_lhs(
                     emitter.ctx.builder.CreateInBoundsGEP(
                         child_val,
-                        (val [2]){
-                            emitter.ctx.builder.getInt64(0u),
-                            index_val
-                        }
+                        index_val
                     ),
                     access->type
                 );
@@ -761,6 +758,7 @@ public:
 
         if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
             auto *const ty = type_emitter.emit_alloc_type(t);
+            assert(ty->isStructTy());
             std::vector<llvm::Constant *> elem_consts;
             for (auto const v : elem_values) {
                 auto *const constant = llvm::dyn_cast<llvm::Constant>(v);
@@ -817,7 +815,7 @@ public:
         }
 
         if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
-            auto *const ty = type_emitter.emit_alloc_type(t);
+            auto *const array_ty = type_emitter.emit_alloc_fixed_array(t);
 
             std::vector<llvm::Constant *> elem_consts;
             for (auto const v : elem_values) {
@@ -828,20 +826,21 @@ public:
 
             auto const constant = new llvm::GlobalVariable(
                         *module,
-                        ty,
+                        array_ty,
                         true /*constant*/,
                         llvm::GlobalValue::PrivateLinkage,
-                        llvm::ConstantArray::get(type_emitter.emit_alloc_fixed_array(t), elem_consts)
+                        llvm::ConstantArray::get(array_ty, elem_consts)
                     );
             constant->setUnnamedAddr(true);
-            return constant;
+
+            return ctx.builder.CreateConstInBoundsGEP2_32(constant, 0u, 0u);
         } else {
-            auto *const alloca_inst = alloc_emitter.create_alloca(t, false/*not initialize*/);
+            auto *const alloca_inst = alloc_emitter.create_alloca(t, false/*not initialize*/, "arraylit");
             for (auto const idx : helper::indices(elem_exprs)) {
                 alloc_emitter.create_deep_copy(
                         elem_values[idx],
                         load_aggregate_elem(
-                            ctx.builder.CreateStructGEP(alloca_inst, idx),
+                            ctx.builder.CreateConstInBoundsGEP1_32(alloca_inst, idx),
                             t->element_type
                         ),
                         t->element_type
@@ -1421,6 +1420,7 @@ public:
         auto *const child_value = emit(ufcs->child);
         // auto *const child_value = load_if_ref(emit(ufcs->child));
         auto *const ty = child_value->getType();
+
         if (ty->isPointerTy()
             && ty->getPointerElementType()->isPointerTy()
             && ty->getPointerElementType()->getPointerElementType()->isIntegerTy(8u)
@@ -1615,18 +1615,16 @@ public:
     void emit(ast::node::initialize_stmt const& init)
     {
         if (!init->maybe_rhs_exprs) {
+            // TODO:
+            // Emit default construction
+
+            // Note:
             // Variable declaration without definition is not initialized
             for (auto const& d : init->var_decls) {
                 auto const sym = d->symbol.lock();
                 assert(d->maybe_type);
-                auto const type_ir = type_emitter.emit_alloc_type(sym->type);
-                auto *const allocated = ctx.builder.CreateAlloca(type_ir, nullptr, sym->name);
-                ctx.builder.CreateMemSet(
-                        allocated,
-                        ctx.builder.getInt8(0u),
-                        ctx.data_layout->getTypeAllocSize(type_ir),
-                        ctx.data_layout->getPrefTypeAlignment(type_ir)
-                    );
+                auto *const allocated = alloc_emitter.create_alloca(sym->type);
+                assert(allocated);
                 register_var(std::move(sym), allocated);
             }
             return;
@@ -1933,7 +1931,7 @@ public:
         auto const& to_type = *maybe_builtin_to_type;
         auto const& from = from_type->name;
         auto const& to = to_type->name;
-        auto *const to_type_ir = type_emitter.emit_alloc_type(to_type);
+        auto *const to_type_ir = type_emitter.emit(to_type);
 
         auto const cast_check
             = [&](auto const v)
@@ -2039,7 +2037,7 @@ llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const
 
         helper::colorizer c;
         std::cerr << c.red(errmsg) << std::endl;
-        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        // DACHS_RAISE_INTERNAL_COMPILATION_ERROR
     }
 
     return the_module;

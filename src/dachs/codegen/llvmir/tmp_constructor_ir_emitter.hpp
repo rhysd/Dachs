@@ -75,7 +75,7 @@ class tmp_constructor_ir_emitter {
                         );
 
                 constant->setUnnamedAddr(true);
-                return constant;
+                return ctx.builder.CreateConstInBoundsGEP2_32(constant, 0u, 0u);
 
             } else {
                 auto *const allocated = alloc_emitter.create_alloca(a);
