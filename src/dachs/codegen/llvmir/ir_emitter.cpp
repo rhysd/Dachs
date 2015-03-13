@@ -34,6 +34,11 @@
 # error LLVM: Not supported version.
 #endif
 
+#include "dachs/helper/variant.hpp"
+#include "dachs/helper/colorizer.hpp"
+#include "dachs/helper/each.hpp"
+#include "dachs/helper/util.hpp"
+#include "dachs/helper/llvm.hpp"
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/tmp_builtin_operator_ir_emitter.hpp"
@@ -49,11 +54,6 @@
 #include "dachs/runtime.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
-#include "dachs/helper/variant.hpp"
-#include "dachs/helper/colorizer.hpp"
-#include "dachs/helper/each.hpp"
-#include "dachs/helper/util.hpp"
-#include "dachs/helper/llvm.hpp"
 
 namespace dachs {
 namespace codegen {
@@ -1415,19 +1415,12 @@ public:
             }
         }
 
-        // Note:
-        // When the argument is 'argv', which is an argument of 'main' function
-        auto *const child_value = emit(ufcs->child);
-        // auto *const child_value = load_if_ref(emit(ufcs->child));
-        auto *const ty = child_value->getType();
-
-        if (ty->isPointerTy()
-            && ty->getPointerElementType()->isPointerTy()
-            && ty->getPointerElementType()->getPointerElementType()->isIntegerTy(8u)
-        ) {
-            // Note:
-            // When the type is 'i8**'
-            if (ufcs->member_name == "size") {
+        // TODO:
+        // Change type of 'args' which is a parameter for main.
+        // Now it is 'static_array(string)' but it should be array(string).
+        // The change will remove workarounds like below.
+        if (auto const a = type::get<type::array_type>(child_type)) {
+            if (ufcs->member_name == "size" && (*a)->element_type.is_builtin("string") && !(*a)->size ) {
                 return check(
                         ufcs,
                         ctx.builder.CreateIntCast(
@@ -1440,6 +1433,9 @@ public:
             }
         }
 
+        // Note:
+        // When the argument is 'argv', which is an argument of 'main' function
+        auto *const child_value = emit(ufcs->child);
 
         // Note:
         // Do not use get_operand() because GEP is emitted

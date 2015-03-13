@@ -43,6 +43,15 @@ class tmp_constructor_ir_emitter {
             assert(a.size() == 1 || a.size() == 2);
         }
 
+        bool should_deref(llvm::Value *const v, type::type const& t)
+        {
+            if (t.is_builtin()) {
+                return false;
+            }
+
+            return v->getType()->getPointerElementType()->isPointerTy();
+        }
+
         val operator()(type::array_type const& a)
         {
             if (!llvm::isa<llvm::ConstantInt>(arg_values[0])) {
@@ -82,9 +91,12 @@ class tmp_constructor_ir_emitter {
 
                 if (arg_values.size() == 2) {
                     for (auto const idx : helper::indices(size)) {
+                        auto *const dest = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);
                         alloc_emitter.create_deep_copy(
                                 arg_values[1],
-                                ctx.builder.CreateStructGEP(allocated, idx),
+                                should_deref(dest, a->element_type)
+                                    ? ctx.builder.CreateLoad(dest)
+                                    : dest,
                                 a->element_type
                             );
                     }
