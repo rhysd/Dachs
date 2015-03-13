@@ -240,22 +240,6 @@ public:
     value_or_error_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::array_type const& t)
     {
         assert(aggregate->getType()->isPointerTy());
-        auto const ty = aggregate->getType()->getPointerElementType();
-
-        if (ty->isPointerTy() && ty->getPointerElementType()->isIntegerTy(8u)) {
-            assert(t->element_type.is_builtin("string"));
-
-            // Note:
-            // Corner case.  When i8** (it means the argument of 'main')
-            return ctx.builder.CreateLoad(
-                ctx.builder.CreateInBoundsGEP(
-                        aggregate,
-                        index
-                    )
-                );
-        }
-
-        assert(ty->isArrayTy());
 
         auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index);
         if (constant_index && t->size) {
