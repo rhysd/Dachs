@@ -404,6 +404,13 @@ class symbol_analyzer {
         failed++;
     }
 
+    template<class Message>
+        void semantic_error(std::size_t const l, std::size_t const c, Message const& msg) noexcept
+    {
+        output_semantic_error(l, c, msg);
+        failed++;
+    }
+
     scope::any_scope enclosing_scope_of(scope::any_scope const& scope)
     {
         return apply_lambda(
@@ -659,6 +666,75 @@ public:
     size_t num_errors() const noexcept
     {
         return failed;
+    }
+
+    void analyze_preprocess(scope::func_scope const& main_func)
+    {
+        if (main_func->params.size() != 1) {
+            return;
+        }
+
+    }
+
+    bool analyze_main_func()
+    {
+        boost::optional<scope::func_scope> found_main = boost::none;
+
+        for (auto const& f : global->functions) {
+            if (!f->is_main_func()) {
+                continue;
+            }
+
+            if (found_main) {
+                semantic_error(
+                    f->get_ast_node(),
+                    "  Only one main function must exist"
+                );
+                return false;
+            }
+
+            found_main = f;
+
+            if (f->params.empty()) {
+                continue;
+            }
+
+            if (f->params.size() == 1) {
+                auto const& param = f->params[0];
+
+                if (!param->immutable) {
+                    semantic_error(f->get_ast_node(), "  Argument of main function '" + param->name + "' must be immutable");
+                    return false;
+                }
+
+                if (auto const maybe_array = type::get<type::array_type>(param->type)) {
+                    if ((*maybe_array)->element_type == type::get_builtin_type("string", type::no_opt)) {
+                        continue;
+                    }
+                }
+            }
+
+            semantic_error(
+                f->get_ast_node(),
+                boost::format(
+                    "  Illegal siganture for main function: '%1%'\n"
+                    "  Note: main() or main([string]) is required"
+                    ) % f->to_string()
+            );
+            return false;
+        }
+
+        if (!found_main) {
+            semantic_error(
+                    1u, 1u,
+                    "  Entry point 'main' is not found"
+                );
+            return false;
+        }
+
+        analyze_preprocess(*found_main);
+
+        return true;
     }
 
     // Push and pop current scope {{{
@@ -3087,62 +3163,6 @@ public:
     }
 };
 
-// TODO:
-// Now func main(args) is not permitted and it should be permitted.
-// If main is function template and its parameter is 1, the parameter
-// should be treated as [string] forcely in symbol_analyzer visitor.
-template<class Func>
-bool check_main_func(std::vector<Func> const& funcs)
-{
-    bool found_main = false;
-
-    for (auto const& f : funcs) {
-        if (!f->is_main_func()) {
-            continue;
-        }
-
-        if (found_main) {
-            output_semantic_error(
-                f->get_ast_node(),
-                "  Only one main function must exist"
-            );
-            return false;
-        }
-
-        found_main = true;
-
-        if (f->params.empty()) {
-            continue;
-        }
-
-        if (f->params.size() == 1) {
-            auto const& param = f->params[0];
-            if (auto const maybe_array = type::get<type::array_type>(param->type)) {
-                if ((*maybe_array)->element_type == type::get_builtin_type("string", type::no_opt)) {
-                    continue;
-                }
-            }
-        }
-
-        output_semantic_error(
-            f->get_ast_node(),
-            boost::format(
-                "  Illegal siganture for main function: '%1%'\n"
-                "  Note: main() or main([string]) is required"
-                ) % f->to_string()
-        );
-        return false;
-    }
-
-    if (!found_main) {
-        output_semantic_error(
-                1u, 1u,
-                "  Entry point 'main' is not found"
-            );
-    }
-
-    return found_main;
-}
 
 } // namespace detail
 
@@ -3151,9 +3171,10 @@ semantics_context check_semantics(ast::ast &a, scope::scope_tree &t, syntax::imp
     detail::symbol_analyzer resolver{t.root, t.root, i};
     ast::walk_topdown(a.root, resolver);
     auto const lambda_captures = resolver.resolve_lambda(a.root);
+    resolver.analyze_main_func();
     auto const failed = resolver.num_errors();
 
-    if (failed > 0 || !detail::check_main_func(t.root->functions)) {
+    if (failed > 0) {
         throw semantic_check_error{failed, "symbol resolution"};
     }
 

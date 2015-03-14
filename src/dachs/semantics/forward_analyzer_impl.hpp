@@ -263,6 +263,22 @@ class forward_symbol_analyzer {
         def->member_funcs.emplace_back(std::move(ctor_def));
     }
 
+    void grow_main_arg_type_ast(ast::node::parameter const& p)
+    {
+        if (p->param_type) {
+            return;
+        }
+
+        // TODO:
+        // Change from static_array(string) to array(static_array(string))
+
+        auto str = helper::make<ast::node::primary_type>("string");
+        str->set_source_location(*p);
+        auto arr = helper::make<ast::node::array_type>(std::move(str));
+        arr->set_source_location(*p);
+        p->param_type = std::move(arr);
+    }
+
 public:
 
     size_t failed;
@@ -348,6 +364,14 @@ public:
             return;
         }
 
+        // Note:
+        // Replace argument type of main function (#31)
+        if (func_def->is_main_func() && func_def->params.size() > 0) {
+            // Note:
+            // Strict check for 'main' function will be done in semantics::detail::symbol_analyzer.
+            grow_main_arg_type_ast(func_def->params[0]);
+        }
+
         // Define scope
         auto new_func = scope::make<scope::func_scope>(func_def, current_scope, func_def->name);
         new_func->type = type::make<type::generic_func_type>(scope::weak_func_scope{new_func});
@@ -419,26 +443,6 @@ public:
         boost::apply_visitor(definer, current_scope);
 
         introduce_scope_and_walk(std::move(new_func), w);
-
-        // Note:
-        // Replace argument type of main function (#31)
-        if (new_func->is_main_func() && new_func->params.size() > 0) {
-            auto const& p = new_func->params[0];
-            // Note:
-            // Strict check for 'main' function will be done in semantics::detail::symbol_analyzer.
-            if (p->type.is_template()) {
-                p->type
-                    = type::make<type::array_type>(
-                            type::get_builtin_type("string", type::no_opt)
-                        );
-                func_def->params[0]->type = p->type;
-            }
-
-            if (!p->immutable) {
-                semantic_error(func_def, "  Argument of main function '" + p->name + "' must be immutable");
-                return;
-            }
-        }
     }
 
     void visit_class_var_decl(ast::node::variable_decl const& decl, scope::class_scope const& scope)

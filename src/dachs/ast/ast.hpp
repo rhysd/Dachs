@@ -693,8 +693,13 @@ struct primary_type final : public base {
     std::vector<node::any_type> holders;
 
     primary_type(std::string const& tmpl
-                , decltype(holders) const& instantiated) noexcept
+                , decltype(holders) const& instantiated)
         : base(), template_name(tmpl), holders(instantiated)
+    {}
+
+    primary_type(std::string const& tmpl
+                , node::any_type && param)
+        : base(), template_name(tmpl), holders({std::move(param)})
     {}
 
     primary_type(std::string const& tmpl) noexcept
@@ -711,6 +716,10 @@ struct array_type final : public base {
     boost::optional<node::any_type> elem_type;
 
     explicit array_type(boost::optional<node::any_type> const& elem) noexcept
+        : elem_type(elem)
+    {}
+
+    explicit array_type(node::any_type const& elem) noexcept
         : elem_type(elem)
     {}
 
@@ -1101,11 +1110,6 @@ struct function_definition final : public statement {
 
     bool is_template() noexcept;
 
-    bool is_method() const noexcept
-    {
-        return accessibility != boost::none;
-    }
-
     bool is_public() const noexcept
     {
         // Note:
@@ -1116,6 +1120,11 @@ struct function_definition final : public statement {
     bool is_ctor() const noexcept
     {
         return name == "dachs.init";
+    }
+
+    bool is_main_func() const noexcept
+    {
+        return name == "main" && (params.empty() || !params[0]->is_receiver);
     }
 
     std::string to_string() const noexcept override
