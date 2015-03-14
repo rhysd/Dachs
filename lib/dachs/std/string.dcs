@@ -1,0 +1,60 @@
+class String
+    data : string
+    size : uint
+
+    init(@data, @size)
+    end
+
+    func size
+        ret @size
+    end
+
+    func [](idx)
+        ret @data[idx]
+    end
+
+    func each_chars(block)
+        var i := 0u
+        for i < @size
+            block(@data[i])
+            i += 1u
+        end
+    end
+
+    func empty?
+        ret @size == 0u
+    end
+
+    func include?(ch : char)
+        var i := 0u
+        for i < @size
+            if @data[i] == ch
+                ret true
+            end
+            i += 1u
+        end
+
+        ret false
+    end
+
+    func <(rhs : String)
+        var i := 0u
+
+        for i < @size
+            case
+            when @data[i] < rhs[i]
+                ret true
+            when @data[i] > rhs[i]
+                ret false
+            end
+
+            i += 1u
+
+            if i >= rhs.size
+                ret false
+            end
+        end
+
+        ret true
+    end
+end

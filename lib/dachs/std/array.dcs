@@ -72,7 +72,7 @@ class array
         end
     end
 
-    func each_with_object(var obj, predicate)
+    func each_with_object(obj, predicate)
         self.each do |i|
             predicate(obj, i)
         end
@@ -98,5 +98,21 @@ class array
 
     func [](idx)
         ret @buf[idx]
+    end
+
+    func empty?
+        ret @size == 0u
+    end
+
+    func include?(elem)
+        var i := 0u
+        for i < @size
+            if @buf[i] == elem
+                ret true
+            end
+            i += 1u
+        end
+
+        ret false
     end
 end

@@ -263,6 +263,37 @@ BOOST_AUTO_TEST_CASE(some_samples)
             println(sum == sum4)
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        import std.string
+
+        func strlen(s)
+            var c := 0u
+            for s[c] != '\0'
+                c += 1u
+            end
+            ret c
+        end
+
+        func test(l, r, b)
+            sl := new String{l, l.strlen}
+            sr := new String{r, r.strlen}
+
+            if (sl < sr) == b
+                println("OK")
+            else
+                println("NG")
+            end
+        end
+
+        func main
+            test("abc", "def", true)
+            test("abc", "abcdef", true)
+            test("def", "abc", false)
+            test("abcdef", "abc", false)
+            test("abc", "abc", false)
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
