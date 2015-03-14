@@ -34,6 +34,11 @@
 # error LLVM: Not supported version.
 #endif
 
+#include "dachs/helper/variant.hpp"
+#include "dachs/helper/colorizer.hpp"
+#include "dachs/helper/each.hpp"
+#include "dachs/helper/util.hpp"
+#include "dachs/helper/llvm.hpp"
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/tmp_builtin_operator_ir_emitter.hpp"
@@ -49,11 +54,6 @@
 #include "dachs/runtime.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
-#include "dachs/helper/variant.hpp"
-#include "dachs/helper/colorizer.hpp"
-#include "dachs/helper/each.hpp"
-#include "dachs/helper/util.hpp"
-#include "dachs/helper/llvm.hpp"
 
 namespace dachs {
 namespace codegen {
@@ -515,10 +515,7 @@ class llvm_ir_emitter {
                 emit_copy_to_lhs(
                     emitter.ctx.builder.CreateInBoundsGEP(
                         child_val,
-                        (val [2]){
-                            emitter.ctx.builder.getInt64(0u),
-                            index_val
-                        }
+                        index_val
                     ),
                     access->type
                 );
@@ -761,6 +758,7 @@ public:
 
         if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
             auto *const ty = type_emitter.emit_alloc_type(t);
+            assert(ty->isStructTy());
             std::vector<llvm::Constant *> elem_consts;
             for (auto const v : elem_values) {
                 auto *const constant = llvm::dyn_cast<llvm::Constant>(v);
@@ -817,7 +815,7 @@ public:
         }
 
         if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
-            auto *const ty = type_emitter.emit_alloc_type(t);
+            auto *const array_ty = type_emitter.emit_alloc_fixed_array(t);
 
             std::vector<llvm::Constant *> elem_consts;
             for (auto const v : elem_values) {
@@ -828,20 +826,21 @@ public:
 
             auto const constant = new llvm::GlobalVariable(
                         *module,
-                        ty,
+                        array_ty,
                         true /*constant*/,
                         llvm::GlobalValue::PrivateLinkage,
-                        llvm::ConstantArray::get(type_emitter.emit_alloc_fixed_array(t), elem_consts)
+                        llvm::ConstantArray::get(array_ty, elem_consts)
                     );
             constant->setUnnamedAddr(true);
-            return constant;
+
+            return ctx.builder.CreateConstInBoundsGEP2_32(constant, 0u, 0u);
         } else {
-            auto *const alloca_inst = alloc_emitter.create_alloca(t, false/*not initialize*/);
+            auto *const alloca_inst = alloc_emitter.create_alloca(t, false/*not initialize*/, "arraylit");
             for (auto const idx : helper::indices(elem_exprs)) {
                 alloc_emitter.create_deep_copy(
                         elem_values[idx],
                         load_aggregate_elem(
-                            ctx.builder.CreateStructGEP(alloca_inst, idx),
+                            ctx.builder.CreateConstInBoundsGEP1_32(alloca_inst, idx),
                             t->element_type
                         ),
                         t->element_type
@@ -1416,18 +1415,12 @@ public:
             }
         }
 
-        // Note:
-        // When the argument is 'argv', which is an argument of 'main' function
-        auto *const child_value = emit(ufcs->child);
-        // auto *const child_value = load_if_ref(emit(ufcs->child));
-        auto *const ty = child_value->getType();
-        if (ty->isPointerTy()
-            && ty->getPointerElementType()->isPointerTy()
-            && ty->getPointerElementType()->getPointerElementType()->isIntegerTy(8u)
-        ) {
-            // Note:
-            // When the type is 'i8**'
-            if (ufcs->member_name == "size") {
+        // TODO:
+        // Change type of 'args' which is a parameter for main.
+        // Now it is 'static_array(string)' but it should be array(string).
+        // The change will remove workarounds like below.
+        if (auto const a = type::get<type::array_type>(child_type)) {
+            if (ufcs->member_name == "size" && (*a)->element_type.is_builtin("string") && !(*a)->size ) {
                 return check(
                         ufcs,
                         ctx.builder.CreateIntCast(
@@ -1440,6 +1433,9 @@ public:
             }
         }
 
+        // Note:
+        // When the argument is 'argv', which is an argument of 'main' function
+        auto *const child_value = emit(ufcs->child);
 
         // Note:
         // Do not use get_operand() because GEP is emitted
@@ -1499,7 +1495,6 @@ public:
 
     void emit(ast::node::for_stmt const& for_)
     {
-        auto const builtin_range = for_->index_callee_scope.expired() || for_->size_callee_scope.expired();
         auto helper = bb_helper(for_);
 
         // Note:
@@ -1510,11 +1505,26 @@ public:
                 type::type_of(for_->range_expr)
             );
 
+        auto const range_type = type::type_of(for_->range_expr);
+        auto const array_range_type = type::get<type::array_type>(range_type);
+        auto const class_range_type = type::get<type::class_type>(range_type);
+
+        assert(
+                (
+                    array_range_type &&
+                    (*array_range_type)->size
+                ) || (
+                    class_range_type &&
+                    !for_->index_callee_scope.expired() &&
+                    !for_->size_callee_scope.expired()
+                )
+            );
+
         val const range_size_val
-            = builtin_range
+            = array_range_type
                 ? static_cast<val>(
                         ctx.builder.getInt64(
-                            range_val->getType()->getPointerElementType()->getArrayNumElements()
+                            *(*array_range_type)->size
                         )
                     )
                 : check(
@@ -1561,13 +1571,10 @@ public:
 
         if (param->name != "_" && !sym.expired()) {
             val const elem_ptr_val =
-                builtin_range
+                array_range_type
                     ? ctx.builder.CreateInBoundsGEP(
                             range_val,
-                            (val [2]){
-                                ctx.builder.getInt64(0u),
-                                loaded_counter_val
-                            },
+                            loaded_counter_val,
                             param->name
                         )
                     : check(
@@ -1575,7 +1582,8 @@ public:
                             ctx.builder.CreateCall2(
                                 emit_non_builtin_callee(for_, for_->index_callee_scope.lock()),
                                 range_val,
-                                loaded_counter_val
+                                loaded_counter_val,
+                                param->name
                             ),
                             "index access call for 'for' statement"
                         )
@@ -1601,18 +1609,16 @@ public:
     void emit(ast::node::initialize_stmt const& init)
     {
         if (!init->maybe_rhs_exprs) {
+            // TODO:
+            // Emit default construction
+
+            // Note:
             // Variable declaration without definition is not initialized
             for (auto const& d : init->var_decls) {
                 auto const sym = d->symbol.lock();
                 assert(d->maybe_type);
-                auto const type_ir = type_emitter.emit_alloc_type(sym->type);
-                auto *const allocated = ctx.builder.CreateAlloca(type_ir, nullptr, sym->name);
-                ctx.builder.CreateMemSet(
-                        allocated,
-                        ctx.builder.getInt8(0u),
-                        ctx.data_layout->getTypeAllocSize(type_ir),
-                        ctx.data_layout->getPrefTypeAlignment(type_ir)
-                    );
+                auto *const allocated = alloc_emitter.create_alloca(sym->type);
+                assert(allocated);
                 register_var(std::move(sym), allocated);
             }
             return;
@@ -1701,20 +1707,12 @@ public:
             // If the rhs type is a pointer, it means that rhs is allocated value
             // and I should use GEP to get the element of it.
 
-            assert(rhs_type->isStructTy() || (rhs_type->isPointerTy() && rhs_type->getPointerElementType()->isStructTy()));
+            assert(rhs_type->isPointerTy() && rhs_type->getPointerElementType()->isStructTy());
 
-            if (rhs_type->isStructTy()) {
-                auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_type);
-                assert(rhs_struct_type);
-                for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
-                    rhs_values.push_back(ctx.builder.CreateExtractValue(rhs_value, idx));
-                }
-            } else {
-                auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_type->getPointerElementType());
-                assert(rhs_struct_type);
-                for (auto const idx : boost::irange(0u, rhs_struct_type->getNumElements())) {
-                    rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
-                }
+            auto *const rhs_struct_type = llvm::dyn_cast<llvm::StructType>(rhs_type->getPointerElementType());
+            assert(rhs_struct_type);
+            for (auto const idx : helper::indices(rhs_struct_type->getNumElements())) {
+                rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
             }
 
             helper::each(initialize , init->var_decls, rhs_values);
@@ -1927,7 +1925,7 @@ public:
         auto const& to_type = *maybe_builtin_to_type;
         auto const& from = from_type->name;
         auto const& to = to_type->name;
-        auto *const to_type_ir = type_emitter.emit_alloc_type(to_type);
+        auto *const to_type_ir = type_emitter.emit(to_type);
 
         auto const cast_check
             = [&](auto const v)
@@ -2033,7 +2031,7 @@ llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const
 
         helper::colorizer c;
         std::cerr << c.red(errmsg) << std::endl;
-        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        // DACHS_RAISE_INTERNAL_COMPILATION_ERROR
     }
 
     return the_module;

@@ -23,7 +23,7 @@ namespace dachs {
 namespace codegen {
 namespace llvmir {
 
-class type_ir_emitter_impl {
+struct type_ir_emitter_impl {
     llvm::LLVMContext &context;
     semantics::lambda_captures_type const& lambda_captures;
     std::unordered_map<scope::class_scope, llvm::PointerType *const> class_table;
@@ -42,8 +42,6 @@ class type_ir_emitter_impl {
         }
         return v;
     }
-
-public:
 
     type_ir_emitter_impl(llvm::LLVMContext &c, decltype(lambda_captures) const& lc)
         : context(c), lambda_captures(lc)
@@ -134,27 +132,9 @@ public:
         );
     }
 
-    llvm::PointerType *emit_fixed_array(type::array_type const& a)
-    {
-        if (!a->size) {
-            error("  Failed to emit size of array type " + a->to_string());
-        }
-
-        return check(
-                llvm::PointerType::getUnqual(
-                    llvm::ArrayType::get(emit(a->element_type), *a->size)
-                )
-                , "array type"
-            );
-    }
-
     llvm::PointerType *emit(type::array_type const& a)
     {
-        if (a->size) {
-            return emit_fixed_array(a);
-        } else {
-            throw not_implemented_error{__FILE__, __func__, __LINE__, "variable array type LLVM IR generation"};
-        }
+        return llvm::PointerType::getUnqual(emit(a->element_type));
     }
 
     llvm::Type *emit(type::func_type const&)
@@ -253,16 +233,13 @@ public:
         return emitter_impl.emit(t);
     }
 
-    llvm::ArrayType *emit_alloc_fixed_array(type::array_type const& t)
+    llvm::ArrayType *emit_alloc_fixed_array(type::array_type const& a)
     {
-        auto const ty = llvm::dyn_cast<llvm::ArrayType>(emitter_impl.emit_fixed_array(t)->getPointerElementType());
-        assert(ty);
-        return ty;
-    }
+        if (!a->size) {
+            emitter_impl.error("  Size of array '" + a->to_string() + "' is unknown");
+        }
 
-    llvm::PointerType *emit_fixed_array(type::array_type const& t)
-    {
-        return emitter_impl.emit_fixed_array(t);
+        return llvm::ArrayType::get(emitter_impl.emit(a->element_type), *a->size);
     }
 };
 

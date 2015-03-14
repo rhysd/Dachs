@@ -240,29 +240,11 @@ public:
     value_or_error_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::array_type const& t)
     {
         assert(aggregate->getType()->isPointerTy());
-        auto const ty = aggregate->getType()->getPointerElementType();
 
-        if (ty->isPointerTy() && ty->getPointerElementType()->isIntegerTy(8u)) {
-            assert(t->element_type.is_builtin("string"));
-
-            // Note:
-            // Corner case.  When i8** (it means the argument of 'main')
-            return ctx.builder.CreateLoad(
-                ctx.builder.CreateInBoundsGEP(
-                        aggregate,
-                        index
-                    )
-                );
-        }
-
-        assert(ty->isArrayTy());
-
-        auto const array_ty = llvm::dyn_cast<llvm::ArrayType>(ty);
         auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index);
-        if (constant_index) {
-            assert(array_ty);
+        if (constant_index && t->size) {
             auto const idx = constant_index->getZExtValue();
-            auto const size = array_ty->getArrayNumElements();
+            auto const size = *t->size;
 
             if (idx >= size) {
                 return format("Array index is out of bounds %1% for 0..%2%", idx, size);
@@ -272,10 +254,7 @@ public:
         return emit_elem_value(
                 ctx.builder.CreateInBoundsGEP(
                     aggregate,
-                    (llvm::Value *[2]){
-                        ctx.builder.getInt64(0u),
-                        index
-                    }
+                    index
                 ), t->element_type
             );
     }
@@ -320,40 +299,73 @@ public:
     {}
 
     template<class Ptr>
-    llvm::CallInst *create_memset(Ptr *const p, llvm::Type *const ty)
+    llvm::CallInst *create_memset(Ptr *const p, llvm::Type *const ty, type::type const& t)
     {
-        return ctx.builder.CreateMemSet(
-                p,
-                ctx.builder.getInt8(0u),
-                ctx.data_layout->getTypeAllocSize(ty),
-                ctx.data_layout->getPrefTypeAlignment(ty)
-            );
+        auto const emit_memset
+            = [p, ty, this](auto const size, auto const align)
+            {
+                return ctx.builder.CreateMemSet(
+                        p,
+                        ctx.builder.getInt8(0u),
+                        size,
+                        align
+                    );
+            };
+
+        if (type::is_a<type::array_type>(t)) {
+            auto *const elem_ty = ty->getPointerElementType();
+            assert(elem_ty);
+            auto const size = ctx.data_layout->getTypeAllocSize(elem_ty);
+            auto *const array_ty = llvm::ArrayType::get(elem_ty, size);
+
+            return emit_memset(
+                    size,
+                    ctx.data_layout->getPrefTypeAlignment(array_ty)
+                );
+        } else {
+            return emit_memset(
+                    ctx.data_layout->getTypeAllocSize(ty),
+                    ctx.data_layout->getPrefTypeAlignment(ty)
+                );
+        }
     }
 
     template<class Dest, class Src>
-    llvm::CallInst *create_memcpy(Dest *const dest_val, Src *const src_val)
+    llvm::CallInst *create_memcpy_array(Dest *const dest_val, Src *const src_val, type::array_type const& t)
     {
         assert(dest_val->getType()->isPointerTy());
         assert(src_val->getType()->isPointerTy());
+        assert(t->size);
 
         auto const ty = dest_val->getType()->getPointerElementType();
+        auto const elem_size = ctx.data_layout->getTypeAllocSize(ty);
+        auto const array_ty = llvm::ArrayType::get(ty, elem_size);
         return ctx.builder.CreateMemCpy(
                 dest_val,
                 src_val,
-                ctx.data_layout->getTypeAllocSize(ty),
-                ctx.data_layout->getPrefTypeAlignment(ty)
+                elem_size * (*t->size),
+                ctx.data_layout->getPrefTypeAlignment(array_ty)
             );
     }
 
     template<class String = char const* const>
-    llvm::AllocaInst *create_alloca(type::type const& t, bool const init_by_zero = true, String const& name = "")
+    llvm::Value *create_alloca_impl(type::type const& t, String const& name = "")
     {
-        auto *const ty = type_emitter.emit_alloc_type(t);
-        assert(ty);
-        auto *const allocated = ctx.builder.CreateAlloca(ty, nullptr/*array_size*/, name);
+        if (auto const a = type::get<type::array_type>(t)) {
+            auto *const allocated = ctx.builder.CreateAlloca(type_emitter.emit_alloc_fixed_array(*a), nullptr /*size*/, name);
+            return ctx.builder.CreateConstInBoundsGEP2_32(allocated, 0u, 0u);
+        } else {
+            return ctx.builder.CreateAlloca(type_emitter.emit_alloc_type(t), nullptr/*size*/, name);
+        }
+    }
+
+    template<class String = char const* const>
+    llvm::Value *create_alloca(type::type const& t, bool const init_by_zero = true, String const& name = "")
+    {
+        auto *const allocated = create_alloca_impl(t, name);
 
         if (init_by_zero) {
-            create_memset(allocated, ty);
+            create_memset(allocated, allocated->getType(), t);
         }
 
         if (auto const array = type::get<type::array_type>(t)) {
@@ -362,15 +374,16 @@ public:
                 return allocated;
             }
 
-            auto *const array_ty = llvm::dyn_cast<llvm::ArrayType>(ty);
-            assert(array_ty);
-            for (uint32_t const idx : helper::indices(array_ty->getNumElements())) {
+            assert((*array)->size);
+            for (uint32_t const idx : helper::indices(*(*array)->size)) {
                 ctx.builder.CreateStore(
                         create_alloca(elem_type, init_by_zero),
-                        ctx.builder.CreateConstInBoundsGEP2_32(allocated, 0u, idx)
+                        ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx)
                     );
             }
         } else if (auto const tuple = type::get<type::tuple_type>(t)) {
+            // TODO:
+            // If all members are built-in type, use memcpy to copy all elements
             for (auto const idx : helper::indices((*tuple)->element_types)) {
                 auto const& elem_type = (*tuple)->element_types[idx];
                 if (elem_type.is_builtin()) {
@@ -427,7 +440,7 @@ public:
     }
 
     template<class V, class String = char const* const>
-    llvm::AllocaInst *alloc_and_deep_copy(V *const from, type::type const& t, String const& name = "")
+    llvm::Value *alloc_and_deep_copy(V *const from, type::type const& t, String const& name = "")
     {
         // TODO:
         // Do allocate and copy from 'from' at once.
@@ -462,8 +475,6 @@ public:
         assert(from->getType()->isPointerTy());
         assert(!t.is_builtin());
 
-        auto *const stripped_ty = from->getType()->getPointerElementType();
-
         if (auto const tuple_ = type::get<type::tuple_type>(t)) {
             auto const& tuple = *tuple_;
 
@@ -484,19 +495,18 @@ public:
             auto const& elem_type = array->element_type;
 
             if (elem_type.is_builtin()) {
-                create_memcpy(to, from);
+                create_memcpy_array(to, from, array);
                 return;
             }
 
-            auto *const array_ty = llvm::dyn_cast<llvm::ArrayType>(stripped_ty);
-            assert(array_ty);
+            assert(array->size);
 
-            for (uint64_t const idx : helper::indices(array_ty->getNumElements())) {
+            for (uint64_t const idx : helper::indices(*array->size)) {
                 auto *const elem_from = ctx.builder.CreateLoad(
-                            ctx.builder.CreateConstInBoundsGEP2_32(from, 0u, idx)
+                            ctx.builder.CreateConstInBoundsGEP1_32(from, idx)
                         );
                 auto *const elem_to = ctx.builder.CreateLoad(
-                            ctx.builder.CreateConstInBoundsGEP2_32(to, 0u, idx)
+                            ctx.builder.CreateConstInBoundsGEP1_32(to, idx)
                         );
 
                 create_deep_copy(elem_from, elem_to, elem_type);
