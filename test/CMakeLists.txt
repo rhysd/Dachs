@@ -7,6 +7,9 @@ if (Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
 endif ()
 
+# TODO:
+# Too redundant.  I should use list and foreach
+
 add_executable(dachs-parser-test parser/parser_test.cpp)
 add_executable(dachs-importer-test parser/importer_test.cpp)
 add_executable(dachs-parser-samples-test parser/samples_test.cpp)
@@ -16,6 +19,7 @@ add_executable(dachs-codegen-llvm-statements-test codegen/statements_test.cpp)
 add_executable(dachs-codegen-llvm-class-test codegen/class_test.cpp)
 add_executable(dachs-codegen-llvm-samples-test codegen/samples_test.cpp)
 add_executable(dachs-runtime-test runtime_test.cpp)
+add_executable(dachs-helper-test helper_test.cpp)
 target_link_libraries(dachs-parser-test ${Boost_LIBRARIES} dachs-lib)
 target_link_libraries(dachs-importer-test ${Boost_LIBRARIES} dachs-lib)
 target_link_libraries(dachs-parser-samples-test ${Boost_LIBRARIES} dachs-lib)
@@ -24,7 +28,7 @@ target_link_libraries(dachs-codegen-llvm-expressions-test ${Boost_LIBRARIES} dac
 target_link_libraries(dachs-codegen-llvm-statements-test ${Boost_LIBRARIES} dachs-lib)
 target_link_libraries(dachs-codegen-llvm-class-test ${Boost_LIBRARIES} dachs-lib)
 target_link_libraries(dachs-codegen-llvm-samples-test ${Boost_LIBRARIES} dachs-lib)
-target_link_libraries(dachs-runtime-test ${Boost_LIBRARIES} dachs-lib)
+target_link_libraries(dachs-helper-test ${Boost_LIBRARIES} dachs-lib)
 
 if (NOT APPLE)
     # Do not link library explicitly in Mac because it causes SEGV on executing tests.
@@ -39,7 +43,7 @@ if (NOT APPLE)
     target_link_libraries(dachs-codegen-llvm-statements-test ${Boost_LIBRARIES})
     target_link_libraries(dachs-codegen-llvm-class-test ${Boost_LIBRARIES})
     target_link_libraries(dachs-codegen-llvm-samples-test ${Boost_LIBRARIES})
-    target_link_libraries(dachs-runtime-test ${Boost_LIBRARIES})
+    target_link_libraries(dachs-helper-test ${Boost_LIBRARIES})
 endif()
 
 add_test(dachs-parser-test ${EXECUTABLE_OUTPUT_PATH}/dachs-parser-test)
@@ -51,6 +55,7 @@ add_test(dachs-codegen-llvm-statements-test ${EXECUTABLE_OUTPUT_PATH}/dachs-code
 add_test(dachs-codegen-llvm-class-test ${EXECUTABLE_OUTPUT_PATH}/dachs-codegen-llvm-class-test)
 add_test(dachs-codegen-llvm-samples-test ${EXECUTABLE_OUTPUT_PATH}/dachs-codegen-llvm-samples-test)
 add_test(dachs-runtime-test ${EXECUTABLE_OUTPUT_PATH}/dachs-runtime-test)
+add_test(dachs-helper-test ${EXECUTABLE_OUTPUT_PATH}/dachs-helper-test)
 install(TARGETS dachs-parser-test DESTINATION "${PROJECT_SOURCE_DIR}/test")
 install(TARGETS dachs-importer-test DESTINATION "${PROJECT_SOURCE_DIR}/test")
 install(TARGETS dachs-parser-samples-test DESTINATION "${PROJECT_SOURCE_DIR}/test")
@@ -60,3 +65,4 @@ install(TARGETS dachs-codegen-llvm-statements-test DESTINATION "${PROJECT_SOURCE
 install(TARGETS dachs-codegen-llvm-class-test DESTINATION "${PROJECT_SOURCE_DIR}/test")
 install(TARGETS dachs-codegen-llvm-samples-test DESTINATION "${PROJECT_SOURCE_DIR}/test")
 install(TARGETS dachs-runtime-test DESTINATION "${PROJECT_SOURCE_DIR}/test")
+install(TARGETS dachs-helper-test DESTINATION "${PROJECT_SOURCE_DIR}/test")
