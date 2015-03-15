@@ -3117,9 +3117,15 @@ public:
                         //    {expr}[{expr}] = rhs
 
                         auto const& access = *a;
+                        auto const idx_type = type_of(access->index_expr);
+
+                        if (!idx_type) {
+                            return;
+                        }
+
                         index_access_analyzer<symbol_analyzer> analyzer {
                                 access,
-                                type_of(access->index_expr),
+                                idx_type,
                                 *this
                             };
 
