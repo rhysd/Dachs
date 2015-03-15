@@ -28,23 +28,8 @@ target_link_libraries(dachs-codegen-llvm-expressions-test ${Boost_LIBRARIES} dac
 target_link_libraries(dachs-codegen-llvm-statements-test ${Boost_LIBRARIES} dachs-lib)
 target_link_libraries(dachs-codegen-llvm-class-test ${Boost_LIBRARIES} dachs-lib)
 target_link_libraries(dachs-codegen-llvm-samples-test ${Boost_LIBRARIES} dachs-lib)
+target_link_libraries(dachs-runtime-test ${Boost_LIBRARIES} dachs-lib)
 target_link_libraries(dachs-helper-test ${Boost_LIBRARIES} dachs-lib)
-
-if (NOT APPLE)
-    # Do not link library explicitly in Mac because it causes SEGV on executing tests.
-    # Somehow this bug isn't reproduced when the library is not linked explicitry.
-    # https://svn.boost.org/trac/boost/ticket/7512
-    find_package(Boost COMPONENTS unit_test_framework REQUIRED)
-    target_link_libraries(dachs-parser-test ${Boost_LIBRARIES})
-    target_link_libraries(dachs-importer-test ${Boost_LIBRARIES})
-    target_link_libraries(dachs-parser-samples-test ${Boost_LIBRARIES})
-    target_link_libraries(dachs-analyzer-test ${Boost_LIBRARIES})
-    target_link_libraries(dachs-codegen-llvm-expressions-test ${Boost_LIBRARIES})
-    target_link_libraries(dachs-codegen-llvm-statements-test ${Boost_LIBRARIES})
-    target_link_libraries(dachs-codegen-llvm-class-test ${Boost_LIBRARIES})
-    target_link_libraries(dachs-codegen-llvm-samples-test ${Boost_LIBRARIES})
-    target_link_libraries(dachs-helper-test ${Boost_LIBRARIES})
-endif()
 
 add_test(dachs-parser-test ${EXECUTABLE_OUTPUT_PATH}/dachs-parser-test)
 add_test(dachs-importer-test ${EXECUTABLE_OUTPUT_PATH}/dachs-importer-test)
