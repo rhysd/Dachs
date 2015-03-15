@@ -2567,14 +2567,16 @@ public:
         }
 
         {
-            auto const error = apply_lambda(
+            auto const error = with_current_scope(
                 [&t=obj->type, this](auto const& s)
                 {
                     class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
                     return t.apply_visitor(instantiater);
-                }, current_scope);
+                }
+            );
             if (error) {
                 semantic_error(obj, *error);
+                semantic_error(obj, "  Error occurred while instantiating type '" + obj->type.to_string() + "' in object construction");
                 return;
             }
         }
@@ -3217,8 +3219,29 @@ public:
         introduce_scope_and_walk(scope, w, class_def->member_funcs);
     }
 
-    // TODO: member variable accesses
-    // TODO: method accesses
+    template<class Walker>
+    void visit(ast::node::parameter const& param, Walker const& w)
+    {
+        if (param->param_type) {
+            // Note:
+            // 'param' has a type which is generated from type::from_ast()
+            auto const error = with_current_scope(
+                    [&t=param->type, this](auto const& s)
+                    {
+                        class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
+                        return t.apply_visitor(instantiater);
+                    }
+                );
+
+            if (error) {
+                semantic_error(param, *error);
+                semantic_error(param, "  Error occurred while instantiating type '" + param->type.to_string() + "' in parameter '" + param->name + "'");
+                return;
+            }
+        }
+
+        w();
+    }
 
     template<class T, class Walker>
     void visit(T const&, Walker const& walker)
