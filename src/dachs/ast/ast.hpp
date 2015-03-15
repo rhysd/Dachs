@@ -723,6 +723,8 @@ struct array_type final : public base {
         : elem_type(elem)
     {}
 
+    array_type() = default;
+
     std::string to_string() const noexcept override
     {
         return "ARRAY_TYPE";

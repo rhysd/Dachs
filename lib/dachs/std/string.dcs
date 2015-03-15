@@ -5,6 +5,18 @@ class String
     init(@data, @size)
     end
 
+    init(@data)
+        @size := @strlen()
+    end
+
+  - func strlen
+        var i := 0u
+        for @data[i] != '\0'
+            i += 1u
+        end
+        ret i
+    end
+
     func size
         ret @size
     end

@@ -1,0 +1,24 @@
+class argv
+  - argc : uint
+  - argv
+
+    init(@argc, @argv)
+    end
+
+    func [](idx) : string
+        fatal("index is out of bounds") unless (idx as uint) < @argc
+        ret @argv[idx]
+    end
+
+    func each(pred)
+        var i := 0u
+        for i < @argc
+            pred(@argv[i])
+            i += 1u
+        end
+    end
+
+    func size
+        ret @argc
+    end
+end

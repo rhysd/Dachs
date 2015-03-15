@@ -777,6 +777,10 @@ bool class_type::is_default_constructible() const noexcept
 
 boost::optional<type::array_type const&> class_type::get_array_underlying_type() const
 {
+    if (name != "array") {
+        return boost::none;
+    }
+
     if (param_types.size() == 1) {
         return type::get<type::array_type>(param_types[0]);
     } else if (param_types.empty() && !ref.expired()) {

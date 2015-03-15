@@ -312,11 +312,20 @@ public:
                     );
             };
 
-        if (type::is_a<type::array_type>(t)) {
+        if (auto const a = type::get<type::array_type>(t)) {
+            if (!(*a)->size) {
+                return nullptr;
+            }
+
+            auto const s = *(*a)->size;
+            if (s == 0u) {
+                return nullptr;
+            }
+
             auto *const elem_ty = ty->getPointerElementType();
             assert(elem_ty);
-            auto const size = ctx.data_layout->getTypeAllocSize(elem_ty);
-            auto *const array_ty = llvm::ArrayType::get(elem_ty, size);
+            auto const size = ctx.data_layout->getTypeAllocSize(elem_ty) * s;
+            auto *const array_ty = llvm::ArrayType::get(elem_ty, s);
 
             return emit_memset(
                     size,
@@ -337,6 +346,12 @@ public:
         assert(src_val->getType()->isPointerTy());
         assert(t->size);
 
+        // Note:
+        // There is no element to copy
+        if (*t->size == 0u) {
+            return nullptr;
+        }
+
         auto const ty = dest_val->getType()->getPointerElementType();
         auto const elem_size = ctx.data_layout->getTypeAllocSize(ty);
         auto const array_ty = llvm::ArrayType::get(ty, elem_size);
@@ -352,11 +367,18 @@ public:
     llvm::Value *create_alloca_impl(type::type const& t, String const& name = "")
     {
         if (auto const a = type::get<type::array_type>(t)) {
-            auto *const allocated = ctx.builder.CreateAlloca(type_emitter.emit_alloc_fixed_array(*a), nullptr /*size*/, name);
-            return ctx.builder.CreateConstInBoundsGEP2_32(allocated, 0u, 0u);
-        } else {
-            return ctx.builder.CreateAlloca(type_emitter.emit_alloc_type(t), nullptr/*size*/, name);
+            if ((*a)->size) {
+                auto *const allocated = ctx.builder.CreateAlloca(type_emitter.emit_alloc_fixed_array(*a), nullptr /*size*/, name);
+                return ctx.builder.CreateConstInBoundsGEP2_32(allocated, 0u, 0u);
+            } else {
+                // TODO:
+                // Workaround for dynamic allocated static_array
+                // Simply allocate a pointer to set pointer to dynamically allocated array
+                return ctx.builder.CreateAlloca(type_emitter.emit(*a), nullptr/*size*/, name);
+            }
         }
+
+        return ctx.builder.CreateAlloca(type_emitter.emit_alloc_type(t), nullptr/*size*/, name);
     }
 
     template<class String = char const* const>
@@ -368,9 +390,22 @@ public:
             create_memset(allocated, allocated->getType(), t);
         }
 
+        auto const needs_not_copy
+            = [](auto const& t)
+            {
+                // Note:
+                // If the array is allocated dynamically, no need to allocate
+                // with alloca.  It will be initialized by zero (null pointer)
+                // or remains uninitialized value.
+                if (auto const a = type::get<type::array_type>(t)) {
+                    return !static_cast<bool>((*a)->size);
+                }
+                return t.is_builtin();
+            };
+
         if (auto const array = type::get<type::array_type>(t)) {
             auto const& elem_type = (*array)->element_type;
-            if (elem_type.is_builtin()) {
+            if (needs_not_copy(elem_type)) {
                 return allocated;
             }
 
@@ -386,7 +421,7 @@ public:
             // If all members are built-in type, use memcpy to copy all elements
             for (auto const idx : helper::indices((*tuple)->element_types)) {
                 auto const& elem_type = (*tuple)->element_types[idx];
-                if (elem_type.is_builtin()) {
+                if (needs_not_copy(elem_type)) {
                     continue;
                 }
 
@@ -402,7 +437,7 @@ public:
             assert(!scope->is_template());
             for (auto const idx : helper::indices(scope->instance_var_symbols)) {
                 auto const& var_type = scope->instance_var_symbols[idx]->type;
-                if (var_type.is_builtin()) {
+                if (needs_not_copy(var_type)) {
                     continue;
                 }
 
@@ -425,7 +460,7 @@ public:
             auto const& captures = itr->second;
             for (auto const& capture : captures) {
                 auto const& capture_type = capture.introduced->type;
-                if (capture_type.is_builtin()) {
+                if (needs_not_copy(capture_type)) {
                     continue;
                 }
 
@@ -493,6 +528,15 @@ public:
         } else if (auto const array_ = type::get<type::array_type>(t)) {
             auto const& array = *array_;
             auto const& elem_type = array->element_type;
+
+            // XXX:
+            // This is workaround until pointer(T) have been implemented.
+            // The array has pointer to the memory and doesn't have its length
+            // when it is allocated dynamically.
+            if (!array->size) {
+                ctx.builder.CreateStore(from, to);
+                return;
+            }
 
             if (elem_type.is_builtin()) {
                 create_memcpy_array(to, from, array);

@@ -265,18 +265,34 @@ class forward_symbol_analyzer {
 
     void grow_main_arg_type_ast(ast::node::parameter const& p)
     {
-        if (p->param_type) {
+        if (!p->param_type) {
+            auto argv = helper::make<ast::node::primary_type>("argv");
+            argv->set_source_location(*p);
+            p->param_type = std::move(argv);
+        }
+
+        auto const argv_type = get_as<ast::node::primary_type>(*p->param_type);
+        if (!argv_type || (*argv_type)->template_name != "argv") {
+            // Note:
+            // Error! The error will raise in main function check after visiting analyzer
             return;
         }
 
-        // TODO:
-        // Change from static_array(string) to array(static_array(string))
+        auto &argv_params = (*argv_type)->holders;
 
-        auto str = helper::make<ast::node::primary_type>("string");
-        str->set_source_location(*p);
-        auto arr = helper::make<ast::node::array_type>(std::move(str));
-        arr->set_source_location(*p);
-        p->param_type = std::move(arr);
+        if (argv_params.empty()) {
+            auto arr = helper::make<ast::node::array_type>();
+            arr->set_source_location(*p);
+            argv_params.push_back(std::move(arr));
+        }
+
+        if (auto const contained = get_as<ast::node::array_type>(argv_params[0])) {
+            if (!(*contained)->elem_type) {
+                auto str = helper::make<ast::node::primary_type>("string");
+                str->set_source_location(*p);
+                (*contained)->elem_type = std::move(str);
+            }
+        }
     }
 
 public:
@@ -364,8 +380,6 @@ public:
             return;
         }
 
-        // Note:
-        // Replace argument type of main function (#31)
         if (func_def->is_main_func() && func_def->params.size() > 0) {
             // Note:
             // Strict check for 'main' function will be done in semantics::detail::symbol_analyzer.

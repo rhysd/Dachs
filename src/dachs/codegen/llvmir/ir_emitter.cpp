@@ -248,12 +248,15 @@ class llvm_ir_emitter {
         }
     }
 
-    template<class FuncValue, class ParamTypes>
-    void emit_program_entry_point(FuncValue *const main_func_value, ParamTypes const& param_tys, type::type const& ret_type)
+    template<class FuncValue>
+    void emit_program_entry_point(FuncValue *const main_func_value, bool const has_cmdline_arg, type::type const& ret_type)
     {
         auto *const entry_func_ty = llvm::FunctionType::get(
                 ctx.builder.getInt64Ty(),
-                param_tys,
+                (llvm::Type *[2]){
+                    ctx.builder.getInt32Ty(),
+                    ctx.builder.getInt8PtrTy()->getPointerTo()
+                },
                 false
             );
 
@@ -269,30 +272,45 @@ class llvm_ir_emitter {
         ctx.builder.SetInsertPoint(entry_block);
 
         auto const emit_inner_main_call
-            = [&param_tys, main_func_value, entry_func_value, this]
+            = [has_cmdline_arg, main_func_value, entry_func_value, this]
             {
-                std::vector<llvm::Value *> call_args;
-
-                if (param_tys.empty()) {
+                if (!has_cmdline_arg) {
                     return ctx.builder.CreateCall(
                             main_func_value,
                             "main_ret"
                         );
                 } else {
-                    assert(param_tys.size() == 2u);
-
                     auto arg_itr = entry_func_value->arg_begin();
 
                     arg_itr->setName("dachs.entry.argc");
-                    call_args.push_back(arg_itr);
+                    auto const arg0 = arg_itr;
 
                     ++arg_itr;
                     arg_itr->setName("dachs.entry.argv");
-                    call_args.push_back(arg_itr);
+
+                    auto const arg1 = arg_itr;
+
+                    assert(semantics_ctx.main_arg_constructor);
+                    auto const& ctor = *semantics_ctx.main_arg_constructor;
+
+                    // Note:
+                    // Allocate object to construct of 'argv' class
+                    auto const obj_val = alloc_emitter.create_alloca(ctor->params[0]->type);
+                    obj_val->setName("argv_obj");
+
+                    // Note:
+                    // Emit constructor call for 'argv'
+                    ctx.builder.CreateCall3(
+                            emit_non_builtin_callee(ctor->get_ast_node(), ctor),
+                            obj_val,
+                            ctx.builder.CreateSExt(arg0, ctx.builder.getInt64Ty()),
+                            arg1,
+                            "argv"
+                        );
 
                     return ctx.builder.CreateCall(
                             main_func_value,
-                            std::move(call_args),
+                            obj_val,
                             "main_ret"
                         );
                 }
@@ -310,64 +328,8 @@ class llvm_ir_emitter {
         }
     }
 
-    void emit_main_func_prototype(ast::node::function_definition const& main_def, scope::func_scope const& main_scope)
-    {
-        assert(main_scope->params.size() < 2u);
-
-        auto const has_cmdline_arg = main_scope->params.size() == 1u;
-
-        using params_type = std::vector<llvm::Type *>;
-        auto const param_tys
-            = has_cmdline_arg
-                ? params_type{{
-                    ctx.builder.getInt32Ty(),
-                    llvm::PointerType::getUnqual(
-                        ctx.builder.getInt8PtrTy()
-                    )
-                }}
-                : params_type{};
-
-        auto *const func_ty = llvm::FunctionType::get(
-                type_emitter.emit(*main_def->ret_type),
-                param_tys,
-                false
-            );
-
-        auto *const func_value = llvm::Function::Create(
-                func_ty,
-                llvm::Function::ExternalLinkage,
-                "dachs.main",
-                module
-            );
-
-        if (has_cmdline_arg) {
-            auto arg_itr = func_value->arg_begin();
-
-            arg_itr->setName("dachs.main.argc");
-            // XXX:
-            // Owned by variable table only
-            register_var(symbol::make<symbol::var_symbol>(nullptr, "dachs.main.argc"), arg_itr);
-
-            ++arg_itr;
-
-            arg_itr->setName(main_scope->params[0]->name);
-            register_var(main_scope->params[0], arg_itr);
-        }
-
-        func_value->addFnAttr(llvm::Attribute::NoUnwind);
-        func_value->addFnAttr(llvm::Attribute::InlineHint);
-        func_table.emplace(main_scope, func_value);
-
-        emit_program_entry_point(func_value, param_tys, *main_def->ret_type);
-    }
-
     void emit_func_prototype(ast::node::function_definition const& func_def, scope::func_scope const& scope)
     {
-        if (scope->is_main_func()) {
-            emit_main_func_prototype(func_def, scope);
-            return;
-        }
-
         assert(!scope->is_template());
         std::vector<llvm::Type *> param_type_irs;
         param_type_irs.reserve(func_def->params.size());
@@ -393,7 +355,7 @@ class llvm_ir_emitter {
                 llvm::Function::ExternalLinkage,
                 // Note:
                 // Simply use "main" because lli requires "main" function as entry point of the program
-                scope->to_string(),
+                !scope->is_main_func() ? scope->to_string() : "dachs.main",
                 module
             );
         func_ir->addFnAttr(llvm::Attribute::NoUnwind);
@@ -624,6 +586,16 @@ class llvm_ir_emitter {
             // Note:
             // When the value is not an aggregate
             return v;
+        }
+
+        // XXX:
+        // When the static_array is allocated dynamically and it doesn't
+        // have a static length.
+        // This is workaround until pointer(T) have been implemented.
+        if (auto const a = type::get<type::array_type>(elem_type)) {
+            if (!(*a)->size) {
+                return v;
+            }
         }
 
         if (v->getType()->getPointerElementType()->isPointerTy()) {
@@ -979,6 +951,7 @@ public:
                         ctx.builder.CreateStructGEP(self_val, *offset),
                         p->type
                     );
+
                 assert(dest_val);
                 alloc_emitter.create_deep_copy(initializer_val, dest_val, p->type);
             }
@@ -998,9 +971,9 @@ public:
         }
 
         // Note: Already checked the scope is not empty
-        auto maybe_prototype_ir = lookup_func(scope);
+        auto const maybe_prototype_ir = lookup_func(scope);
         assert(maybe_prototype_ir);
-        auto &prototype_ir = *maybe_prototype_ir;
+        auto const& prototype_ir = *maybe_prototype_ir;
         auto const block = llvm::BasicBlock::Create(ctx.llvm_context, "entry", prototype_ir);
         ctx.builder.SetInsertPoint(block);
 
@@ -1028,6 +1001,12 @@ public:
             // Note:
             // Believe that the insert block is the last block of the function
             ctx.builder.CreateUnreachable();
+        }
+
+        if (scope->is_main_func()) {
+            assert(scope->ret_type);
+            emit_program_entry_point(prototype_ir, !scope->params.empty(), *scope->ret_type);
+            return;
         }
     }
 

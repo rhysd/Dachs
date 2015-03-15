@@ -23,6 +23,24 @@ struct implicit_import {
                     helper::make<ast::node::import>("std.array")
                 );
         }
+
+        for (auto const& f : program->functions) {
+
+            // Note:
+            // Here, 'f' may returns true even if the 'main' function
+            // is member function and is not entry point. However, such
+            // a member function is rare case and importing std.argv is
+            // not harmful.  So I decided to import std.argv if the function
+            // 'seems' main function.
+            if (f->is_main_func()) {
+                if (!f->params.empty()) {
+                    program->imports.push_back(
+                                helper::make<ast::node::import>("std.argv")
+                            );
+                }
+                break;
+            }
+        }
     }
 };
 

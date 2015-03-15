@@ -14,7 +14,6 @@
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/symbol.hpp"
-#include "dachs/ast/ast_fwd.hpp"
 
 namespace dachs {
 namespace semantics {
@@ -58,6 +57,7 @@ using lambda_captures_type = std::unordered_map<type::generic_func_type, capture
 struct semantics_context {
     scope::scope_tree scopes;
     lambda_captures_type lambda_captures;
+    boost::optional<scope::func_scope> main_arg_constructor;
 
     semantics_context(semantics_context const&) = delete;
     semantics_context &operator=(semantics_context const&) = delete;

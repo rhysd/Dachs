@@ -383,6 +383,7 @@ class symbol_analyzer {
     std::unordered_set<ast::node::function_definition> already_visited_functions;
     std::unordered_set<ast::node::class_definition> already_visited_classes;
     std::unordered_set<ast::node::function_definition> already_visited_ctors;
+    boost::optional<scope::func_scope> main_arg_ctor = boost::none;
 
     using class_instantiation_type_map_type = std::unordered_map<std::string, type::type>;
 
@@ -674,6 +675,55 @@ public:
             return;
         }
 
+        auto const error
+            = [&main_func, this](auto const& msg)
+            {
+                semantic_error(main_func->get_ast_node(), msg);
+            };
+
+        auto const c = main_func->resolve_class("argv");
+        if (!c) {
+            error("  Failed to analyze command line argument.  Class 'argv' is not found");
+            return;
+        }
+
+        auto clazz = *c; // Note: Copy.
+        auto const result = visit_class_construct_impl(
+                    clazz,
+                    std::vector<type::type>{
+                        clazz->type,
+                        type::get_builtin_type("uint", type::no_opt),
+                        type::make<type::array_type>(
+                                type::get_builtin_type("string", type::no_opt)
+                            )
+                    }
+                );
+
+        if (auto const err = get_as<std::string>(result)) {
+            error(*err);
+            error("  Failed to analyze command line argument.  Object construction failed.");
+            return;
+        }
+
+        auto class_and_scope = get_as<std::pair<scope::class_scope, scope::func_scope>>(result);
+        assert(class_and_scope);
+
+        // Note:
+        // Update the argument of main function with instantiated 'argv' type
+        {
+            auto const c = type::get<type::class_type>(main_func->params[0]->type);
+            assert(c);
+            assert((*c)->name == "argv");
+            assert(!(*c)->ref.expired());
+            assert((*c)->ref.lock()->is_template());
+            assert(!(*c)->param_types.empty());
+            (*c)->ref = std::move(class_and_scope->first);
+            (*c)->param_types.clear();
+        }
+
+        // Note:
+        // Preserve the argument to emit main function IR
+        main_arg_ctor = std::move(class_and_scope->second);
     }
 
     bool analyze_main_func()
@@ -707,9 +757,14 @@ public:
                     return false;
                 }
 
-                if (auto const maybe_array = type::get<type::array_type>(param->type)) {
-                    if ((*maybe_array)->element_type == type::get_builtin_type("string", type::no_opt)) {
-                        continue;
+                if (auto const cls = type::get<type::class_type>(param->type)) {
+                    auto const& c = *cls;
+                    if (c->name == "argv" && !c->param_types.empty()) {
+                        if (auto const arr = type::get<type::array_type>(c->param_types[0])) {
+                            if ((*arr)->element_type.is_builtin("string")) {
+                                continue;
+                            }
+                        }
                     }
                 }
             }
@@ -718,7 +773,7 @@ public:
                 f->get_ast_node(),
                 boost::format(
                     "  Illegal siganture for main function: '%1%'\n"
-                    "  Note: main() or main([string]) is required"
+                    "  Note: main() or main(argv) is required"
                     ) % f->to_string()
             );
             return false;
@@ -2371,44 +2426,20 @@ public:
         return walk_recursively_with(ctor->body, body);
     }
 
-    void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
+    template<class ClassScope, class Types>
+    auto visit_class_construct_impl(ClassScope &&scope, Types &&arg_types)
+        -> boost::variant<std::pair<scope::class_scope, scope::func_scope>, std::string>
     {
-        assert(type->param_types.empty());
-
-        std::vector<type::type> arg_types = {type};
-        arg_types.reserve(obj->args.size()+1);
-
-        auto const construct_error
-            = [&obj, this](auto const& msg)
-            {
-                semantic_error(obj, msg);
-                obj->type = type::type{};
-            };
-
-        for (auto const& a : obj->args) {
-            auto const t = type_of(a);
-            if (!t) {
-                obj->type = type::type{};
-                return;
-            }
-
-            arg_types.push_back(t);
-        }
-
-        auto scope = type->ref.lock();
         auto const ctor_candidates = scope->resolve_ctor(arg_types);
 
         if (ctor_candidates.empty()) {
-            construct_error("  No matching constructor to construct class '" + scope->to_string() + "'");
-            obj->type = type::type{};
-            return;
+            return "  No matching constructor to construct class '" + scope->to_string() + "'";
         } else if (ctor_candidates.size() > 1u) {
             std::string errmsg = "  Contructor candidates for '" + scope->to_string() + "' are ambiguous";
             for (auto const& c : ctor_candidates) {
                 errmsg += "\n  Candidate: " + c->to_string();
             }
-            construct_error(errmsg);
-            return;
+            return errmsg;
         }
 
         auto ctor = *std::begin(std::move(ctor_candidates));
@@ -2419,11 +2450,10 @@ public:
         // in the body of constructor.
         if (!already_visited(ctor_def)) {
             if (!walk_recursively_with(enclosing_scope_of(ctor), ctor_def)) {
-                construct_error(
+                return (
                     boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")
                         % ctor->to_string() % ctor_def->line % ctor_def->col
-                );
-                return;
+                ).str();
             }
         }
 
@@ -2448,11 +2478,10 @@ public:
             // because the ctor is a template.  But initialize statements in the ctor
             // is necessary to determine the class instantiation.  So visit it here.
             if (!walk_ctor_body_to_infer_class_template(scope->instance_var_symbols, ctor, ctor_def->body)) {
-                construct_error(
+                return (
                     boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")
                         % ctor->to_string() % ctor_def->line % ctor_def->col
-                );
-                return;
+                ).str();
             }
             already_visited_ctors.insert(ctor_def);
         }
@@ -2461,17 +2490,48 @@ public:
         if (!instantiation_success) {
             // Note:
             // Error message was already omitted in check_template_instantiation_with_ctor()
-            return;
+            return "  Failed to instantiate class '" + scope->to_string() + "' with constructor '" + ctor->to_string() + "'";
         }
         auto const& template_instantiation = *instantiation_success;
 
         if (scope->is_template()) {
-            std::tie(scope, ctor) = instantiate_class_template(scope->get_ast_node(), std::move(arg_types), template_instantiation);
+            std::tie(scope, ctor) = instantiate_class_template(scope->get_ast_node(), std::forward<Types>(arg_types), template_instantiation);
         }
 
-        obj->constructed_class_scope = scope;
-        obj->callee_ctor_scope = ctor;
-        obj->type = scope->type;
+        return std::make_pair(std::forward<ClassScope>(scope), ctor);
+    }
+
+    void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
+    {
+        assert(type->param_types.empty());
+
+        std::vector<type::type> arg_types = {type};
+        arg_types.reserve(obj->args.size()+1);
+
+        for (auto const& a : obj->args) {
+            auto const t = type_of(a);
+            if (!t) {
+                obj->type = type::type{};
+                return;
+            }
+
+            arg_types.push_back(t);
+        }
+
+        auto const result = visit_class_construct_impl(type->ref.lock(), std::move(arg_types));
+
+        if (auto const error = get_as<std::string>(result)) {
+            semantic_error(obj, *error);
+            obj->type = type::type{};
+            return;
+        }
+
+        auto const class_and_ctor = get_as<std::pair<scope::class_scope, scope::func_scope>>(result);
+        assert(class_and_ctor);
+
+        obj->constructed_class_scope = class_and_ctor->first;
+        obj->callee_ctor_scope = class_and_ctor->second;
+        obj->type = class_and_ctor->first->type;
     }
 
     template<class Walker>
@@ -3125,6 +3185,11 @@ public:
         return std::move(resolver).get_captures();
     }
 
+    auto get_main_arg_ctor()
+    {
+        return std::move(main_arg_ctor);
+    }
+
     template<class Walker>
     void visit(ast::node::class_definition const& class_def, Walker const& w)
     {
@@ -3170,7 +3235,6 @@ semantics_context check_semantics(ast::ast &a, scope::scope_tree &t, syntax::imp
 {
     detail::symbol_analyzer resolver{t.root, t.root, i};
     ast::walk_topdown(a.root, resolver);
-    auto const lambda_captures = resolver.resolve_lambda(a.root);
     resolver.analyze_main_func();
     auto const failed = resolver.num_errors();
 
@@ -3181,7 +3245,7 @@ semantics_context check_semantics(ast::ast &a, scope::scope_tree &t, syntax::imp
     // Note:
     // Aggregate initialization here makes clang 3.4.2 crash.
     // I avoid it by explicitly specifying 'semantics_context'.
-    return semantics_context{t, lambda_captures};
+    return semantics_context{t, resolver.resolve_lambda(a.root), resolver.get_main_arg_ctor()};
 }
 
 } // namespace semantics
