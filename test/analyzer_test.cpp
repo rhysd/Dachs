@@ -2257,7 +2257,7 @@ BOOST_AUTO_TEST_CASE(main_func)
     )");
 
     CHECK_NO_THROW_SEMANTIC_ERROR(R"(
-        func main(args : static_array(string))
+        func main(args : argv)
             args[0]
             args.size
         end

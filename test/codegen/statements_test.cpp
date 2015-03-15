@@ -620,12 +620,14 @@ BOOST_AUTO_TEST_CASE(main_func)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func main(args)
-            argc := args.size
+            print("program name is : ")
+            args[0].println
 
-            var i := 0u
-            for i < argc
-                args[i].println
-                i += 1u
+            print(args.size)
+            println(" arguments are specified.")
+
+            args.each do |a|
+                a.println
             end
         end
     )");

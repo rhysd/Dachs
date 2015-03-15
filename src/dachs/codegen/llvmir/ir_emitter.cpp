@@ -1335,10 +1335,11 @@ public:
             return emit_tuple_constant(type::get_unit_type(), {});
         }
 
-        return load_aggregate_elem(
-                ctx.builder.CreateStructGEP(child_val, capture->offset),
-                ufcs->type
-            );
+        val const elem_ptr = ctx.builder.CreateStructGEP(child_val, capture->offset);
+
+        // Note:
+        // (a : ([int], double))[0]: (i64*, double)* -> i64** -> i64*
+        return ufcs->type.is_builtin() ? elem_ptr : ctx.builder.CreateLoad(elem_ptr);
     }
 
     boost::optional<val> emit_instance_var_access(scope::class_scope const& scope, ast::node::ufcs_invocation const& ufcs)
@@ -1364,10 +1365,8 @@ public:
         if (auto const maybe_idx = offset_of(ufcs->member_name)) {
             auto const& idx = *maybe_idx;
 
-            return load_aggregate_elem(
-                    ctx.builder.CreateStructGEP(child_val, idx),
-                    ufcs->type
-                );
+            val const elem_ptr = ctx.builder.CreateStructGEP(child_val, idx);
+            return ufcs->type.is_builtin() ? elem_ptr : ctx.builder.CreateLoad(elem_ptr);
         }
 
         return boost::none;
@@ -1391,24 +1390,6 @@ public:
         if (auto const clazz = type::get<type::class_type>(child_type)) {
             if (auto const v = emit_instance_var_access((*clazz)->ref.lock(), ufcs)) {
                 return *v;
-            }
-        }
-
-        // TODO:
-        // Change type of 'args' which is a parameter for main.
-        // Now it is 'static_array(string)' but it should be array(string).
-        // The change will remove workarounds like below.
-        if (auto const a = type::get<type::array_type>(child_type)) {
-            if (ufcs->member_name == "size" && (*a)->element_type.is_builtin("string") && !(*a)->size ) {
-                return check(
-                        ufcs,
-                        ctx.builder.CreateIntCast(
-                            lookup_var("dachs.main.argc"),
-                            ctx.builder.getInt64Ty(),
-                            true
-                        ),
-                        "access to 'dachs.main.argc'"
-                    );
             }
         }
 

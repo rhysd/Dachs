@@ -705,25 +705,12 @@ public:
             return;
         }
 
-        auto class_and_scope = get_as<std::pair<scope::class_scope, scope::func_scope>>(result);
-        assert(class_and_scope);
-
-        // Note:
-        // Update the argument of main function with instantiated 'argv' type
-        {
-            auto const c = type::get<type::class_type>(main_func->params[0]->type);
-            assert(c);
-            assert((*c)->name == "argv");
-            assert(!(*c)->ref.expired());
-            assert((*c)->ref.lock()->is_template());
-            assert(!(*c)->param_types.empty());
-            (*c)->ref = std::move(class_and_scope->first);
-            (*c)->param_types.clear();
-        }
+        scope::func_scope ctor;
+        std::tie(std::ignore, ctor) = *get_as<std::pair<scope::class_scope, scope::func_scope>>(result);
 
         // Note:
         // Preserve the argument to emit main function IR
-        main_arg_ctor = std::move(class_and_scope->second);
+        main_arg_ctor = std::move(ctor);
     }
 
     bool analyze_main_func()
@@ -759,10 +746,16 @@ public:
 
                 if (auto const cls = type::get<type::class_type>(param->type)) {
                     auto const& c = *cls;
-                    if (c->name == "argv" && !c->param_types.empty()) {
-                        if (auto const arr = type::get<type::array_type>(c->param_types[0])) {
-                            if ((*arr)->element_type.is_builtin("string")) {
-                                continue;
+
+                    // XXX:
+                    // Too dirty check
+                    if (c->name == "argv" && !c->ref.expired()) {
+                        auto const syms = c->ref.lock()->instance_var_symbols;
+                        if (syms.size() == 2u) {
+                            if (auto const arr = type::get<type::array_type>(syms[1]->type)) {
+                                if ((*arr)->element_type.is_builtin("string")) {
+                                    continue;
+                                }
                             }
                         }
                     }

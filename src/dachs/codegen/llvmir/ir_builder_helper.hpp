@@ -201,7 +201,7 @@ public:
         }
 
         // Note:
-        // e.g. getelementptr {[1 x i64]* }* %x, i32 0, i32 0
+        // e.g. getelementptr {i64*}* %x, i32 0, i32 0
         assert(v->getType()->getPointerElementType()->isPointerTy());
         return ctx.builder.CreateLoad(v);
     }
