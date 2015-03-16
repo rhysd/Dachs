@@ -39,6 +39,7 @@
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/util.hpp"
 #include "dachs/helper/each.hpp"
+#include "dachs/helper/probable.hpp"
 
 namespace dachs {
 namespace semantics {
@@ -216,7 +217,7 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
             assert(!t->ref.expired());
             auto const newly_instantiated = outer.instantiate_class_from_specified_param_types(t->ref.lock(), t->param_types);
 
-            if (auto const error = get_as<std::string>(newly_instantiated)) {
+            if (auto const error = newly_instantiated.get_error()) {
                 return *error;
             }
 
@@ -224,7 +225,7 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
             // Is it OK? Below overwrites a content of type.
             // If it causes an issue, below is alternative.
             //   t = type::make<type::class_type>(boost::get<scope::class_scope>(newly_instantiated))
-            t->ref = boost::get<scope::class_scope>(newly_instantiated);
+            t->ref = newly_instantiated.get_unsafe();
             t->param_types.clear();
         }
         t->param_types.clear();
@@ -699,14 +700,14 @@ public:
                     }
                 );
 
-        if (auto const err = get_as<std::string>(result)) {
+        if (auto const err = result.get_error()) {
             error(*err);
             error("  Failed to analyze command line argument.  Object construction failed.");
             return;
         }
 
         scope::func_scope ctor;
-        std::tie(std::ignore, ctor) = *get_as<std::pair<scope::class_scope, scope::func_scope>>(result);
+        std::tie(std::ignore, ctor) = result.get_unsafe();
 
         // Note:
         // Preserve the argument to emit main function IR
@@ -1576,7 +1577,7 @@ public:
     }
 
     template<class ArgTypes>
-    boost::variant<scope::func_scope, std::string>
+    helper::probable<scope::func_scope>
     resolve_func_call(std::string const& func_name, ArgTypes const& arg_types)
     {
         // Note:
@@ -1591,20 +1592,20 @@ public:
                 );
 
         if (func_candidates.empty()) {
-            return (boost::format("  Function for '%1%' is not found") % make_func_signature(func_name, arg_types)).str();
+            return helper::oops_fmt("  Function for '%1%' is not found", make_func_signature(func_name, arg_types));
         } else if (func_candidates.size() > 1u) {
             std::string errmsg = "  Function candidates for '" + make_func_signature(func_name, arg_types) + "' are ambiguous";
             for (auto const& c : func_candidates) {
                 errmsg += "\n  Candidate: " + c->to_string();
             }
-            return errmsg;
+            return helper::oops(errmsg);
         }
 
         auto func = *std::begin(std::move(func_candidates));
 
         if (func->is_builtin) {
             assert(func->ret_type);
-            return func;
+            return {func};
         }
 
         auto func_def = func->get_ast_node();
@@ -1618,16 +1619,15 @@ public:
             // Note:
             // enclosing scope of function scope is always global scope
             if (!walk_recursively_with(global, func_def)) {
-                return (
-                    boost::format(
+                return helper::oops_fmt(
                         "  Failed to analyze function '%1%' defined at line:%2%, col:%3%"
-                    ) % func->to_string() % func_def->line % func_def->col
-                ).str();
+                     , func->to_string(), func_def->line, func_def->col
+                );
             }
         }
 
         if (!func->ret_type) {
-            return (boost::format("  Cannot deduce the return type of function '%1%'") % func->to_string()).str();
+            return helper::oops_fmt("  Cannot deduce the return type of function '%1%'", func->to_string());
         }
 
         // Note:
@@ -1646,10 +1646,9 @@ public:
             auto const error
                 = [t=*t, &func, this]
                 {
-                    return (
-                            boost::format("  member function '%1%' is a private member of class '%2%'")
-                                % func->to_string() % t->name
-                        ).str();
+                    return helper::oops_fmt("  member function '%1%' is a private member of class '%2%'"
+                                , func->to_string(), t->name
+                            );
                 };
 
             if (auto const c = (*f)->get_receiver_class_scope()) {
@@ -1661,22 +1660,21 @@ public:
             }
         }
 
-        return func;
+        return {func};
     }
 
     template<class Node, class ArgTypes>
     boost::optional<std::string> visit_invocation(Node const& node, std::string const& func_name, ArgTypes const& arg_types)
     {
         auto const resolved = resolve_func_call(func_name, arg_types);
-        if (auto const error = get_as<std::string>(resolved)) {
+        if (auto const error =resolved.get_error()) {
             return *error;
         }
 
-        auto const func = get_as<scope::func_scope>(resolved);
-        assert(func);
+        auto const func = resolved.get_unsafe();
 
-        node->type = *(*func)->ret_type;
-        node->callee_scope = *func;
+        node->type = *func->ret_type;
+        node->callee_scope = func;
 
         return boost::none;
     }
@@ -1935,14 +1933,13 @@ public:
         // Check data member 'ufcs->member_name' of 'ufcs->child'.
         // Now, built-in data member is only available.
         auto const checked = check_member_var(ufcs, child_type, current_scope);
-        if (auto const error = get_as<std::string>(checked)) {
+        if (auto const error = checked.get_error()) {
             semantic_error(ufcs, *error);
             return;
         } else {
-            auto const t = get_as<type::type>(checked);
-            assert(t);
-            if (*t) {
-                ufcs->type = *t;
+            auto const t = checked.get_unsafe();
+            if (t) {
+                ufcs->type = t;
                 return;
             }
         }
@@ -2291,7 +2288,7 @@ public:
     }
 
     template<class Types>
-    boost::variant<scope::class_scope, std::string> instantiate_class_from_specified_param_types(
+    helper::probable<scope::class_scope> instantiate_class_from_specified_param_types(
             scope::class_scope const& scope,
             Types const& specified
     ) {
@@ -2302,11 +2299,11 @@ public:
                 );
 
         if (specified.size() != num_templates) {
-            return (boost::format(
+            return helper::oops_fmt(
                         "  Number of specified template types in object construction mismatches\n"
                         "  Note: You specified %1% but class '%2%' has %3% template(s)"
-                    ) % specified.size() % scope->name % num_templates
-                ).str();
+                    , specified.size(), scope->name, num_templates
+                );
         }
 
         auto instantiation = generate_instantiation_map(scope);
@@ -2421,18 +2418,18 @@ public:
 
     template<class ClassScope, class Types>
     auto visit_class_construct_impl(ClassScope &&scope, Types &&arg_types)
-        -> boost::variant<std::pair<scope::class_scope, scope::func_scope>, std::string>
+        -> helper::probable<std::pair<scope::class_scope, scope::func_scope>>
     {
         auto const ctor_candidates = scope->resolve_ctor(arg_types);
 
         if (ctor_candidates.empty()) {
-            return "  No matching constructor to construct class '" + scope->to_string() + "'";
+            return helper::oops("  No matching constructor to construct class '" + scope->to_string() + "'");
         } else if (ctor_candidates.size() > 1u) {
             std::string errmsg = "  Contructor candidates for '" + scope->to_string() + "' are ambiguous";
             for (auto const& c : ctor_candidates) {
                 errmsg += "\n  Candidate: " + c->to_string();
             }
-            return errmsg;
+            return helper::oops(errmsg);
         }
 
         auto ctor = *std::begin(std::move(ctor_candidates));
@@ -2443,10 +2440,9 @@ public:
         // in the body of constructor.
         if (!already_visited(ctor_def)) {
             if (!walk_recursively_with(enclosing_scope_of(ctor), ctor_def)) {
-                return (
-                    boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")
-                        % ctor->to_string() % ctor_def->line % ctor_def->col
-                ).str();
+                return helper::oops_fmt("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%"
+                        , ctor->to_string(), ctor_def->line, ctor_def->col
+                );
             }
         }
 
@@ -2471,10 +2467,9 @@ public:
             // because the ctor is a template.  But initialize statements in the ctor
             // is necessary to determine the class instantiation.  So visit it here.
             if (!walk_ctor_body_to_infer_class_template(scope->instance_var_symbols, ctor, ctor_def->body)) {
-                return (
-                    boost::format("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%")
-                        % ctor->to_string() % ctor_def->line % ctor_def->col
-                ).str();
+                return helper::oops_fmt("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%"
+                        , ctor->to_string(), ctor_def->line, ctor_def->col
+                );
             }
             already_visited_ctors.insert(ctor_def);
         }
@@ -2483,7 +2478,10 @@ public:
         if (!instantiation_success) {
             // Note:
             // Error message was already omitted in check_template_instantiation_with_ctor()
-            return "  Failed to instantiate class '" + scope->to_string() + "' with constructor '" + ctor->to_string() + "'";
+            return helper::oops_fmt(
+                    "  Failed to instantiate class '%1%' with constructor '%2%'"
+                    , scope->to_string(), ctor->to_string()
+                );
         }
         auto const& template_instantiation = *instantiation_success;
 
@@ -2513,18 +2511,17 @@ public:
 
         auto const result = visit_class_construct_impl(type->ref.lock(), std::move(arg_types));
 
-        if (auto const error = get_as<std::string>(result)) {
+        if (auto const error = result.get_error()) {
             semantic_error(obj, *error);
             obj->type = type::type{};
             return;
         }
 
-        auto const class_and_ctor = get_as<std::pair<scope::class_scope, scope::func_scope>>(result);
-        assert(class_and_ctor);
+        auto const class_and_ctor = result.get_unsafe();
 
-        obj->constructed_class_scope = class_and_ctor->first;
-        obj->callee_ctor_scope = class_and_ctor->second;
-        obj->type = class_and_ctor->first->type;
+        obj->constructed_class_scope = class_and_ctor.first;
+        obj->callee_ctor_scope = class_and_ctor.second;
+        obj->type = class_and_ctor.first->type;
     }
 
     template<class Walker>
@@ -2693,7 +2690,7 @@ public:
                             std::vector<type::type>{t}
                         );
 
-                if (auto const error = get_as<std::string>(resolved)) {
+                if (auto const error = resolved.get_error()) {
                     semantic_error(for_, *error);
                     semantic_error(
                             for_,
@@ -2702,9 +2699,7 @@ public:
                     return;
                 }
 
-                auto const c = get_as<scope::func_scope>(resolved);
-                assert(c);
-                auto const& callee = *c;
+                auto const callee = resolved.get_unsafe();
                 for_->size_callee_scope = callee;
 
                 assert(callee->ret_type);
@@ -2727,7 +2722,7 @@ public:
                             }
                         );
 
-                if (auto const error = get_as<std::string>(resolved)) {
+                if (auto const error = resolved.get_error()) {
                     semantic_error(for_, *error);
                     semantic_error(
                             for_,
@@ -2736,9 +2731,7 @@ public:
                     return;
                 }
 
-                auto const c = get_as<scope::func_scope>(resolved);
-                assert(c);
-                auto const& callee = *c;
+                auto const callee = resolved.get_unsafe();
                 for_->index_callee_scope = callee;
 
                 assert(callee->ret_type);
@@ -2818,16 +2811,14 @@ public:
                 }
 
                 auto const resolved = resolve_func_call("==", std::vector<type::type>{switcher_type, t});
-                if (auto const error = get_as<std::string>(resolved)) {
+                if (auto const error = resolved.get_error()) {
                     auto const location = ast::node::location_of(cond);
                     semantic_error(location, *error);
                     semantic_error(location, "  In 'when' clause of case-when statement");
                     continue;
                 }
 
-                auto const f = get_as<scope::func_scope>(resolved);
-                assert(f);
-                auto const& callee = *f;
+                auto const callee = resolved.get_unsafe();
 
                 if (!callee->ret_type || !callee->ret_type->is_builtin("bool")) {
                     auto const s = callee->ret_type ? callee->ret_type->to_string() : "UNKNOWN";

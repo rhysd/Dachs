@@ -1313,13 +1313,11 @@ public:
                 type::type_of(access->child)
             );
 
-        if (auto const err = get_as<std::string>(result)) {
+        if (auto const err = result.get_error()) {
             error(access, *err);
         }
 
-        auto const ret = get_as<llvm::Value *>(result);
-        assert(ret);
-        return *ret;
+        return result.get_unsafe();
     }
 
     val emit_lambda_capture_access(type::generic_func_type const& lambda, ast::node::ufcs_invocation const& ufcs)

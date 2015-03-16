@@ -6,6 +6,7 @@
 #include <boost/variant/variant.hpp>
 #include <boost/variant/get.hpp>
 #include <boost/optional.hpp>
+#include <boost/format.hpp>
 
 // Note:
 // dachs::helper::probable represents either a specified type or an error(usually std::string).
@@ -154,12 +155,16 @@ public:
 
     element_type &get_unsafe()
     {
-        return *boost::get<element_type>(&value);
+        auto *const ptr = boost::get<element_type>(&value);
+        assert(ptr);
+        return *ptr;
     }
 
     element_type const& get_unsafe() const
     {
-        return *boost::get<element_type>(&value);
+        auto const* const ptr = boost::get<element_type>(&value);
+        assert(ptr);
+        return *ptr;
     }
 
     boost::optional<E> get_error() const
@@ -174,12 +179,16 @@ public:
 
     E &get_error_unsafe()
     {
-        return boost::get<error_type>(&value)->value;
+        auto *const ptr = boost::get<error_type>(&value);
+        assert(ptr);
+        return ptr->value;
     }
 
     E const& get_error_unsafe() const
     {
-        return boost::get<error_type>(&value)->value;
+        auto const* const ptr = boost::get<error_type>(&value);
+        assert(ptr);
+        return ptr->value;
     }
 
     value_type &raw_value()
@@ -203,6 +212,12 @@ public:
         }
     }
 };
+
+template<class T, class E = std::string>
+inline probable<T, E> probably(T && value)
+{
+    return probable<T, E>(std::forward<T>(value));
+}
 
 template<class T, class... Args>
 inline probable<T, std::string> make_probable(Args &&... args)
@@ -236,6 +251,37 @@ inline detail::Error<E> oops(E1 && e1, E2 && e2, EN &&... en)
     return detail::Error<E>{std::forward<E1>(e1), std::forward<E2>(e2), std::forward<EN>(en)...};
 }
 
+namespace detail {
+
+// Note:
+// Fold expression is available if C++17 is enabled.
+//
+//      boost::format(fmt) % ... % args
+
+template<class Format>
+inline auto oops_fmt_impl(Format && fmt)
+{
+    return std::forward<Format>(fmt);
+}
+
+template<class Format, class Head, class... Tail>
+inline auto oops_fmt_impl(Format && fmt, Head && h, Tail &&... t)
+{
+    return oops_fmt_impl(std::forward<Format>(fmt) % std::forward<Head>(h), std::forward<Tail>(t)...);
+}
+} // namespace detail
+
+template<class Format, class... Args>
+inline detail::Error<std::string> oops_fmt(Format && fmt, Args &&... args)
+{
+    return detail::Error<std::string>{
+        detail::oops_fmt_impl(
+            boost::format(std::forward<Format>(fmt)),
+            std::forward<Args>(args)...
+        ).str()
+    };
+}
+
 template<class T>
 auto make_probable_generator()
 {
@@ -244,6 +290,11 @@ auto make_probable_generator()
     };
 }
 
+// Note:
+// Other utilities are considered but not implemented yet because they are not necessary at least now.
+// e.g.
+//      flat_map(probable, predicate)
+//      operator>= as monadic binding
 
 } // namespace helper
 } // namespace dachs

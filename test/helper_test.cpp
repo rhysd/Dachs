@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE Util
+#define BOOST_TEST_MODULE Helper
 #define BOOST_DYN_LINK
 #define BOOST_TEST_MAIN
 
@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE(string_error)
     BOOST_CHECK(p2.get_error_unsafe() == "error occurred!");
     BOOST_CHECK(p2.raw_value().which() == 1u);
 
-    auto p3 = make_probable<test>(test::baz);
+    auto p3 = probably(test::baz);
     p3 = test::foo;
     auto foo = test::foo;
     p3 = foo;
@@ -71,6 +71,12 @@ BOOST_AUTO_TEST_CASE(string_error)
     auto const g = make_probable_generator<test>();
     auto const p6 = g(test::foo);
     BOOST_CHECK(p6.success());
+
+    probable<test> const p7 = oops_fmt("there is %1% errors", 7);
+    BOOST_CHECK(p7.failure());
+    BOOST_CHECK(*p7.get_error() == "there is 7 errors");
+    oops_fmt("%1%, %2%, %3%", 1, 3.14, "aaa");
+    oops_fmt("does not contain any formatters");
 }
 
 BOOST_AUTO_TEST_CASE(user_defined_error)

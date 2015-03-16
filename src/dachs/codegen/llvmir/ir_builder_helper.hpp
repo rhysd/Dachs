@@ -15,6 +15,7 @@
 #include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/helper/util.hpp"
+#include "dachs/helper/probable.hpp"
 
 namespace dachs {
 namespace codegen {
@@ -168,25 +169,7 @@ public:
 class inst_emit_helper {
     context &ctx;
 
-    using value_or_error_type = boost::variant<llvm::Value *, std::string>;
-
-    template<class Format, class T>
-    auto format_impl(Format && fmt, T const& v) const
-    {
-        return std::forward<Format>(fmt) % v;
-    }
-
-    template<class Format, class Head, class... Tail>
-    auto format_impl(Format && fmt, Head const& head, Tail const&... tail) const
-    {
-        return format_impl(std::forward<Format>(fmt) % head, tail...);
-    }
-
-    template<class String, class... Args>
-    std::string format(String && str, Args const&... args) const
-    {
-        return format_impl(boost::format(std::forward<String>(str)), args...).str();
-    }
+    using probable_type = helper::probable<llvm::Value *>;
 
 public:
 
@@ -206,7 +189,7 @@ public:
         return ctx.builder.CreateLoad(v);
     }
 
-    value_or_error_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::type const& t)
+    probable_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::type const& t)
     {
         index->setName("idx");
         if (auto const tuple = type::get<type::tuple_type>(t)) {
@@ -219,17 +202,17 @@ public:
             }
         }
 
-        return "Value is not tuple, array and string";
+        return helper::oops("Value is not tuple, array and string");
     }
 
-    value_or_error_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::tuple_type const& t)
+    probable_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::tuple_type const& t)
     {
         assert(aggregate->getType()->isPointerTy());
         assert(aggregate->getType()->getPointerElementType()->isStructTy());
 
         auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index);
         if (!constant_index) {
-            return "Index is not a constant";
+            return helper::oops("Index is not a constant");
         }
 
         auto const idx = constant_index->getZExtValue();
@@ -237,7 +220,7 @@ public:
         return emit_elem_value(ctx.builder.CreateStructGEP(aggregate, idx), t->element_types[idx]);
     }
 
-    value_or_error_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::array_type const& t)
+    probable_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::array_type const& t)
     {
         assert(aggregate->getType()->isPointerTy());
 
@@ -247,7 +230,7 @@ public:
             auto const size = *t->size;
 
             if (idx >= size) {
-                return format("Array index is out of bounds %1% for 0..%2%", idx, size);
+                return helper::oops_fmt("Array index is out of bounds %1% for 0..%2%", idx, size);
             }
         }
 
@@ -259,7 +242,7 @@ public:
             );
     }
 
-    value_or_error_type emit_builtin_element_access(llvm::Value *str_val, llvm::Value *const index, type::builtin_type const& t)
+    probable_type emit_builtin_element_access(llvm::Value *str_val, llvm::Value *const index, type::builtin_type const& t)
     {
         // Note:
         // Workaround.  At first, allocate i8* and store the global string pointer

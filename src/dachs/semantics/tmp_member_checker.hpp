@@ -10,6 +10,7 @@
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/helper/variant.hpp"
+#include "dachs/helper/probable.hpp"
 
 // Note:
 // This class is temporary for array, tuple and range.
@@ -21,7 +22,7 @@ namespace detail {
 
 using helper::variant::apply_lambda;
 
-struct member_variable_checker : boost::static_visitor<boost::variant<type::type, std::string>> {
+struct member_variable_checker : boost::static_visitor<helper::probable<type::type>> {
 
     std::string const& member_name;
     scope::any_scope const& current_scope;
@@ -41,17 +42,17 @@ struct member_variable_checker : boost::static_visitor<boost::variant<type::type
             return builtin_type("uint");
         } else if (member_name == "first") {
             if (tuple->element_types.empty()) {
-                return "  index out of bounds for tuple '()'";
+                return helper::oops("  index out of bounds for tuple '()'");
             }
             return tuple->element_types[0];
         } else if (member_name == "second") {
             if (tuple->element_types.size() < 2) {
-                return "  index out of bounds for tuple " + tuple->to_string();
+                return helper::oops("  index out of bounds for tuple " + tuple->to_string());
             }
             return tuple->element_types[1];
         } else if (member_name == "last") {
             if (tuple->element_types.empty()) {
-                return "  index out of bounds for tuple '()'";
+                return helper::oops("  index out of bounds for tuple '()'");
             }
             return tuple->element_types.back();
         }
@@ -99,7 +100,7 @@ struct member_variable_checker : boost::static_visitor<boost::variant<type::type
             }
 
             if (!a->size) {
-                return "  size of array '" + a->to_string() + "' can't be determined";
+                return helper::oops("  size of array '" + a->to_string() + "' can't be determined");
             }
             return builtin_type("uint");
         }
