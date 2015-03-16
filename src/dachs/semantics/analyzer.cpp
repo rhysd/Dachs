@@ -1874,15 +1874,37 @@ public:
             }
         }
 
+        auto const compare_array_elem_type
+            = [&typed](auto const& lhs, auto const& rhs)
+            {
+                if (lhs->element_type == rhs->element_type) {
+                    typed->type = rhs;
+                    return true;
+                } else {
+                    return false;
+                }
+            };
+
+        // Note:
+        // This is workaround related to the difference of size of array.
+        // User doesn't specify the length of array and any length array should be accepted
+        // as actual type.  However, type::array_type::operator== checks equality strictly.
+        // So ignore the length on comparing here.
         if (auto const specified_array = type::get<type::array_type>(specified_type)) {
             if (auto const actual_array = type::get<type::array_type>(actual_type)) {
-                assert(!(*specified_array)->size);
-                if ((*specified_array)->element_type == (*actual_array)->element_type) {
-                    typed->type = actual_type;
+                if (compare_array_elem_type(*specified_array, *actual_array)) {
                     return;
                 }
             }
         }
+        if (auto const specified_array = specified_type.get_array_underlying_type()) {
+            if (auto const actual_array = actual_type.get_array_underlying_type()) {
+                if (compare_array_elem_type(*specified_array, *actual_array)) {
+                    return;
+                }
+            }
+        }
+
 
         if (actual_type != specified_type) {
             semantic_error(typed, boost::format("  Types mismatch; specified '%1%' but actually typed to '%2%'") % specified_type.to_string() % actual_type.to_string());
@@ -1890,9 +1912,6 @@ public:
         }
 
         typed->type = actual_type;
-
-        // TODO:
-        // Use another visitor to set type and check types. Do not use w().
     }
 
     template<class Walker>

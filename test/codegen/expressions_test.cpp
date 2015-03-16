@@ -360,6 +360,7 @@ BOOST_AUTO_TEST_CASE(array)
             # Empty array literals
             a14 := [] : [int]
             a15 := [] : [float]
+            a16 := [3.14, 3.12] : [float]
         end
 
         func foo()
@@ -1260,6 +1261,9 @@ BOOST_AUTO_TEST_CASE(static_array)
             end
             d.size.println
             d.show_1
+
+            new static_array {2u, 'a'} : static_array(char)
+            new static_array {2u, 'a'} : static_array
         end
     )");
 
