@@ -60,45 +60,9 @@ struct member_variable_checker : boost::static_visitor<helper::probable<type::ty
         return type::type{};
     }
 
-    bool is_main_func_arg(type::array_type const& a) const
-    {
-        if (!a->element_type.is_builtin("string")) {
-            return false;
-        }
-
-        auto const main_func_candidates
-                = apply_lambda(
-                    [](auto const& s)
-                    {
-                        return s->resolve_func(
-                                "main",
-                                {
-                                    type::make<type::array_type>(
-                                            type::get_builtin_type("string", type::no_opt)
-                                        )
-                                }
-                            );
-                    }
-                    , current_scope
-                );
-
-        if (main_func_candidates.size() != 1u) {
-            return false;
-        }
-
-        auto const& main_func = *std::begin(main_func_candidates);
-        auto const arr_type_ptr_main = *type::get<type::array_type>(main_func->params[0]->type);
-
-        return arr_type_ptr_main == a;
-    }
-
     result_type operator()(type::array_type const& a) const
     {
         if (member_name == "size") {
-            if (is_main_func_arg(a)) {
-                return builtin_type("uint");
-            }
-
             if (!a->size) {
                 return helper::oops("  size of array '" + a->to_string() + "' can't be determined");
             }
@@ -118,7 +82,10 @@ member_variable_checker::result_type
 check_member_var(ast::node::ufcs_invocation const& ufcs, type::type const& child_type, scope::any_scope const& current_scope)
 {
     if (ufcs->member_name == "__type") {
-        return type::get_builtin_type("string", type::no_opt);
+        return type::make<type::array_type>(
+                type::get_builtin_type("char", type::no_opt),
+                child_type.to_string().size()
+            );
     }
 
     member_variable_checker const checker{ufcs->member_name, current_scope};

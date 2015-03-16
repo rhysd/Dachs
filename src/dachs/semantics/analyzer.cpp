@@ -695,7 +695,9 @@ public:
                         clazz->type,
                         type::get_builtin_type("uint", type::no_opt),
                         type::make<type::array_type>(
-                                type::get_builtin_type("string", type::no_opt)
+                                type::make<type::array_type>(
+                                    type::get_builtin_type("char", type::no_opt)
+                                )
                             )
                     }
                 );
@@ -754,8 +756,10 @@ public:
                         auto const syms = c->ref.lock()->instance_var_symbols;
                         if (syms.size() == 2u) {
                             if (auto const arr = type::get<type::array_type>(syms[1]->type)) {
-                                if ((*arr)->element_type.is_builtin("string")) {
-                                    continue;
+                                if (auto const arr2 = type::get<type::array_type>((*arr)->element_type)) {
+                                    if ((*arr2)->element_type.is_builtin("char")) {
+                                        continue;
+                                    }
                                 }
                             }
                         }
@@ -1081,11 +1085,6 @@ public:
                 return "bool";
             }
 
-            result_type operator()(std::string const&) const noexcept
-            {
-                return "string";
-            }
-
             result_type operator()(int const) const noexcept
             {
                 return "int";
@@ -1190,6 +1189,35 @@ public:
         }
 
         visit_array_literal_construction(arr_lit, arg0_type);
+    }
+
+    template<class Walker>
+    void visit(ast::node::string_literal const& str_lit, Walker const&)
+    {
+        auto c = with_current_scope([](auto const& s){ return s->resolve_class("string"); });
+        assert(c);
+        auto &str_scope = *c;
+
+        auto const result = visit_class_construct_impl(
+                    str_scope,
+                    std::vector<type::type>{
+                        str_scope->type,
+                        type::make<type::array_type>(type::get_builtin_type("char", type::no_opt), str_lit->value.size()),
+                        type::get_builtin_type("uint", type::no_opt)
+                    }
+                );
+
+        if (auto const error = result.get_error()) {
+            semantic_error(str_lit, *error);
+            semantic_error(str_lit, "  Error while analyzing string literal");
+            return;
+        }
+
+        auto const class_and_ctor = result.get_unsafe();
+        str_lit->constructed_class_scope = class_and_ctor.first;
+        str_lit->callee_ctor_scope = class_and_ctor.second;
+        str_lit->type = class_and_ctor.first->type;
+        assert(str_lit->type.is_string_class());
     }
 
     template<class Walker>

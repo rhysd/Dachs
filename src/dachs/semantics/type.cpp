@@ -31,7 +31,6 @@ static std::vector<builtin_type> const builtin_types
         make<builtin_type>("float"),
         make<builtin_type>("char"),
         make<builtin_type>("bool"),
-        make<builtin_type>("string"),
         make<builtin_type>("symbol"),
     };
 
@@ -415,6 +414,9 @@ no_opt_t no_opt;
 
 boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept
 {
+    // XXX:
+    // For debug!
+    assert(name != std::string{"string"});
     for (auto const& t : detail::builtin_types) {
         if (t->name == name) {
             return t;
@@ -426,6 +428,10 @@ boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept
 
 builtin_type get_builtin_type(char const* const name, no_opt_t) noexcept
 {
+    // XXX:
+    // For debug!
+    assert(name != std::string{"string"});
+
     for (auto const& t : detail::builtin_types) {
         if (t->name == name) {
             return t;
@@ -457,6 +463,12 @@ bool any_type::is_array_class() const noexcept
     return c && (*c)->name == "array";
 }
 
+bool any_type::is_string_class() const noexcept
+{
+    auto const c = get_as<class_type>(value);
+    return c && (*c)->name == "string";
+}
+
 bool any_type::is_aggregate() const noexcept
 {
     if (is_template()) {
@@ -473,11 +485,13 @@ bool any_type::is_aggregate() const noexcept
 boost::optional<array_type const&> any_type::get_array_underlying_type() const
 {
     auto const c = get_as<class_type>(value);
-    if (!c || (*c)->name != "array") {
-        return boost::none;
-    }
-
     return (*c)->get_array_underlying_type();
+}
+
+boost::optional<array_type const&> any_type::get_string_underlying_type() const
+{
+    auto const c = get_as<class_type>(value);
+    return (*c)->get_string_underlying_type();
 }
 
 bool any_type::operator==(any_type const& rhs) const noexcept
@@ -800,6 +814,24 @@ boost::optional<type::array_type const&> class_type::get_array_underlying_type()
         auto const scope = ref.lock();
         auto const& syms = scope->instance_var_symbols;
         if (syms.size() == 3 /*buf, capacity, size*/) {
+            return type::get<type::array_type>(syms[0]->type);
+        }
+    }
+
+    return boost::none;
+}
+
+boost::optional<type::array_type const&> class_type::get_string_underlying_type() const
+{
+    if (name != "string") {
+        return boost::none;
+    }
+
+    assert(param_types.empty());
+
+    if (!ref.expired()) {
+        auto const& syms = ref.lock()->instance_var_symbols;
+        if (syms.size() == 2 /*data, size*/) {
             return type::get<type::array_type>(syms[0]->type);
         }
     }

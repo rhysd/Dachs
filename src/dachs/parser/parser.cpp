@@ -289,19 +289,28 @@ public:
         string_literal
             = (
                 qi::lexeme['"' > *(
-                    (qi::char_ - '"' - '\\' - ascii::cntrl)[_val += _1] |
+                    (qi::char_ - '"' - '\\' - ascii::cntrl)[_a += _1] |
                     ('\\' >> (
-                          'b'_p[_val += '\b']
-                        | 'f'_p[_val += '\f']
-                        | 'n'_p[_val += '\n']
-                        | 'r'_p[_val += '\r']
-                        | 't'_p[_val += '\t']
-                        | '\\'_p[_val += '\\']
-                        | '"'_p[_val += '"']
-                        | (qi::char_ - ascii::cntrl)[_val += _1]
+                          'b'_p[_a += '\b']
+                        | 'f'_p[_a += '\f']
+                        | 'n'_p[_a += '\n']
+                        | 'r'_p[_a += '\r']
+                        | 't'_p[_a += '\t']
+                        | '\\'_p[_a += '\\']
+                        | '"'_p[_a += '"']
+                        | (qi::char_ - ascii::cntrl)[_a += _1]
                     ))
                 ) > '"']
-            );
+            ) [
+                phx::bind(
+                        [this](auto &val, auto && s)
+                        {
+                            implicit_import_installer.string_found = true;
+                            val = helper::make<ast::node::string_literal>(std::forward<decltype(s)>(s));
+                        },
+                        _val, _a
+                    )
+            ];
 
         integer_literal
             = qi::lexeme[
@@ -381,7 +390,6 @@ public:
             = (
                 boolean_literal
               | character_literal
-              | string_literal
               | float_literal
               | uinteger_literal
               | integer_literal
@@ -653,6 +661,7 @@ public:
                 | begin_end_expr
                 | let_expr
                 | primary_literal
+                | string_literal
                 | array_literal
                 | symbol_literal
                 | dict_literal
@@ -977,7 +986,22 @@ public:
                         '(' >> -qi::eol >> (qualified_type % comma) >> -qi::eol >> ')'
                     )
             ) [
-                make_and_assign_to_val<ast::node::primary_type>(_1, as_vector(_2))
+                phx::bind(
+                    [this](auto &val, auto && name, auto && templates)
+                    {
+                        if (name == "array") {
+                            implicit_import_installer.array_found = true;
+                        } else if (name == "string") {
+                            implicit_import_installer.string_found = true;
+                        }
+
+                        val = helper::make<ast::node::primary_type>(
+                                std::forward<decltype(name)>(name),
+                                std::forward<decltype(templates)>(templates)
+                            );
+                    }
+                    , _val, _1, as_vector(_2)
+                )
             ];
 
         nested_type
@@ -1393,6 +1417,7 @@ public:
                 , inu
                 , primary_literal
                 , tuple_literal
+                , string_literal
                 , lambda_expr
                 , let_expr
                 , symbol_literal
@@ -1510,12 +1535,12 @@ public:
         // Rule names {{{
         inu.name("program");
         primary_literal.name("primary literal");
+        string_literal.name("string literal");
         integer_literal.name("integer literal");
         uinteger_literal.name("unsigned integer literal");
         character_literal.name("character literal");
         float_literal.name("float literal");
         boolean_literal.name("boolean literal");
-        string_literal.name("string literal");
         array_literal.name("array literal");
         tuple_literal.name("tuple literal");
         lambda_expr.name("lambda expression");
@@ -1632,13 +1657,13 @@ private:
     DACHS_DEFINE_RULE(function_definition);
     DACHS_DEFINE_RULE_WITH_LOCALS(class_definition, std::vector<ast::node::variable_decl>, std::vector<ast::node::function_definition>);
     DACHS_DEFINE_RULE_WITH_LOCALS(import, std::string);
+    DACHS_DEFINE_RULE_WITH_LOCALS(string_literal, std::string);
 
     rule<char()> character_literal;
     rule<double()> float_literal;
     rule<int()> integer_literal;
     rule<unsigned int()> uinteger_literal;
     rule<bool()> boolean_literal;
-    rule<std::string()> string_literal;
     rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
     rule<ast::node::initialize_stmt()> constant_definition;
     rule<ast::node::function_definition()> do_block, lambda_expr_do_end, constructor;

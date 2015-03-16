@@ -1,5 +1,5 @@
-class String
-    data : string
+class string
+    data : static_array(char)
     size : uint
 
     init(@data, @size)
@@ -49,7 +49,7 @@ class String
         ret false
     end
 
-    func <(rhs : String)
+    func <(rhs : string)
         var i := 0u
 
         for i < @size

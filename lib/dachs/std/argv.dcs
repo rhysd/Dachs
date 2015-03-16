@@ -5,7 +5,7 @@ class argv
     init(@argc, @argv)
     end
 
-    func [](idx) : string
+    func [](idx) : static_array(char)
         fatal("index is out of bounds") unless (idx as uint) < @argc
         ret @argv[idx]
     end

@@ -812,6 +812,29 @@ public:
             );
     }
 
+    val emit(ast::node::string_literal const& literal)
+    {
+        assert(literal->type.is_string_class());
+        auto const underlying_type = literal->type.get_string_underlying_type();
+        assert(underlying_type);
+
+        auto *const native_string_value = ctx.builder.CreateGlobalStringPtr(literal->value.c_str());
+        auto *const size_value = llvm::ConstantInt::get(
+                        llvm::Type::getInt64Ty(ctx.llvm_context),
+                        static_cast<std::uint64_t const>(literal->value.size()),
+                        false
+                    );
+
+        return emit_class_object_construct(
+                literal,
+                *type::get<type::class_type>(literal->type),
+                std::vector<val>{
+                    native_string_value,
+                    size_value
+                }
+            );
+    }
+
     val emit(ast::node::array_literal const& literal)
     {
         assert(literal->type.is_array_class());
@@ -1907,12 +1930,6 @@ public:
             } else if (to == "float") {
                 return cast_check(ctx.builder.CreateSIToFP(child_val, to_type_ir));
             }
-        } else if (from == "string" && to == "symbol") {
-            auto *const cityhash = builtin_func_emitter.emit_cityhash_func();
-            return ctx.builder.CreateCall(
-                    cityhash,
-                    child_val
-                );
         }
 
         cast_error();

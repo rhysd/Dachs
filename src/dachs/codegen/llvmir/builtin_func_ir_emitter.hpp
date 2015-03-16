@@ -274,9 +274,8 @@ public:
         return func;
     }
 
-    llvm::Function *emit_fatal_func(type::builtin_type const& arg_type)
+    llvm::Function *emit_fatal_func(type::type const& arg_type)
     {
-        assert(arg_type->name == "string");
         auto &func = fatal_funcs[1];
         if (func) {
             return func;
@@ -331,7 +330,7 @@ public:
             if (arg_types.empty()) {
                 return emit_fatal_func();
             } else {
-                return emit_fatal_func(*type::get<type::builtin_type>(arg_types[0]));
+                return emit_fatal_func(arg_types[0]);
             }
         } // else ...
 

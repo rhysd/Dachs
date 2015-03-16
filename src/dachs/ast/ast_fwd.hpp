@@ -92,6 +92,7 @@ struct primary_literal;
 struct symbol_literal;
 struct array_literal;
 struct tuple_literal;
+struct string_literal;
 struct dict_literal;
 struct lambda_expr;
 struct var_ref;
@@ -161,6 +162,7 @@ DACHS_DEFINE_NODE_PTR(primary_literal);
 DACHS_DEFINE_NODE_PTR(symbol_literal);
 DACHS_DEFINE_NODE_PTR(array_literal);
 DACHS_DEFINE_NODE_PTR(tuple_literal);
+DACHS_DEFINE_NODE_PTR(string_literal);
 DACHS_DEFINE_NODE_PTR(dict_literal);
 DACHS_DEFINE_NODE_PTR(lambda_expr);
 DACHS_DEFINE_NODE_PTR(var_ref);
@@ -202,6 +204,7 @@ using any_expr =
                   , primary_literal
                   , symbol_literal
                   , array_literal
+                  , string_literal
                   , dict_literal
                   , tuple_literal
                   , lambda_expr

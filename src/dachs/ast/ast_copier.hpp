@@ -102,6 +102,11 @@ public:
         return copy_node<node::tuple_literal>(tl, copy(tl->element_exprs));
     }
 
+    auto copy(node::string_literal const& sl) const
+    {
+        return copy_node<node::string_literal>(sl, sl->value);
+    }
+
     auto copy(node::dict_literal const& dl) const
     {
         return copy_node<node::dict_literal>(dl, copy(dl->value));

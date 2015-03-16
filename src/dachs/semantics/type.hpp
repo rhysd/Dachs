@@ -202,9 +202,11 @@ public:
     bool is_unit() const noexcept;
 
     bool is_array_class() const noexcept;
+    bool is_string_class() const noexcept;
     bool is_aggregate() const noexcept;
 
     boost::optional<array_type const&> get_array_underlying_type() const;
+    boost::optional<array_type const&> get_string_underlying_type() const;
 
     // Note:
     // Visitor && is not available because boost::apply_visitor
@@ -322,7 +324,7 @@ struct builtin_type final : public named_type {
 
     bool is_default_constructible() const noexcept override
     {
-        return !(name == "string" || name == "symbol");
+        return name != "symbol";
     }
 };
 
@@ -363,6 +365,7 @@ struct class_type final : public named_type {
     bool is_instantiated_from(type::class_type const&) const;
 
     boost::optional<type::array_type const&> get_array_underlying_type() const;
+    boost::optional<type::array_type const&> get_string_underlying_type() const;
 };
 
 struct tuple_type final : public basic_type {
