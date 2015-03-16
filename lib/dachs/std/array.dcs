@@ -115,4 +115,53 @@ class array
 
         ret false
     end
+
+    func head
+        fatal("call first() for empty array") if @empty?()
+        ret @buf[0u]
+    end
+
+    func last
+        fatal("call last() for empty array") if @empty?()
+        ret @buf[@size - 1u]
+    end
+
+    func print
+        if @empty?()
+            print("[]")
+            ret
+        end
+
+        print('[')
+        var i := 0u
+        for i < @size - 1u
+            print(@buf[i])
+            print(", ")
+            i += 1u
+        end
+        print(@last())
+        print(']')
+    end
+
+    func println
+        @print()
+        print('\n')
+    end
+
+    func ==(rhs : array)
+        ret false unless @size == rhs.size
+
+        var i := 0u
+        for i < @size
+            ret false unless @buf[i] == rhs[i]
+            i += 1u
+        end
+
+        ret true
+    end
+
+    func !=(rhs : array)
+        ret !(self == rhs)
+    end
 end
+
