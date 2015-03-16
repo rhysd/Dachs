@@ -1106,6 +1106,33 @@ public:
         sym_lit->type = type::get_builtin_type("symbol", type::no_opt);
     }
 
+    void visit_array_literal_construction(ast::node::array_literal const& arr_lit, type::type const& elem_type)
+    {
+        auto cls = with_current_scope([](auto const& s){ return s->resolve_class("array"); });
+        assert(cls);
+        auto &array_class = *cls;
+        assert(array_class->is_template());
+
+        auto const result = visit_class_construct_impl(
+                array_class,
+                std::vector<type::type>{
+                    array_class->type,
+                    type::make<type::array_type>(elem_type, arr_lit->element_exprs.size())
+                }
+            );
+
+        if (auto const error = result.get_error()) {
+            semantic_error(arr_lit, *error);
+            semantic_error(arr_lit, "  Error while analyzing array literal");
+            return;
+        }
+
+        auto const class_and_ctor = result.get_unsafe();
+        arr_lit->constructed_class_scope = class_and_ctor.first;
+        arr_lit->callee_ctor_scope = class_and_ctor.second;
+        arr_lit->type = class_and_ctor.first->type;
+    }
+
     template<class Walker>
     void visit(ast::node::array_literal const& arr_lit, Walker const& w)
     {
@@ -1118,8 +1145,9 @@ public:
                 return;
             }
 
-            if (auto const a = type::get<type::array_type>(arr_lit->type)) {
+            if (auto const a = arr_lit->type.get_array_underlying_type()) {
                 (*a)->size = 0u;
+                visit_array_literal_construction(arr_lit, (*a)->element_type);
                 return;
             } else {
                 semantic_error(arr_lit, "  Invalid type '" + arr_lit->type.to_string() + "' is specified for array literal");
@@ -1146,7 +1174,7 @@ public:
                         arr_lit->element_exprs,
                         [arg0_size](auto const& e){ return *(*type::get<type::array_type>(type_of(e)))->size != arg0_size; }
                     )) {
-                    semantic_error(arr_lit, "  All array elements in an array must be the same length");
+                    semantic_error(arr_lit, "  All elements in array must be the same length");
                     return;
                 }
 
@@ -1156,12 +1184,12 @@ public:
                 )) {
                 // Note:
                 // Some elements' types don't have its length and at least one element's type has its length
-                semantic_error(arr_lit, "  Some array elements have fixed length and others don't have");
+                semantic_error(arr_lit, "  Some array elements have fixed length and others don't");
                 return;
             }
         }
 
-        arr_lit->type = type::make<type::array_type>(arg0_type, arr_lit->element_exprs.size());
+        visit_array_literal_construction(arr_lit, arg0_type);
     }
 
     template<class Walker>
@@ -2527,16 +2555,6 @@ public:
     template<class Walker>
     void visit(ast::node::object_construct const& obj, Walker const& w)
     {
-        // Note:
-        // Edge case when typing for empty array literals
-        if (obj->type && obj->args.size() == 1) {
-            if (auto const builtin_array_type = obj->type.get_array_underlying_type()) {
-                if (auto const lit = get_as<ast::node::array_literal>(obj->args[0])) {
-                    (*lit)->type = *builtin_array_type;
-                }
-            }
-        } // else if ... for other array class constructors (TODO)
-
         obj->type = from_type_node(obj->obj_type);
         if (!obj->type) {
             semantic_error(obj, "  Invalid type for object construction");

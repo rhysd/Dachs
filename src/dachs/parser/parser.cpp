@@ -330,16 +330,9 @@ public:
                 _val = phx::bind(
                     [this](auto && exprs)
                     {
-                        auto literal = helper::make<ast::node::array_literal>(std::forward<decltype(exprs)>(exprs));
-                        auto type = helper::make<ast::node::primary_type>("array");
-                        auto construct = helper::make<ast::node::object_construct>(
-                                    std::move(type),
-                                    std::vector<ast::node::any_expr>{std::move(literal)}
-                                );
-
                         implicit_import_installer.array_found = true;
 
-                        return construct;
+                        return helper::make<ast::node::array_literal>(std::forward<decltype(exprs)>(exprs));
                     }
                     , as_vector(_1)
                 )
@@ -1413,6 +1406,7 @@ public:
                 , primary_type
                 , array_type
                 , dict_type
+                , array_type
                 , tuple_type
                 , func_type
                 , qualified_type
@@ -1487,22 +1481,6 @@ public:
                     ),
                     let_expr,
                     begin_end_expr
-                );
-
-            qi::on_success(
-                    array_literal,
-                    phx::bind(
-                        [code_begin](auto const& array_construct, Iterator const before, Iterator const after)
-                        {
-                            detail::set_location_impl(array_construct, before, after, code_begin);
-
-                            ast::node::set_location(array_construct->obj_type, array_construct);
-                            ast::node::set_location(array_construct->args[0], array_construct);
-                        },
-                        _val,
-                        _1,
-                        _3
-                    )
                 );
         } // if (!CheckOnly) {
 
@@ -1673,6 +1651,7 @@ private:
     rule<ast::node::any_expr()>
           primary_literal
         , dict_literal
+        , array_literal
         , lambda_expr
         , var_ref
         , primary_expr
@@ -1697,7 +1676,6 @@ private:
 
     rule<ast::node::func_invocation()> begin_end_expr;
     rule<ast::node::func_invocation(), qi::locals<ast::node::statement_block>> let_expr;
-    rule<ast::node::object_construct()> array_literal;
 
     rule<ast::node::any_expr(), qi::locals<std::vector<ast::node::any_expr>>> tuple_literal;
     rule<ast::node::any_expr(), qi::locals<std::string>> symbol_literal;

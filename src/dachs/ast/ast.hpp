@@ -308,6 +308,8 @@ struct symbol_literal final : public expression {
 
 struct array_literal final : public expression {
     std::vector<node::any_expr> element_exprs;
+    scope::weak_class_scope constructed_class_scope;
+    scope::weak_func_scope callee_ctor_scope;
 
     explicit array_literal(std::vector<node::any_expr> const& elems) noexcept
         : expression(), element_exprs(elems)

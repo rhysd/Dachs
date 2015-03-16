@@ -836,16 +836,28 @@ public:
             );
     }
 
-    val emit(ast::node::array_literal const& array)
+    val emit(ast::node::array_literal const& literal)
     {
-        assert(type::is_a<type::array_type>(array->type));
-        return check(
-                array,
+        assert(literal->type.is_array_class());
+
+        auto const underlying_type = literal->type.get_array_underlying_type();
+        assert(underlying_type);
+
+        auto *const native_array_value = check(
+                literal,
                 emit_array_constant(
-                    *type::get<type::array_type>(array->type),
-                    array->element_exprs
+                    *underlying_type,
+                    literal->element_exprs
                 ),
-                "array literal"
+                "inner static array in array literal"
+            );
+
+        return emit_class_object_construct(
+                literal,
+                *type::get<type::class_type>(literal->type),
+                std::vector<val> {
+                    native_array_value
+                }
             );
     }
 
@@ -1931,7 +1943,8 @@ public:
         return nullptr; // Note: Required to avoid compiler warning.
     }
 
-    val emit_class_object_construct(ast::node::object_construct const& obj, type::class_type const& t, std::vector<val> && arg_values)
+    template<class Construction>
+    val emit_class_object_construct(Construction const& obj, type::class_type const& t, std::vector<val> && arg_values)
     {
         auto const obj_val = alloc_emitter.create_alloca(t);
 
