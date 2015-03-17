@@ -373,22 +373,9 @@ public:
             create_memset(allocated, allocated->getType(), t);
         }
 
-        auto const needs_not_copy
-            = [](auto const& t)
-            {
-                // Note:
-                // If the array is allocated dynamically, no need to allocate
-                // with alloca.  It will be initialized by zero (null pointer)
-                // or remains uninitialized value.
-                if (auto const a = type::get<type::array_type>(t)) {
-                    return !static_cast<bool>((*a)->size);
-                }
-                return t.is_builtin();
-            };
-
         if (auto const array = type::get<type::array_type>(t)) {
             auto const& elem_type = (*array)->element_type;
-            if (needs_not_copy(elem_type)) {
+            if (!elem_type.is_aggregate()) {
                 return allocated;
             }
 
@@ -404,7 +391,7 @@ public:
             // If all members are built-in type, use memcpy to copy all elements
             for (auto const idx : helper::indices((*tuple)->element_types)) {
                 auto const& elem_type = (*tuple)->element_types[idx];
-                if (needs_not_copy(elem_type)) {
+                if (!elem_type.is_aggregate()) {
                     continue;
                 }
 
@@ -420,7 +407,7 @@ public:
             assert(!scope->is_template());
             for (auto const idx : helper::indices(scope->instance_var_symbols)) {
                 auto const& var_type = scope->instance_var_symbols[idx]->type;
-                if (needs_not_copy(var_type)) {
+                if (!var_type.is_aggregate()) {
                     continue;
                 }
 
@@ -443,7 +430,7 @@ public:
             auto const& captures = itr->second;
             for (auto const& capture : captures) {
                 auto const& capture_type = capture.introduced->type;
-                if (needs_not_copy(capture_type)) {
+                if (!capture_type.is_aggregate()) {
                     continue;
                 }
 
@@ -473,17 +460,25 @@ public:
     }
 
     template<class V1, class V2>
-    void copy_builtin_value(type::builtin_type const& b, V1 *const from, V2 *const to)
+    llvm::StoreInst *copy_non_aggregate_value(V1 *const from, V2 *const to)
     {
-        if (b->name != "string" && from->getType()->isPointerTy()) {
-            auto const loaded = ctx.builder.CreateLoad(from);
-            ctx.builder.CreateStore(loaded, to);
-        } else if (b->name == "string" && from->getType()->getPointerElementType()->isPointerTy()) {
-            auto const loaded = ctx.builder.CreateLoad(from);
-            ctx.builder.CreateStore(loaded, to);
-        } else {
-            ctx.builder.CreateStore(from, to);
+        auto *const from_ty = from->getType();
+        auto *const to_ty = from->getType();
+
+        assert(to_ty->isPointerTy());
+
+        if (!from_ty->isPointerTy()) {
+            assert(from_ty == to_ty->getPointerElementType());
+            return ctx.builder.CreateStore(from, to);
         }
+
+        if (from_ty->getPointerTo() == to_ty) {
+            return ctx.builder.CreateStore(from, to);
+        }
+
+        assert(from_ty == to_ty);
+
+        return ctx.builder.CreateStore(ctx.builder.CreateLoad(from), to);
     }
 
     template<class V1, class V2>
@@ -501,8 +496,8 @@ public:
                 auto *const elem_from = ctx.builder.CreateStructGEP(from, idx);
                 auto *const elem_to = ctx.builder.CreateStructGEP(to, idx);
 
-                if (auto const b = type::get<type::builtin_type>(elem_type)) {
-                    copy_builtin_value(*b, elem_from, elem_to);
+                if (!elem_type.is_aggregate()) {
+                    copy_non_aggregate_value(elem_from, elem_to);
                     continue;
                 }
 
@@ -549,8 +544,8 @@ public:
                 auto *const elem_from = ctx.builder.CreateStructGEP(from, idx);
                 auto *const elem_to = ctx.builder.CreateStructGEP(to, idx);
 
-                if (auto const b = type::get<type::builtin_type>(var_type)) {
-                    copy_builtin_value(*b, elem_from, elem_to);
+                if (!var_type.is_aggregate()) {
+                    copy_non_aggregate_value(elem_from, elem_to);
                     continue;
                 }
 
@@ -573,8 +568,8 @@ public:
                 auto *const elem_from = ctx.builder.CreateStructGEP(from, capture.offset);
                 auto *const elem_to = ctx.builder.CreateStructGEP(to, capture.offset);
 
-                if (auto const b = type::get<type::builtin_type>(capture_type)) {
-                    copy_builtin_value(*b, elem_from, elem_to);
+                if (!capture_type.is_aggregate()) {
+                    copy_non_aggregate_value(elem_from, elem_to);
                     continue;
                 }
 
@@ -588,8 +583,8 @@ public:
     template<class V1, class V2>
     void create_deep_copy(V1 *const from, V2 *const to, type::type const& t)
     {
-        if (auto const builtin = type::get<type::builtin_type>(t)) {
-            copy_builtin_value(*builtin, from, to);
+        if (!t.is_aggregate()) {
+            copy_non_aggregate_value(from, to);
             return;
         }
 
