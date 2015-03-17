@@ -433,7 +433,7 @@ class llvm_ir_emitter {
 
             emitter.alloc_emitter.create_deep_copy(
                     rhs_value,
-                    emitter.deref(lhs_value, lhs_type),
+                    emitter.load_aggregate_elem(lhs_value, lhs_type),
                     lhs_type
                 );
         }
@@ -550,20 +550,72 @@ class llvm_ir_emitter {
         }
     };
 
+    bool treats_by_value(type::type const& t) const
+    {
+        return t.is_builtin();
+    }
+
     // Note:
-    // deref() strips excessive pointer.
-    //      e.g.
-    //          i64* for int
-    //          i8** for [char]
+    // load_if_ref() strips reference if the value is treated by reference.
+    // To determine the value is treated by reference, type::type is used.
+    llvm::Value *load_if_ref(llvm::Value *const v, type::type const& t)
+    {
+        if (auto const builtin = type::get<type::builtin_type>(t)) {
+            if ((*builtin)->name != "string" && v->getType()->isPointerTy()) {
+                assert(!v->getType()->getPointerElementType()->isPointerTy());
+                return ctx.builder.CreateLoad(v);
+            } else if ((*builtin)->name == "string" && v->getType()->getPointerElementType()->isPointerTy()) {
+                // Note:
+                // When the type of string is i8**
+                return ctx.builder.CreateLoad(v);
+            }
+        }
+        return v;
+    }
+
+    // Note:
+    // Aggregate elements in aggregates are stored as a pointer to it.
+    // e.g.
+    //  [{i32, i32}*], {[i32 x 1]*, {i32, i32}*}
+    // However, built-in type is embedded in aggregates directly.
+    // So it is necessary to check the type is built-in type and, if not, load instruction
+    // needs to be emitted.
+    llvm::Value *load_aggregate_elem(llvm::Value *const v, type::type const& elem_type)
+    {
+        if (elem_type.is_builtin()) {
+            // Note:
+            // When the value is not an aggregate
+            return v;
+        }
+
+        // XXX:
+        // When the static_array is allocated dynamically and it doesn't
+        // have a static length.
+        // This is workaround until pointer(T) have been implemented.
+        if (auto const a = type::get<type::array_type>(elem_type)) {
+            if (!(*a)->size) {
+                return v;
+            }
+        }
+
+        if (v->getType()->getPointerElementType()->isPointerTy()) {
+            // Note:
+            // If the value is an aggregate element of aggregate,
+            // the value should be a pointer to pointer to aggregate
+            // e.g.
+            //   {[int]*}* -> [int]**
+            return ctx.builder.CreateLoad(v);
+        } else {
+            return v;
+        }
+    }
+
     llvm::Value *deref(llvm::Value *const v, type::type const& t)
     {
-        auto *const ty = type_emitter.emit(t);
-        if (ty == v->getType()) {
-            return v;
+        if (t.is_builtin()) {
+            return load_if_ref(v, t);
         } else {
-            assert(v->isPointerTy());
-            assert(ty->getPointerElementType() == v->getType());
-            return ctx.builder.CreateLoad(v);
+            return load_aggregate_elem(v, t);
         }
     }
 
@@ -571,6 +623,12 @@ class llvm_ir_emitter {
     llvm::Value *deref(llvm::Value *const v, Expr const& e)
     {
         return deref(v, type::type_of(e));
+    }
+
+    template<class Node>
+    llvm::Value *load_if_ref(llvm::Value *const v, Node const& hint)
+    {
+        return load_if_ref(v, type::type_of(hint));
     }
 
 public:
@@ -698,7 +756,7 @@ public:
                 auto const elem_type = type::type_of(elem_exprs[idx]);
                 alloc_emitter.create_deep_copy(
                         elem_values[idx],
-                        deref(
+                        load_aggregate_elem(
                             ctx.builder.CreateStructGEP(alloca_inst, idx),
                             elem_type
                         ),
@@ -753,7 +811,7 @@ public:
             for (auto const idx : helper::indices(elem_exprs)) {
                 alloc_emitter.create_deep_copy(
                         elem_values[idx],
-                        deref(
+                        load_aggregate_elem(
                             ctx.builder.CreateConstInBoundsGEP1_32(alloca_inst, idx),
                             t->element_type
                         ),
@@ -901,7 +959,7 @@ public:
 
                 auto const offset = clazz->get_instance_var_offset_of(p->name.substr(1u)/* omit '@' */);
                 assert(offset);
-                auto *const dest_val = deref(
+                auto *const dest_val = load_aggregate_elem(
                         ctx.builder.CreateStructGEP(self_val, *offset),
                         p->type
                     );
@@ -987,7 +1045,7 @@ public:
         auto *const end_block = helper.create_block("if.end");
 
         // IR for if-then clause
-        val cond_val = deref(emit(if_->condition), if_->condition);
+        val cond_val = load_if_ref(emit(if_->condition), if_->condition);
         if (if_->kind == ast::symbol::if_kind::unless) {
             cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_stmt_unless"), "unless statement");
         }
@@ -1024,11 +1082,11 @@ public:
         }
 
         if (return_->ret_exprs.size() == 1) {
-            ctx.builder.CreateRet(deref(emit(return_->ret_exprs[0]), type::type_of(return_->ret_exprs[0])));
+            ctx.builder.CreateRet(load_if_ref(emit(return_->ret_exprs[0]), type::type_of(return_->ret_exprs[0])));
         } else {
             assert(type::is_a<type::tuple_type>(return_->ret_type));
             ctx.builder.CreateRet(
-                deref(
+                load_if_ref(
                     emit_tuple_constant(
                         *type::get<type::tuple_type>(return_->ret_type),
                         return_->ret_exprs
@@ -1080,7 +1138,7 @@ public:
         std::vector<val> args;
         args.reserve(invocation->args.size());
         for (auto const& a : invocation->args) {
-            args.push_back(deref(emit(a), a));
+            args.push_back(load_if_ref(emit(a), a));
         }
 
         auto const child_type = type::type_of(invocation->child);
@@ -1098,7 +1156,7 @@ public:
         // Note:
         // Add a receiver for lambda function invocation
         if (callee->is_anonymous()) {
-            args.insert(std::begin(args), deref(emit(invocation->child), child_type));
+            args.insert(std::begin(args), load_if_ref(emit(invocation->child), child_type));
         } else {
             emit(invocation->child);
         }
@@ -1116,7 +1174,7 @@ public:
     val emit(ast::node::unary_expr const& unary)
     {
         auto const operand_type = type::type_of(unary->expr);
-        auto *const operand_value = deref(emit(unary->expr), operand_type);
+        auto *const operand_value = load_if_ref(emit(unary->expr), operand_type);
 
         if (auto const b = type::get<type::builtin_type>(operand_type)) {
             auto const& builtin = *b;
@@ -1217,8 +1275,8 @@ public:
                 bin_expr->op,
                 rhs_type,
                 lhs_type,
-                deref(emit(bin_expr->lhs), lhs_type),
-                deref(emit(bin_expr->rhs), rhs_type),
+                load_if_ref(emit(bin_expr->lhs), lhs_type),
+                load_if_ref(emit(bin_expr->rhs), rhs_type),
                 bin_expr->callee_scope
             );
     }
@@ -1254,8 +1312,8 @@ public:
                     access,
                     ctx.builder.CreateCall2(
                         emit_non_builtin_callee(access, callee),
-                        deref(emit(access->child), access->child),
-                        deref(emit(access->index_expr), access->index_expr)
+                        load_if_ref(emit(access->child), access->child),
+                        load_if_ref(emit(access->index_expr), access->index_expr)
                     ),
                     "user-defined index access operator"
                 );
@@ -1263,7 +1321,7 @@ public:
 
         auto const result = inst_emitter.emit_builtin_element_access(
                 emit(access->child),
-                deref(emit(access->index_expr), access->index_expr),
+                load_if_ref(emit(access->index_expr), access->index_expr),
                 type::type_of(access->child)
             );
 
@@ -1296,7 +1354,7 @@ public:
 
     boost::optional<val> emit_instance_var_access(scope::class_scope const& scope, ast::node::ufcs_invocation const& ufcs)
     {
-        auto *const child_val = deref(emit(ufcs->child), ufcs->child);
+        auto *const child_val = load_if_ref(emit(ufcs->child), ufcs->child);
 
         auto const offset_of
             = [&scope](auto const& name)
@@ -1372,7 +1430,7 @@ public:
         assert(!ufcs->callee_scope.expired());
 
         std::vector<val> args = {
-                deref(emit(ufcs->child), ufcs->child)
+                load_if_ref(emit(ufcs->child), ufcs->child)
             };
         auto const callee = ufcs->callee_scope.lock();
 
@@ -1397,7 +1455,7 @@ public:
         // Loop header
         helper.create_br(cond_block);
         val cond_val = emit(while_->condition);
-        helper.create_cond_br(deref(cond_val, while_->condition), body_block, exit_block);
+        helper.create_cond_br(load_if_ref(cond_val, while_->condition), body_block, exit_block);
 
         // Loop body
         auto const auto_popper = push_loop(cond_block);
@@ -1412,7 +1470,7 @@ public:
         // Note:
         // Now array is only supported
 
-        val range_val = deref(
+        val range_val = load_aggregate_elem(
                 emit(for_->range_expr),
                 type::type_of(for_->range_expr)
             );
@@ -1575,7 +1633,7 @@ public:
                     assert(self_val);
                     assert(self_val->getType()->isPointerTy());
 
-                    auto *const dest_val = deref(ctx.builder.CreateStructGEP(self_val, *offset), type);
+                    auto *const dest_val = load_aggregate_elem(ctx.builder.CreateStructGEP(self_val, *offset), type);
                     assert(dest_val);
 
                     alloc_emitter.create_deep_copy(value, dest_val, type);
@@ -1649,7 +1707,7 @@ public:
 
                 auto const rhs_type = type::type_of(rhs_expr);
 
-                auto *const rhs_value = deref(emit(rhs_expr), rhs_type);
+                auto *const rhs_value = load_if_ref(emit(rhs_expr), rhs_type);
                 lhs_of_assign_emitter<self>{*this, rhs_value}.emit(lhs_expr);
             }
             , assign->assignees, assign->rhs_exprs
@@ -1663,7 +1721,7 @@ public:
 
         llvm::BasicBlock *else_block;
         for (auto const& when_stmts : case_->when_stmts_list) {
-            auto *const cond_val = deref(emit(when_stmts.first), when_stmts.first);
+            auto *const cond_val = load_if_ref(emit(when_stmts.first), when_stmts.first);
             auto *const when_block = helper.create_block_for_parent("case.when");
             else_block = helper.create_block_for_parent("case.else");
 
@@ -1704,7 +1762,7 @@ public:
         auto helper = bb_helper(switch_);
         auto *const end_block = helper.create_block("switch.end");
 
-        auto *const target_val = deref(emit(switch_->target_expr), switch_->target_expr);
+        auto *const target_val = load_if_ref(emit(switch_->target_expr), switch_->target_expr);
         auto const target_type = type::type_of(switch_->target_expr);
 
         // Emit when clause
@@ -1728,7 +1786,7 @@ public:
                                     target_type,
                                     cmp_type,
                                     target_val,
-                                    deref(emit(cmp_expr), cmp_type),
+                                    load_if_ref(emit(cmp_expr), cmp_type),
                                     callee
                                 );
 
@@ -1766,16 +1824,16 @@ public:
         auto *const else_block = helper.create_block_for_parent("expr.if.else");
         auto *const merge_block = helper.create_block_for_parent("expr.if.merge");
 
-        val cond_val = deref(emit(if_->condition_expr), if_->condition_expr);
+        val cond_val = load_if_ref(emit(if_->condition_expr), if_->condition_expr);
         if (if_->kind == ast::symbol::if_kind::unless) {
             cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_expr_unless"), "unless expression");
         }
         helper.create_cond_br(cond_val, then_block, else_block);
 
-        auto *const then_val = deref(emit(if_->then_expr), if_->then_expr);
+        auto *const then_val = load_if_ref(emit(if_->then_expr), if_->then_expr);
         helper.terminate_with_br(merge_block, else_block);
 
-        auto *const else_val = deref(emit(if_->else_expr), if_->else_expr);
+        auto *const else_val = load_if_ref(emit(if_->else_expr), if_->else_expr);
         helper.terminate_with_br(merge_block, merge_block);
 
         auto *const phi = ctx.builder.CreatePHI(type_emitter.emit(if_->type), 2, "expr.if.tmp");
@@ -1796,7 +1854,7 @@ public:
         auto *const then_block = helper.create_block_for_parent("postfixif.then");
         auto *const end_block = helper.create_block_for_parent("postfixif.end");
 
-        val cond_val = deref(emit(postfix_if->condition), postfix_if->condition);
+        val cond_val = load_if_ref(emit(postfix_if->condition), postfix_if->condition);
         if (postfix_if->kind == ast::symbol::if_kind::unless) {
             cond_val = check(postfix_if, ctx.builder.CreateNot(cond_val, "postfix_if_unless"), "unless expression");
         }
@@ -1809,7 +1867,7 @@ public:
     val emit(ast::node::cast_expr const& cast)
     {
         auto const child_type = type::type_of(cast->child);
-        auto *const child_val = deref(emit(cast->child), child_type);
+        auto *const child_val = load_if_ref(emit(cast->child), child_type);
         if (cast->type == child_type) {
             return child_val;
         }
@@ -1907,7 +1965,7 @@ public:
     {
         std::vector<val> arg_vals;
         for (auto const& e : obj->args) {
-            arg_vals.push_back(deref(emit(e), e));
+            arg_vals.push_back(load_if_ref(emit(e), e));
         }
 
         if (auto const c = type::get<type::class_type>(obj->type)) {

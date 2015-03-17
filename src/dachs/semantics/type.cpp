@@ -457,19 +457,6 @@ bool any_type::is_array_class() const noexcept
     return c && (*c)->name == "array";
 }
 
-bool any_type::is_aggregate() const noexcept
-{
-    if (is_template()) {
-        return false;
-    }
-
-    if (auto const a = get_array_underlying_type()) {
-        return static_cast<bool>((*a)->size);
-    }
-
-    return !is_builtin();
-}
-
 boost::optional<array_type const&> any_type::get_array_underlying_type() const
 {
     auto const c = get_as<class_type>(value);

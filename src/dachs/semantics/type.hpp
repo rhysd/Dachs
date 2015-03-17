@@ -202,7 +202,6 @@ public:
     bool is_unit() const noexcept;
 
     bool is_array_class() const noexcept;
-    bool is_aggregate() const noexcept;
 
     boost::optional<array_type const&> get_array_underlying_type() const;
 
