@@ -978,6 +978,9 @@ public:
                 if (decl->maybe_type) {
                     new_var->type
                         = from_type_node(*decl->maybe_type);
+                    if (!new_var->type) {
+                        return false;
+                    }
                 }
 
                 if (!scope->define_variable(new_var)) {
@@ -1202,7 +1205,7 @@ public:
                     str_scope,
                     std::vector<type::type>{
                         str_scope->type,
-                        type::make<type::array_type>(type::get_builtin_type("char", type::no_opt), str_lit->value.size()),
+                        type::make<type::array_type>(type::get_builtin_type("char", type::no_opt)),
                         type::get_builtin_type("uint", type::no_opt)
                     }
                 );
@@ -1864,6 +1867,9 @@ public:
     void visit(ast::node::typed_expr const& typed, Walker const& w)
     {
         auto const specified_type = from_type_node(typed->specified_type);
+        if (!specified_type) {
+            return;
+        }
 
         if (specified_type.is_array_class()) {
             // Note:
@@ -1921,6 +1927,7 @@ public:
         if (auto const specified_array = type::get<type::array_type>(specified_type)) {
             if (auto const actual_array = type::get<type::array_type>(actual_type)) {
                 if (compare_array_elem_type(*specified_array, *actual_array)) {
+                    typed->type = actual_type;
                     return;
                 }
             }
@@ -1928,6 +1935,7 @@ public:
         if (auto const specified_array = specified_type.get_array_underlying_type()) {
             if (auto const actual_array = actual_type.get_array_underlying_type()) {
                 if (compare_array_elem_type(*specified_array, *actual_array)) {
+                    typed->type = actual_type;
                     return;
                 }
             }

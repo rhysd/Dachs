@@ -49,6 +49,22 @@ class string
         ret false
     end
 
+    func ==(rhs : string)
+        ret false unless @size == rhs.size
+
+        var i := 0u
+        for i < @size
+            ret false unless @data[i] == rhs[i]
+            i += 1u
+        end
+
+        ret true
+    end
+
+    func !=(rhs : string)
+        ret !(self == rhs)
+    end
+
     func <(rhs : string)
         var i := 0u
 

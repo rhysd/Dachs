@@ -400,6 +400,10 @@ public:
         // Get return type for checking duplication of overloaded function
         if (func_def->return_type) {
             auto const ret_type = type::from_ast(*func_def->return_type, current_scope);
+            if (!ret_type) {
+                semantic_error(func_def, "  Invalid return type of function '" + func_def->name + "'");
+                return;
+            }
             func_def->ret_type = ret_type;
             new_func->ret_type = ret_type;
         }
@@ -473,6 +477,11 @@ public:
         if (decl->maybe_type) {
             new_var->type
                 = type::from_ast(*decl->maybe_type, current_scope);
+
+            if (!new_var->type) {
+                semantic_error(decl, "  Invalid type is specified for declaration of variable '" + decl->name + "'");
+                return;
+            }
         } else {
             new_var->type
                 = type::make<type::template_type>(decl);

@@ -414,9 +414,6 @@ no_opt_t no_opt;
 
 boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept
 {
-    // XXX:
-    // For debug!
-    assert(name != std::string{"string"});
     for (auto const& t : detail::builtin_types) {
         if (t->name == name) {
             return t;
@@ -428,14 +425,14 @@ boost::optional<builtin_type> get_builtin_type(char const* const name) noexcept
 
 builtin_type get_builtin_type(char const* const name, no_opt_t) noexcept
 {
-    // XXX:
-    // For debug!
-    assert(name != std::string{"string"});
-
     for (auto const& t : detail::builtin_types) {
         if (t->name == name) {
             return t;
         }
+    }
+
+    if (name == std::string{"string"}) {
+        std::cerr << "\"string\" was requested in get_builtin_type()" << std::endl;
     }
 
     DACHS_RAISE_INTERNAL_COMPILATION_ERROR
@@ -485,12 +482,18 @@ bool any_type::is_aggregate() const noexcept
 boost::optional<array_type const&> any_type::get_array_underlying_type() const
 {
     auto const c = get_as<class_type>(value);
+    if (!c) {
+        return boost::none;
+    }
     return (*c)->get_array_underlying_type();
 }
 
 boost::optional<array_type const&> any_type::get_string_underlying_type() const
 {
     auto const c = get_as<class_type>(value);
+    if (!c) {
+        return boost::none;
+    }
     return (*c)->get_string_underlying_type();
 }
 
