@@ -560,17 +560,17 @@ class llvm_ir_emitter {
     // To determine the value is treated by reference, type::type is used.
     llvm::Value *load_if_ref(llvm::Value *const v, type::type const& t)
     {
-        if (auto const builtin = type::get<type::builtin_type>(t)) {
-            if ((*builtin)->name != "string" && v->getType()->isPointerTy()) {
-                assert(!v->getType()->getPointerElementType()->isPointerTy());
-                return ctx.builder.CreateLoad(v);
-            } else if ((*builtin)->name == "string" && v->getType()->getPointerElementType()->isPointerTy()) {
-                // Note:
-                // When the type of string is i8**
-                return ctx.builder.CreateLoad(v);
-            }
+        if (!t.is_aggregate()) {
+            return deref(v, t);
+        } else {
+            return v;
         }
-        return v;
+    }
+
+    template<class Node>
+    llvm::Value *load_if_ref(llvm::Value *const v, Node const& hint)
+    {
+        return load_if_ref(v, type::type_of(hint));
     }
 
     // Note:
@@ -582,29 +582,8 @@ class llvm_ir_emitter {
     // needs to be emitted.
     llvm::Value *load_aggregate_elem(llvm::Value *const v, type::type const& elem_type)
     {
-        if (elem_type.is_builtin()) {
-            // Note:
-            // When the value is not an aggregate
-            return v;
-        }
-
-        // XXX:
-        // When the static_array is allocated dynamically and it doesn't
-        // have a static length.
-        // This is workaround until pointer(T) have been implemented.
-        if (auto const a = type::get<type::array_type>(elem_type)) {
-            if (!(*a)->size) {
-                return v;
-            }
-        }
-
-        if (v->getType()->getPointerElementType()->isPointerTy()) {
-            // Note:
-            // If the value is an aggregate element of aggregate,
-            // the value should be a pointer to pointer to aggregate
-            // e.g.
-            //   {[int]*}* -> [int]**
-            return ctx.builder.CreateLoad(v);
+        if (elem_type.is_aggregate()) {
+            return deref(v, elem_type);
         } else {
             return v;
         }
@@ -612,10 +591,13 @@ class llvm_ir_emitter {
 
     llvm::Value *deref(llvm::Value *const v, type::type const& t)
     {
-        if (t.is_builtin()) {
-            return load_if_ref(v, t);
+        auto *const ty = type_emitter.emit(t);
+        if (ty == v->getType()) {
+            return v;
         } else {
-            return load_aggregate_elem(v, t);
+            assert(v->getType()->isPointerTy());
+            assert(v->getType()->getPointerElementType() == ty);
+            return ctx.builder.CreateLoad(v);
         }
     }
 
@@ -623,12 +605,6 @@ class llvm_ir_emitter {
     llvm::Value *deref(llvm::Value *const v, Expr const& e)
     {
         return deref(v, type::type_of(e));
-    }
-
-    template<class Node>
-    llvm::Value *load_if_ref(llvm::Value *const v, Node const& hint)
-    {
-        return load_if_ref(v, type::type_of(hint));
     }
 
 public:
