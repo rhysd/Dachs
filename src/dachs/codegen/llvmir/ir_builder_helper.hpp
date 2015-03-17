@@ -374,14 +374,11 @@ public:
             assert(c->param_types.empty());
             auto const scope = c->ref.lock();
             assert(!scope->is_template());
-            std::cout << c->name << std::endl;
             for (auto const idx : helper::indices(scope->instance_var_symbols)) {
                 auto const& var_type = scope->instance_var_symbols[idx]->type;
                 if (!var_type.is_aggregate()) {
                     continue;
                 }
-
-                std::cout << "  " << var_type.to_string() << ": " << var_type.is_builtin() << std::endl;
 
                 ctx.builder.CreateStore(
                         create_alloca(var_type, init_by_zero),

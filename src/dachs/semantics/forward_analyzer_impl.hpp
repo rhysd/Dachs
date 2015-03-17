@@ -286,12 +286,26 @@ class forward_symbol_analyzer {
             argv_params.push_back(std::move(arr));
         }
 
-        if (auto const contained = get_as<ast::node::array_type>(argv_params[0])) {
-            if (!(*contained)->elem_type) {
-                auto str = helper::make<ast::node::primary_type>("string");
-                str->set_source_location(*p);
-                (*contained)->elem_type = std::move(str);
-            }
+        auto const contained = get_as<ast::node::array_type>(argv_params[0]);
+        if (!contained) {
+            return;
+        }
+
+        if (!(*contained)->elem_type) {
+            auto arr = helper::make<ast::node::array_type>();
+            arr->set_source_location(*p);
+            (*contained)->elem_type = std::move(arr);
+        }
+
+        auto const contained2 = get_as<ast::node::array_type>(*(*contained)->elem_type);
+        if (!contained2) {
+            return;
+        }
+
+        if (!(*contained2)->elem_type) {
+            auto str = helper::make<ast::node::primary_type>("char");
+            str->set_source_location(*p);
+            (*contained2)->elem_type = std::move(str);
         }
     }
 
@@ -400,10 +414,10 @@ public:
         // Get return type for checking duplication of overloaded function
         if (func_def->return_type) {
             auto const ret_type = type::from_ast(*func_def->return_type, current_scope);
-            if (!ret_type) {
-                semantic_error(func_def, "  Invalid return type of function '" + func_def->name + "'");
-                return;
-            }
+            // XXX:
+            // Here, some class types are not analyzed by type::from_ast in some cases
+            // because the class *func_def->return_type specifies may not be defined yet.
+            // So, the return type should be analyzed after all classes are defined.
             func_def->ret_type = ret_type;
             new_func->ret_type = ret_type;
         }

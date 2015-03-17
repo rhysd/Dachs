@@ -2510,11 +2510,11 @@ BOOST_AUTO_TEST_CASE(builtin_type_operator_check)
     )");
 
     CHECK_THROW_SEMANTIC_ERROR(R"(
-        func >>(s : string, j : int)
+        func >>(c : char, j : int)
         end
 
         func main
-            "aaaaa" >> 3
+            'a' >> 3
         end
     )");
 
@@ -2523,7 +2523,7 @@ BOOST_AUTO_TEST_CASE(builtin_type_operator_check)
         end
 
         func main
-            "aaaaa" >> 3
+            'b' >> 3
         end
     )");
 

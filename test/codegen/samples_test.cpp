@@ -265,21 +265,16 @@ BOOST_AUTO_TEST_CASE(some_samples)
     )");
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
-        import std.string
-
-        func strlen(s)
-            var c := 0u
-            for s[c] != '\0'
-                c += 1u
+        func test1(l, r, b)
+            if (l < r) == b
+                println("OK")
+            else
+                println("NG")
             end
-            ret c
         end
 
-        func test(l, r, b)
-            sl := new String{l, l.strlen}
-            sr := new String{r, r.strlen}
-
-            if (sl < sr) == b
+        func test2(l, r, b)
+            if (l == r)
                 println("OK")
             else
                 println("NG")
@@ -287,11 +282,17 @@ BOOST_AUTO_TEST_CASE(some_samples)
         end
 
         func main
-            test("abc", "def", true)
-            test("abc", "abcdef", true)
-            test("def", "abc", false)
-            test("abcdef", "abc", false)
-            test("abc", "abc", false)
+            test1("abc", "def", true)
+            test1("abc", "abcdef", true)
+            test1("def", "abc", false)
+            test1("abcdef", "abc", false)
+            test1("abc", "abc", false)
+
+            test2("abc", "abc", true)
+            test2("abc", "bcd", false)
+            test2("abc", "abcd", false)
+            test2("", "", true)
+            test2("aaa", "", false)
         end
     )");
 }

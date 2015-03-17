@@ -1,12 +1,13 @@
 class string
-    data : static_array(char)
-    size : uint
+  - data : static_array(char)
+  - size : uint
 
     init(@data, @size)
     end
 
     init(@data)
-        @size := @strlen()
+        @size := 0u # XXX
+        @size = @strlen()
     end
 
   - func strlen
@@ -84,5 +85,13 @@ class string
         end
 
         ret true
+    end
+
+    func print
+        print(@data)
+    end
+
+    func println
+        println(@data)
     end
 end
