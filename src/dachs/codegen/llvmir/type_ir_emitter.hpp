@@ -68,8 +68,6 @@ struct type_ir_emitter_impl {
             result = llvm::Type::getInt8Ty(context);
         } else if (builtin->name == "bool") {
             result = llvm::Type::getInt1Ty(context);
-        } else if (builtin->name == "string") {
-            result = llvm::Type::getInt8PtrTy(context);
         } else if (builtin->name == "symbol") {
             result = llvm::Type::getInt64Ty(context);
         } else {

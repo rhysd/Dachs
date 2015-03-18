@@ -1,12 +1,18 @@
-class String
-    data : string
-    size : uint
+class string
+  - data : static_array(char)
+  - size : uint
 
     init(@data, @size)
     end
 
     init(@data)
-        @size := @strlen()
+        @size := 0u # XXX
+        @size = @strlen()
+    end
+
+    init
+        @size := 0u
+        @data := new static_array(char)
     end
 
   - func strlen
@@ -19,6 +25,10 @@ class String
 
     func size
         ret @size
+    end
+
+    func _data
+        ret @data
     end
 
     func [](idx)
@@ -49,7 +59,66 @@ class String
         ret false
     end
 
-    func <(rhs : String)
+    func chars
+        ret new array{@data, @size}
+    end
+
+    func start_with?(rhs : string)
+        ret false if @size < rhs.size
+
+        var i := 0u
+        for i < rhs.size
+            if @data[i] != rhs[i]
+                ret false
+            end
+
+            i += 1u
+
+            if i >= @size && i < rhs.size
+                ret false
+            end
+        end
+
+        ret true
+    end
+
+    func end_with?(rhs : string)
+        ret true if rhs.empty?
+        ret false if @size < rhs.size
+
+        var li := @size - 1u
+        var ri := rhs.size - 1u
+
+        for li >= 0u
+            if @data[li] != rhs[ri]
+                ret false
+            end
+
+            ret true if ri == 0u
+
+            li, ri -= 1u, 1u
+        end
+
+        ret false
+    end
+
+    func ==(rhs : string)
+        ret false unless @size == rhs.size
+
+        var i := 0u
+        for i < @size
+            ret false unless @data[i] == rhs[i]
+            i += 1u
+        end
+
+        ret true
+    end
+
+    func !=(rhs : string)
+        ret !(self == rhs)
+    end
+
+    func <(rhs : string)
         var i := 0u
 
         for i < @size
@@ -68,5 +137,13 @@ class String
         end
 
         ret true
+    end
+
+    func print
+        print(@data)
+    end
+
+    func println
+        println(@data)
     end
 end

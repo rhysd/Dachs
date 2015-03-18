@@ -13,6 +13,7 @@
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/make.hpp"
+#include "dachs/helper/probable.hpp"
 
 namespace dachs {
 namespace type {
@@ -31,7 +32,6 @@ static std::vector<builtin_type> const builtin_types
         make<builtin_type>("float"),
         make<builtin_type>("char"),
         make<builtin_type>("bool"),
-        make<builtin_type>("string"),
         make<builtin_type>("symbol"),
     };
 
@@ -73,9 +73,10 @@ class node_to_type_translator
     : public boost::static_visitor<any_type> {
 
     scope::any_scope const& current_scope;
+    boost::optional<std::string> failed_name = boost::none;
 
     template<class T>
-    any_type apply_recursively(T const& t) const noexcept
+    any_type apply_recursively(T const& t)
     {
         return boost::apply_visitor(*this, t);
     }
@@ -86,17 +87,21 @@ public:
         : current_scope(c)
     {}
 
-    any_type operator()(ast::node::primary_type const& t) const noexcept
+    boost::optional<std::string> const& failed()
+    {
+        return failed_name;
+    }
+
+    any_type operator()(ast::node::primary_type const& t)
     {
         auto const builtin = get_builtin_type(t->template_name.c_str());
         if (builtin) {
             return *builtin;
         }
 
-        // TODO:
-        // Template types must be considered.
         auto const c = apply_lambda([&t](auto const& s){ return s->resolve_class(t->template_name); }, current_scope);
         if (!c) {
+            failed_name = t->template_name;
             return {};
         }
 
@@ -108,7 +113,7 @@ public:
             );
     }
 
-    any_type operator()(ast::node::array_type const& t) const noexcept
+    any_type operator()(ast::node::array_type const& t)
     {
         if (t->elem_type) {
             return make<array_type>(
@@ -121,7 +126,7 @@ public:
         }
     }
 
-    any_type operator()(ast::node::tuple_type const& t) const noexcept
+    any_type operator()(ast::node::tuple_type const& t)
     {
         auto const ret = make<tuple_type>();
         ret->element_types.reserve(t->arg_types.size());
@@ -131,7 +136,7 @@ public:
         return ret;
     }
 
-    any_type operator()(ast::node::dict_type const& t) const noexcept
+    any_type operator()(ast::node::dict_type const& t)
     {
         return make<dict_type>(
                     apply_recursively(t->key_type),
@@ -139,7 +144,7 @@ public:
                 );
     }
 
-    any_type operator()(ast::node::qualified_type const& t) const noexcept
+    any_type operator()(ast::node::qualified_type const& t)
     {
         qualifier new_qualifier;
         switch (t->qualifier) {
@@ -155,7 +160,7 @@ public:
                );
     }
 
-    any_type operator()(ast::node::func_type const& t) const noexcept
+    any_type operator()(ast::node::func_type const& t)
     {
         std::vector<any_type> param_types;
         param_types.reserve(t->arg_types.size());
@@ -432,6 +437,10 @@ builtin_type get_builtin_type(char const* const name, no_opt_t) noexcept
         }
     }
 
+    if (name == std::string{"string"}) {
+        std::cerr << "\"string\" was requested in get_builtin_type()" << std::endl;
+    }
+
     DACHS_RAISE_INTERNAL_COMPILATION_ERROR
 }
 
@@ -457,6 +466,12 @@ bool any_type::is_array_class() const noexcept
     return c && (*c)->name == "array";
 }
 
+bool any_type::is_string_class() const noexcept
+{
+    auto const c = get_as<class_type>(value);
+    return c && (*c)->name == "string";
+}
+
 bool any_type::is_aggregate() const noexcept
 {
     if (is_template()) {
@@ -473,11 +488,19 @@ bool any_type::is_aggregate() const noexcept
 boost::optional<array_type const&> any_type::get_array_underlying_type() const
 {
     auto const c = get_as<class_type>(value);
-    if (!c || (*c)->name != "array") {
+    if (!c) {
         return boost::none;
     }
-
     return (*c)->get_array_underlying_type();
+}
+
+boost::optional<array_type const&> any_type::get_string_underlying_type() const
+{
+    auto const c = get_as<class_type>(value);
+    if (!c) {
+        return boost::none;
+    }
+    return (*c)->get_string_underlying_type();
 }
 
 bool any_type::operator==(any_type const& rhs) const noexcept
@@ -576,9 +599,27 @@ bool any_type::is_instantiated_from(array_type const& from) const
     }
 }
 
-any_type from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept
+bool any_type::is_instantiated_from(any_type const& from) const
 {
-    return boost::apply_visitor(detail::node_to_type_translator{current}, t);
+    if (auto const a = get<array_type>(from)) {
+        return is_instantiated_from(*a);
+    } else if (auto const c = get<class_type>(from)) {
+        return is_instantiated_from(*c);
+    } else {
+        return false;
+    }
+}
+
+helper::probable<any_type> from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept
+{
+    detail::node_to_type_translator visitor{current};
+    auto const result = boost::apply_visitor(visitor, t);
+
+    if (visitor.failed()) {
+        return helper::oops(*visitor.failed());
+    }
+
+    return result;
 }
 
 ast::node::any_type to_ast(any_type const& t, ast::location_type && location) noexcept
@@ -800,6 +841,24 @@ boost::optional<type::array_type const&> class_type::get_array_underlying_type()
         auto const scope = ref.lock();
         auto const& syms = scope->instance_var_symbols;
         if (syms.size() == 3 /*buf, capacity, size*/) {
+            return type::get<type::array_type>(syms[0]->type);
+        }
+    }
+
+    return boost::none;
+}
+
+boost::optional<type::array_type const&> class_type::get_string_underlying_type() const
+{
+    if (name != "string") {
+        return boost::none;
+    }
+
+    assert(param_types.empty());
+
+    if (!ref.expired()) {
+        auto const& syms = ref.lock()->instance_var_symbols;
+        if (syms.size() == 2 /*data, size*/) {
             return type::get<type::array_type>(syms[0]->type);
         }
     }

@@ -545,17 +545,46 @@ class symbol_analyzer {
 
     type::type from_type_node(ast::node::any_type const& n) noexcept
     {
-        auto const type = type::from_ast(n, current_scope);
-        if (!type) {
-            apply_lambda([this](auto const& t){ semantic_error(t, "  Invalid type '" + t->to_string() + '\''); }, n);
-        }
-        return type;
+        return type::from_ast(n, current_scope).apply(
+                [](auto const& success){ return success; },
+                [&, this](auto const& failure)
+                {
+                    apply_lambda(
+                            [&, this](auto const& t)
+                            {
+                                semantic_error(t, "  Invalid type '" + failure + "' is specified");
+                            }, n
+                        );
+                    return type::type{};
+                }
+            );
     }
 
     std::string make_func_signature(std::string const& name, std::vector<type::type> const& arg_types) const
     {
         return name + '(' + boost::algorithm::join(arg_types | transformed([](auto const& t){ return t.to_string(); }), ",") + ')';
     }
+
+    template<class Node>
+    bool /*success?*/ instantiate_all(type::type const& t, Node const& n)
+    {
+        auto const error = with_current_scope(
+            [&t, this](auto const& s)
+            {
+                class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
+                return t.apply_visitor(instantiater);
+            }
+        );
+
+        if (error) {
+            semantic_error(n, *error);
+            semantic_error(n, "  Error occurred while instantiating type '" + t.to_string() + "'");
+            return false;
+        }
+
+        return true;
+    }
+
 
     bool already_visited(ast::node::function_definition const& f) const noexcept
     {
@@ -695,7 +724,9 @@ public:
                         clazz->type,
                         type::get_builtin_type("uint", type::no_opt),
                         type::make<type::array_type>(
-                                type::get_builtin_type("string", type::no_opt)
+                                type::make<type::array_type>(
+                                    type::get_builtin_type("char", type::no_opt)
+                                )
                             )
                     }
                 );
@@ -726,7 +757,11 @@ public:
             if (found_main) {
                 semantic_error(
                     f->get_ast_node(),
-                    "  Only one main function must exist"
+                    boost::format(
+                        "  Main function can't be overloaded\n"
+                        "  Candidate: %1\n"
+                        "  Candidate: %2"
+                    ) % (*found_main)->to_string() % f->to_string()
                 );
                 return false;
             }
@@ -741,24 +776,15 @@ public:
                 auto const& param = f->params[0];
 
                 if (!param->immutable) {
-                    semantic_error(f->get_ast_node(), "  Argument of main function '" + param->name + "' must be immutable");
+                    semantic_error(f->get_ast_node(), "  Parameter of main function '" + param->name + "' must be immutable");
                     return false;
                 }
 
                 if (auto const cls = type::get<type::class_type>(param->type)) {
                     auto const& c = *cls;
 
-                    // XXX:
-                    // Too dirty check
                     if (c->name == "argv" && !c->ref.expired()) {
-                        auto const syms = c->ref.lock()->instance_var_symbols;
-                        if (syms.size() == 2u) {
-                            if (auto const arr = type::get<type::array_type>(syms[1]->type)) {
-                                if ((*arr)->element_type.is_builtin("string")) {
-                                    continue;
-                                }
-                            }
-                        }
+                        continue;
                     }
                 }
             }
@@ -766,7 +792,7 @@ public:
             semantic_error(
                 f->get_ast_node(),
                 boost::format(
-                    "  Illegal siganture for main function: '%1%'\n"
+                    "  Illegal signature for main function: '%1%'\n"
                     "  Note: main() or main(argv) is required"
                     ) % f->to_string()
             );
@@ -891,18 +917,37 @@ public:
             }
 
             auto const& deduced_type = gatherer.result_types[0];
-            if (func->ret_type && *func->ret_type != deduced_type) {
-                semantic_error(
-                        func,
-                        boost::format(
-                            "  Return type of function '%1%' mismatch\n"
-                            "  Note: Specified type is '%2%'\n"
-                            "  Note: Deduced type is '%3%'"
-                        ) % func->name
-                          % func->ret_type->to_string()
-                          % deduced_type.to_string()
-                    );
-                return;
+
+            if (func->ret_type) {
+                auto const& ret = *func->ret_type;
+
+                if (ret.is_template()){
+                    if (!deduced_type.is_instantiated_from(ret)) {
+                        semantic_error(
+                                func,
+                                boost::format(
+                                    "  Return template type of function '%1%' can't instantiate deduced type '%3%'\n"
+                                    "  Note: Specified template is '%2%'\n"
+                                    "  Note: Deduced type is '%3%'"
+                                ) % func->name
+                                % ret.to_string()
+                                % deduced_type.to_string()
+                            );
+                        return;
+                    }
+                } else if (ret != deduced_type) {
+                    semantic_error(
+                            func,
+                            boost::format(
+                                "  Return type of function '%1%' mismatch\n"
+                                "  Note: Specified type is '%2%'\n"
+                                "  Note: Deduced type is '%3%'"
+                            ) % func->name
+                              % ret.to_string()
+                              % deduced_type.to_string()
+                        );
+                    return;
+                }
             }
 
             func->ret_type = deduced_type;
@@ -974,6 +1019,9 @@ public:
                 if (decl->maybe_type) {
                     new_var->type
                         = from_type_node(*decl->maybe_type);
+                    if (!new_var->type) {
+                        return false;
+                    }
                 }
 
                 if (!scope->define_variable(new_var)) {
@@ -1081,11 +1129,6 @@ public:
                 return "bool";
             }
 
-            result_type operator()(std::string const&) const noexcept
-            {
-                return "string";
-            }
-
             result_type operator()(int const) const noexcept
             {
                 return "int";
@@ -1190,6 +1233,35 @@ public:
         }
 
         visit_array_literal_construction(arr_lit, arg0_type);
+    }
+
+    template<class Walker>
+    void visit(ast::node::string_literal const& str_lit, Walker const&)
+    {
+        auto c = with_current_scope([](auto const& s){ return s->resolve_class("string"); });
+        assert(c);
+        auto &str_scope = *c;
+
+        auto const result = visit_class_construct_impl(
+                    str_scope,
+                    std::vector<type::type>{
+                        str_scope->type,
+                        type::make<type::array_type>(type::get_builtin_type("char", type::no_opt)),
+                        type::get_builtin_type("uint", type::no_opt)
+                    }
+                );
+
+        if (auto const error = result.get_error()) {
+            semantic_error(str_lit, *error);
+            semantic_error(str_lit, "  Error while analyzing string literal");
+            return;
+        }
+
+        auto const class_and_ctor = result.get_unsafe();
+        str_lit->constructed_class_scope = class_and_ctor.first;
+        str_lit->callee_ctor_scope = class_and_ctor.second;
+        str_lit->type = class_and_ctor.first->type;
+        assert(str_lit->type.is_string_class());
     }
 
     template<class Walker>
@@ -1836,6 +1908,9 @@ public:
     void visit(ast::node::typed_expr const& typed, Walker const& w)
     {
         auto const specified_type = from_type_node(typed->specified_type);
+        if (!specified_type) {
+            return;
+        }
 
         if (specified_type.is_array_class()) {
             // Note:
@@ -1893,6 +1968,7 @@ public:
         if (auto const specified_array = type::get<type::array_type>(specified_type)) {
             if (auto const actual_array = type::get<type::array_type>(actual_type)) {
                 if (compare_array_elem_type(*specified_array, *actual_array)) {
+                    typed->type = actual_type;
                     return;
                 }
             }
@@ -1900,6 +1976,7 @@ public:
         if (auto const specified_array = specified_type.get_array_underlying_type()) {
             if (auto const actual_array = actual_type.get_array_underlying_type()) {
                 if (compare_array_elem_type(*specified_array, *actual_array)) {
+                    typed->type = actual_type;
                     return;
                 }
             }
@@ -2593,19 +2670,8 @@ public:
             }
         }
 
-        {
-            auto const error = with_current_scope(
-                [&t=obj->type, this](auto const& s)
-                {
-                    class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
-                    return t.apply_visitor(instantiater);
-                }
-            );
-            if (error) {
-                semantic_error(obj, *error);
-                semantic_error(obj, "  Error occurred while instantiating type '" + obj->type.to_string() + "' in object construction");
-                return;
-            }
+        if (!instantiate_all(obj->type, obj)) {
+            return;
         }
 
         if (auto const maybe_class_type = type::get<type::class_type>(obj->type)) {
@@ -2897,18 +2963,8 @@ public:
                     return;
                 }
 
-                {
-                    auto const error = apply_lambda(
-                        [&t, this](auto const& s)
-                        {
-                            class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
-                            return t.apply_visitor(instantiater);
-                        }, current_scope
-                    );
-                    if (error) {
-                        semantic_error(v, *error);
-                        return;
-                    }
+                if (!instantiate_all(t, v)) {
+                    return;
                 }
 
                 if (!t.is_default_constructible()) {
@@ -3252,17 +3308,7 @@ public:
         if (param->param_type) {
             // Note:
             // 'param' has a type which is generated from type::from_ast()
-            auto const error = with_current_scope(
-                    [&t=param->type, this](auto const& s)
-                    {
-                        class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
-                        return t.apply_visitor(instantiater);
-                    }
-                );
-
-            if (error) {
-                semantic_error(param, *error);
-                semantic_error(param, "  Error occurred while instantiating type '" + param->type.to_string() + "' in parameter '" + param->name + "'");
+            if (!instantiate_all(param->type, param)) {
                 return;
             }
         }

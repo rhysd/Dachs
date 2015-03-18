@@ -53,10 +53,10 @@ public:
         module = m;
     }
 
-    template<class Table>
-    llvm::Function *emit_print_func_prototype(Table &table, std::string const& prefix, type::builtin_type const& arg_type)
+    template<class Table, class Type>
+    llvm::Function *emit_print_func_prototype(Table &table, std::string const& func_name, Type const& arg_type)
     {
-        auto const func_itr = table.find(arg_type->name);
+        auto const func_itr = table.find(func_name);
         if (func_itr != std::end(table)) {
             return func_itr->second;
         }
@@ -74,7 +74,7 @@ public:
                 return llvm::Function::Create(
                         print_func_type,
                         llvm::Function::ExternalLinkage,
-                        prefix + arg_type->name + "__",
+                        func_name,
                         module
                     );
             };
@@ -82,7 +82,7 @@ public:
         assert(module);
         auto *const target_func = define_func_prototype(type_emitter.emit(arg_type));
 
-        table.emplace(arg_type->name, target_func);
+        table.emplace(func_name, target_func);
         return target_func;
     }
 
@@ -160,16 +160,31 @@ public:
         return cityhash_func;
     }
 
-    // TODO:
-    // This is temporary implementation.
-    llvm::Function *emit_print_func(type::builtin_type const& arg_type)
+    std::string make_print_func_name(std::string const& name, std::string const& arg_name)
     {
-        return emit_print_func_prototype(print_func_table, "__dachs_print_", arg_type);
+        return "__dachs_" + name + "_" + arg_name + "__";
     }
 
-    llvm::Function *emit_println_func(type::builtin_type const& arg_type)
+    llvm::Function *emit_print_func(std::string const& name, type::builtin_type const& arg_type)
     {
-        return emit_print_func_prototype(println_func_table, "__dachs_println_", arg_type);
+        return emit_print_func_prototype(
+                println_func_table,
+                make_print_func_name(name, arg_type->to_string()),
+                arg_type
+            );
+    }
+
+    llvm::Function *emit_print_func(std::string const& name, type::array_type const& arg_type)
+    {
+        if (arg_type->element_type.is_builtin("char")) {
+            return emit_print_func_prototype(
+                    println_func_table,
+                    make_print_func_name(name, "string"),
+                    arg_type
+                );
+        } else {
+            return nullptr;
+        }
     }
 
     llvm::Function *emit_read_cycle_counter_func()
@@ -274,9 +289,8 @@ public:
         return func;
     }
 
-    llvm::Function *emit_fatal_func(type::builtin_type const& arg_type)
+    llvm::Function *emit_fatal_func(type::type const& arg_type)
     {
-        assert(arg_type->name == "string");
         auto &func = fatal_funcs[1];
         if (func) {
             return func;
@@ -308,17 +322,12 @@ public:
 
     llvm::Function *emit(std::string const& name, std::vector<type::type> const& arg_types)
     {
-        if (name == "print") {
+        if (name == "print" || name == "println") {
             assert(arg_types.size() == 1);
-            if (auto const maybe_arg_type = type::get<type::builtin_type>(arg_types[0])) {
-                assert(*maybe_arg_type);
-                return emit_print_func(*maybe_arg_type);
-            }
-        } else if (name == "println") {
-            assert(arg_types.size() == 1);
-            if (auto const maybe_arg_type = type::get<type::builtin_type>(arg_types[0])) {
-                assert(*maybe_arg_type);
-                return emit_println_func(*maybe_arg_type);
+            if (auto const b = type::get<type::builtin_type>(arg_types[0])) {
+                return emit_print_func(name, *b);
+            } if (auto const a = type::get<type::array_type>(arg_types[0])) {
+                return emit_print_func(name, *a);
             }
         } else if (name == "__builtin_read_cycle_counter") {
             return emit_read_cycle_counter_func();
@@ -331,7 +340,7 @@ public:
             if (arg_types.empty()) {
                 return emit_fatal_func();
             } else {
-                return emit_fatal_func(*type::get<type::builtin_type>(arg_types[0]));
+                return emit_fatal_func(arg_types[0]);
             }
         } // else ...
 

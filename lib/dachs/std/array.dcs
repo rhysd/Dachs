@@ -8,6 +8,10 @@ class array
         @size := @buf.size
     end
 
+    init(@buf, @size)
+        @capacity := @size
+    end
+
     func assign(rhs)
         if rhs.size > @capacity
             ret false

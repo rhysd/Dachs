@@ -196,10 +196,6 @@ public:
             return emit_builtin_element_access(aggregate, index, *tuple);
         } else if (auto const array = type::get<type::array_type>(t)) {
             return emit_builtin_element_access(aggregate, index, *array);
-        } else if (auto const builtin = type::get<type::builtin_type>(t)) {
-            if ((*builtin)->name == "string") {
-                return emit_builtin_element_access(aggregate, index, *builtin);
-            }
         }
 
         return helper::oops("Value is not tuple, array and string");
@@ -239,33 +235,6 @@ public:
                     aggregate,
                     index
                 ), t->element_type
-            );
-    }
-
-    probable_type emit_builtin_element_access(llvm::Value *str_val, llvm::Value *const index, type::builtin_type const& t)
-    {
-        // Note:
-        // Workaround.  At first, allocate i8* and store the global string pointer
-        // to the allocated memory. At second, load it and call CreateGEP().
-        // This make CreateGEP() not to fold the getelementptr inst.
-        // Without the workaround, the global string pointer is a constant and
-        // when the index value is a constant, the getelementptr inst will be folded.
-        // However, it seems that the result of folding the getelementptr is treated as if
-        // it is not a getelementptr inst.  The result of llvm::isa<llvm::GetElementPtrInst>(result)
-        // returns false.  I don't know why.
-
-        assert(t->name == "string");
-        (void) t;
-
-        if (str_val->getType()->getPointerElementType()->isPointerTy()) {
-            str_val = ctx.builder.CreateLoad(str_val);
-        }
-        auto const str_ptr = ctx.builder.CreateAlloca(str_val->getType());
-        ctx.builder.CreateStore(str_val, str_ptr);
-
-        return ctx.builder.CreateGEP(
-                ctx.builder.CreateLoad(str_ptr),
-                index
             );
     }
 };
@@ -405,14 +374,11 @@ public:
             assert(c->param_types.empty());
             auto const scope = c->ref.lock();
             assert(!scope->is_template());
-            std::cout << c->name << std::endl;
             for (auto const idx : helper::indices(scope->instance_var_symbols)) {
                 auto const& var_type = scope->instance_var_symbols[idx]->type;
                 if (!var_type.is_aggregate()) {
                     continue;
                 }
-
-                std::cout << "  " << var_type.to_string() << ": " << var_type.is_builtin() << std::endl;
 
                 ctx.builder.CreateStore(
                         create_alloca(var_type, init_by_zero),

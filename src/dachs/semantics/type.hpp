@@ -20,6 +20,7 @@
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/make.hpp"
 #include "dachs/helper/util.hpp"
+#include "dachs/helper/probable.hpp"
 #include "dachs/fatal.hpp"
 
 namespace dachs {
@@ -202,9 +203,11 @@ public:
     bool is_unit() const noexcept;
 
     bool is_array_class() const noexcept;
+    bool is_string_class() const noexcept;
     bool is_aggregate() const noexcept;
 
     boost::optional<array_type const&> get_array_underlying_type() const;
+    boost::optional<array_type const&> get_string_underlying_type() const;
 
     // Note:
     // Visitor && is not available because boost::apply_visitor
@@ -231,6 +234,7 @@ public:
 
     bool is_instantiated_from(class_type const& from) const;
     bool is_instantiated_from(array_type const& from) const;
+    bool is_instantiated_from(any_type const& from) const;
 
     bool is_default_constructible() const noexcept;
 
@@ -322,7 +326,7 @@ struct builtin_type final : public named_type {
 
     bool is_default_constructible() const noexcept override
     {
-        return !(name == "string" || name == "symbol");
+        return name != "symbol";
     }
 };
 
@@ -363,6 +367,7 @@ struct class_type final : public named_type {
     bool is_instantiated_from(type::class_type const&) const;
 
     boost::optional<type::array_type const&> get_array_underlying_type() const;
+    boost::optional<type::array_type const&> get_string_underlying_type() const;
 };
 
 struct tuple_type final : public basic_type {
@@ -751,7 +756,7 @@ inline any_type type_of(Variant const& v) noexcept
     return apply_lambda([](auto const& n){ return n->type; }, v);
 }
 
-any_type from_ast(ast::node::any_type const&, scope::any_scope const& current) noexcept;
+helper::probable<any_type> from_ast(ast::node::any_type const&, scope::any_scope const& current) noexcept;
 ast::node::any_type to_ast(any_type const&, ast::location_type &&) noexcept;
 ast::node::any_type to_ast(any_type const&, ast::location_type const&) noexcept;
 bool is_instantiated_from(class_type const& instantiated_class, class_type const& template_class);

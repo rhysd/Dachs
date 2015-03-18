@@ -280,7 +280,6 @@ struct primary_literal final : public expression {
     boost::variant< char
                   , double
                   , bool
-                  , std::string
                   , int
                   , unsigned int
                 > value;
@@ -333,6 +332,22 @@ struct tuple_literal final : public expression {
     std::string to_string() const noexcept override
     {
         return "TUPLE_LITERAL: size is " + std::to_string(element_exprs.size());
+    }
+};
+
+struct string_literal final : public expression {
+    std::string value;
+    scope::weak_class_scope constructed_class_scope;
+    scope::weak_func_scope callee_ctor_scope;
+
+    template<class Str>
+    explicit string_literal(Str && s) noexcept
+        : expression(), value(std::forward<Str>(s))
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "STRING_LITERAL: " + value;
     }
 };
 

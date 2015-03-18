@@ -265,33 +265,43 @@ BOOST_AUTO_TEST_CASE(some_samples)
     )");
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
-        import std.string
-
-        func strlen(s)
-            var c := 0u
-            for s[c] != '\0'
-                c += 1u
-            end
-            ret c
+        func test(b : bool)
+            print(if b then '.' else 'F')
         end
 
-        func test(l, r, b)
-            sl := new String{l, l.strlen}
-            sr := new String{r, r.strlen}
-
-            if (sl < sr) == b
-                println("OK")
-            else
-                println("NG")
-            end
+        func test_not(b : bool)
+            test(!b)
         end
 
         func main
-            test("abc", "def", true)
-            test("abc", "abcdef", true)
-            test("def", "abc", false)
-            test("abcdef", "abc", false)
-            test("abc", "abc", false)
+            test("abc" < "def")
+            test("abc" < "abcdef")
+            test_not("def" < "abc")
+            test_not("abcdef" < "abc")
+            test_not("abc" < "abc")
+
+            test("abc" == "abc")
+            test_not("abc" == "bcd")
+            test_not("abc" == "abcd")
+            test("" == "")
+            test_not("aaa" == "")
+
+            test("abcdef".start_with? "abc")
+            test("abcdef".start_with? "abcdef")
+            test_not("abc".start_with? "abcdef")
+            test_not("def".start_with? "abc")
+            test_not("def".start_with? "abcdef")
+            test("def".start_with? "")
+
+            test("abcdef".end_with? "def")
+            test("abcdef".end_with? "abcdef")
+            test_not("abc".end_with? "abcdef")
+            test_not("abc".end_with? "def")
+            test_not("abc".end_with? "abcdef")
+            test("def".end_with? "")
+
+            s := new string
+            test(s == "")
         end
     )");
 }

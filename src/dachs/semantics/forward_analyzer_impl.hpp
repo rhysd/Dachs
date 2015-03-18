@@ -270,29 +270,6 @@ class forward_symbol_analyzer {
             argv->set_source_location(*p);
             p->param_type = std::move(argv);
         }
-
-        auto const argv_type = get_as<ast::node::primary_type>(*p->param_type);
-        if (!argv_type || (*argv_type)->template_name != "argv") {
-            // Note:
-            // Error! The error will raise in main function check after visiting analyzer
-            return;
-        }
-
-        auto &argv_params = (*argv_type)->holders;
-
-        if (argv_params.empty()) {
-            auto arr = helper::make<ast::node::array_type>();
-            arr->set_source_location(*p);
-            argv_params.push_back(std::move(arr));
-        }
-
-        if (auto const contained = get_as<ast::node::array_type>(argv_params[0])) {
-            if (!(*contained)->elem_type) {
-                auto str = helper::make<ast::node::primary_type>("string");
-                str->set_source_location(*p);
-                (*contained)->elem_type = std::move(str);
-            }
-        }
     }
 
 public:
@@ -304,28 +281,58 @@ public:
         : current_scope(s), importer(i), failed(0)
     {}
 
+    scope::class_scope define_new_class(ast::node::class_definition const& c, scope::global_scope const& global)
+    {
+        auto const new_class = scope::make<scope::class_scope>(c, current_scope, c->name);
+        c->scope = new_class;
+        new_class->type = type::make<type::class_type>(new_class);
+        global->define_class(new_class);
+
+        auto const new_class_var = symbol::make<symbol::var_symbol>(c, c->name, true /*immutable*/);
+        new_class_var->type = new_class->type;
+        new_class_var->is_global = true;
+
+        // Note:
+        // Do not check the duplication of the variable because it is
+        // checked by class duplication check.
+        global->force_define_constant(new_class_var);
+
+        return new_class;
+    }
+
     template<class Walker>
     void visit(ast::node::inu const& inu, Walker const& w)
     {
         importer.import(inu);
+
+        auto const maybe_global_scope = get_as<scope::global_scope>(current_scope);
+        assert(maybe_global_scope);
+        auto const& global = *maybe_global_scope;
 
         // Note:
         // Add receiver parameter to member functions' parameters here because this operation makes side effect to AST
         // and it causes a problem when re-visiting class_definition to instantiate class template
         // if this operation is done at visiting class_definition.
         for (auto const& c : inu->classes) {
-            bool has_user_ctor = false;
 
-            for (auto const& m : c->member_funcs) {
-                m->params.insert(std::begin(m->params), generate_receiver_node(c->name, *m));
-                if (m->is_ctor()) {
-                    has_user_ctor = true;
+            // Note: Define all classes before visiting all functions (including member functions)
+            define_new_class(c, global);
+
+            // Note: Other preprocesses
+            {
+                bool has_user_ctor = false;
+
+                for (auto const& m : c->member_funcs) {
+                    m->params.insert(std::begin(m->params), generate_receiver_node(c->name, *m));
+                    if (m->is_ctor()) {
+                        has_user_ctor = true;
+                    }
                 }
-            }
 
-            if (!has_user_ctor) {
-                grow_default_ctor_ast(c);
-                grow_memberwise_ctor_ast(c);
+                if (!has_user_ctor) {
+                    grow_default_ctor_ast(c);
+                    grow_memberwise_ctor_ast(c);
+                }
             }
         }
 
@@ -346,10 +353,9 @@ public:
             c->member_funcs.clear();
         }
 
-        auto const global = get_as<scope::global_scope>(current_scope);
-        failed += check_functions_duplication((*global)->functions, "global scope");
+        failed += check_functions_duplication(global->functions, "global scope");
         failed += check_classes_duplication(inu->classes);
-        failed += check_operator_function_args((*global)->functions);
+        failed += check_operator_function_args(global->functions);
     }
 
     template<class Walker>
@@ -399,9 +405,19 @@ public:
         // Note:
         // Get return type for checking duplication of overloaded function
         if (func_def->return_type) {
-            auto const ret_type = type::from_ast(*func_def->return_type, current_scope);
-            func_def->ret_type = ret_type;
-            new_func->ret_type = ret_type;
+            auto const result = type::from_ast(*func_def->return_type, current_scope);
+
+            if (auto const error = result.get_error()) {
+                semantic_error(
+                        func_def,
+                        boost::format("  Invalid type '%1%' is specified in return type of function '%2%'")
+                            % *error % func_def->name
+                    );
+                return;
+            }
+
+            func_def->ret_type = result.get_unsafe();
+            new_func->ret_type = result.get_unsafe();
         }
 
         if (!func_def->params.empty() && func_def->params[0]->is_receiver) {
@@ -471,8 +487,18 @@ public:
 
         // Set type if the type of variable is specified
         if (decl->maybe_type) {
-            new_var->type
-                = type::from_ast(*decl->maybe_type, current_scope);
+            auto const result = type::from_ast(*decl->maybe_type, current_scope);
+
+            if (auto const error = result.get_error()) {
+                semantic_error(
+                        decl,
+                        boost::format("  Invalid type '%1%' is specified in declaration of variable '%2%'")
+                            % *error % decl->name
+                    );
+                return;
+            }
+
+            new_var->type = result.get_unsafe();
         } else {
             new_var->type
                 = type::make<type::template_type>(decl);
@@ -573,20 +599,24 @@ public:
         param->param_symbol = new_param_sym;
 
         if (param->param_type) {
-            // XXX:
-            // type_calculator requires class information which should be analyzed forward.
-            param->type = type::from_ast(*param->param_type, current_scope);
-            if (!param->type) {
-                semantic_error(
-                        param,
-                        boost::format("  Invalid type '%1%' for parameter '%2%'")
-                            % apply_lambda([](auto const& t){
-                                    return t->to_string();
-                            }, *param->param_type)
-                            % param->name
-                    );
-            }
-            new_param_sym->type = param->type;
+            type::from_ast(*param->param_type, current_scope).apply(
+
+                    [&](auto const& success)
+                    {
+                        param->type = success;
+                        new_param_sym->type = success;
+                    },
+
+                    [&, this](auto const& failure)
+                    {
+                        semantic_error(
+                                param,
+                                boost::format("  Invalid type '%1%' is specified in parameter '%2%'")
+                                    % failure % param->name
+                            );
+                    }
+
+                );
         }
 
         return new_param_sym;
@@ -666,7 +696,6 @@ public:
         w();
     }
 
-    // TODO: class scopes and member function scopes
     template<class Walker>
     void visit(ast::node::class_definition const& class_def, Walker const& w)
     {
@@ -678,31 +707,29 @@ public:
             return;
         }
 
-        auto new_class = scope::make<scope::class_scope>(class_def, current_scope, class_def->name);
-        class_def->scope = new_class;
-        new_class->type = type::make<type::class_type>(new_class);
+        auto const scope = [&class_def, this]
+        {
+            // Note:
+            // At the first time of forward analysis, all class scope are generated at
+            // visiting ast::node::inu because ast::from_ast() requires a class definition
+            // to generate type::class_type.
+            // However, when typeof({expr}) is introduced, it is hard to use ast::from_ast() in
+            // forward analysis because typeof({expr}) needs to evaluate an expression.
+            if (class_def->scope.expired()) {
+                auto const global = get_as<scope::global_scope>(current_scope);
+                assert(global);
+                return define_new_class(class_def, *global);
+            } else {
+                return class_def->scope.lock();
+            }
+        }();
 
-        auto const maybe_global_scope = get_as<scope::global_scope>(current_scope);
-        assert(maybe_global_scope);
-        auto const& global = *maybe_global_scope;
-
-        global->define_class(new_class);
-
-        introduce_scope_and_walk(new_class, w);
+        introduce_scope_and_walk(scope, w);
 
         failed += check_functions_duplication(
-                    new_class->member_func_scopes,
+                    scope->member_func_scopes,
                     "class scope '" + class_def->name + "'"
                 );
-
-        auto const new_class_var = symbol::make<symbol::var_symbol>(class_def, class_def->name, true /*immutable*/);
-        new_class_var->type = new_class->type;
-        new_class_var->is_global = true;
-
-        // Note:
-        // Do not check the duplication of the variable because it is
-        // checked by class duplication check.
-        global->force_define_constant(new_class_var);
     }
 
     template<class Walker>

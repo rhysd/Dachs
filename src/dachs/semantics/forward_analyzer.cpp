@@ -70,7 +70,7 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a, syntax::importer &i)
 
             // func fatal(reason)
             auto fatal_func = detail::make_global_func(scope_root, "fatal", type::get_unit_type());
-            fatal_func->define_param(detail::make_global_func_param("reason", type::get_builtin_type("string", type::no_opt)));
+            fatal_func->define_param(detail::make_global_func_param("reason", dummy_template_type));
         }
 
         // Operators

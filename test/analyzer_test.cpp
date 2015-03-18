@@ -1525,7 +1525,7 @@ BOOST_AUTO_TEST_SUITE(class_definition)
         // Check nested template type
         CHECK_THROW_SEMANTIC_ERROR(R"(
             class X
-                a : string
+                a : symbol
                 init
                     @a := ""
                 end
@@ -2510,11 +2510,11 @@ BOOST_AUTO_TEST_CASE(builtin_type_operator_check)
     )");
 
     CHECK_THROW_SEMANTIC_ERROR(R"(
-        func >>(s : string, j : int)
+        func >>(c : char, j : int)
         end
 
         func main
-            "aaaaa" >> 3
+            'a' >> 3
         end
     )");
 
@@ -2523,7 +2523,7 @@ BOOST_AUTO_TEST_CASE(builtin_type_operator_check)
         end
 
         func main
-            "aaaaa" >> 3
+            'b' >> 3
         end
     )");
 
@@ -2829,6 +2829,143 @@ BOOST_AUTO_TEST_CASE(for_stmt)
         func main
             for e in new X
             end
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(type_specifier)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X1
+            func foo(a : Y)
+            end
+        end
+
+        class X2
+            a : Y
+        end
+
+        class X3
+            func foo : Y
+                ret new Y
+            end
+        end
+
+        class Y
+        end
+
+        func main
+            var i : int
+            i : int
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X1
+            func foo(a : Y)
+            end
+        end
+
+        class X2
+            a : Y
+        end
+
+        class X3
+            func foo : Y
+                ret new Y{42}
+            end
+        end
+
+        class Y
+            a
+        end
+
+        func main
+            var y : Y := new Y{42}
+            y : Y
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func foo : Y(float)
+                ret new Y{42}
+            end
+        end
+
+        class Y
+            a
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func foo : float
+                ret 42
+            end
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func foo : Y
+                ret 42
+            end
+        end
+
+        class Y
+            a
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X1
+            func foo(a : Y(foo))
+            end
+        end
+
+        class Y
+            a
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X2
+            a : Y(foo)
+        end
+
+        class Y
+            a
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X3
+            func foo : Y(foo)
+                ret new Y(foo)
+            end
+        end
+
+        class Y
+            a
+        end
+
+        func main
         end
     )");
 }
