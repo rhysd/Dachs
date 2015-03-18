@@ -2926,6 +2926,48 @@ BOOST_AUTO_TEST_CASE(type_specifier)
         func main
         end
     )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X1
+            func foo(a : Y(foo))
+            end
+        end
+
+        class Y
+            a
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X2
+            a : Y(foo)
+        end
+
+        class Y
+            a
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X3
+            func foo : Y(foo)
+                ret new Y(foo)
+            end
+        end
+
+        class Y
+            a
+        end
+
+        func main
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

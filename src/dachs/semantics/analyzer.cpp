@@ -545,11 +545,19 @@ class symbol_analyzer {
 
     type::type from_type_node(ast::node::any_type const& n) noexcept
     {
-        auto const type = type::from_ast(n, current_scope);
-        if (!type) {
-            apply_lambda([this](auto const& t){ semantic_error(t, "  Invalid type '" + t->to_string() + '\''); }, n);
-        }
-        return type;
+        return type::from_ast(n, current_scope).apply(
+                [](auto const& success){ return success; },
+                [&, this](auto const& failure)
+                {
+                    apply_lambda(
+                            [&, this](auto const& t)
+                            {
+                                semantic_error(t, "  Invalid type '" + failure + "' is specified");
+                            }, n
+                        );
+                    return type::type{};
+                }
+            );
     }
 
     std::string make_func_signature(std::string const& name, std::vector<type::type> const& arg_types) const

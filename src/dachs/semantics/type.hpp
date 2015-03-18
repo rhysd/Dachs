@@ -20,6 +20,7 @@
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/make.hpp"
 #include "dachs/helper/util.hpp"
+#include "dachs/helper/probable.hpp"
 #include "dachs/fatal.hpp"
 
 namespace dachs {
@@ -755,7 +756,7 @@ inline any_type type_of(Variant const& v) noexcept
     return apply_lambda([](auto const& n){ return n->type; }, v);
 }
 
-any_type from_ast(ast::node::any_type const&, scope::any_scope const& current) noexcept;
+helper::probable<any_type> from_ast(ast::node::any_type const&, scope::any_scope const& current) noexcept;
 ast::node::any_type to_ast(any_type const&, ast::location_type &&) noexcept;
 ast::node::any_type to_ast(any_type const&, ast::location_type const&) noexcept;
 bool is_instantiated_from(class_type const& instantiated_class, class_type const& template_class);

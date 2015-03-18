@@ -13,6 +13,7 @@
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/make.hpp"
+#include "dachs/helper/probable.hpp"
 
 namespace dachs {
 namespace type {
@@ -72,9 +73,10 @@ class node_to_type_translator
     : public boost::static_visitor<any_type> {
 
     scope::any_scope const& current_scope;
+    boost::optional<std::string> failed_name = boost::none;
 
     template<class T>
-    any_type apply_recursively(T const& t) const noexcept
+    any_type apply_recursively(T const& t)
     {
         return boost::apply_visitor(*this, t);
     }
@@ -85,17 +87,21 @@ public:
         : current_scope(c)
     {}
 
-    any_type operator()(ast::node::primary_type const& t) const noexcept
+    boost::optional<std::string> const& failed()
+    {
+        return failed_name;
+    }
+
+    any_type operator()(ast::node::primary_type const& t)
     {
         auto const builtin = get_builtin_type(t->template_name.c_str());
         if (builtin) {
             return *builtin;
         }
 
-        // TODO:
-        // Template types must be considered.
         auto const c = apply_lambda([&t](auto const& s){ return s->resolve_class(t->template_name); }, current_scope);
         if (!c) {
+            failed_name = t->template_name;
             return {};
         }
 
@@ -107,7 +113,7 @@ public:
             );
     }
 
-    any_type operator()(ast::node::array_type const& t) const noexcept
+    any_type operator()(ast::node::array_type const& t)
     {
         if (t->elem_type) {
             return make<array_type>(
@@ -120,7 +126,7 @@ public:
         }
     }
 
-    any_type operator()(ast::node::tuple_type const& t) const noexcept
+    any_type operator()(ast::node::tuple_type const& t)
     {
         auto const ret = make<tuple_type>();
         ret->element_types.reserve(t->arg_types.size());
@@ -130,7 +136,7 @@ public:
         return ret;
     }
 
-    any_type operator()(ast::node::dict_type const& t) const noexcept
+    any_type operator()(ast::node::dict_type const& t)
     {
         return make<dict_type>(
                     apply_recursively(t->key_type),
@@ -138,7 +144,7 @@ public:
                 );
     }
 
-    any_type operator()(ast::node::qualified_type const& t) const noexcept
+    any_type operator()(ast::node::qualified_type const& t)
     {
         qualifier new_qualifier;
         switch (t->qualifier) {
@@ -154,7 +160,7 @@ public:
                );
     }
 
-    any_type operator()(ast::node::func_type const& t) const noexcept
+    any_type operator()(ast::node::func_type const& t)
     {
         std::vector<any_type> param_types;
         param_types.reserve(t->arg_types.size());
@@ -604,11 +610,16 @@ bool any_type::is_instantiated_from(any_type const& from) const
     }
 }
 
-// XXX: return value should be probable<any_type> because subtypes of return type may be
-// invalid type (type::type{}) and callar can't know it.  Then it generates to unexpected type.
-any_type from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept
+helper::probable<any_type> from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept
 {
-    return boost::apply_visitor(detail::node_to_type_translator{current}, t);
+    detail::node_to_type_translator visitor{current};
+    auto const result = boost::apply_visitor(visitor, t);
+
+    if (visitor.failed()) {
+        return helper::oops(*visitor.failed());
+    }
+
+    return result;
 }
 
 ast::node::any_type to_ast(any_type const& t, ast::location_type && location) noexcept

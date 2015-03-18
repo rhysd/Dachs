@@ -442,13 +442,19 @@ public:
         // Note:
         // Get return type for checking duplication of overloaded function
         if (func_def->return_type) {
-            auto const ret_type = type::from_ast(*func_def->return_type, current_scope);
-            // XXX:
-            // Here, some class types are not analyzed by type::from_ast in some cases
-            // because the class *func_def->return_type specifies may not be defined yet.
-            // So, the return type should be analyzed after all classes are defined.
-            func_def->ret_type = ret_type;
-            new_func->ret_type = ret_type;
+            auto const result = type::from_ast(*func_def->return_type, current_scope);
+
+            if (auto const error = result.get_error()) {
+                semantic_error(
+                        func_def,
+                        boost::format("  Invalid type '%1%' is specified in return type of function '%2%'")
+                            % *error % func_def->name
+                    );
+                return;
+            }
+
+            func_def->ret_type = result.get_unsafe();
+            new_func->ret_type = result.get_unsafe();
         }
 
         if (!func_def->params.empty() && func_def->params[0]->is_receiver) {
@@ -518,13 +524,18 @@ public:
 
         // Set type if the type of variable is specified
         if (decl->maybe_type) {
-            new_var->type
-                = type::from_ast(*decl->maybe_type, current_scope);
+            auto const result = type::from_ast(*decl->maybe_type, current_scope);
 
-            if (!new_var->type) {
-                semantic_error(decl, "  Invalid type is specified for declaration of variable '" + decl->name + "'");
+            if (auto const error = result.get_error()) {
+                semantic_error(
+                        decl,
+                        boost::format("  Invalid type '%1%' is specified in declaration of variable '%2%'")
+                            % *error % decl->name
+                    );
                 return;
             }
+
+            new_var->type = result.get_unsafe();
         } else {
             new_var->type
                 = type::make<type::template_type>(decl);
@@ -625,20 +636,24 @@ public:
         param->param_symbol = new_param_sym;
 
         if (param->param_type) {
-            // XXX:
-            // type_calculator requires class information which should be analyzed forward.
-            param->type = type::from_ast(*param->param_type, current_scope);
-            if (!param->type) {
-                semantic_error(
-                        param,
-                        boost::format("  Invalid type '%1%' for parameter '%2%'")
-                            % apply_lambda([](auto const& t){
-                                    return t->to_string();
-                            }, *param->param_type)
-                            % param->name
-                    );
-            }
-            new_param_sym->type = param->type;
+            type::from_ast(*param->param_type, current_scope).apply(
+
+                    [&](auto const& success)
+                    {
+                        param->type = success;
+                        new_param_sym->type = success;
+                    },
+
+                    [&, this](auto const& failure)
+                    {
+                        semantic_error(
+                                param,
+                                boost::format("  Invalid type '%1%' is specified in parameter '%2%'")
+                                    % failure % param->name
+                            );
+                    }
+
+                );
         }
 
         return new_param_sym;
