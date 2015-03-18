@@ -265,34 +265,40 @@ BOOST_AUTO_TEST_CASE(some_samples)
     )");
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
-        func test1(l, r, b)
-            if (l < r) == b
-                println("OK")
-            else
-                println("NG")
-            end
+        func test(b : bool)
+            print(if b then '.' else 'F')
         end
 
-        func test2(l, r, b)
-            if (l == r)
-                println("OK")
-            else
-                println("NG")
-            end
+        func test_not(b : bool)
+            test(!b)
         end
 
         func main
-            test1("abc", "def", true)
-            test1("abc", "abcdef", true)
-            test1("def", "abc", false)
-            test1("abcdef", "abc", false)
-            test1("abc", "abc", false)
+            test("abc" < "def")
+            test("abc" < "abcdef")
+            test_not("def" < "abc")
+            test_not("abcdef" < "abc")
+            test_not("abc" < "abc")
 
-            test2("abc", "abc", true)
-            test2("abc", "bcd", false)
-            test2("abc", "abcd", false)
-            test2("", "", true)
-            test2("aaa", "", false)
+            test("abc" == "abc")
+            test_not("abc" == "bcd")
+            test_not("abc" == "abcd")
+            test("" == "")
+            test_not("aaa" == "")
+
+            test("abcdef".start_with? "abc")
+            test("abcdef".start_with? "abcdef")
+            test_not("abc".start_with? "abcdef")
+            test_not("def".start_with? "abc")
+            test_not("def".start_with? "abcdef")
+            test("def".start_with? "")
+
+            test("abcdef".end_with? "def")
+            test("abcdef".end_with? "abcdef")
+            test_not("abc".end_with? "abcdef")
+            test_not("abc".end_with? "def")
+            test_not("abc".end_with? "abcdef")
+            test("def".end_with? "")
         end
     )");
 }

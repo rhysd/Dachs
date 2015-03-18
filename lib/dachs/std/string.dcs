@@ -10,6 +10,11 @@ class string
         @size = @strlen()
     end
 
+    init
+        @size := 0u
+        @data := new static_array(char){0u}
+    end
+
   - func strlen
         var i := 0u
         for @data[i] != '\0'
@@ -20,6 +25,10 @@ class string
 
     func size
         ret @size
+    end
+
+    func _data
+        ret @data
     end
 
     func [](idx)
@@ -52,6 +61,45 @@ class string
 
     func chars
         ret new array{@data, @size}
+    end
+
+    func start_with?(rhs : string)
+        ret false if @size < rhs.size
+
+        var i := 0u
+        for i < rhs.size
+            if @data[i] != rhs[i]
+                ret false
+            end
+
+            i += 1u
+
+            if i >= @size && i < rhs.size
+                ret false
+            end
+        end
+
+        ret true
+    end
+
+    func end_with?(rhs : string)
+        ret true if rhs.empty?
+        ret false if @size < rhs.size
+
+        var li := @size - 1u
+        var ri := rhs.size - 1u
+
+        for li >= 0u
+            if @data[li] != rhs[ri]
+                ret false
+            end
+
+            ret true if ri == 0u
+
+            li, ri -= 1u, 1u
+        end
+
+        ret false
     end
 
     func ==(rhs : string)

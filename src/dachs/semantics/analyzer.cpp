@@ -757,7 +757,11 @@ public:
             if (found_main) {
                 semantic_error(
                     f->get_ast_node(),
-                    "  Only one main function must exist"
+                    boost::format(
+                        "  Main function can't be overloaded\n"
+                        "  Candidate: %1\n"
+                        "  Candidate: %2"
+                    ) % (*found_main)->to_string() % f->to_string()
                 );
                 return false;
             }
@@ -772,7 +776,7 @@ public:
                 auto const& param = f->params[0];
 
                 if (!param->immutable) {
-                    semantic_error(f->get_ast_node(), "  Argument of main function '" + param->name + "' must be immutable");
+                    semantic_error(f->get_ast_node(), "  Parameter of main function '" + param->name + "' must be immutable");
                     return false;
                 }
 
@@ -788,7 +792,7 @@ public:
             semantic_error(
                 f->get_ast_node(),
                 boost::format(
-                    "  Illegal siganture for main function: '%1%'\n"
+                    "  Illegal signature for main function: '%1%'\n"
                     "  Note: main() or main(argv) is required"
                     ) % f->to_string()
             );
