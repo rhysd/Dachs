@@ -779,19 +779,8 @@ public:
                 if (auto const cls = type::get<type::class_type>(param->type)) {
                     auto const& c = *cls;
 
-                    // XXX:
-                    // Too dirty check
                     if (c->name == "argv" && !c->ref.expired()) {
-                        auto const syms = c->ref.lock()->instance_var_symbols;
-                        if (syms.size() == 2u) {
-                            if (auto const arr = type::get<type::array_type>(syms[1]->type)) {
-                                if (auto const arr2 = type::get<type::array_type>((*arr)->element_type)) {
-                                    if ((*arr2)->element_type.is_builtin("char")) {
-                                        continue;
-                                    }
-                                }
-                            }
-                        }
+                        continue;
                     }
                 }
             }

@@ -50,6 +50,10 @@ class string
         ret false
     end
 
+    func chars
+        ret new array{@data, @size}
+    end
+
     func ==(rhs : string)
         ret false unless @size == rhs.size
 

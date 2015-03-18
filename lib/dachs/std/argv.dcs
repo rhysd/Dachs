@@ -1,6 +1,6 @@
 class argv
   - argc : uint
-  - argv
+  - argv : static_array(static_array(char))
 
     init(@argc, @argv)
     end

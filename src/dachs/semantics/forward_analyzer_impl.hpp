@@ -270,43 +270,6 @@ class forward_symbol_analyzer {
             argv->set_source_location(*p);
             p->param_type = std::move(argv);
         }
-
-        auto const argv_type = get_as<ast::node::primary_type>(*p->param_type);
-        if (!argv_type || (*argv_type)->template_name != "argv") {
-            // Note:
-            // Error! The error will raise in main function check after visiting analyzer
-            return;
-        }
-
-        auto &argv_params = (*argv_type)->holders;
-
-        if (argv_params.empty()) {
-            auto arr = helper::make<ast::node::array_type>();
-            arr->set_source_location(*p);
-            argv_params.push_back(std::move(arr));
-        }
-
-        auto const contained = get_as<ast::node::array_type>(argv_params[0]);
-        if (!contained) {
-            return;
-        }
-
-        if (!(*contained)->elem_type) {
-            auto arr = helper::make<ast::node::array_type>();
-            arr->set_source_location(*p);
-            (*contained)->elem_type = std::move(arr);
-        }
-
-        auto const contained2 = get_as<ast::node::array_type>(*(*contained)->elem_type);
-        if (!contained2) {
-            return;
-        }
-
-        if (!(*contained2)->elem_type) {
-            auto str = helper::make<ast::node::primary_type>("char");
-            str->set_source_location(*p);
-            (*contained2)->elem_type = std::move(str);
-        }
     }
 
 public:
