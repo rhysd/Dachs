@@ -167,16 +167,6 @@ struct type_ir_emitter_impl {
             );
     }
 
-    llvm::Type *emit(type::dict_type const&)
-    {
-        throw not_implemented_error{__FILE__, __func__, __LINE__, "dictionary type LLVM IR generation"};
-    }
-
-    llvm::Type *emit(type::range_type const&)
-    {
-        throw not_implemented_error{__FILE__, __func__, __LINE__, "range type LLVM IR generation"};
-    }
-
     llvm::Type *emit(type::qualified_type const&)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "qualified type LLVM IR generation"};

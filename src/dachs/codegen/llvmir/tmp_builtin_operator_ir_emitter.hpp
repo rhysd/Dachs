@@ -97,8 +97,6 @@ public:
             return emit(*at);
         } else if (auto const tt = type::get<type::tuple_type>(t)) {
             return emit(*tt);
-        } else if (auto const rt = type::get<type::range_type>(t)) {
-            return emit(*rt);
         } else {
             return nullptr;
         }
@@ -271,12 +269,6 @@ public:
 
             return tmp_builtin_unary_op_ir_emitter{ctx, inverse_val, "!"}.emit(type::get_builtin_type("bool", type::no_opt));
         }
-    }
-
-    val emit(type::range_type const&) noexcept
-    {
-        // TODO
-        return nullptr;
     }
 };
 

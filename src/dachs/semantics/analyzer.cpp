@@ -252,23 +252,7 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
         return visit(t->param_types);
     }
 
-    result_type operator()(type::dict_type const& t) noexcept
-    {
-        if (auto const err = visit(t->key_type)) {
-            return err;
-        }
-        if (auto const err = visit(t->value_type)) {
-            return err;
-        }
-        return boost::none;
-    }
-
     result_type operator()(type::array_type const& t) noexcept
-    {
-        return visit(t->element_type);
-    }
-
-    result_type operator()(type::range_type const& t) noexcept
     {
         return visit(t->element_type);
     }
@@ -1280,37 +1264,9 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::dict_literal const& dict_lit, Walker const& w)
+    void visit(ast::node::dict_literal const&, Walker const&)
     {
-        w();
-        // Note: Check only the head of element because Dachs doesn't allow implicit type conversion
-        if (dict_lit->value.empty() && !dict_lit->type) {
-            semantic_error(dict_lit, "  Empty dictionary must be typed by ':'");
-            return;
-        }
-
-        auto key_type_elem0 = type_of(dict_lit->value[0].first);
-        auto value_type_elem0 = type_of(dict_lit->value[0].second);
-
-        if (any_of(
-                dict_lit->value,
-                [&](auto const& v)
-                {
-                    return type_of(v.first) != key_type_elem0 || type_of(v.second) != value_type_elem0;
-                })
-            ) {
-            semantic_error(
-                    dict_lit,
-                    boost::format(
-                        "  Type of keys or values mismatches\n"
-                        "  Note: Key type is '%1%' and value type is '%2%'"
-                    ) % key_type_elem0.to_string()
-                      % value_type_elem0.to_string()
-                );
-            return;
-        }
-
-        dict_lit->type = type::make<type::dict_type>(key_type_elem0, value_type_elem0);
+        throw not_implemented_error{__FILE__, __func__, __LINE__, "dictionary literal"};
     }
 
     template<class Walker>
@@ -1378,17 +1334,6 @@ public:
             } else {
                 DACHS_RAISE_INTERNAL_COMPILATION_ERROR
             }
-
-            return boost::none;
-        }
-
-        result_type operator()(type::dict_type const& dict) const
-        {
-            if (index_type != dict->key_type) {
-                return "  Index type of dictionary mismatches\n"
-                       "  Note: Expected '" + dict->key_type.to_string() + "' but actually '" + index_type.to_string() + "'";
-            }
-            access->type = dict->value_type;
 
             return boost::none;
         }
@@ -2773,16 +2718,6 @@ public:
 
         if (auto const maybe_array_range_type = type::get<type::array_type>(range_t)) {
             check_element((*maybe_array_range_type)->element_type);
-        } else if (auto const maybe_range_type = type::get<type::range_type>(range_t)) {
-            check_element((*maybe_range_type)->element_type);
-        } else if (auto const maybe_dict_range_type = type::get<type::dict_type>(range_t)) {
-            auto const& dict_range_type = *maybe_dict_range_type;
-            if (for_->iter_vars.size() != 2) {
-                semantic_error(for_, boost::format("  2 iteration variable is needed to iterate dictionary '%1%'") % dict_range_type->to_string());
-                return;
-            }
-            substitute_param_type(for_->iter_vars[0], dict_range_type->key_type);
-            substitute_param_type(for_->iter_vars[1], dict_range_type->value_type);
         } else if (auto const maybe_class_type = type::get<type::class_type>(range_t)) {
             auto const& t = *maybe_class_type;
 

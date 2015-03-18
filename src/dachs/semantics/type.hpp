@@ -32,9 +32,7 @@ struct class_type;
 struct tuple_type;
 struct func_type;
 struct generic_func_type;
-struct dict_type;
 struct array_type;
-struct range_type;
 struct qualified_type;
 struct template_type;
 }
@@ -48,9 +46,7 @@ DACHS_DEFINE_TYPE(class_type);
 DACHS_DEFINE_TYPE(tuple_type);
 DACHS_DEFINE_TYPE(func_type);
 DACHS_DEFINE_TYPE(generic_func_type);
-DACHS_DEFINE_TYPE(dict_type);
 DACHS_DEFINE_TYPE(array_type);
-DACHS_DEFINE_TYPE(range_type);
 DACHS_DEFINE_TYPE(qualified_type);
 DACHS_DEFINE_TYPE(template_type);
 #undef DACHS_DEFINE_TYPE
@@ -92,9 +88,7 @@ class any_type {
                     , tuple_type
                     , func_type
                     , generic_func_type
-                    , dict_type
                     , array_type
-                    , range_type
                     , qualified_type
                     , template_type
                 >;
@@ -492,93 +486,6 @@ struct generic_func_type : public basic_type {
     bool is_default_constructible() const noexcept override
     {
         return false;
-    }
-};
-
-struct dict_type final : public basic_type {
-    type::any_type key_type, value_type;
-
-    dict_type() = default;
-
-    template<class Key, class Value>
-    dict_type(Key const& k, Value const& v) noexcept
-        : key_type{k}, value_type{v}
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return '{'
-            + key_type.to_string() + " => "
-            + value_type.to_string()
-            + '}';
-    }
-
-    bool operator==(dict_type const& rhs) const noexcept
-    {
-        return key_type == rhs.key_type
-            && value_type == rhs.value_type;
-    }
-
-    template<class T>
-    bool operator==(T const&) const noexcept
-    {
-        static_assert(is_type<T>::value, "dict_type::operator==(): rhs is not a type.");
-        return false;
-    }
-
-    template<class T>
-    bool operator!=(T const& rhs) const noexcept
-    {
-        static_assert(is_type<T>::value, "dict_type::operator!=(): rhs is not a type.");
-        return !(*this == rhs);
-    }
-
-    bool is_default_constructible() const noexcept override
-    {
-        return true;
-    }
-};
-
-struct range_type final : public basic_type {
-    type::any_type element_type;
-    // TODO: bool is_inclusive
-    bool is_inclusive;
-
-    range_type() = default;
-
-    template<class Elem>
-    range_type(Elem const& e, bool const inclusive) noexcept
-        : element_type(e), is_inclusive(inclusive)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "<range of " + element_type.to_string() + ">";
-        return "<" + ((is_inclusive ? "inclusive" : "exclusive") + ("range of " + element_type.to_string())) + ">";
-    }
-
-    bool operator==(range_type const& rhs) const noexcept
-    {
-        return element_type == rhs.element_type;
-    }
-
-    template<class T>
-    bool operator==(T const&) const noexcept
-    {
-        static_assert(is_type<T>::value, "range_type::operator==(): rhs is not a type.");
-        return false;
-    }
-
-    template<class T>
-    bool operator!=(T const& rhs) const noexcept
-    {
-        static_assert(is_type<T>::value, "range_type::operator!=(): rhs is not a type.");
-        return !(*this == rhs);
-    }
-
-    bool is_default_constructible() const noexcept override
-    {
-        return true;
     }
 };
 

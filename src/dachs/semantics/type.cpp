@@ -11,6 +11,7 @@
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/fatal.hpp"
+#include "dachs/exception.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/make.hpp"
 #include "dachs/helper/probable.hpp"
@@ -136,14 +137,6 @@ public:
         return ret;
     }
 
-    any_type operator()(ast::node::dict_type const& t)
-    {
-        return make<dict_type>(
-                    apply_recursively(t->key_type),
-                    apply_recursively(t->value_type)
-                );
-    }
-
     any_type operator()(ast::node::qualified_type const& t)
     {
         qualifier new_qualifier;
@@ -176,6 +169,11 @@ public:
         } else {
             return {make<func_type>(std::move(param_types), get_unit_type(), ast::symbol::func_kind::proc)};
         }
+    }
+
+    any_type operator()(ast::node::dict_type const&)
+    {
+        throw not_implemented_error{__FILE__, __func__, __LINE__, "dictionary type"};
     }
 };
 
@@ -288,24 +286,9 @@ public:
         }
     }
 
-    result_type operator()(dict_type const& t) const
-    {
-        return make<ast::node::dict_type>(
-                    apply_recursively(t->key_type),
-                    apply_recursively(t->value_type)
-                );
-    }
-
     result_type operator()(array_type const& t) const
     {
         return make<ast::node::array_type>(apply_recursively(t->element_type));
-    }
-
-    result_type operator()(range_type const& t) const
-    {
-        // TODO
-        std::vector<result_type> elem_type_node = {apply_recursively(t->element_type)};
-        return make<ast::node::primary_type>("range", elem_type_node);
     }
 
     result_type operator()(qualified_type const& t) const
@@ -381,17 +364,7 @@ struct instantiation_checker : boost::static_visitor<bool> {
         return visit(l->return_type, r->return_type) || visit(l->param_types, r->param_types);
     }
 
-    result_type operator()(dict_type const& l, dict_type const& r) const noexcept
-    {
-        return visit(l->key_type, r->key_type) || visit(l->value_type, r->value_type);
-    }
-
     result_type operator()(array_type const& l, array_type const& r) const noexcept
-    {
-        return visit(l->element_type, r->element_type);
-    }
-
-    result_type operator()(range_type const& l, range_type const& r) const noexcept
     {
         return visit(l->element_type, r->element_type);
     }
