@@ -12,7 +12,7 @@ class string
 
     init
         @size := 0u
-        @data := new static_array(char){0u}
+        @data := new static_array(char)
     end
 
   - func strlen

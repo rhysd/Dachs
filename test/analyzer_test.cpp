@@ -1525,7 +1525,7 @@ BOOST_AUTO_TEST_SUITE(class_definition)
         // Check nested template type
         CHECK_THROW_SEMANTIC_ERROR(R"(
             class X
-                a : string
+                a : symbol
                 init
                     @a := ""
                 end

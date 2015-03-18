@@ -40,7 +40,7 @@ class tmp_constructor_ir_emitter {
         type_ctor_emitter(context &c, type_ir_emitter &t, builder::alloc_helper &e, llvm::Module &m, Values const& a)
             : ctx(c), type_emitter(t), alloc_emitter(e), module(m), arg_values(a)
         {
-            assert(a.size() == 1 || a.size() == 2);
+            assert(a.size() <= 2);
         }
 
         bool should_deref(llvm::Value *const v, type::type const& t)
@@ -54,6 +54,12 @@ class tmp_constructor_ir_emitter {
 
         val operator()(type::array_type const& a)
         {
+            if (arg_values.empty()) {
+                auto *const elem_ty = llvm::dyn_cast<llvm::PointerType>(type_emitter.emit(a));
+                assert(elem_ty);
+                return llvm::ConstantPointerNull::get(elem_ty);
+            }
+
             if (!llvm::isa<llvm::ConstantInt>(arg_values[0])) {
                 return nullptr;
             }

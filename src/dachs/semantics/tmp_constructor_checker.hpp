@@ -27,8 +27,12 @@ struct ctor_checker {
     template<class Exprs>
     result_type operator()(type::array_type const& a, Exprs const& args) const
     {
-        if (args.size() != 1 && args.size() != 2) {
-            return (boost::format("  Invalid argument for constructor of '%1%' (%2% for 1 or 2)") % a->to_string() % args.size()).str();
+        if (args.size() > 2) {
+            return (boost::format("  Invalid argument for constructor of '%1%' (%2% for 0..2)") % a->to_string() % args.size()).str();
+        }
+
+        if (args.empty() && !a->element_type.is_template()) {
+            return boost::none;
         }
 
         auto const maybe_lit = helper::variant::get_as<ast::node::primary_literal>(args[0]);

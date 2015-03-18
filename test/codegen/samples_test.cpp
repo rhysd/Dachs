@@ -299,6 +299,9 @@ BOOST_AUTO_TEST_CASE(some_samples)
             test_not("abc".end_with? "def")
             test_not("abc".end_with? "abcdef")
             test("def".end_with? "")
+
+            s := new string
+            test(s == "")
         end
     )");
 }
