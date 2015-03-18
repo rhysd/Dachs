@@ -257,6 +257,11 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
         return visit(t->element_type);
     }
 
+    result_type operator()(type::pointer_type const& t) noexcept
+    {
+        return visit(t->pointee_type);
+    }
+
     result_type operator()(type::qualified_type const& t) noexcept
     {
         return visit(t->contained_type);
@@ -1308,6 +1313,15 @@ public:
             return boost::none;
         }
 
+        result_type operator()(type::pointer_type const& ptr) const
+        {
+            if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
+                return "  Index of pointer must be int or uint but actually '" + index_type.to_string() + "'";
+            }
+            access->type = ptr->pointee_type;
+            return boost::none;
+        }
+
         result_type operator()(type::tuple_type const& tpl) const
         {
             auto const maybe_primary_literal = get_as<ast::node::primary_literal>(access->index_expr);
@@ -1882,16 +1896,9 @@ public:
         //     x : X
         //
 
-        if (auto const specified_class = type::get<type::class_type>(specified_type)) {
-            if (actual_type.is_instantiated_from(*specified_class)) {
-                typed->type = actual_type;
-                return;
-            }
-        } else if (auto const array = type::get<type::array_type>(specified_type)) {
-            if (actual_type.is_instantiated_from(*array)) {
-                typed->type = actual_type;
-                return;
-            }
+        if (actual_type.is_instantiated_from(specified_type)) {
+            typed->type = actual_type;
+            return;
         }
 
         auto const compare_array_elem_type
@@ -2979,6 +2986,14 @@ public:
                     if (auto const rhs_a = type::get<type::array_type>(t)) {
                         if (type::is_instantiated_from(*rhs_a, *a)
                                 || (*a)->element_type == (*rhs_a)->element_type) {
+                            symbol->type = t;
+                            return;
+                        }
+                    }
+                } else if (auto const p1 = type::get<type::pointer_type>(symbol->type)) {
+                    if (auto const p2 = type::get<type::pointer_type>(t)) {
+                        if (type::is_instantiated_from(*p1, *p2)
+                                || (*p1)->pointee_type == (*p2)->pointee_type) {
                             symbol->type = t;
                             return;
                         }

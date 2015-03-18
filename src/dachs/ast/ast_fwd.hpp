@@ -108,6 +108,7 @@ struct tuple_type;
 struct func_type;
 struct array_type;
 struct dict_type;
+struct pointer_type;
 struct qualified_type;
 struct cast_expr;
 struct typed_expr;
@@ -181,6 +182,7 @@ DACHS_DEFINE_NODE_PTR(tuple_type);
 DACHS_DEFINE_NODE_PTR(func_type);
 DACHS_DEFINE_NODE_PTR(array_type);
 DACHS_DEFINE_NODE_PTR(dict_type);
+DACHS_DEFINE_NODE_PTR(pointer_type);
 DACHS_DEFINE_NODE_PTR(qualified_type);
 DACHS_DEFINE_NODE_PTR(assignment_stmt);
 DACHS_DEFINE_NODE_PTR(variable_decl);
@@ -225,6 +227,7 @@ using any_type =
                   , func_type
                   , array_type
                   , dict_type
+                  , pointer_type
                   , primary_type
                 >;
 

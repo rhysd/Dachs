@@ -128,6 +128,15 @@ public:
         }
     }
 
+    any_type operator()(ast::node::pointer_type const& t)
+    {
+        if (t->pointee_type) {
+            return make<pointer_type>(apply_recursively(*t->pointee_type));
+        } else {
+            return make<pointer_type>(make<template_type>(t));
+        }
+    }
+
     any_type operator()(ast::node::tuple_type const& t)
     {
         auto const ret = make<tuple_type>();
@@ -292,6 +301,11 @@ public:
         return make<ast::node::array_type>(apply_recursively(t->element_type));
     }
 
+    result_type operator()(pointer_type const& t) const
+    {
+        return make<ast::node::pointer_type>(apply_recursively(t->pointee_type));
+    }
+
     result_type operator()(qualified_type const& t) const
     {
         switch (t->qualifier) {
@@ -368,6 +382,11 @@ struct instantiation_checker : boost::static_visitor<bool> {
     result_type operator()(array_type const& l, array_type const& r) const noexcept
     {
         return visit(l->element_type, r->element_type);
+    }
+
+    result_type operator()(pointer_type const& l, pointer_type const& r) const noexcept
+    {
+        return visit(l->pointee_type, r->pointee_type);
     }
 
     result_type operator()(qualified_type const& l, qualified_type const& r) const noexcept
@@ -555,22 +574,13 @@ bool is_instantiated_from(array_type const& instantiated_array, array_type const
     return checker(instantiated_array, template_array);
 }
 
-bool any_type::is_instantiated_from(class_type const& from) const
+bool is_instantiated_from(pointer_type const& instantiated_ptr, pointer_type const& template_ptr)
 {
-    if (auto const c = get_as<class_type>(value)) {
-        return ::dachs::type::is_instantiated_from(*c, from);
-    } else {
+    if (!template_ptr->pointee_type.is_template()) {
         return false;
     }
-}
-
-bool any_type::is_instantiated_from(array_type const& from) const
-{
-    if (auto const a = get_as<array_type>(value)) {
-        return ::dachs::type::is_instantiated_from(*a, from);
-    } else {
-        return false;
-    }
+    detail::instantiation_checker checker;
+    return checker(instantiated_ptr, template_ptr);
 }
 
 bool any_type::is_instantiated_from(any_type const& from) const
@@ -579,6 +589,8 @@ bool any_type::is_instantiated_from(any_type const& from) const
         return is_instantiated_from(*a);
     } else if (auto const c = get<class_type>(from)) {
         return is_instantiated_from(*c);
+    } else if (auto const p = get<pointer_type>(from)) {
+        return is_instantiated_from(*p);
     } else {
         return false;
     }
@@ -904,6 +916,11 @@ struct fuzzy_matcher : boost::static_visitor<bool> {
     bool operator()(array_type const& lhs, array_type const& rhs) const
     {
         return apply(lhs->element_type, rhs->element_type) && lhs->size == rhs->size;
+    }
+
+    bool operator()(pointer_type const& lhs, pointer_type const& rhs) const
+    {
+        return apply(lhs->pointee_type, rhs->pointee_type);
     }
 
     bool operator()(qualified_type const& lhs, qualified_type const& rhs) const

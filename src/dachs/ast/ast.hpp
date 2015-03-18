@@ -730,7 +730,7 @@ struct primary_type final : public base {
 };
 
 struct array_type final : public base {
-    boost::optional<node::any_type> elem_type;
+    boost::optional<node::any_type> elem_type = boost::none;
 
     explicit array_type(boost::optional<node::any_type> const& elem) noexcept
         : elem_type(elem)
@@ -760,6 +760,25 @@ struct dict_type final : public base {
     std::string to_string() const noexcept override
     {
         return "DICT_TYPE";
+    }
+};
+
+struct pointer_type final : public base {
+    boost::optional<node::any_type> pointee_type = boost::none;
+
+    explicit pointer_type(boost::optional<node::any_type> const& elem) noexcept
+        : pointee_type(elem)
+    {}
+
+    explicit pointer_type(node::any_type const& elem) noexcept
+        : pointee_type(elem)
+    {}
+
+    pointer_type() = default;
+
+    std::string to_string() const noexcept override
+    {
+        return "POINTER_TYPE";
     }
 };
 

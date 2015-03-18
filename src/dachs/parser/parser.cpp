@@ -982,6 +982,12 @@ public:
             ) [
                 make_and_assign_to_val<ast::node::array_type>(_1)
             ] | (
+                "pointer"_l > -(
+                    '(' > -qi::eol > qualified_type > -qi::eol > ')'
+                )
+            ) [
+                make_and_assign_to_val<ast::node::pointer_type>(_1)
+            ] | (
                     type_name >> -(
                         '(' >> -qi::eol >> (qualified_type % comma) >> -qi::eol >> ')'
                     )

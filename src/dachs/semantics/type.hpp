@@ -33,6 +33,7 @@ struct tuple_type;
 struct func_type;
 struct generic_func_type;
 struct array_type;
+struct pointer_type;
 struct qualified_type;
 struct template_type;
 }
@@ -47,6 +48,7 @@ DACHS_DEFINE_TYPE(tuple_type);
 DACHS_DEFINE_TYPE(func_type);
 DACHS_DEFINE_TYPE(generic_func_type);
 DACHS_DEFINE_TYPE(array_type);
+DACHS_DEFINE_TYPE(pointer_type);
 DACHS_DEFINE_TYPE(qualified_type);
 DACHS_DEFINE_TYPE(template_type);
 #undef DACHS_DEFINE_TYPE
@@ -89,6 +91,7 @@ class any_type {
                     , func_type
                     , generic_func_type
                     , array_type
+                    , pointer_type
                     , qualified_type
                     , template_type
                 >;
@@ -226,8 +229,8 @@ public:
         return helper::variant::apply_lambda(lambda, value);
     }
 
-    bool is_instantiated_from(class_type const& from) const;
-    bool is_instantiated_from(array_type const& from) const;
+    template<class Type>
+    bool is_instantiated_from(Type const& from) const;
     bool is_instantiated_from(any_type const& from) const;
 
     bool is_default_constructible() const noexcept;
@@ -534,6 +537,44 @@ struct array_type final : public basic_type {
     }
 };
 
+struct pointer_type final : public basic_type {
+    type::any_type pointee_type;
+
+    template<class Elem>
+    explicit pointer_type(Elem && e) noexcept
+        : pointee_type(std::forward<Elem>(e))
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "pointer(" + pointee_type.to_string() + ")";
+    }
+
+    bool operator==(pointer_type const& rhs) const noexcept
+    {
+        return pointee_type == rhs.pointee_type;
+    }
+
+    template<class T>
+    bool operator==(T const&) const noexcept
+    {
+        static_assert(is_type<T>::value, "pointer_type::operator==(): rhs is not a type.");
+        return false;
+    }
+
+    template<class T>
+    bool operator!=(T const& rhs) const noexcept
+    {
+        static_assert(is_type<T>::value, "pointer_type::operator!=(): rhs is not a type.");
+        return !(*this == rhs);
+    }
+
+    bool is_default_constructible() const noexcept override
+    {
+        return false;
+    }
+};
+
 struct qualified_type final : public basic_type {
     type::qualifier qualifier;
     type::any_type contained_type;
@@ -640,6 +681,7 @@ ast::node::any_type to_ast(any_type const&, ast::location_type &&) noexcept;
 ast::node::any_type to_ast(any_type const&, ast::location_type const&) noexcept;
 bool is_instantiated_from(class_type const& instantiated_class, class_type const& template_class);
 bool is_instantiated_from(array_type const& instantiated_array, array_type const& template_array);
+bool is_instantiated_from(pointer_type const& instantiated_ptr, pointer_type const& template_ptr);
 
 template<class String>
 bool any_type::is_builtin(String const& name) const noexcept
@@ -650,6 +692,16 @@ bool any_type::is_builtin(String const& name) const noexcept
     }
 
     return (*t)->name == name;
+}
+
+template<class Type>
+bool any_type::is_instantiated_from(Type const& from) const
+{
+    if (auto const t = helper::variant::get_as<Type>(value)) {
+        return ::dachs::type::is_instantiated_from(*t, from);
+    } else {
+        return false;
+    }
 }
 
 bool fuzzy_match(any_type const& lhs, any_type const& rhs);

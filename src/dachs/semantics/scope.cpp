@@ -31,6 +31,9 @@ using std::size_t;
 
 namespace detail {
 
+// XXX
+// Use visitor! Now it can count class_type's depth only.
+
 inline size_t calc_depth_of_template(type::class_type const& clazz)
 {
     size_t depth = 1u;
@@ -50,6 +53,15 @@ inline size_t calc_depth_of_template(type::class_type const& clazz)
 inline size_t calc_depth_of_template(type::array_type const& array)
 {
     if (auto const c = type::get<type::class_type>(array->element_type)) {
+        return 1u + calc_depth_of_template(*c);
+    }
+
+    return 1u;
+}
+
+inline size_t calc_depth_of_template(type::pointer_type const& ptr)
+{
+    if (auto const c = type::get<type::class_type>(ptr->pointee_type)) {
         return 1u + calc_depth_of_template(*c);
     }
 
