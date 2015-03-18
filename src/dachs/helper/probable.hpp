@@ -211,6 +211,26 @@ public:
             return {};
         }
     }
+
+    template<class OnSuccess, class OnFailure>
+    auto apply(OnSuccess const& on_success, OnFailure const& on_failure) const
+    {
+        if (success()) {
+            return on_success(get_unsafe());
+        } else {
+            return on_failure(get_error_unsafe());
+        }
+    }
+
+    template<class OnSuccess, class OnFailure>
+    auto apply(OnSuccess && on_success, OnFailure && on_failure)
+    {
+        if (success()) {
+            return std::forward<OnSuccess>(on_success)(get_unsafe());
+        } else {
+            return std::forward<OnFailure>(on_failure)(get_error_unsafe());
+        }
+    }
 };
 
 template<class T, class E = std::string>

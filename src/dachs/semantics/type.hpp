@@ -233,6 +233,7 @@ public:
 
     bool is_instantiated_from(class_type const& from) const;
     bool is_instantiated_from(array_type const& from) const;
+    bool is_instantiated_from(any_type const& from) const;
 
     bool is_default_constructible() const noexcept;
 

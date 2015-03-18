@@ -2833,4 +2833,99 @@ BOOST_AUTO_TEST_CASE(for_stmt)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(type_specifier)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X1
+            func foo(a : Y)
+            end
+        end
+
+        class X2
+            a : Y
+        end
+
+        class X3
+            func foo : Y
+                ret new Y
+            end
+        end
+
+        class Y
+        end
+
+        func main
+            var i : int
+            i : int
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X1
+            func foo(a : Y)
+            end
+        end
+
+        class X2
+            a : Y
+        end
+
+        class X3
+            func foo : Y
+                ret new Y{42}
+            end
+        end
+
+        class Y
+            a
+        end
+
+        func main
+            var y : Y := new Y{42}
+            y : Y
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func foo : Y(float)
+                ret new Y{42}
+            end
+        end
+
+        class Y
+            a
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func foo : float
+                ret 42
+            end
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func foo : Y
+                ret 42
+            end
+        end
+
+        class Y
+            a
+        end
+
+        func main
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

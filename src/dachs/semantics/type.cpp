@@ -593,6 +593,19 @@ bool any_type::is_instantiated_from(array_type const& from) const
     }
 }
 
+bool any_type::is_instantiated_from(any_type const& from) const
+{
+    if (auto const a = get<array_type>(from)) {
+        return is_instantiated_from(*a);
+    } else if (auto const c = get<class_type>(from)) {
+        return is_instantiated_from(*c);
+    } else {
+        return false;
+    }
+}
+
+// XXX: return value should be probable<any_type> because subtypes of return type may be
+// invalid type (type::type{}) and callar can't know it.  Then it generates to unexpected type.
 any_type from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept
 {
     return boost::apply_visitor(detail::node_to_type_translator{current}, t);

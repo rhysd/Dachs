@@ -557,6 +557,27 @@ class symbol_analyzer {
         return name + '(' + boost::algorithm::join(arg_types | transformed([](auto const& t){ return t.to_string(); }), ",") + ')';
     }
 
+    template<class Node>
+    bool /*success?*/ instantiate_all(type::type const& t, Node const& n)
+    {
+        auto const error = with_current_scope(
+            [&t, this](auto const& s)
+            {
+                class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
+                return t.apply_visitor(instantiater);
+            }
+        );
+
+        if (error) {
+            semantic_error(n, *error);
+            semantic_error(n, "  Error occurred while instantiating type '" + t.to_string() + "'");
+            return false;
+        }
+
+        return true;
+    }
+
+
     bool already_visited(ast::node::function_definition const& f) const noexcept
     {
         return already_visited_functions.find(f) != std::end(already_visited_functions);
@@ -895,18 +916,37 @@ public:
             }
 
             auto const& deduced_type = gatherer.result_types[0];
-            if (func->ret_type && *func->ret_type != deduced_type) {
-                semantic_error(
-                        func,
-                        boost::format(
-                            "  Return type of function '%1%' mismatch\n"
-                            "  Note: Specified type is '%2%'\n"
-                            "  Note: Deduced type is '%3%'"
-                        ) % func->name
-                          % func->ret_type->to_string()
-                          % deduced_type.to_string()
-                    );
-                return;
+
+            if (func->ret_type) {
+                auto const& ret = *func->ret_type;
+
+                if (ret.is_template()){
+                    if (!deduced_type.is_instantiated_from(ret)) {
+                        semantic_error(
+                                func,
+                                boost::format(
+                                    "  Return template type of function '%1%' can't instantiate deduced type '%3%'\n"
+                                    "  Note: Specified template is '%2%'\n"
+                                    "  Note: Deduced type is '%3%'"
+                                ) % func->name
+                                % ret.to_string()
+                                % deduced_type.to_string()
+                            );
+                        return;
+                    }
+                } else if (ret != deduced_type) {
+                    semantic_error(
+                            func,
+                            boost::format(
+                                "  Return type of function '%1%' mismatch\n"
+                                "  Note: Specified type is '%2%'\n"
+                                "  Note: Deduced type is '%3%'"
+                            ) % func->name
+                              % ret.to_string()
+                              % deduced_type.to_string()
+                        );
+                    return;
+                }
             }
 
             func->ret_type = deduced_type;
@@ -2629,19 +2669,8 @@ public:
             }
         }
 
-        {
-            auto const error = with_current_scope(
-                [&t=obj->type, this](auto const& s)
-                {
-                    class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
-                    return t.apply_visitor(instantiater);
-                }
-            );
-            if (error) {
-                semantic_error(obj, *error);
-                semantic_error(obj, "  Error occurred while instantiating type '" + obj->type.to_string() + "' in object construction");
-                return;
-            }
+        if (!instantiate_all(obj->type, obj)) {
+            return;
         }
 
         if (auto const maybe_class_type = type::get<type::class_type>(obj->type)) {
@@ -2933,18 +2962,8 @@ public:
                     return;
                 }
 
-                {
-                    auto const error = apply_lambda(
-                        [&t, this](auto const& s)
-                        {
-                            class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
-                            return t.apply_visitor(instantiater);
-                        }, current_scope
-                    );
-                    if (error) {
-                        semantic_error(v, *error);
-                        return;
-                    }
+                if (!instantiate_all(t, v)) {
+                    return;
                 }
 
                 if (!t.is_default_constructible()) {
@@ -3288,17 +3307,7 @@ public:
         if (param->param_type) {
             // Note:
             // 'param' has a type which is generated from type::from_ast()
-            auto const error = with_current_scope(
-                    [&t=param->type, this](auto const& s)
-                    {
-                        class_template_instantiater<decltype(s), decltype(*this)> instantiater{s, *this};
-                        return t.apply_visitor(instantiater);
-                    }
-                );
-
-            if (error) {
-                semantic_error(param, *error);
-                semantic_error(param, "  Error occurred while instantiating type '" + param->type.to_string() + "' in parameter '" + param->name + "'");
+            if (!instantiate_all(param->type, param)) {
                 return;
             }
         }

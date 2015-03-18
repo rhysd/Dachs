@@ -318,28 +318,58 @@ public:
         : current_scope(s), importer(i), failed(0)
     {}
 
+    scope::class_scope define_new_class(ast::node::class_definition const& c, scope::global_scope const& global)
+    {
+        auto const new_class = scope::make<scope::class_scope>(c, current_scope, c->name);
+        c->scope = new_class;
+        new_class->type = type::make<type::class_type>(new_class);
+        global->define_class(new_class);
+
+        auto const new_class_var = symbol::make<symbol::var_symbol>(c, c->name, true /*immutable*/);
+        new_class_var->type = new_class->type;
+        new_class_var->is_global = true;
+
+        // Note:
+        // Do not check the duplication of the variable because it is
+        // checked by class duplication check.
+        global->force_define_constant(new_class_var);
+
+        return new_class;
+    }
+
     template<class Walker>
     void visit(ast::node::inu const& inu, Walker const& w)
     {
         importer.import(inu);
+
+        auto const maybe_global_scope = get_as<scope::global_scope>(current_scope);
+        assert(maybe_global_scope);
+        auto const& global = *maybe_global_scope;
 
         // Note:
         // Add receiver parameter to member functions' parameters here because this operation makes side effect to AST
         // and it causes a problem when re-visiting class_definition to instantiate class template
         // if this operation is done at visiting class_definition.
         for (auto const& c : inu->classes) {
-            bool has_user_ctor = false;
 
-            for (auto const& m : c->member_funcs) {
-                m->params.insert(std::begin(m->params), generate_receiver_node(c->name, *m));
-                if (m->is_ctor()) {
-                    has_user_ctor = true;
+            // Note: Define all classes before visiting all functions (including member functions)
+            define_new_class(c, global);
+
+            // Note: Other preprocesses
+            {
+                bool has_user_ctor = false;
+
+                for (auto const& m : c->member_funcs) {
+                    m->params.insert(std::begin(m->params), generate_receiver_node(c->name, *m));
+                    if (m->is_ctor()) {
+                        has_user_ctor = true;
+                    }
                 }
-            }
 
-            if (!has_user_ctor) {
-                grow_default_ctor_ast(c);
-                grow_memberwise_ctor_ast(c);
+                if (!has_user_ctor) {
+                    grow_default_ctor_ast(c);
+                    grow_memberwise_ctor_ast(c);
+                }
             }
         }
 
@@ -360,10 +390,9 @@ public:
             c->member_funcs.clear();
         }
 
-        auto const global = get_as<scope::global_scope>(current_scope);
-        failed += check_functions_duplication((*global)->functions, "global scope");
+        failed += check_functions_duplication(global->functions, "global scope");
         failed += check_classes_duplication(inu->classes);
-        failed += check_operator_function_args((*global)->functions);
+        failed += check_operator_function_args(global->functions);
     }
 
     template<class Walker>
@@ -689,7 +718,6 @@ public:
         w();
     }
 
-    // TODO: class scopes and member function scopes
     template<class Walker>
     void visit(ast::node::class_definition const& class_def, Walker const& w)
     {
@@ -701,31 +729,29 @@ public:
             return;
         }
 
-        auto new_class = scope::make<scope::class_scope>(class_def, current_scope, class_def->name);
-        class_def->scope = new_class;
-        new_class->type = type::make<type::class_type>(new_class);
+        auto const scope = [&class_def, this]
+        {
+            // Note:
+            // At the first time of forward analysis, all class scope are generated at
+            // visiting ast::node::inu because ast::from_ast() requires a class definition
+            // to generate type::class_type.
+            // However, when typeof({expr}) is introduced, it is hard to use ast::from_ast() in
+            // forward analysis because typeof({expr}) needs to evaluate an expression.
+            if (class_def->scope.expired()) {
+                auto const global = get_as<scope::global_scope>(current_scope);
+                assert(global);
+                return define_new_class(class_def, *global);
+            } else {
+                return class_def->scope.lock();
+            }
+        }();
 
-        auto const maybe_global_scope = get_as<scope::global_scope>(current_scope);
-        assert(maybe_global_scope);
-        auto const& global = *maybe_global_scope;
-
-        global->define_class(new_class);
-
-        introduce_scope_and_walk(new_class, w);
+        introduce_scope_and_walk(scope, w);
 
         failed += check_functions_duplication(
-                    new_class->member_func_scopes,
+                    scope->member_func_scopes,
                     "class scope '" + class_def->name + "'"
                 );
-
-        auto const new_class_var = symbol::make<symbol::var_symbol>(class_def, class_def->name, true /*immutable*/);
-        new_class_var->type = new_class->type;
-        new_class_var->is_global = true;
-
-        // Note:
-        // Do not check the duplication of the variable because it is
-        // checked by class duplication check.
-        global->force_define_constant(new_class_var);
     }
 
     template<class Walker>
