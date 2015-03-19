@@ -135,6 +135,11 @@ struct type_ir_emitter_impl {
         return llvm::PointerType::getUnqual(emit(a->element_type));
     }
 
+    llvm::PointerType *emit(type::pointer_type const& p)
+    {
+        return llvm::PointerType::getUnqual(emit(p->pointee_type));
+    }
+
     llvm::Type *emit(type::func_type const&)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "function type LLVM IR generation"};

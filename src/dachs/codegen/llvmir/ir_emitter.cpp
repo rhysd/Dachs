@@ -1965,7 +1965,7 @@ public:
             return emit_class_object_construct(obj, *c, std::move(arg_vals));
         }
 
-        return check(obj, builtin_ctor_emitter.emit(obj->type, arg_vals), "object construction");
+        return check(obj, builtin_ctor_emitter.emit(obj->type, arg_vals, obj), "object construction");
     }
 
     template<class T>

@@ -31,6 +31,8 @@ struct ctor_checker {
             return (boost::format("  Invalid argument for constructor of '%1%' (%2% for 0..2)") % a->to_string() % args.size()).str();
         }
 
+        // XXX:
+        // When default constructed, static_array is constructed with null
         if (args.empty() && !a->element_type.is_template()) {
             return boost::none;
         }
@@ -75,6 +77,25 @@ struct ctor_checker {
                 ).str();
             }
         }
+        return boost::none;
+    }
+
+    template<class Exprs>
+    result_type operator()(type::pointer_type const& p, Exprs const& args) const
+    {
+        if (args.size() != 1) {
+            return (boost::format("  Invalid argument for constructor of '%1%' (%2% for 1)") % p->to_string() % args.size()).str();
+        }
+
+        auto const arg_type = type::type_of(args[0]);
+        if (!arg_type.is_builtin("uint")) {
+            return (
+                boost::format(
+                    "  Type mismatch for the argument of constructor of type '%1%'. '%2%' for 'uint'"
+                ) % p->to_string() % arg_type.to_string()
+            ).str();
+        }
+
         return boost::none;
     }
 
