@@ -1274,5 +1274,30 @@ BOOST_AUTO_TEST_CASE(static_array)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(pointer)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            do
+                var i := 42u
+                var p := new pointer(int){i}
+                p[3] = -30
+                p[3].println
+            end
+
+            do
+                var p := new pointer(int){42}
+                p[3] = -30
+                p[3].println
+            end
+
+            do
+                var i := 0u
+                new pointer(int){i}
+                new pointer(int){0u}
+            end
+        end
+    )");
+}
 
 BOOST_AUTO_TEST_SUITE_END()

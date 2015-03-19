@@ -472,7 +472,7 @@ class llvm_ir_emitter {
                         ),
                         access->type
                     );
-            } else if (type::is_a<type::array_type>(child_type)) {
+            } else if (type::is_a<type::array_type>(child_type) || type::is_a<type::pointer_type>(child_type)) {
                 assert(!index_val->getType()->isPointerTy());
                 emit_copy_to_lhs(
                     emitter.ctx.builder.CreateInBoundsGEP(

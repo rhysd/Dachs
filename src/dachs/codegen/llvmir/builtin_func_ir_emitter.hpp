@@ -34,8 +34,7 @@ class builtin_function_emitter {
     // Argument type name -> Function
     using print_func_table_type = std::unordered_map<std::string, llvm::Function *const>;
     using address_of_func_table_type = print_func_table_type;
-    print_func_table_type print_func_table;
-    print_func_table_type println_func_table;
+    std::unordered_map<std::string, print_func_table_type> print_func_tables;
     llvm::Function *cityhash_func = nullptr;
     llvm::Function *malloc_func = nullptr;
     address_of_func_table_type address_of_func_table;
@@ -54,7 +53,7 @@ public:
     }
 
     template<class Table, class Type>
-    llvm::Function *emit_print_func_prototype(Table &table, std::string const& func_name, Type const& arg_type)
+    llvm::Function *emit_print_func_prototype(Table &&table, std::string const& func_name, Type const& arg_type)
     {
         auto const func_itr = table.find(func_name);
         if (func_itr != std::end(table)) {
@@ -168,7 +167,7 @@ public:
     llvm::Function *emit_print_func(std::string const& name, type::builtin_type const& arg_type)
     {
         return emit_print_func_prototype(
-                println_func_table,
+                print_func_tables[name],
                 make_print_func_name(name, arg_type->to_string()),
                 arg_type
             );
@@ -178,7 +177,20 @@ public:
     {
         if (arg_type->element_type.is_builtin("char")) {
             return emit_print_func_prototype(
-                    println_func_table,
+                    print_func_tables[name],
+                    make_print_func_name(name, "string"),
+                    arg_type
+                );
+        } else {
+            return nullptr;
+        }
+    }
+
+    llvm::Function *emit_print_func(std::string const& name, type::pointer_type const& arg_type)
+    {
+        if (arg_type->pointee_type.is_builtin("char")) {
+            return emit_print_func_prototype(
+                    print_func_tables[name],
                     make_print_func_name(name, "string"),
                     arg_type
                 );

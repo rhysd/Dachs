@@ -55,7 +55,38 @@ class tmp_constructor_ir_emitter {
 
         val operator()(type::pointer_type const& p)
         {
+            assert(arg_values.size() == 1u);
             auto helper = builder::block_branch_helper<Node>{node, ctx};
+
+            auto *const elem_ty = llvm::dyn_cast<llvm::PointerType>(type_emitter.emit(p));
+            assert(elem_ty);
+
+            auto const emit_malloc =
+                [&](auto *const insert_after)
+                {
+                    auto *const intptr_ty = ctx.builder.getIntPtrTy(ctx.data_layout);
+                    auto *const emitted
+                        = llvm::CallInst::CreateMalloc(
+                                insert_after,
+                                intptr_ty,
+                                elem_ty->getPointerElementType(),
+                                llvm::ConstantInt::get(intptr_ty, ctx.data_layout->getTypeAllocSize(elem_ty)),
+                                arg_values[0],
+                                nullptr /*malloc func*/,
+                                "allocated_ptr"
+                            );
+                    ctx.builder.Insert(emitted);
+                    return emitted;
+                };
+
+            if (auto *const const_size = llvm::dyn_cast<llvm::ConstantInt>(arg_values[0])) {
+                auto const size = const_size->getZExtValue();
+                if (size == 0) {
+                    return llvm::ConstantPointerNull::get(elem_ty);
+                } else {
+                    return emit_malloc(ctx.builder.GetInsertBlock());
+                }
+            }
 
             auto *const then_block = helper.create_block_for_parent("expr.if.then");
             auto *const else_block = helper.create_block_for_parent("expr.if.else");
@@ -65,13 +96,10 @@ class tmp_constructor_ir_emitter {
 
             helper.create_cond_br(cond, then_block, else_block);
 
-            auto *const elem_ty = llvm::dyn_cast<llvm::PointerType>(type_emitter.emit(p));
-            assert(elem_ty);
-
             auto *const then_value = llvm::ConstantPointerNull::get(elem_ty);
             helper.terminate_with_br(merge_block, else_block);
 
-            auto *const else_value = llvm::ConstantPointerNull::get(elem_ty); // XXX: Temporary
+            auto *const else_value = emit_malloc(else_block);
             helper.terminate_with_br(merge_block, merge_block);
 
             auto *const phi = ctx.builder.CreatePHI(elem_ty, 2, "expr.if.tmp");

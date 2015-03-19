@@ -20,6 +20,7 @@
 namespace dachs {
 namespace type {
 using helper::variant::get_as;
+using helper::variant::has;
 
 namespace detail {
 
@@ -475,7 +476,7 @@ bool any_type::is_aggregate() const noexcept
         return static_cast<bool>((*a)->size);
     }
 
-    return !is_builtin();
+    return !is_builtin() && !has<pointer_type>(value);
 }
 
 boost::optional<array_type const&> any_type::get_array_underlying_type() const
@@ -523,7 +524,7 @@ bool any_type::is_template() const noexcept
     } else if (auto const a = get_as<array_type>(value)){
         return (*a)->element_type.is_template();
     } else {
-        return helper::variant::has<template_type>(value);
+        return has<template_type>(value);
     }
 }
 

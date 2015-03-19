@@ -196,9 +196,11 @@ public:
             return emit_builtin_element_access(aggregate, index, *tuple);
         } else if (auto const array = type::get<type::array_type>(t)) {
             return emit_builtin_element_access(aggregate, index, *array);
+        } else if (auto const ptr = type::get<type::pointer_type>(t)) {
+            return emit_builtin_element_access(aggregate, index, *ptr);
         }
 
-        return helper::oops("Value is not tuple, array and string");
+        return helper::oops("Value is not tuple, static_array and pointer");
     }
 
     probable_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::tuple_type const& t)
@@ -237,6 +239,18 @@ public:
                 ), t->element_type
             );
     }
+
+    probable_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::pointer_type const& t)
+    {
+        assert(aggregate->getType()->isPointerTy());
+
+        return emit_elem_value(
+                ctx.builder.CreateInBoundsGEP(
+                    aggregate,
+                    index
+                ), t->pointee_type
+            );
+    }
 };
 
 class alloc_helper {
@@ -263,6 +277,10 @@ public:
                         align
                     );
             };
+
+        if (type::is_a<type::pointer_type>(t)) {
+            return nullptr;
+        }
 
         if (auto const a = type::get<type::array_type>(t)) {
             if (!(*a)->size) {
@@ -333,6 +351,8 @@ public:
         return ctx.builder.CreateAlloca(type_emitter.emit_alloc_type(t), nullptr/*size*/, name);
     }
 
+    // TODO:
+    // Use visitor which visits type::type
     template<class String = char const* const>
     llvm::Value *create_alloca(type::type const& t, bool const init_by_zero = true, String const& name = "")
     {
@@ -348,6 +368,8 @@ public:
                 return allocated;
             }
 
+            // Note:
+            // Why doesn't this assertion fail in tests?
             assert((*array)->size);
             for (uint32_t const idx : helper::indices(*(*array)->size)) {
                 ctx.builder.CreateStore(
@@ -355,6 +377,8 @@ public:
                         ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx)
                     );
             }
+        } else if (auto const ptr = type::get<type::pointer_type>(t)) {
+            return allocated;
         } else if (auto const tuple = type::get<type::tuple_type>(t)) {
             // TODO:
             // If all members are built-in type, use memcpy to copy all elements
@@ -450,6 +474,8 @@ public:
         return ctx.builder.CreateStore(ctx.builder.CreateLoad(from), to);
     }
 
+    // TODO:
+    // Use visitor which visits type::type
     template<class V1, class V2>
     void create_deep_copy_impl(V1 *const from, V2 *const to, type::type const& t)
     {
@@ -502,6 +528,10 @@ public:
 
                 create_deep_copy(elem_from, elem_to, elem_type);
             }
+        } else if (type::is_a<type::pointer_type>(t)) {
+            // Note:
+            // Shallow copy
+            ctx.builder.CreateStore(from, to);
         } else if (auto const clazz_ = type::get<type::class_type>(t)) {
             auto const& clazz = *clazz_;
             assert(clazz->param_types.empty());
