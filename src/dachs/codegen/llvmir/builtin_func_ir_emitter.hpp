@@ -168,7 +168,7 @@ public:
     llvm::Function *emit_print_func(std::string const& name, type::builtin_type const& arg_type)
     {
         return emit_print_func_prototype(
-                println_func_table,
+                name == "print" ? print_func_table : println_func_table,
                 make_print_func_name(name, arg_type->to_string()),
                 arg_type
             );
@@ -178,7 +178,7 @@ public:
     {
         if (arg_type->element_type.is_builtin("char")) {
             return emit_print_func_prototype(
-                    println_func_table,
+                    name == "print" ? print_func_table : println_func_table,
                     make_print_func_name(name, "string"),
                     arg_type
                 );
