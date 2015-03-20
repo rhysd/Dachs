@@ -3092,4 +3092,19 @@ BOOST_AUTO_TEST_CASE(type_specifier)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(pointer)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            new pointer(int){1u, 'a'}
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            new pointer(int){1}
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -1286,7 +1286,7 @@ BOOST_AUTO_TEST_CASE(pointer)
             end
 
             do
-                var p := new pointer(int){42}
+                var p := new pointer(int){42u}
                 p[3] = -30
                 p[3].println
             end
@@ -1298,6 +1298,82 @@ BOOST_AUTO_TEST_CASE(pointer)
             end
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            var s := new pointer(char){4u}
+            s[0] = 'i'
+            s[1] = 'n'
+            s[2] = 'u'
+            s[3] = '\0'
+            s.println
+            s[2].println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(p)
+        end
+
+        func foo2(p : pointer(char))
+        end
+
+        func foo3(p : pointer)
+        end
+
+        func foo4(var p)
+        end
+
+        func foo5(var p : pointer(char))
+        end
+
+        func foo6(var p : pointer)
+        end
+
+        func main
+            var s := new pointer(char){4u}
+            s = new pointer(char){10u}
+
+            var i := 3u
+            s = new pointer(char){i}
+
+            i = 0u
+            s = new pointer(char){0u}
+            s = new pointer(char){i}
+
+            s : pointer(char)
+            s : pointer
+
+            foo(s)
+            foo2(s)
+            foo3(s)
+            foo4(s)
+            foo5(s)
+            foo6(s)
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            var p := new pointer(pointer(char)){4u}
+            var i := 0u
+            for i < 4u
+                p[i] = new pointer(char){4u}
+                p[i][0] = 'i'
+                p[i][1] = 'n'
+                p[i][2] = 'u'
+                p[i][3] = '\0'
+                i += 1u
+            end
+
+            i = 0u
+            for i < 4u
+                p[i].println
+                i += 1u
+            end
+        end
+    )");
+
 }
 
 BOOST_AUTO_TEST_SUITE_END()

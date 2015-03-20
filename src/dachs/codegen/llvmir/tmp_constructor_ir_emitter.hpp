@@ -58,8 +58,9 @@ class tmp_constructor_ir_emitter {
             assert(arg_values.size() == 1u);
             auto helper = builder::block_branch_helper<Node>{node, ctx};
 
-            auto *const elem_ty = llvm::dyn_cast<llvm::PointerType>(type_emitter.emit(p));
-            assert(elem_ty);
+            auto *const ty = llvm::dyn_cast<llvm::PointerType>(type_emitter.emit(p));
+            assert(ty);
+            auto *const elem_ty = ty->getPointerElementType();
 
             auto const emit_malloc =
                 [&](auto *const insert_after)
@@ -69,7 +70,7 @@ class tmp_constructor_ir_emitter {
                         = llvm::CallInst::CreateMalloc(
                                 insert_after,
                                 intptr_ty,
-                                elem_ty->getPointerElementType(),
+                                elem_ty,
                                 llvm::ConstantInt::get(intptr_ty, ctx.data_layout->getTypeAllocSize(elem_ty)),
                                 arg_values[0],
                                 nullptr /*malloc func*/,
@@ -82,7 +83,7 @@ class tmp_constructor_ir_emitter {
             if (auto *const const_size = llvm::dyn_cast<llvm::ConstantInt>(arg_values[0])) {
                 auto const size = const_size->getZExtValue();
                 if (size == 0) {
-                    return llvm::ConstantPointerNull::get(elem_ty);
+                    return llvm::ConstantPointerNull::get(ty);
                 } else {
                     return emit_malloc(ctx.builder.GetInsertBlock());
                 }
@@ -96,13 +97,13 @@ class tmp_constructor_ir_emitter {
 
             helper.create_cond_br(cond, then_block, else_block);
 
-            auto *const then_value = llvm::ConstantPointerNull::get(elem_ty);
+            auto *const then_value = llvm::ConstantPointerNull::get(ty);
             helper.terminate_with_br(merge_block, else_block);
 
             auto *const else_value = emit_malloc(else_block);
             helper.terminate_with_br(merge_block, merge_block);
 
-            auto *const phi = ctx.builder.CreatePHI(elem_ty, 2, "expr.if.tmp");
+            auto *const phi = ctx.builder.CreatePHI(ty, 2, "expr.if.tmp");
             phi->addIncoming(then_value, then_block);
             phi->addIncoming(else_value, else_block);
 

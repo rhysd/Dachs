@@ -338,8 +338,10 @@ public:
             assert(arg_types.size() == 1);
             if (auto const b = type::get<type::builtin_type>(arg_types[0])) {
                 return emit_print_func(name, *b);
-            } if (auto const a = type::get<type::array_type>(arg_types[0])) {
+            } else if (auto const a = type::get<type::array_type>(arg_types[0])) {
                 return emit_print_func(name, *a);
+            } else if (auto const p = type::get<type::pointer_type>(arg_types[0])) {
+                return emit_print_func(name, *p);
             }
         } else if (name == "__builtin_read_cycle_counter") {
             return emit_read_cycle_counter_func();

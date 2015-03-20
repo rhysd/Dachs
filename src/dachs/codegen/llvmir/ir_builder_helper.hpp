@@ -168,13 +168,14 @@ public:
 
 class inst_emit_helper {
     context &ctx;
+    type_ir_emitter &type_emitter;
 
     using probable_type = helper::probable<llvm::Value *>;
 
 public:
 
-    explicit inst_emit_helper(context &c)
-        : ctx(c)
+    inst_emit_helper(context &c, type_ir_emitter &e)
+        : ctx(c), type_emitter(e)
     {}
 
     llvm::Value *emit_elem_value(llvm::Value *const v, type::type const& t)
@@ -240,13 +241,17 @@ public:
             );
     }
 
-    probable_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::pointer_type const& t)
+    probable_type emit_builtin_element_access(llvm::Value *const ptr_value, llvm::Value *const index, type::pointer_type const& t)
     {
         assert(aggregate->getType()->isPointerTy());
 
+        // Note:
+        // Pointer's type may be T** because 'alloca T*' is executed to make pointer instance.
+        // It is necessary to load it before access to its contents.
+        auto *const ty = type_emitter.emit(t);
         return emit_elem_value(
                 ctx.builder.CreateInBoundsGEP(
-                    aggregate,
+                    ty == ptr_value->getType() ? ptr_value : ctx.builder.CreateLoad(ptr_value),
                     index
                 ), t->pointee_type
             );

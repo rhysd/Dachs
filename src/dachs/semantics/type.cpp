@@ -523,6 +523,8 @@ bool any_type::is_template() const noexcept
         return (*c)->is_template();
     } else if (auto const a = get_as<array_type>(value)){
         return (*a)->element_type.is_template();
+    } else if (auto const p = get_as<pointer_type>(value)){
+        return (*p)->pointee_type.is_template();
     } else {
         return has<template_type>(value);
     }
