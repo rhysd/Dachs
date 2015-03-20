@@ -1377,10 +1377,12 @@ BOOST_AUTO_TEST_CASE(pointer)
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func main
             p1 := new pointer(int){0u}
-            p2 := new pointer(int){1u}
+            p2 := new pointer(float){1u}
 
             p1.null?.println
             p2.null?.println
+            null?(p1).println
+            null?(p2).println
         end
     )");
 }

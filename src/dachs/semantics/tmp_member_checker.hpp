@@ -71,14 +71,6 @@ struct member_variable_checker : boost::static_visitor<helper::probable<type::ty
         return type::type{};
     }
 
-    result_type operator()(type::pointer_type const&) const
-    {
-        if (member_name == "null?") {
-            return builtin_type("bool");
-        }
-        return type::type{};
-    }
-
     template<class T>
     result_type operator()(T const&) const
     {
