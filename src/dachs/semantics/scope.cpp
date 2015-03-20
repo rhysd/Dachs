@@ -13,6 +13,7 @@
 #include <boost/range/algorithm/max_element.hpp>
 #include <boost/range/numeric.hpp>
 #include <boost/algorithm/string/join.hpp>
+#include <boost/variant/static_visitor.hpp>
 
 #include "dachs/semantics/scope.hpp"
 #include "dachs/ast/ast.hpp"
@@ -31,42 +32,57 @@ using std::size_t;
 
 namespace detail {
 
-// XXX
-// Use visitor! Now it can count class_type's depth only.
+struct template_depth_calculator : boost::static_visitor<unsigned int> {
+    result_type apply_recursively(type::type const& t) const
+    {
+        return t.apply_visitor(*this);
+    }
 
-inline size_t calc_depth_of_template(type::class_type const& clazz)
-{
-    size_t depth = 1u;
-
-    for (auto const& t : clazz->param_types) {
-        if (auto const c = type::get<type::class_type>(t)) {
-            auto const d = calc_depth_of_template(*c);
-            if (depth < d + 1) {
-                depth = d + 1;
+    result_type operator()(type::class_type const& clazz) const
+    {
+        result_type depth = 1u;
+        for (auto const& t : clazz->param_types) {
+            auto const d = apply_recursively(t) + 1u;
+            if (depth < d) {
+                depth = d;
             }
         }
+        return depth;
     }
 
-    return depth;
-}
-
-inline size_t calc_depth_of_template(type::array_type const& array)
-{
-    if (auto const c = type::get<type::class_type>(array->element_type)) {
-        return 1u + calc_depth_of_template(*c);
+    result_type operator()(type::array_type const& array) const
+    {
+        return 1u + apply_recursively(array->element_type);
     }
 
-    return 1u;
-}
-
-inline size_t calc_depth_of_template(type::pointer_type const& ptr)
-{
-    if (auto const c = type::get<type::class_type>(ptr->pointee_type)) {
-        return 1u + calc_depth_of_template(*c);
+    result_type operator()(type::pointer_type const& ptr) const
+    {
+        return 1u + apply_recursively(ptr->pointee_type);
     }
 
-    return 1u;
-}
+    result_type operator()(type::tuple_type const& tuple) const
+    {
+        result_type depth = 1u;
+        for (auto const& t : tuple->element_types) {
+            auto const d = apply_recursively(t) + 1u;
+            if (depth < d) {
+                depth = d;
+            }
+        }
+        return depth;
+    }
+
+    result_type operator()(type::template_type const&)
+    {
+        return 0u;
+    }
+
+    template<class T>
+    result_type operator()(T const&) const
+    {
+        return 1u;
+    }
+};
 
 auto get_parameter_score(type::type const& arg_type, type::type const& param_type)
 {
@@ -79,58 +95,43 @@ auto get_parameter_score(type::type const& arg_type, type::type const& param_typ
         return std::make_tuple(1u, 0u, 0u);
     }
 
-    if (param_type.is_class_template() && type::is_a<type::class_type>(arg_type)) {
-        auto const lhs_class = *type::get<type::class_type>(param_type);
-        auto const rhs_class = *type::get<type::class_type>(arg_type);
+    if (arg_type.is_instantiated_from(param_type)) {
+        // Note:
+        // When the lhs parameter is class template and the rhs argument is
+        // class which is instantiated from the same class template, they match
+        // more strongly than simple template match and more weakly than the
+        // perfect match.
+        //   e.g.
+        //      class Foo
+        //          a
+        //      end
+        //
+        //      func foo(a : Foo)
+        //      end
+        //
+        //      func main
+        //          foo(new Foo{42})  # Calls foo(Foo(int))
+        //      end
 
-        // TODO:
-        // Use is_instantiated_from to check the parameter type more restrict
-        if (type::is_instantiated_from(rhs_class, lhs_class)) {
-            // Note:
-            // When the lhs parameter is class template and the rhs argument is
-            // class which is instantiated from the same class template, they match
-            // more strongly than simple template match and more weakly than the
-            // perfect match.
-            //   e.g.
-            //      class Foo
-            //          a
-            //      end
-            //
-            //      func foo(a : Foo)
-            //      end
-            //
-            //      func main
-            //          foo(new Foo{42})  # Calls foo(Foo(int))
-            //      end
-
-            // Note:
-            // This matching is used in a receiver of member function
-            //
-            //   e.g.
-            //      class Foo
-            //          a
-            //
-            //          func foo
-            //          end
-            //      end
-            //
-            //  The member function foo() is defined actually like below
-            //
-            //      func foo(self : Foo)
-            //      end
-            //
-            //  Actually '(new Foo{42}).foo()' means calling foo(Foo(int)) by UFCS
-
-            return std::make_tuple(2u, 0u, static_cast<unsigned int>(calc_depth_of_template(lhs_class)));
-        }
-    }
-
-    if (auto const lhs_array = type::get<type::array_type>(param_type)) {
-        if (auto const rhs_array = type::get<type::array_type>(arg_type)) {
-            if (type::is_instantiated_from(*rhs_array, *lhs_array)) {
-                return std::make_tuple(2u, 0u, static_cast<unsigned int>(calc_depth_of_template(*lhs_array)));
-            }
-        }
+        // Note:
+        // This matching is used in a receiver of member function
+        //
+        //   e.g.
+        //      class Foo
+        //          a
+        //
+        //          func foo
+        //          end
+        //      end
+        //
+        //  The member function foo() is defined actually like below
+        //
+        //      func foo(self : Foo)
+        //      end
+        //
+        //  Actually '(new Foo{42}).foo()' means calling foo(Foo(int)) by UFCS
+        template_depth_calculator calculator;
+        return std::make_tuple(2u, 0u, param_type.apply_visitor(calculator));
     }
 
     if (param_type == arg_type) {
