@@ -649,7 +649,7 @@ struct template_type final : public basic_type {
 
     bool is_default_constructible() const noexcept override
     {
-        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        return false;
     }
 };
 

@@ -71,6 +71,21 @@ class tmp_member_ir_emitter {
             return nullptr;
         }
 
+        val operator()(type::pointer_type const&)
+        {
+            if (name == "null?") {
+                auto *const ty = llvm::dyn_cast<llvm::PointerType>(value->getType());
+                assert(ty);
+                return ctx.builder.CreateICmpEQ(
+                        llvm::ConstantPointerNull::get(ty),
+                        value,
+                        "is_null"
+                    );
+            }
+
+            return nullptr;
+        }
+
         template<class T>
         val operator()(T const&)
         {

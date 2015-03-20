@@ -1374,6 +1374,15 @@ BOOST_AUTO_TEST_CASE(pointer)
         end
     )");
 
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            p1 := new pointer(int){0u}
+            p2 := new pointer(int){1u}
+
+            p1.null?.println
+            p2.null?.println
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

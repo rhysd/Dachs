@@ -56,6 +56,9 @@ struct ctor_checker {
         a->size = *maybe_uint;
 
         if (args.size() == 1) {
+            if (a->element_type.is_template()) {
+                return std::string{"Type of element of array can't be determined"};
+            }
             if (!a->element_type.is_default_constructible()) {
                 return (
                         boost::format("  Element of static_array '%1%' is not default constructible") % a->to_string()
@@ -88,6 +91,10 @@ struct ctor_checker {
         }
 
         auto const arg_type = type::type_of(args[0]);
+        if (!arg_type || p->pointee_type.is_template()) {
+            return std::string{"  Invalid pointee element type for pointer construction"};
+        }
+
         if (!arg_type.is_builtin("uint")) {
             return (
                 boost::format(
