@@ -243,7 +243,7 @@ public:
 
     probable_type emit_builtin_element_access(llvm::Value *const ptr_value, llvm::Value *const index, type::pointer_type const& t)
     {
-        assert(aggregate->getType()->isPointerTy());
+        assert(ptr_value->getType()->isPointerTy());
 
         // Note:
         // Pointer's type may be T** because 'alloca T*' is executed to make pointer instance.

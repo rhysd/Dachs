@@ -712,8 +712,8 @@ public:
                     std::vector<type::type>{
                         clazz->type,
                         type::get_builtin_type("uint", type::no_opt),
-                        type::make<type::array_type>(
-                                type::make<type::array_type>(
+                        type::make<type::pointer_type>(
+                                type::make<type::pointer_type>(
                                     type::get_builtin_type("char", type::no_opt)
                                 )
                             )
@@ -1235,7 +1235,7 @@ public:
                     str_scope,
                     std::vector<type::type>{
                         str_scope->type,
-                        type::make<type::array_type>(type::get_builtin_type("char", type::no_opt)),
+                        type::make<type::pointer_type>(type::get_builtin_type("char", type::no_opt)),
                         type::get_builtin_type("uint", type::no_opt)
                     }
                 );

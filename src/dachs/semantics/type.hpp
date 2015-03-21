@@ -204,7 +204,7 @@ public:
     bool is_aggregate() const noexcept;
 
     boost::optional<array_type const&> get_array_underlying_type() const;
-    boost::optional<array_type const&> get_string_underlying_type() const;
+    boost::optional<pointer_type const&> get_string_underlying_type() const;
 
     // Note:
     // Visitor && is not available because boost::apply_visitor
@@ -364,7 +364,7 @@ struct class_type final : public named_type {
     bool is_instantiated_from(type::class_type const&) const;
 
     boost::optional<type::array_type const&> get_array_underlying_type() const;
-    boost::optional<type::array_type const&> get_string_underlying_type() const;
+    boost::optional<type::pointer_type const&> get_string_underlying_type() const;
 };
 
 struct tuple_type final : public basic_type {

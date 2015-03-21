@@ -488,7 +488,7 @@ boost::optional<array_type const&> any_type::get_array_underlying_type() const
     return (*c)->get_array_underlying_type();
 }
 
-boost::optional<array_type const&> any_type::get_string_underlying_type() const
+boost::optional<pointer_type const&> any_type::get_string_underlying_type() const
 {
     auto const c = get_as<class_type>(value);
     if (!c) {
@@ -837,7 +837,7 @@ boost::optional<type::array_type const&> class_type::get_array_underlying_type()
     return boost::none;
 }
 
-boost::optional<type::array_type const&> class_type::get_string_underlying_type() const
+boost::optional<type::pointer_type const&> class_type::get_string_underlying_type() const
 {
     if (name != "string") {
         return boost::none;
@@ -848,7 +848,7 @@ boost::optional<type::array_type const&> class_type::get_string_underlying_type(
     if (!ref.expired()) {
         auto const& syms = ref.lock()->instance_var_symbols;
         if (syms.size() == 2 /*data, size*/) {
-            return type::get<type::array_type>(syms[0]->type);
+            return type::get<type::pointer_type>(syms[0]->type);
         }
     }
 

@@ -815,13 +815,11 @@ public:
     val emit(ast::node::string_literal const& literal)
     {
         assert(literal->type.is_string_class());
-        auto const underlying_type = literal->type.get_string_underlying_type();
-        assert(underlying_type);
 
         auto *const native_string_value = ctx.builder.CreateGlobalStringPtr(literal->value.c_str());
         auto *const size_value = llvm::ConstantInt::get(
                         llvm::Type::getInt64Ty(ctx.llvm_context),
-                        static_cast<std::uint64_t const>(literal->value.size()),
+                        static_cast<std::uint64_t>(literal->value.size()),
                         false
                     );
 
