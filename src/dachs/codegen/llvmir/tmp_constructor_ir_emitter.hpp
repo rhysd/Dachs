@@ -15,11 +15,14 @@
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/ir_builder_helper.hpp"
 #include "dachs/helper/util.hpp"
+#include "dachs/helper/llvm.hpp"
 
 namespace dachs {
 namespace codegen {
 namespace llvmir {
 namespace detail {
+
+using helper::dump;
 
 class tmp_constructor_ir_emitter {
     using val = llvm::Value *;

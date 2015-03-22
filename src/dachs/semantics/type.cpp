@@ -363,7 +363,7 @@ bool any_type::is_aggregate() const noexcept
     return !is_builtin() && !has<pointer_type>(value);
 }
 
-boost::optional<array_type const&> any_type::get_array_underlying_type() const
+boost::optional<pointer_type const&> any_type::get_array_underlying_type() const
 {
     auto const c = get_as<class_type>(value);
     if (!c) {
@@ -642,10 +642,9 @@ bool class_type::is_template() const
 std::string class_type::to_string() const noexcept
 {
     assert(!ref.expired());
-    if (auto const array = get_array_underlying_type()) {
-        auto const& a = *array;
-        return '[' + a->element_type.to_string()
-            + (a->size ? ',' + std::to_string(*a->size) + ']' : "]");
+    if (auto const ptr = get_array_underlying_type()) {
+        auto const& p = *ptr;
+        return '[' + p->pointee_type.to_string() + ']';
     } else {
         return "class " + name + stringize_param_types();
     }
@@ -683,19 +682,19 @@ bool class_type::is_default_constructible() const noexcept
     return true;
 }
 
-boost::optional<type::array_type const&> class_type::get_array_underlying_type() const
+boost::optional<type::pointer_type const&> class_type::get_array_underlying_type() const
 {
     if (name != "array") {
         return boost::none;
     }
 
     if (param_types.size() == 1) {
-        return type::get<type::array_type>(param_types[0]);
+        return type::get<type::pointer_type>(param_types[0]);
     } else if (param_types.empty() && !ref.expired()) {
         auto const scope = ref.lock();
         auto const& syms = scope->instance_var_symbols;
         if (syms.size() == 3 /*buf, capacity, size*/) {
-            return type::get<type::array_type>(syms[0]->type);
+            return type::get<type::pointer_type>(syms[0]->type);
         }
     }
 

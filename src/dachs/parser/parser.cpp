@@ -1026,7 +1026,7 @@ public:
                         return helper::make<ast::node::primary_type>(
                                 "array",
                                 std::vector<ast::node::any_type>{
-                                    helper::make<ast::node::array_type>(
+                                    helper::make<ast::node::pointer_type>(
                                         std::forward<decltype(param_type)>(param_type)
                                     )
                                 }

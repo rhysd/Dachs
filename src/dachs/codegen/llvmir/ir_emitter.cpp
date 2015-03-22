@@ -754,7 +754,9 @@ public:
         return emit_tuple_constant(the_type, elem_exprs);
     }
 
-    val emit_array_constant(type::array_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
+
+    template<class ArrayType, class ElemType, class Exprs>
+    val emit_array_constant_impl(ArrayType const& array, ElemType const& elem, Exprs const& elem_exprs)
     {
         std::vector<val> elem_values;
         elem_values.reserve(elem_exprs.size());
@@ -763,7 +765,7 @@ public:
         }
 
         if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
-            auto *const array_ty = type_emitter.emit_alloc_fixed_array(t);
+            auto *const array_ty = type_emitter.emit_alloc_fixed_array(elem, elem_exprs.size());
 
             std::vector<llvm::Constant *> elem_consts;
             for (auto const v : elem_values) {
@@ -783,20 +785,31 @@ public:
 
             return ctx.builder.CreateConstInBoundsGEP2_32(constant, 0u, 0u);
         } else {
-            auto *const alloca_inst = alloc_emitter.create_alloca(t, false/*not initialize*/, "arraylit");
+            auto *const allocated = alloc_emitter.create_alloca(array, false/*not initialize*/, "arraylit");
             for (auto const idx : helper::indices(elem_exprs)) {
+                auto *const elem_value = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);
                 alloc_emitter.create_deep_copy(
                         elem_values[idx],
                         load_aggregate_elem(
-                            ctx.builder.CreateConstInBoundsGEP1_32(alloca_inst, idx),
-                            t->element_type
+                            elem_value,
+                            elem
                         ),
-                        t->element_type
+                        elem
                     );
             }
 
-            return alloca_inst;
+            return allocated;
         }
+    }
+
+    val emit_array_constant(type::array_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
+    {
+        return emit_array_constant_impl(t, t->element_type, elem_exprs);
+    }
+
+    val emit_array_constant(type::pointer_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
+    {
+        return emit_array_constant_impl(t, t->pointee_type, elem_exprs);
     }
 
     val emit(ast::node::tuple_literal const& tuple)
@@ -853,7 +866,8 @@ public:
                 literal,
                 *type::get<type::class_type>(literal->type),
                 std::vector<val> {
-                    native_array_value
+                    native_array_value,
+                    ctx.builder.getInt64(literal->element_exprs.size())
                 }
             );
     }

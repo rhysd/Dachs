@@ -203,7 +203,7 @@ public:
     bool is_string_class() const noexcept;
     bool is_aggregate() const noexcept;
 
-    boost::optional<array_type const&> get_array_underlying_type() const;
+    boost::optional<pointer_type const&> get_array_underlying_type() const;
     boost::optional<pointer_type const&> get_string_underlying_type() const;
 
     // Note:
@@ -369,7 +369,7 @@ struct class_type final : public named_type {
 
     bool is_instantiated_from(type::class_type const&) const;
 
-    boost::optional<type::array_type const&> get_array_underlying_type() const;
+    boost::optional<type::pointer_type const&> get_array_underlying_type() const;
     boost::optional<type::pointer_type const&> get_string_underlying_type() const;
 };
 

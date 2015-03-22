@@ -443,13 +443,13 @@ BOOST_AUTO_TEST_CASE(object_construction)
         end
 
         func main
-            a := new [char]{4u}
-            var b := new [float]{4u}
+            a := new [char]{4u, '\0'}
+            var b := new [float]{4u, 0.0}
             c := new [float]{4u, 3.14}
             var d := new [char]{4u, 'd'}
             var s := new [string]{4u, "aaa"}
 
-            var e := new [uint]{32u}
+            var e := new [uint]{32u, 0u}
             var x := new [X]{4u, new X}
 
             var i := 0u
@@ -1007,7 +1007,7 @@ BOOST_AUTO_TEST_CASE(getchar_builtin_function)
         end
 
         func main
-            s := gets(new [char]{256u})
+            s := gets(new [char]{256u, '\0'})
             for c in s
                 if c == '\0'
                     ret 0

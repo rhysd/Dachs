@@ -3,8 +3,9 @@
 
 #include <vector>
 #include <unordered_map>
-#include <cassert>
 #include <type_traits>
+#include <cassert>
+#include <cstddef>
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/DerivedTypes.h>
@@ -231,8 +232,13 @@ public:
         if (!a->size) {
             emitter_impl.error("  Size of array '" + a->to_string() + "' is unknown");
         }
-
         return llvm::ArrayType::get(emitter_impl.emit(a->element_type), *a->size);
+    }
+
+    template<class ElemType>
+    llvm::ArrayType *emit_alloc_fixed_array(ElemType const& e, std::size_t const size)
+    {
+        return llvm::ArrayType::get(emitter_impl.emit(e), size);
     }
 };
 

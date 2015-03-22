@@ -9,15 +9,21 @@
 namespace dachs {
 namespace helper {
 
-void dump(llvm::Value const* const v) noexcept
+void dump(llvm::Value const* const v)
 {
-    v->getType();
-    std::cout << ": " << std::flush;
+    v->getType()->dump();
+    std::cerr << ": " << std::flush;
     v->dump();
 }
 
+void dump(llvm::Type const* const t)
+{
+    t->dump();
+    std::cerr << std::endl;
+}
+
 template<class T>
-T p(T const v)
+T inspect(T const v)
 {
     v->dump();
     return v;

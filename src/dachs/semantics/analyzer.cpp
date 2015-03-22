@@ -1150,7 +1150,8 @@ public:
                 array_class,
                 std::vector<type::type>{
                     array_class->type,
-                    type::make<type::array_type>(elem_type, arr_lit->element_exprs.size())
+                    type::make<type::pointer_type>(elem_type),
+                    type::get_builtin_type("uint", type::no_opt)
                 }
             );
 
@@ -1178,9 +1179,8 @@ public:
                 return;
             }
 
-            if (auto const a = arr_lit->type.get_array_underlying_type()) {
-                (*a)->size = 0u;
-                visit_array_literal_construction(arr_lit, (*a)->element_type);
+            if (auto const p = arr_lit->type.get_array_underlying_type()) {
+                visit_array_literal_construction(arr_lit, (*p)->pointee_type);
                 return;
             } else {
                 semantic_error(arr_lit, "  Invalid type '" + arr_lit->type.to_string() + "' is specified for array literal");
@@ -1874,7 +1874,7 @@ public:
 
         if (specified_type.is_array_class()) {
             // Note:
-            // Edge case when typing for empty array literals
+            // Edge case for empty array literals
             apply_lambda(
                 [&](auto const& node)
                 {
@@ -1902,33 +1902,22 @@ public:
             return;
         }
 
-        auto const compare_array_elem_type
-            = [&typed](auto const& lhs, auto const& rhs)
-            {
-                if (lhs->element_type == rhs->element_type) {
-                    typed->type = rhs;
-                    return true;
-                } else {
-                    return false;
-                }
-            };
-
         // Note:
         // This is workaround related to the difference of size of array.
         // User doesn't specify the length of array and any length array should be accepted
         // as actual type.  However, type::array_type::operator== checks equality strictly.
         // So ignore the length on comparing here.
-        if (auto const specified_array = type::get<type::array_type>(specified_type)) {
-            if (auto const actual_array = type::get<type::array_type>(actual_type)) {
-                if (compare_array_elem_type(*specified_array, *actual_array)) {
+        if (auto const s = type::get<type::array_type>(specified_type)) {
+            if (auto const a = type::get<type::array_type>(actual_type)) {
+                if ((*s)->element_type == (*a)->element_type) {
                     typed->type = actual_type;
                     return;
                 }
             }
         }
-        if (auto const specified_array = specified_type.get_array_underlying_type()) {
-            if (auto const actual_array = actual_type.get_array_underlying_type()) {
-                if (compare_array_elem_type(*specified_array, *actual_array)) {
+        if (auto const s = specified_type.get_array_underlying_type()) {
+            if (auto const a = actual_type.get_array_underlying_type()) {
+                if ((*s)->pointee_type == (*a)->pointee_type) {
                     typed->type = actual_type;
                     return;
                 }
@@ -2599,17 +2588,6 @@ public:
         }
 
         w();
-
-        // Note:
-        // Edge case when child static_array knows the its length and array class doesn't know.
-        // The static_array notifies the length to array class.
-        if (obj->type.is_array_class()) {
-            if (obj->args.size() == 1) {
-                if (auto const array_from_child = type::get<type::array_type>(type_of(obj->args[0]))) {
-                    (*type::get<type::class_type>(obj->type))->param_types.push_back(*array_from_child);
-                }
-            }
-        }
 
         if (!instantiate_all(obj->type, obj)) {
             return;

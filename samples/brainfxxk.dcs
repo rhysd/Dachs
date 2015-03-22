@@ -106,7 +106,7 @@ end
 func main
     program := "+++++++++[>++++++++>+++++++++++>+++++<<<-]>.>++.+++++++..+++.>-.------------.<++++++++.--------.+++.------.--------.>+."
 
-    var memory := new [int]{5000u}
+    var memory := new [int]{5000u, 0}
     var interpreter := new BrainFxxk{memory}
     interpreter.run program
 end
