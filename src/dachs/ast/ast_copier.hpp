@@ -182,6 +182,11 @@ public:
         return copy_node<node::pointer_type>(pt, copy(pt->pointee_type));
     }
 
+    auto copy(node::typeof_type const& tt) const
+    {
+        return copy_node<node::typeof_type>(tt, copy(tt->expr));
+    }
+
     auto copy(node::tuple_type const& tt) const
     {
         return copy_node<node::tuple_type>(tt, copy(tt->arg_types));

@@ -1387,4 +1387,23 @@ BOOST_AUTO_TEST_CASE(pointer)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(typeof)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        func foo(a)
+            ret a + 42
+        end
+
+        func main
+            var i := 42
+            x := new X(typeof(foo(i)))
+            i : typeof(x.a * 2)
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

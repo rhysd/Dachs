@@ -333,10 +333,16 @@ struct class_type final : public named_type {
     std::vector<type::any_type> param_types;
 
     explicit class_type(scope::class_scope const& s) noexcept;
-    class_type(class_type const&) = default;
+    class_type(class_type const&);
 
     template<class Types>
-    class_type(scope::class_scope const& s, Types const& types) noexcept;
+    class_type(scope::class_scope const& s, Types const& types) noexcept
+        : class_type(s)
+    {
+        for (auto const& t : types) {
+            param_types.push_back(t);
+        }
+    }
 
     std::string stringize_param_types() const;
     std::string to_string() const noexcept override;
@@ -676,7 +682,6 @@ inline any_type type_of(Variant const& v) noexcept
     return apply_lambda([](auto const& n){ return n->type; }, v);
 }
 
-helper::probable<any_type> from_ast(ast::node::any_type const&, scope::any_scope const& current) noexcept;
 ast::node::any_type to_ast(any_type const&, ast::location_type &&) noexcept;
 ast::node::any_type to_ast(any_type const&, ast::location_type const&) noexcept;
 bool is_instantiated_from(class_type const& instantiated_class, class_type const& template_class);

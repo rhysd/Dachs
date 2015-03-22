@@ -1066,9 +1066,16 @@ public:
                 make_and_assign_to_val<ast::node::func_type>(as_vector(_1))
             ];
 
+        typeof_type
+            = (
+                ("typeof"_l >> '(') > typed_expr > ')'
+            ) [
+                _val = make_node_ptr<ast::node::typeof_type>(_1)
+            ];
+
         compound_type
             = (
-                func_type | array_type | dict_type | tuple_type | nested_type
+                func_type | array_type | dict_type | tuple_type | typeof_type | nested_type
             );
 
         qualified_type
@@ -1441,6 +1448,7 @@ public:
                 , tuple_type
                 , func_type
                 , qualified_type
+                , typeof_type
                 , cast_expr
                 , mult_expr
                 , additive_expr
@@ -1586,6 +1594,7 @@ public:
         func_type.name("function type");
         compound_type.name("compound type");
         qualified_type.name("qualified type");
+        typeof_type.name("typeof type");
         if_stmt.name("if statement");
         return_stmt.name("return statement");
         case_stmt.name("case statement");
@@ -1726,6 +1735,7 @@ private:
         , func_type
         , compound_type
         , qualified_type
+        , typeof_type
     ;
 
     rule<ast::node::any_type(), qi::locals<std::vector<ast::node::any_type>>> tuple_type;

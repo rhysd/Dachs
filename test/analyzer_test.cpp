@@ -29,6 +29,12 @@ static dachs::syntax::parser p;
             BOOST_CHECK_NO_THROW(dachs::semantics::analyze_semantics(t, i)); \
         } while (false);
 
+#define CHECK_THROW_NOT_IMPLEMENTED_ERROR(...) do { \
+            auto t = p.parse((__VA_ARGS__), "test_file"); \
+            dachs::syntax::importer i{{}, "test_file"}; \
+            BOOST_CHECK_THROW(dachs::semantics::analyze_semantics(t, i), dachs::not_implemented_error); \
+        } while (false);
+
 BOOST_AUTO_TEST_SUITE(analyzer)
 
 BOOST_AUTO_TEST_CASE(symbol_duplication_ok)
@@ -3105,6 +3111,32 @@ BOOST_AUTO_TEST_CASE(pointer)
             new pointer(int){1}
         end
     )");
+}
+
+BOOST_AUTO_TEST_CASE(typeof)
+{
+    CHECK_THROW_NOT_IMPLEMENTED_ERROR(R"(
+        func foo(a, b : typeof(a))
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_NOT_IMPLEMENTED_ERROR(R"(
+        class X
+            a, b : typeof(a)
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            42 : typeof(unknown)
+        end
+    )")
 }
 
 BOOST_AUTO_TEST_SUITE_END()

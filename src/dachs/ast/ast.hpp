@@ -782,6 +782,20 @@ struct pointer_type final : public base {
     }
 };
 
+struct typeof_type final : public base {
+    node::any_expr expr;
+
+    template<class E>
+    explicit typeof_type(E && e)
+        : expr(std::forward<E>(e))
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "TYPEOF_TYPE";
+    }
+};
+
 struct tuple_type final : public base {
     // Note: length of this variable should not be 1
     std::vector<node::any_type> arg_types;

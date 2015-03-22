@@ -72,122 +72,6 @@ inline auto instance_var_types_of(T const& t)
     return ret;
 };
 
-class node_to_type_translator
-    : public boost::static_visitor<any_type> {
-
-    scope::any_scope const& current_scope;
-    boost::optional<std::string> failed_name = boost::none;
-
-    template<class T>
-    any_type apply_recursively(T const& t)
-    {
-        return boost::apply_visitor(*this, t);
-    }
-
-public:
-
-    explicit node_to_type_translator(scope::any_scope const& c)
-        : current_scope(c)
-    {}
-
-    boost::optional<std::string> const& failed()
-    {
-        return failed_name;
-    }
-
-    any_type operator()(ast::node::primary_type const& t)
-    {
-        auto const builtin = get_builtin_type(t->template_name.c_str());
-        if (builtin) {
-            return *builtin;
-        }
-
-        auto const c = apply_lambda([&t](auto const& s){ return s->resolve_class(t->template_name); }, current_scope);
-        if (!c) {
-            failed_name = t->template_name;
-            return {};
-        }
-
-        return make<class_type>(
-                *c,
-                t->holders | transformed(
-                    [this](auto const& i){ return apply_recursively(i); }
-                    )
-            );
-    }
-
-    any_type operator()(ast::node::array_type const& t)
-    {
-        if (t->elem_type) {
-            return make<array_type>(
-                        apply_recursively(*t->elem_type)
-                    );
-        } else {
-            return make<array_type>(
-                        make<template_type>(t)
-                    );
-        }
-    }
-
-    any_type operator()(ast::node::pointer_type const& t)
-    {
-        if (t->pointee_type) {
-            return make<pointer_type>(apply_recursively(*t->pointee_type));
-        } else {
-            return make<pointer_type>(make<template_type>(t));
-        }
-    }
-
-    any_type operator()(ast::node::tuple_type const& t)
-    {
-        auto const ret = make<tuple_type>();
-        ret->element_types.reserve(t->arg_types.size());
-        for (auto const& arg : t->arg_types) {
-            ret->element_types.push_back(apply_recursively(arg));
-        }
-        return ret;
-    }
-
-    any_type operator()(ast::node::qualified_type const& t)
-    {
-        qualifier new_qualifier;
-        switch (t->qualifier) {
-        case ast::symbol::qualifier::maybe:
-            new_qualifier = qualifier::maybe;
-            break;
-        default:
-            DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-        }
-
-        return make<qualified_type>(
-                    new_qualifier, apply_recursively(t->type)
-               );
-    }
-
-    any_type operator()(ast::node::func_type const& t)
-    {
-        std::vector<any_type> param_types;
-        param_types.reserve(t->arg_types.size());
-        for (auto const& a : t->arg_types) {
-            param_types.push_back(apply_recursively(a));
-        }
-
-        if (t->ret_type) {
-            return {make<func_type>(
-                    std::move(param_types),
-                    apply_recursively(*(t->ret_type))
-                )};
-        } else {
-            return {make<func_type>(std::move(param_types), get_unit_type(), ast::symbol::func_kind::proc)};
-        }
-    }
-
-    any_type operator()(ast::node::dict_type const&)
-    {
-        throw not_implemented_error{__FILE__, __func__, __LINE__, "dictionary type"};
-    }
-};
-
 class type_to_node_translator
     : public boost::static_visitor<ast::node::any_type> {
 
@@ -599,18 +483,6 @@ bool any_type::is_instantiated_from(any_type const& from) const
     }
 }
 
-helper::probable<any_type> from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept
-{
-    detail::node_to_type_translator visitor{current};
-    auto const result = boost::apply_visitor(visitor, t);
-
-    if (visitor.failed()) {
-        return helper::oops(*visitor.failed());
-    }
-
-    return result;
-}
-
 ast::node::any_type to_ast(any_type const& t, ast::location_type && location) noexcept
 {
     return boost::apply_visitor(detail::type_to_node_translator{std::move(location)}, t);
@@ -677,14 +549,7 @@ class_type::class_type(scope::class_scope const& s) noexcept
     : named_type(s->name), ref(s)
 {}
 
-template<class Types>
-class_type::class_type(scope::class_scope const& s, Types const& types) noexcept
-    : class_type(s)
-{
-    for (auto const& t : types) {
-        param_types.push_back(t);
-    }
-}
+class_type::class_type(class_type const&) = default;
 
 bool class_type::operator==(class_type const& rhs) const noexcept
 {

@@ -29,6 +29,7 @@
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/type.hpp"
+#include "dachs/semantics/type_from_ast.hpp"
 #include "dachs/semantics/error.hpp"
 #include "dachs/semantics/semantics_context.hpp"
 #include "dachs/semantics/lambda_capture_resolver.hpp"
@@ -534,7 +535,7 @@ class symbol_analyzer {
 
     type::type from_type_node(ast::node::any_type const& n) noexcept
     {
-        return type::from_ast(n, current_scope).apply(
+        return type::from_ast<decltype(*this)>(n, current_scope, *this).apply(
                 [](auto const& success){ return success; },
                 [&, this](auto const& failure)
                 {

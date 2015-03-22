@@ -239,6 +239,12 @@ public:
             + visit_optional_node(pt->pointee_type, indent+lead, "   ");
     }
 
+    String visit(node::typeof_type const& tt, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(tt, indent) + '\n'
+            + visit(tt->expr, indent+lead, "   ");
+    }
+
     String visit(node::tuple_type const& tt, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(tt, indent)
