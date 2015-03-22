@@ -248,12 +248,12 @@ public:
         // Note:
         // Pointer's type may be T** because 'alloca T*' is executed to make pointer instance.
         // It is necessary to load it before access to its contents.
-        auto *const ty = type_emitter.emit(t);
         return emit_elem_value(
                 ctx.builder.CreateInBoundsGEP(
-                    ty == ptr_value->getType() ? ptr_value : ctx.builder.CreateLoad(ptr_value),
+                    ptr_value,
                     index
-                ), t->pointee_type
+                ),
+                t->pointee_type
             );
     }
 };

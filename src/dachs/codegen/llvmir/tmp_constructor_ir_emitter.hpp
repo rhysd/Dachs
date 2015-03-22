@@ -58,9 +58,8 @@ class tmp_constructor_ir_emitter {
             assert(arg_values.size() == 1u);
             auto helper = builder::block_branch_helper<Node>{node, ctx};
 
-            auto *const ty = llvm::dyn_cast<llvm::PointerType>(type_emitter.emit(p));
-            assert(ty);
-            auto *const elem_ty = ty->getPointerElementType();
+            auto *const elem_ty = type_emitter.emit_alloc_type(p->pointee_type);
+            auto *const ty = elem_ty->getPointerTo();
 
             auto const emit_malloc =
                 [&](auto *const insert_after)
@@ -77,6 +76,9 @@ class tmp_constructor_ir_emitter {
                                 "allocated_ptr"
                             );
                     ctx.builder.Insert(emitted);
+
+                    assert(emitted->getType() == ty);
+
                     return emitted;
                 };
 

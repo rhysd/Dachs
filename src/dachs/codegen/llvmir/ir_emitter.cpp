@@ -476,7 +476,7 @@ class llvm_ir_emitter {
                 assert(!index_val->getType()->isPointerTy());
                 emit_copy_to_lhs(
                     emitter.ctx.builder.CreateInBoundsGEP(
-                        emitter.load_if_ref(child_val, child_type) /*'load_if_ref' for pointer*/,
+                        child_val,
                         index_val
                     ),
                     access->type

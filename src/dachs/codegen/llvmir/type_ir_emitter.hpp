@@ -204,11 +204,6 @@ public:
         return emitter_impl.emit(t);
     }
 
-    llvm::Type *emit_alloc_type(type::pointer_type const& t)
-    {
-        return emitter_impl.emit(t);
-    }
-
     template<class T>
     llvm::Type *emit_alloc_type(T const& t)
     {
