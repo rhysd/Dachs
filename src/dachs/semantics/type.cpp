@@ -3,6 +3,7 @@
 
 #include <boost/optional.hpp>
 #include <boost/variant/static_visitor.hpp>
+#include <boost/variant/apply_visitor.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/cxx11/any_of.hpp>
@@ -840,4 +841,107 @@ boost::optional<type::array_type const&> class_type::get_string_underlying_type(
 }
 
 } // namespace type_node
+
+namespace type {
+namespace detail {
+
+struct fuzzy_matcher : boost::static_visitor<bool> {
+    bool apply(any_type const& l, any_type const& r) const
+    {
+        if (!l || !r) {
+            return false;
+        }
+        return boost::apply_visitor(*this, l.raw_value(), r.raw_value());
+    }
+
+    template<class Types>
+    bool apply_all(Types const& ls, Types const& rs) const
+    {
+        return boost::equal(
+                ls, rs,
+                [this](auto const& l, auto const& r){ return apply(l, r); }
+            );
+    }
+
+    bool operator()(class_type const& lhs, class_type const& rhs) const
+    {
+        assert(!lhs->ref.expired() && !rhs->ref.expired());
+
+        if (lhs->name != rhs->name) {
+            return false;
+        }
+
+
+        auto const maybe_lhs_types = instance_var_types_of(*lhs);
+        auto const maybe_rhs_types = instance_var_types_of(*rhs);
+
+        if (!maybe_lhs_types || !maybe_rhs_types || (maybe_lhs_types->size() != maybe_rhs_types->size())) {
+            // Note: Error
+            return false;
+        }
+
+        for (auto const& lr : helper::zipped(*maybe_lhs_types, *maybe_rhs_types)) {
+            auto const& l = boost::get<0>(lr);
+            auto const& r = boost::get<1>(lr);
+            if (!apply(l, r)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool operator()(tuple_type const& lhs, tuple_type const& rhs) const
+    {
+        return apply_all(lhs->element_types, rhs->element_types);
+    }
+
+    bool operator()(func_type const& lhs, func_type const& rhs) const
+    {
+        return apply_all(lhs->param_types, rhs->param_types) && apply(lhs->return_type, rhs->return_type);
+    }
+
+    bool operator()(array_type const& lhs, array_type const& rhs) const
+    {
+        return apply(lhs->element_type, rhs->element_type) && lhs->size == rhs->size;
+    }
+
+    bool operator()(qualified_type const& lhs, qualified_type const& rhs) const
+    {
+        return apply(lhs->contained_type, rhs->contained_type);
+    }
+
+    bool operator()(template_type const&, template_type const&) const
+    {
+        return true;
+    }
+
+    template<class T>
+    bool operator()(template_type const&, T const&) const
+    {
+        return true;
+    }
+
+    template<class T>
+    bool operator()(T const&, template_type const&) const
+    {
+        return true;
+    }
+
+    template<class T, class U>
+    bool operator()(T const& lhs, U const& rhs) const
+    {
+        return *lhs == *rhs;
+    }
+};
+
+} // namespace detail
+
+bool fuzzy_match(any_type const& lhs, any_type const& rhs)
+{
+    detail::fuzzy_matcher matcher;
+    return matcher.apply(lhs, rhs);
+}
+
+} // namespace type
 } // namespace dachs

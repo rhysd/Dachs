@@ -2054,7 +2054,7 @@ public:
         std::unordered_map<std::string, type::type> map;
         for (auto const& s : scope->instance_var_symbols) {
             assert(s->type);
-            map[s->name] = s->type.is_template() ? type::type{} : s->type;
+            map[s->name] = type::is_a<type::template_type>(s->type) ? type::type{} : s->type;
         }
 
         return map;
@@ -2087,19 +2087,7 @@ public:
                             );
                     };
 
-                if (!var_type) {
-                    var_type = var_sym->type;
-                } else if (var_type.is_class_template() && type::is_a<type::class_type>(var_sym->type)) {
-                    // Note:
-                    // Substitute instantiated class to its class template
-
-                    auto const c1 = *type::get<type::class_type>(var_type);
-                    auto const c2 = *type::get<type::class_type>(var_sym->type);
-                    if (c1->name != c2->name) {
-                        error();
-                        return false;
-                    }
-
+                if (!var_type || var_sym->type.is_instantiated_from(var_type)) {
                     var_type = var_sym->type;
                 } else if (var_type != var_sym->type) {
                     error();

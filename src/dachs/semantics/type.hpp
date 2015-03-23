@@ -511,13 +511,7 @@ struct array_type final : public basic_type {
 
     bool operator==(array_type const& rhs) const noexcept
     {
-        if (size && rhs.size) {
-            return element_type == rhs.element_type && size == rhs.size;
-        } else if (!size && !rhs.size){
-            return element_type == rhs.element_type;
-        } else {
-            return false;
-        }
+        return element_type == rhs.element_type && size == rhs.size;
     }
 
     template<class T>
@@ -598,28 +592,6 @@ struct template_type final : public basic_type {
     boost::optional<ast::node::variable_decl> get_ast_node_as_var_decl() const noexcept;
     std::string to_string() const noexcept override;
 
-    bool operator==(template_type const& rhs)
-    {
-        auto const left_ast_as_param = get_ast_node_as_parameter();
-        auto const right_ast_as_param = rhs.get_ast_node_as_parameter();
-        if (left_ast_as_param && right_ast_as_param) {
-            // Compare two shared_ptr.  Return true when both point the same node.
-            return *left_ast_as_param == *right_ast_as_param;
-        }
-
-        auto const left_ast_as_var_decl = get_ast_node_as_var_decl();
-        auto const right_ast_as_var_decl = rhs.get_ast_node_as_var_decl();
-        if (left_ast_as_var_decl && right_ast_as_var_decl) {
-            // Compare two shared_ptr.  Return true when both point the same node.
-            return *left_ast_as_var_decl == *right_ast_as_var_decl;
-        }
-
-        // TODO: Add more possible nodes: instance variables
-        // ...
-
-        return false;
-    }
-
     template<class T>
     bool operator==(T const&) const noexcept
     {
@@ -679,6 +651,8 @@ bool any_type::is_builtin(String const& name) const noexcept
 
     return (*t)->name == name;
 }
+
+bool fuzzy_match(any_type const& lhs, any_type const& rhs);
 
 } // namespace type
 
