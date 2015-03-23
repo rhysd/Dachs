@@ -163,32 +163,30 @@ public:
     }
 };
 
-} // namespace detail
-
-template<class Analyzer>
-helper::probable<any_type> from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept
+template<class Visitor>
+helper::probable<any_type> from_ast_impl(ast::node::any_type const& t, Visitor &&v) noexcept
 {
-    detail::node_to_type_translator<Analyzer> visitor{current};
-    auto const result = boost::apply_visitor(visitor, t);
+    auto const result = boost::apply_visitor(v, t);
 
-    if (visitor.failed()) {
-        return helper::oops(*visitor.failed());
+    if (v.failed()) {
+        return helper::oops(*v.failed());
     }
 
     return result;
 }
 
+} // namespace detail
+
+template<class Analyzer>
+helper::probable<any_type> from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept
+{
+    return detail::from_ast_impl(t, detail::node_to_type_translator<Analyzer>{current});
+}
+
 template<class Analyzer>
 helper::probable<any_type> from_ast(ast::node::any_type const& t, scope::any_scope const& current, Analyzer &a) noexcept
 {
-    detail::node_to_type_translator<Analyzer> visitor{current, a};
-    auto const result = boost::apply_visitor(visitor, t);
-
-    if (visitor.failed()) {
-        return helper::oops(*visitor.failed());
-    }
-
-    return result;
+    return detail::from_ast_impl(t, detail::node_to_type_translator<Analyzer>{current, a});
 }
 
 } // namespace type

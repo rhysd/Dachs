@@ -2479,7 +2479,7 @@ public:
         if (ctor_candidates.empty()) {
             return helper::oops("  No matching constructor to construct class '" + scope->to_string() + "'");
         } else if (ctor_candidates.size() > 1u) {
-            std::string errmsg = "  Contructor candidates for '" + scope->to_string() + "' are ambiguous";
+            std::string errmsg = "  Constructor candidates for '" + scope->to_string() + "' are ambiguous";
             for (auto const& c : ctor_candidates) {
                 errmsg += "\n  Candidate: " + c->to_string();
             }

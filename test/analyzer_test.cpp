@@ -676,30 +676,30 @@ BOOST_AUTO_TEST_SUITE(class_definition)
             end
         )");
 
-        // CHECK_NO_THROW_SEMANTIC_ERROR(R"(
-        //     class X
-        //         a
-        //     end
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+            end
 
-        //     class Y
-        //         a : X(int)
+            class Y
+                a : X(int)
 
-        //         init(@a : X)
-        //         end
-        //     end
+                init(@a : X)
+                end
+            end
 
-        //     class Z
-        //         a : X(X(int))
+            class Z
+                a : X(X(int))
 
-        //         init(@a : X(X))
-        //         end
-        //     end
+                init(@a : X(X))
+                end
+            end
 
-        //     func main
-        //         new Y{new X{3}}
-        //         new Z{new X{new X{3}}}
-        //     end
-        // )");
+            func main
+                new Y{new X{3}}
+                new Z{new X{new X{3}}}
+            end
+        )");
     }
 
     BOOST_AUTO_TEST_CASE(undefined_class)
@@ -3136,7 +3136,7 @@ BOOST_AUTO_TEST_CASE(typeof)
         func main
             42 : typeof(unknown)
         end
-    )")
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

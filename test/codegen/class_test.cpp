@@ -635,6 +635,24 @@ BOOST_AUTO_TEST_CASE(do_not_degrade)
             (new X).foo
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        class Z
+            a : X(int)
+
+            init(@a : X)
+            end
+        end
+
+        func main
+            new Z{new X{3}}
+        end
+    )");
+
 }
 
 BOOST_AUTO_TEST_SUITE_END()

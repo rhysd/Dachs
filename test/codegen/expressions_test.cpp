@@ -1235,16 +1235,9 @@ BOOST_AUTO_TEST_CASE(static_array)
             v.size.println
             show_1(v)
 
-            a := [1, 2, 3]
-            b := a.data
-            for e in b
-                e.println
-            end
-            a.show_0
-            b.show_0
-            b.show_1
-
-            c := new static_array {3u, 'a'}
+            var c := new static_array {3u, 'a'}
+            c[0] = 'b'
+            c[1] = 'c'
             for e in c
                 e.println
             end
@@ -1265,11 +1258,11 @@ BOOST_AUTO_TEST_CASE(static_array)
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func main
-            a := [1, 2]
-            b : static_array(int) := a.data
+            a := new static_array{2u, 1}
+            b : static_array(int) := a
             (b : static_array(int))[1].println
             (b : static_array)[1].println
-            b2 : static_array := a.data
+            b2 : static_array := a
         end
     )");
 }
