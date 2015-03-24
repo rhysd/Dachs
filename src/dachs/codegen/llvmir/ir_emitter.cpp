@@ -865,7 +865,7 @@ public:
                 literal,
                 *type::get<type::class_type>(literal->type),
                 std::vector<val> {
-                    native_array_value,
+                    load_if_ref(native_array_value, type::type{*underlying_type}),
                     ctx.builder.getInt64(literal->element_exprs.size())
                 }
             );
@@ -1313,6 +1313,9 @@ public:
 
     val emit(ast::node::index_access const& access)
     {
+        auto *const child_val = load_if_ref(emit(access->child), access->child); // Note: Load inst for pointer
+        auto *const index_val = load_if_ref(emit(access->index_expr), access->index_expr);
+
         if (!access->callee_scope.expired()) {
             auto const callee = access->callee_scope.lock();
             assert(!callee->is_anonymous());
@@ -1322,16 +1325,16 @@ public:
                     access,
                     ctx.builder.CreateCall2(
                         emit_non_builtin_callee(access, callee),
-                        load_if_ref(emit(access->child), access->child),
-                        load_if_ref(emit(access->index_expr), access->index_expr)
+                        child_val,
+                        index_val
                     ),
                     "user-defined index access operator"
                 );
         }
 
         auto const result = inst_emitter.emit_builtin_element_access(
-                emit(access->child),
-                load_if_ref(emit(access->index_expr), access->index_expr),
+                child_val,
+                index_val,
                 type::type_of(access->child)
             );
 

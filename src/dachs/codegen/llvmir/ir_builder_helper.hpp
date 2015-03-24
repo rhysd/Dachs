@@ -182,14 +182,18 @@ public:
 
     llvm::Value *emit_elem_value(llvm::Value *const v, type::type const& t)
     {
-        if (!t.is_aggregate()) {
+        // Note:
+        // When the element is pointer, pointer should be loaded
+        if (t.is_builtin()) {
             return v;
         }
 
-        // Note:
-        // e.g. getelementptr {i64*}* %x, i32 0, i32 0
-        assert(v->getType()->getPointerElementType()->isPointerTy());
-        return ctx.builder.CreateLoad(v);
+        auto *const ty = type_emitter.emit(t);
+        if (ty == v->getType()) {
+            return v;
+        } else {
+            return ctx.builder.CreateLoad(v);
+        }
     }
 
     probable_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::type const& t)
