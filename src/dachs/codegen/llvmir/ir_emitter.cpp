@@ -131,10 +131,10 @@ class llvm_ir_emitter {
         struct automatic_popper {
             std::stack<llvm::BasicBlock *> &s;
             llvm::BasicBlock *const pushed_loop;
-            automatic_popper(decltype(s) &s, llvm::BasicBlock *const loop)
+            automatic_popper(decltype(s) &s, llvm::BasicBlock *const loop) noexcept
                 : s(s), pushed_loop(loop)
             {}
-            ~automatic_popper()
+            ~automatic_popper() noexcept
             {
                 assert(!s.empty());
                 assert(s.top() == pushed_loop);
@@ -426,9 +426,7 @@ class llvm_ir_emitter {
 
         void emit_copy_to_lhs(val const lhs_value, type::type const& lhs_type)
         {
-            if (!lhs_value) {
-                DACHS_RAISE_INTERNAL_COMPILATION_ERROR
-            }
+            assert(lhs_value);
             assert(lhs_value->getType()->isPointerTy());
 
             emitter.alloc_emitter.create_deep_copy(
@@ -472,11 +470,20 @@ class llvm_ir_emitter {
                         ),
                         access->type
                     );
-            } else if (type::is_a<type::array_type>(child_type) || type::is_a<type::pointer_type>(child_type)) {
+            } else if (type::is_a<type::array_type>(child_type)) {
                 assert(!index_val->getType()->isPointerTy());
                 emit_copy_to_lhs(
                     emitter.ctx.builder.CreateInBoundsGEP(
                         child_val,
+                        index_val
+                    ),
+                    access->type
+                );
+            } else if (type::is_a<type::pointer_type>(child_type)) {
+                assert(!index_val->getType()->isPointerTy());
+                emit_copy_to_lhs(
+                    emitter.ctx.builder.CreateInBoundsGEP(
+                        emitter.load_if_ref(child_val, child_type),
                         index_val
                     ),
                     access->type
@@ -526,10 +533,7 @@ class llvm_ir_emitter {
             auto const emitted = emitter.emit_instance_var_access((*receiver_type)->ref.lock(), ufcs);
 
             assert(emitted);
-            emit_copy_to_lhs(
-                *emitted,
-                ufcs->type
-            );
+            emit_copy_to_lhs(*emitted, ufcs->type);
         }
 
         template<class... Args>
@@ -549,11 +553,6 @@ class llvm_ir_emitter {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
     };
-
-    bool treats_by_value(type::type const& t) const
-    {
-        return t.is_builtin();
-    }
 
     // Note:
     // load_if_ref() strips reference if the value is treated by reference.
@@ -1386,8 +1385,7 @@ public:
         if (auto const maybe_idx = offset_of(ufcs->member_name)) {
             auto const& idx = *maybe_idx;
 
-            val const elem_ptr = ctx.builder.CreateStructGEP(child_val, idx);
-            return ufcs->type.is_builtin() ? elem_ptr : ctx.builder.CreateLoad(elem_ptr);
+            return ctx.builder.CreateStructGEP(child_val, idx);
         }
 
         return boost::none;
@@ -1410,7 +1408,10 @@ public:
         // Now, built-in data member is only available.
         if (auto const clazz = type::get<type::class_type>(child_type)) {
             if (auto const v = emit_instance_var_access((*clazz)->ref.lock(), ufcs)) {
-                return *v;
+                // Note:
+                // Dereference the value because emit_instance_var_access() doesn't dereference value
+                // because it is used both lhs of assign and here.
+                return deref(*v, ufcs->type);
             }
         }
 

@@ -164,7 +164,7 @@ public:
 };
 
 template<class Visitor>
-helper::probable<any_type> from_ast_impl(ast::node::any_type const& t, Visitor &&v) noexcept
+helper::probable<any_type> from_ast_impl(ast::node::any_type const& t, Visitor &&v)
 {
     auto const result = boost::apply_visitor(v, t);
 
@@ -178,13 +178,13 @@ helper::probable<any_type> from_ast_impl(ast::node::any_type const& t, Visitor &
 } // namespace detail
 
 template<class Analyzer>
-helper::probable<any_type> from_ast(ast::node::any_type const& t, scope::any_scope const& current) noexcept
+helper::probable<any_type> from_ast(ast::node::any_type const& t, scope::any_scope const& current)
 {
     return detail::from_ast_impl(t, detail::node_to_type_translator<Analyzer>{current});
 }
 
 template<class Analyzer>
-helper::probable<any_type> from_ast(ast::node::any_type const& t, scope::any_scope const& current, Analyzer &a) noexcept
+helper::probable<any_type> from_ast(ast::node::any_type const& t, scope::any_scope const& current, Analyzer &a)
 {
     return detail::from_ast_impl(t, detail::node_to_type_translator<Analyzer>{current, a});
 }

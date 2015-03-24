@@ -1378,6 +1378,18 @@ BOOST_AUTO_TEST_CASE(pointer)
             null?(p2).println
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        func main
+            var p := new X{new pointer(int){3u}}
+            p.a[0] = 10
+            p.a[0].println
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(typeof)

@@ -3111,6 +3111,16 @@ BOOST_AUTO_TEST_CASE(pointer)
             new pointer(int){1}
         end
     )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+        end
+
+        func main
+            new X{new pointer{2u}}
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(typeof)

@@ -138,7 +138,20 @@ struct type_ir_emitter_impl {
 
     llvm::PointerType *emit(type::pointer_type const& p)
     {
-        return llvm::PointerType::getUnqual(emit(p->pointee_type));
+        auto *const ty = emit(p->pointee_type);
+        if (p->pointee_type.is_aggregate()) {
+            // Note:
+            // i64* -> i64*
+            // {i64, double}* -> {i64, double}*
+            auto *const ptr = llvm::dyn_cast<llvm::PointerType>(ty);
+            assert(ptr);
+            return ptr;
+        } else {
+            // Note:
+            // double -> double*
+            // i64* -> i64**
+            return llvm::PointerType::getUnqual(ty);
+        }
     }
 
     llvm::Type *emit(type::func_type const&)
@@ -199,6 +212,13 @@ public:
     }
 
     llvm::Type *emit_alloc_type(type::builtin_type const& t)
+    {
+        // Note:
+        // No need to strip pointer type because builtin type is treated by value.
+        return emitter_impl.emit(t);
+    }
+
+    llvm::Type *emit_alloc_type(type::pointer_type const& t)
     {
         // Note:
         // No need to strip pointer type because builtin type is treated by value.

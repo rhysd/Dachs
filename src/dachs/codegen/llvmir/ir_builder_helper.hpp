@@ -15,6 +15,7 @@
 #include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/helper/util.hpp"
+#include "dachs/helper/llvm.hpp"
 #include "dachs/helper/probable.hpp"
 
 namespace dachs {
@@ -24,6 +25,7 @@ namespace builder {
 
 using boost::adaptors::filtered;
 using boost::irange;
+using helper::dump;
 
 template<class Node>
 class block_branch_helper {
@@ -180,7 +182,7 @@ public:
 
     llvm::Value *emit_elem_value(llvm::Value *const v, type::type const& t)
     {
-        if (t.is_builtin()) {
+        if (!t.is_aggregate()) {
             return v;
         }
 
