@@ -252,13 +252,16 @@ public:
         if (!a->size) {
             emitter_impl.error("  Size of array '" + a->to_string() + "' is unknown");
         }
-        return llvm::ArrayType::get(emitter_impl.emit(a->element_type), *a->size);
+        return emit_alloc_fixed_array(a->element_type, *a->size);
     }
 
-    template<class ElemType>
-    llvm::ArrayType *emit_alloc_fixed_array(ElemType const& e, std::size_t const size)
+    llvm::ArrayType *emit_alloc_fixed_array(type::type const& e, std::size_t const size)
     {
-        return llvm::ArrayType::get(emitter_impl.emit(e), size);
+        auto *const ty = e.is_aggregate()
+            ? emitter_impl.emit(e)
+            : emit_alloc_type(e);
+
+        return llvm::ArrayType::get(ty, size);
     }
 };
 
