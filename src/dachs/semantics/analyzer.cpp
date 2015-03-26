@@ -2610,16 +2610,33 @@ public:
 
         w();
 
+        auto const error
+            = [&, this]
+            {
+                if (obj->args.empty()) {
+                    return;
+                }
+
+                std::string msg = "  Error at constructing an object. Argument type(s): ";
+                for (auto const& a : obj->args) {
+                    msg += '\'' + type_of(a).to_string() + "', ";
+                }
+                semantic_error(obj, std::move(msg));
+            };
+
         if (!instantiate_param_types(obj->type, obj)) {
+            error();
             return;
         }
 
         if (auto const maybe_class_type = type::get<type::class_type>(obj->type)) {
             if (!visit_class_construct(obj, *maybe_class_type)) {
+                error();
                 obj->type = type::type{};
             }
         } else if (auto const err = detail::ctor_checker{}(obj->type, obj->args)) {
             semantic_error(obj, *err);
+            error();
             obj->type = type::type{};
         }
     }

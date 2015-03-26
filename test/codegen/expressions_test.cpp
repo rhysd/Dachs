@@ -1280,8 +1280,6 @@ BOOST_AUTO_TEST_CASE(static_array)
             for e in new static_array(int){3u}
                 e.println
             end
-
-            new X{new static_array{2u, 'a'}}
         end
     )");
 }

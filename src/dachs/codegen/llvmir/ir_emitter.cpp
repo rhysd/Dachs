@@ -1125,10 +1125,24 @@ public:
                 param_types.push_back(type::type_of(e));
             }
 
+            auto const enumerate_arg_types
+                = [&param_types]
+                {
+                    if (param_types.empty()) {
+                        return std::string{};
+                    }
+
+                    std::string msg = "\n  Note: Argument type(s): ";
+                    for (auto const& t : param_types) {
+                        msg += t.to_string() + ',';
+                    }
+                    return msg;
+                };
+
             return check(
                     n,
                     builtin_func_emitter.emit(scope->name, param_types),
-                    boost::format("builtin function '%1%'") % scope->to_string()
+                    boost::format("builtin function '%1%'%2%") % scope->to_string() % enumerate_arg_types()
                 );
         }
 
