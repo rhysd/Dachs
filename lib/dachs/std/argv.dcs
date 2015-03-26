@@ -1,3 +1,9 @@
+# Note:
+# This class is used for argument of 'main' function.
+# Compiler wraps 'argc' and 'argv' with this class.
+# I don't use [string] for that because string must know its length
+# and it means an executable must calculate each length of arguments
+# at executed.
 class argv
   - argc : uint
   - argv : pointer(pointer(char))
@@ -13,12 +19,23 @@ class argv
     func each(pred)
         var i := 0u
         for i < @argc
-            pred(@argv[i])
+            pred(new string{@argv[i]})
             i += 1u
         end
     end
 
     func size
         ret @argc
+    end
+
+    # TODO:
+    # Temporary. Replace this function with cast.
+    func as_array : [string]
+        var a := new array{@argc, ""}
+        var i := 0u
+        for i < @argc
+            a[i] = self[i]
+        end
+        ret a
     end
 end

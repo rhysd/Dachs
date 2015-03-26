@@ -1390,6 +1390,58 @@ BOOST_AUTO_TEST_CASE(pointer)
             p.a[0].println
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        import std.numeric
+
+        func main(args)
+            i := 3u
+            var p := new pointer(pointer(int)){i}
+            (0u...3u).each do |i|
+                p[i] = new pointer(int){3u}
+            end
+
+            (0u...3u).each do |i|
+                (0u...3u).each do |j|
+                    p[i][j] = i * j + i * j
+                end
+            end
+
+            (0u...3u).each do |i|
+                (0u...3u).each do |j|
+                    p[i][j].println
+                end
+            end
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        import std.numeric
+
+        class X
+            a
+        end
+
+        func main(args)
+            i := 3u
+            var p := new pointer(pointer(X(int))){i}
+            (0u...3u).each do |i|
+                p[i] = new pointer(X(int)){3u}
+            end
+
+            (0u...3u).each do |i|
+                (0u...3u).each do |j|
+                    p[i][j] = new X{i * j + i * j}
+                end
+            end
+
+            (0u...3u).each do |i|
+                (0u...3u).each do |j|
+                    p[i][j].a.println
+                end
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(typeof)
