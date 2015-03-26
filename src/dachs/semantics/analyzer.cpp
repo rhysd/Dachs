@@ -187,12 +187,15 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
         : current_scope(s), outer(o)
     {}
 
-    result_type visit(type::type const& t) noexcept
+    result_type visit(type::type const& t)
     {
+        if (!t) {
+            return std::string{"Failed to resolve template parameters: Invalid type"};
+        }
         return t.apply_visitor(*this);
     }
 
-    result_type visit(std::vector<type::type> const& ts) noexcept
+    result_type visit(std::vector<type::type> const& ts)
     {
         for (auto const& t : ts) {
             if (auto const err = visit(t)) {
@@ -202,10 +205,24 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
         return boost::none;
     }
 
-    result_type operator()(type::class_type const& t) noexcept
+    result_type visit_class_scope(type::class_type const& t)
+    {
+        if (t->ref.expired()) {
+            return boost::none;
+        }
+
+        for (auto const& s : t->ref.lock()->instance_var_symbols) {
+            if (auto const err = visit(s->type)) {
+                return err;
+            }
+        }
+        return boost::none;
+    }
+
+    result_type operator()(type::class_type const& t)
     {
         if (t->param_types.empty()) {
-            return boost::none;
+            return visit_class_scope(t);
         }
 
         if (auto const err = visit(t->param_types)) {
@@ -240,12 +257,12 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
         return boost::none;
     }
 
-    result_type operator()(type::tuple_type const& t) noexcept
+    result_type operator()(type::tuple_type const& t)
     {
         return visit(t->element_types);
     }
 
-    result_type operator()(type::func_type const& t) noexcept
+    result_type operator()(type::func_type const& t)
     {
         if (auto const err = visit(t->return_type)) {
             return err;
@@ -253,17 +270,17 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
         return visit(t->param_types);
     }
 
-    result_type operator()(type::array_type const& t) noexcept
+    result_type operator()(type::array_type const& t)
     {
         return visit(t->element_type);
     }
 
-    result_type operator()(type::pointer_type const& t) noexcept
+    result_type operator()(type::pointer_type const& t)
     {
         return visit(t->pointee_type);
     }
 
-    result_type operator()(type::qualified_type const& t) noexcept
+    result_type operator()(type::qualified_type const& t)
     {
         return visit(t->contained_type);
     }
@@ -556,8 +573,12 @@ class symbol_analyzer {
     }
 
     template<class Node>
-    bool /*success?*/ instantiate_all(type::type const& t, Node const& n)
+    bool /*success?*/ instantiate_param_types(type::type const& t, Node const& n)
     {
+        if (!t) {
+            return false;
+        }
+
         auto const error = with_current_scope(
             [&t, this](auto const& s)
             {
@@ -2589,7 +2610,7 @@ public:
 
         w();
 
-        if (!instantiate_all(obj->type, obj)) {
+        if (!instantiate_param_types(obj->type, obj)) {
             return;
         }
 
@@ -2872,7 +2893,7 @@ public:
                     return;
                 }
 
-                if (!instantiate_all(t, v)) {
+                if (!instantiate_param_types(t, v)) {
                     return;
                 }
 
@@ -3225,7 +3246,7 @@ public:
         if (param->param_type) {
             // Note:
             // 'param' has a type which is generated from type::from_ast()
-            if (!instantiate_all(param->type, param)) {
+            if (!instantiate_param_types(param->type, param)) {
                 return;
             }
         }
