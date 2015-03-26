@@ -2567,7 +2567,7 @@ public:
         return std::make_pair(std::forward<ClassScope>(scope), ctor);
     }
 
-    void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
+    bool /* success? */ visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
     {
         assert(type->param_types.empty());
 
@@ -2577,8 +2577,7 @@ public:
         for (auto const& a : obj->args) {
             auto const t = type_of(a);
             if (!t) {
-                obj->type = type::type{};
-                return;
+                return false;
             }
 
             arg_types.push_back(t);
@@ -2588,8 +2587,7 @@ public:
 
         if (auto const error = result.get_error()) {
             semantic_error(obj, *error);
-            obj->type = type::type{};
-            return;
+            return false;
         }
 
         auto const class_and_ctor = result.get_unsafe();
@@ -2597,6 +2595,8 @@ public:
         obj->constructed_class_scope = class_and_ctor.first;
         obj->callee_ctor_scope = class_and_ctor.second;
         obj->type = class_and_ctor.first->type;
+
+        return true;
     }
 
     template<class Walker>
@@ -2615,9 +2615,12 @@ public:
         }
 
         if (auto const maybe_class_type = type::get<type::class_type>(obj->type)) {
-            visit_class_construct(obj, *maybe_class_type);
+            if (!visit_class_construct(obj, *maybe_class_type)) {
+                obj->type = type::type{};
+            }
         } else if (auto const err = detail::ctor_checker{}(obj->type, obj->args)) {
             semantic_error(obj, *err);
+            obj->type = type::type{};
         }
     }
 

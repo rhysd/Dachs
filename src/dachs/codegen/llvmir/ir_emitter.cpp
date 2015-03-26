@@ -798,8 +798,6 @@ public:
                     );
             }
 
-            dump(type_emitter.emit(t), "expected: ");
-            dump(allocated->getType(), "actual: ");
             return allocated;
         }
 
