@@ -515,7 +515,7 @@ struct array_type final : public basic_type {
     std::string to_string() const noexcept override
     {
         return "static_array(" + element_type.to_string()
-            + (size ? ", " + std::to_string(*size) + ')' : ")");
+            + (size ? ")(" + std::to_string(*size) + ')' : ")");
     }
 
     bool operator==(array_type const& rhs) const noexcept

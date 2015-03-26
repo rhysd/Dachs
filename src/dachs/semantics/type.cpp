@@ -352,14 +352,6 @@ bool any_type::is_string_class() const noexcept
 
 bool any_type::is_aggregate() const noexcept
 {
-    if (is_template()) {
-        return false;
-    }
-
-    if (auto const a = get_as<array_type>(value)) {
-        return static_cast<bool>((*a)->size);
-    }
-
     return !is_builtin() && !has<pointer_type>(value);
 }
 

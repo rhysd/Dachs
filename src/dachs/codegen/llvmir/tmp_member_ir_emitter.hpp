@@ -61,11 +61,7 @@ class tmp_member_ir_emitter {
         val operator()(type::array_type const& t)
         {
             if (name == "size") {
-                if (t->size) {
-                    return ctx.builder.getInt64(*t->size);
-                } else {
-                    return nullptr;
-                }
+                return ctx.builder.getInt64(*t->size);
             }
 
             return nullptr;

@@ -1265,6 +1265,25 @@ BOOST_AUTO_TEST_CASE(static_array)
             b2 : static_array := a
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(a : static_array)
+            for e in a
+                e.println
+            end
+        end
+
+        func main
+            a := new static_array(int){3u}
+            foo(a)
+
+            for e in new static_array(int){3u}
+                e.println
+            end
+
+            new X{new static_array{2u, 'a'}}
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(pointer)

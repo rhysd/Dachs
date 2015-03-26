@@ -228,9 +228,10 @@ public:
     probable_type emit_builtin_element_access(llvm::Value *const aggregate, llvm::Value *const index, type::array_type const& t)
     {
         assert(aggregate->getType()->isPointerTy());
+        assert(t->size);
 
         auto *const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index);
-        if (constant_index && t->size) {
+        if (constant_index) {
             auto const idx = constant_index->getZExtValue();
             auto const size = *t->size;
 
@@ -294,10 +295,7 @@ public:
         }
 
         if (auto const a = type::get<type::array_type>(t)) {
-            if (!(*a)->size) {
-                return nullptr;
-            }
-
+            assert((*a)->size);
             auto const s = *(*a)->size;
             if (s == 0u) {
                 return nullptr;
@@ -339,7 +337,7 @@ public:
         return ctx.builder.CreateMemCpy(
                 dest_val,
                 src_val,
-                elem_size * (*t->size),
+                elem_size *(*t->size),
                 ctx.data_layout->getPrefTypeAlignment(array_ty)
             );
     }
@@ -348,15 +346,9 @@ public:
     llvm::Value *create_alloca_impl(type::type const& t, String const& name = "")
     {
         if (auto const a = type::get<type::array_type>(t)) {
-            if ((*a)->size) {
-                auto *const allocated = ctx.builder.CreateAlloca(type_emitter.emit_alloc_fixed_array(*a), nullptr /*size*/, name);
-                return ctx.builder.CreateConstInBoundsGEP2_32(allocated, 0u, 0u);
-            } else {
-                // TODO:
-                // Workaround for dynamic allocated static_array
-                // Simply allocate a pointer to set pointer to dynamically allocated array
-                return ctx.builder.CreateAlloca(type_emitter.emit(*a), nullptr/*size*/, name);
-            }
+            assert((*a)->size);
+            auto *const allocated = ctx.builder.CreateAlloca(type_emitter.emit_alloc_fixed_array(*a), nullptr /*size*/, name);
+            return ctx.builder.CreateConstInBoundsGEP2_32(allocated, 0u, 0u);
         }
 
         return ctx.builder.CreateAlloca(type_emitter.emit_alloc_type(t), nullptr/*size*/, name);
@@ -512,15 +504,6 @@ public:
         } else if (auto const array_ = type::get<type::array_type>(t)) {
             auto const& array = *array_;
             auto const& elem_type = array->element_type;
-
-            // XXX:
-            // This is workaround until pointer(T) have been implemented.
-            // The array has pointer to the memory and doesn't have its length
-            // when it is allocated dynamically.
-            if (!array->size) {
-                ctx.builder.CreateStore(from, to);
-                return;
-            }
 
             if (elem_type.is_builtin()) {
                 create_memcpy_array(to, from, array);

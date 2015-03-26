@@ -249,9 +249,7 @@ public:
 
     llvm::ArrayType *emit_alloc_fixed_array(type::array_type const& a)
     {
-        if (!a->size) {
-            emitter_impl.error("  Size of array '" + a->to_string() + "' is unknown");
-        }
+        assert(a->size);
         return emit_alloc_fixed_array(a->element_type, *a->size);
     }
 
