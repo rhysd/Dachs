@@ -1,5 +1,5 @@
 class string
-  - data : static_array(char)
+  - data : pointer(char)
   - size : uint
 
     init(@data, @size)
@@ -12,7 +12,7 @@ class string
 
     init
         @size := 0u
-        @data := new static_array(char)
+        @data := new pointer(char){0u}
     end
 
   - func strlen

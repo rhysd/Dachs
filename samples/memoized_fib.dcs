@@ -37,7 +37,7 @@ end
 
 
 func main
-    fib := new MemoizedFib{new [uint]{1000u}}
+    fib := new MemoizedFib{new [uint]{1000u, 0u}}
 
     # Note:
     # The result is wrong because the result is too big for 64bit unsigned integer

@@ -73,6 +73,12 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a, syntax::importer &i)
             fatal_func->define_param(detail::make_global_func_param("reason", dummy_template_type));
         }
 
+        {
+            // func null?(p : pointer)
+            auto is_null_func = detail::make_global_func(scope_root, "null?", type::get_builtin_type("bool"));
+            is_null_func->define_param(detail::make_global_func_param("ptr", type::make<type::pointer_type>(dummy_template_type)));
+        }
+
         // Operators
         // cast functions
     }

@@ -29,6 +29,7 @@
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/symbol.hpp"
 #include "dachs/semantics/type.hpp"
+#include "dachs/semantics/type_from_ast.hpp"
 #include "dachs/semantics/error.hpp"
 #include "dachs/semantics/semantics_context.hpp"
 #include "dachs/semantics/lambda_capture_resolver.hpp"
@@ -186,12 +187,15 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
         : current_scope(s), outer(o)
     {}
 
-    result_type visit(type::type const& t) noexcept
+    result_type visit(type::type const& t)
     {
+        if (!t) {
+            return std::string{"Failed to resolve template parameters: Invalid type"};
+        }
         return t.apply_visitor(*this);
     }
 
-    result_type visit(std::vector<type::type> const& ts) noexcept
+    result_type visit(std::vector<type::type> const& ts)
     {
         for (auto const& t : ts) {
             if (auto const err = visit(t)) {
@@ -201,10 +205,24 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
         return boost::none;
     }
 
-    result_type operator()(type::class_type const& t) noexcept
+    result_type visit_class_scope(type::class_type const& t)
+    {
+        if (t->ref.expired()) {
+            return boost::none;
+        }
+
+        for (auto const& s : t->ref.lock()->instance_var_symbols) {
+            if (auto const err = visit(s->type)) {
+                return err;
+            }
+        }
+        return boost::none;
+    }
+
+    result_type operator()(type::class_type const& t)
     {
         if (t->param_types.empty()) {
-            return boost::none;
+            return visit_class_scope(t);
         }
 
         if (auto const err = visit(t->param_types)) {
@@ -239,12 +257,12 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
         return boost::none;
     }
 
-    result_type operator()(type::tuple_type const& t) noexcept
+    result_type operator()(type::tuple_type const& t)
     {
         return visit(t->element_types);
     }
 
-    result_type operator()(type::func_type const& t) noexcept
+    result_type operator()(type::func_type const& t)
     {
         if (auto const err = visit(t->return_type)) {
             return err;
@@ -252,12 +270,17 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
         return visit(t->param_types);
     }
 
-    result_type operator()(type::array_type const& t) noexcept
+    result_type operator()(type::array_type const& t)
     {
         return visit(t->element_type);
     }
 
-    result_type operator()(type::qualified_type const& t) noexcept
+    result_type operator()(type::pointer_type const& t)
+    {
+        return visit(t->pointee_type);
+    }
+
+    result_type operator()(type::qualified_type const& t)
     {
         return visit(t->contained_type);
     }
@@ -529,7 +552,7 @@ class symbol_analyzer {
 
     type::type from_type_node(ast::node::any_type const& n) noexcept
     {
-        return type::from_ast(n, current_scope).apply(
+        return type::from_ast<decltype(*this)>(n, current_scope, *this).apply(
                 [](auto const& success){ return success; },
                 [&, this](auto const& failure)
                 {
@@ -550,8 +573,12 @@ class symbol_analyzer {
     }
 
     template<class Node>
-    bool /*success?*/ instantiate_all(type::type const& t, Node const& n)
+    bool /*success?*/ instantiate_param_types(type::type const& t, Node const& n)
     {
+        if (!t) {
+            return false;
+        }
+
         auto const error = with_current_scope(
             [&t, this](auto const& s)
             {
@@ -707,8 +734,8 @@ public:
                     std::vector<type::type>{
                         clazz->type,
                         type::get_builtin_type("uint", type::no_opt),
-                        type::make<type::array_type>(
-                                type::make<type::array_type>(
+                        type::make<type::pointer_type>(
+                                type::make<type::pointer_type>(
                                     type::get_builtin_type("char", type::no_opt)
                                 )
                             )
@@ -1144,7 +1171,8 @@ public:
                 array_class,
                 std::vector<type::type>{
                     array_class->type,
-                    type::make<type::array_type>(elem_type, arr_lit->element_exprs.size())
+                    type::make<type::pointer_type>(elem_type),
+                    type::get_builtin_type("uint", type::no_opt)
                 }
             );
 
@@ -1172,9 +1200,8 @@ public:
                 return;
             }
 
-            if (auto const a = arr_lit->type.get_array_underlying_type()) {
-                (*a)->size = 0u;
-                visit_array_literal_construction(arr_lit, (*a)->element_type);
+            if (auto const p = arr_lit->type.get_array_underlying_type()) {
+                visit_array_literal_construction(arr_lit, (*p)->pointee_type);
                 return;
             } else {
                 semantic_error(arr_lit, "  Invalid type '" + arr_lit->type.to_string() + "' is specified for array literal");
@@ -1230,7 +1257,7 @@ public:
                     str_scope,
                     std::vector<type::type>{
                         str_scope->type,
-                        type::make<type::array_type>(type::get_builtin_type("char", type::no_opt)),
+                        type::make<type::pointer_type>(type::get_builtin_type("char", type::no_opt)),
                         type::get_builtin_type("uint", type::no_opt)
                     }
                 );
@@ -1305,6 +1332,15 @@ public:
                 return "  Index of array must be int or uint but actually '" + index_type.to_string() + "'";
             }
             access->type = arr->element_type;
+            return boost::none;
+        }
+
+        result_type operator()(type::pointer_type const& ptr) const
+        {
+            if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
+                return "  Index of pointer must be int or uint but actually '" + index_type.to_string() + "'";
+            }
+            access->type = ptr->pointee_type;
             return boost::none;
         }
 
@@ -1859,7 +1895,7 @@ public:
 
         if (specified_type.is_array_class()) {
             // Note:
-            // Edge case when typing for empty array literals
+            // Edge case for empty array literals
             apply_lambda(
                 [&](auto const& node)
                 {
@@ -1882,45 +1918,27 @@ public:
         //     x : X
         //
 
-        if (auto const specified_class = type::get<type::class_type>(specified_type)) {
-            if (actual_type.is_instantiated_from(*specified_class)) {
-                typed->type = actual_type;
-                return;
-            }
-        } else if (auto const array = type::get<type::array_type>(specified_type)) {
-            if (actual_type.is_instantiated_from(*array)) {
-                typed->type = actual_type;
-                return;
-            }
+        if (actual_type.is_instantiated_from(specified_type)) {
+            typed->type = actual_type;
+            return;
         }
-
-        auto const compare_array_elem_type
-            = [&typed](auto const& lhs, auto const& rhs)
-            {
-                if (lhs->element_type == rhs->element_type) {
-                    typed->type = rhs;
-                    return true;
-                } else {
-                    return false;
-                }
-            };
 
         // Note:
         // This is workaround related to the difference of size of array.
         // User doesn't specify the length of array and any length array should be accepted
         // as actual type.  However, type::array_type::operator== checks equality strictly.
         // So ignore the length on comparing here.
-        if (auto const specified_array = type::get<type::array_type>(specified_type)) {
-            if (auto const actual_array = type::get<type::array_type>(actual_type)) {
-                if (compare_array_elem_type(*specified_array, *actual_array)) {
+        if (auto const s = type::get<type::array_type>(specified_type)) {
+            if (auto const a = type::get<type::array_type>(actual_type)) {
+                if ((*s)->element_type == (*a)->element_type) {
                     typed->type = actual_type;
                     return;
                 }
             }
         }
-        if (auto const specified_array = specified_type.get_array_underlying_type()) {
-            if (auto const actual_array = actual_type.get_array_underlying_type()) {
-                if (compare_array_elem_type(*specified_array, *actual_array)) {
+        if (auto const s = specified_type.get_array_underlying_type()) {
+            if (auto const a = actual_type.get_array_underlying_type()) {
+                if ((*s)->pointee_type == (*a)->pointee_type) {
                     typed->type = actual_type;
                     return;
                 }
@@ -2054,7 +2072,7 @@ public:
         std::unordered_map<std::string, type::type> map;
         for (auto const& s : scope->instance_var_symbols) {
             assert(s->type);
-            map[s->name] = s->type.is_template() ? type::type{} : s->type;
+            map[s->name] = type::is_a<type::template_type>(s->type) ? type::type{} : s->type;
         }
 
         return map;
@@ -2087,19 +2105,7 @@ public:
                             );
                     };
 
-                if (!var_type) {
-                    var_type = var_sym->type;
-                } else if (var_type.is_class_template() && type::is_a<type::class_type>(var_sym->type)) {
-                    // Note:
-                    // Substitute instantiated class to its class template
-
-                    auto const c1 = *type::get<type::class_type>(var_type);
-                    auto const c2 = *type::get<type::class_type>(var_sym->type);
-                    if (c1->name != c2->name) {
-                        error();
-                        return false;
-                    }
-
+                if (!var_type || var_sym->type.is_instantiated_from(var_type)) {
                     var_type = var_sym->type;
                 } else if (var_type != var_sym->type) {
                     error();
@@ -2494,7 +2500,7 @@ public:
         if (ctor_candidates.empty()) {
             return helper::oops("  No matching constructor to construct class '" + scope->to_string() + "'");
         } else if (ctor_candidates.size() > 1u) {
-            std::string errmsg = "  Contructor candidates for '" + scope->to_string() + "' are ambiguous";
+            std::string errmsg = "  Constructor candidates for '" + scope->to_string() + "' are ambiguous";
             for (auto const& c : ctor_candidates) {
                 errmsg += "\n  Candidate: " + c->to_string();
             }
@@ -2561,7 +2567,7 @@ public:
         return std::make_pair(std::forward<ClassScope>(scope), ctor);
     }
 
-    void visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
+    bool /* success? */ visit_class_construct(ast::node::object_construct const& obj, type::class_type const& type)
     {
         assert(type->param_types.empty());
 
@@ -2571,8 +2577,7 @@ public:
         for (auto const& a : obj->args) {
             auto const t = type_of(a);
             if (!t) {
-                obj->type = type::type{};
-                return;
+                return false;
             }
 
             arg_types.push_back(t);
@@ -2582,8 +2587,7 @@ public:
 
         if (auto const error = result.get_error()) {
             semantic_error(obj, *error);
-            obj->type = type::type{};
-            return;
+            return false;
         }
 
         auto const class_and_ctor = result.get_unsafe();
@@ -2591,6 +2595,8 @@ public:
         obj->constructed_class_scope = class_and_ctor.first;
         obj->callee_ctor_scope = class_and_ctor.second;
         obj->type = class_and_ctor.first->type;
+
+        return true;
     }
 
     template<class Walker>
@@ -2604,25 +2610,34 @@ public:
 
         w();
 
-        // Note:
-        // Edge case when child static_array knows the its length and array class doesn't know.
-        // The static_array notifies the length to array class.
-        if (obj->type.is_array_class()) {
-            if (obj->args.size() == 1) {
-                if (auto const array_from_child = type::get<type::array_type>(type_of(obj->args[0]))) {
-                    (*type::get<type::class_type>(obj->type))->param_types.push_back(*array_from_child);
+        auto const error
+            = [&, this]
+            {
+                if (obj->args.empty()) {
+                    return;
                 }
-            }
-        }
 
-        if (!instantiate_all(obj->type, obj)) {
+                std::string msg = "  Error at constructing an object. Argument type(s): ";
+                for (auto const& a : obj->args) {
+                    msg += '\'' + type_of(a).to_string() + "', ";
+                }
+                semantic_error(obj, std::move(msg));
+            };
+
+        if (!instantiate_param_types(obj->type, obj)) {
+            error();
             return;
         }
 
         if (auto const maybe_class_type = type::get<type::class_type>(obj->type)) {
-            visit_class_construct(obj, *maybe_class_type);
+            if (!visit_class_construct(obj, *maybe_class_type)) {
+                error();
+                obj->type = type::type{};
+            }
         } else if (auto const err = detail::ctor_checker{}(obj->type, obj->args)) {
             semantic_error(obj, *err);
+            error();
+            obj->type = type::type{};
         }
     }
 
@@ -2898,7 +2913,7 @@ public:
                     return;
                 }
 
-                if (!instantiate_all(t, v)) {
+                if (!instantiate_param_types(t, v)) {
                     return;
                 }
 
@@ -2991,6 +3006,14 @@ public:
                     if (auto const rhs_a = type::get<type::array_type>(t)) {
                         if (type::is_instantiated_from(*rhs_a, *a)
                                 || (*a)->element_type == (*rhs_a)->element_type) {
+                            symbol->type = t;
+                            return;
+                        }
+                    }
+                } else if (auto const p1 = type::get<type::pointer_type>(symbol->type)) {
+                    if (auto const p2 = type::get<type::pointer_type>(t)) {
+                        if (type::is_instantiated_from(*p1, *p2)
+                                || (*p1)->pointee_type == (*p2)->pointee_type) {
                             symbol->type = t;
                             return;
                         }
@@ -3243,7 +3266,7 @@ public:
         if (param->param_type) {
             // Note:
             // 'param' has a type which is generated from type::from_ast()
-            if (!instantiate_all(param->type, param)) {
+            if (!instantiate_param_types(param->type, param)) {
                 return;
             }
         }

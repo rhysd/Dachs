@@ -25,3 +25,15 @@ end
 func zero?(i : uint)
     ret i == 0u
 end
+
+func times(i : int, pred)
+    var c := 0
+    for c < i
+        pred()
+        c += 1
+    end
+end
+
+func times(i : uint, pred)
+    times(i as int, pred)
+end

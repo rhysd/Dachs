@@ -33,6 +33,7 @@ struct tuple_type;
 struct func_type;
 struct generic_func_type;
 struct array_type;
+struct pointer_type;
 struct qualified_type;
 struct template_type;
 }
@@ -47,6 +48,7 @@ DACHS_DEFINE_TYPE(tuple_type);
 DACHS_DEFINE_TYPE(func_type);
 DACHS_DEFINE_TYPE(generic_func_type);
 DACHS_DEFINE_TYPE(array_type);
+DACHS_DEFINE_TYPE(pointer_type);
 DACHS_DEFINE_TYPE(qualified_type);
 DACHS_DEFINE_TYPE(template_type);
 #undef DACHS_DEFINE_TYPE
@@ -89,6 +91,7 @@ class any_type {
                     , func_type
                     , generic_func_type
                     , array_type
+                    , pointer_type
                     , qualified_type
                     , template_type
                 >;
@@ -200,8 +203,8 @@ public:
     bool is_string_class() const noexcept;
     bool is_aggregate() const noexcept;
 
-    boost::optional<array_type const&> get_array_underlying_type() const;
-    boost::optional<array_type const&> get_string_underlying_type() const;
+    boost::optional<pointer_type const&> get_array_underlying_type() const;
+    boost::optional<pointer_type const&> get_string_underlying_type() const;
 
     // Note:
     // Visitor && is not available because boost::apply_visitor
@@ -226,8 +229,8 @@ public:
         return helper::variant::apply_lambda(lambda, value);
     }
 
-    bool is_instantiated_from(class_type const& from) const;
-    bool is_instantiated_from(array_type const& from) const;
+    template<class Type>
+    bool is_instantiated_from(Type const& from) const;
     bool is_instantiated_from(any_type const& from) const;
 
     bool is_default_constructible() const noexcept;
@@ -330,10 +333,16 @@ struct class_type final : public named_type {
     std::vector<type::any_type> param_types;
 
     explicit class_type(scope::class_scope const& s) noexcept;
-    class_type(class_type const&) = default;
+    class_type(class_type const&);
 
     template<class Types>
-    class_type(scope::class_scope const& s, Types const& types) noexcept;
+    class_type(scope::class_scope const& s, Types const& types) noexcept
+        : class_type(s)
+    {
+        for (auto const& t : types) {
+            param_types.push_back(t);
+        }
+    }
 
     std::string stringize_param_types() const;
     std::string to_string() const noexcept override;
@@ -360,8 +369,8 @@ struct class_type final : public named_type {
 
     bool is_instantiated_from(type::class_type const&) const;
 
-    boost::optional<type::array_type const&> get_array_underlying_type() const;
-    boost::optional<type::array_type const&> get_string_underlying_type() const;
+    boost::optional<type::pointer_type const&> get_array_underlying_type() const;
+    boost::optional<type::pointer_type const&> get_string_underlying_type() const;
 };
 
 struct tuple_type final : public basic_type {
@@ -506,18 +515,12 @@ struct array_type final : public basic_type {
     std::string to_string() const noexcept override
     {
         return "static_array(" + element_type.to_string()
-            + (size ? ", " + std::to_string(*size) + ')' : ")");
+            + (size ? ")(" + std::to_string(*size) + ')' : ")");
     }
 
     bool operator==(array_type const& rhs) const noexcept
     {
-        if (size && rhs.size) {
-            return element_type == rhs.element_type && size == rhs.size;
-        } else if (!size && !rhs.size){
-            return element_type == rhs.element_type;
-        } else {
-            return false;
-        }
+        return element_type == rhs.element_type && size == rhs.size;
     }
 
     template<class T>
@@ -537,6 +540,44 @@ struct array_type final : public basic_type {
     bool is_default_constructible() const noexcept override
     {
         return true;
+    }
+};
+
+struct pointer_type final : public basic_type {
+    type::any_type pointee_type;
+
+    template<class Elem>
+    explicit pointer_type(Elem && e) noexcept
+        : pointee_type(std::forward<Elem>(e))
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "pointer(" + pointee_type.to_string() + ")";
+    }
+
+    bool operator==(pointer_type const& rhs) const noexcept
+    {
+        return pointee_type == rhs.pointee_type;
+    }
+
+    template<class T>
+    bool operator==(T const&) const noexcept
+    {
+        static_assert(is_type<T>::value, "pointer_type::operator==(): rhs is not a type.");
+        return false;
+    }
+
+    template<class T>
+    bool operator!=(T const& rhs) const noexcept
+    {
+        static_assert(is_type<T>::value, "pointer_type::operator!=(): rhs is not a type.");
+        return !(*this == rhs);
+    }
+
+    bool is_default_constructible() const noexcept override
+    {
+        return false;
     }
 };
 
@@ -598,28 +639,6 @@ struct template_type final : public basic_type {
     boost::optional<ast::node::variable_decl> get_ast_node_as_var_decl() const noexcept;
     std::string to_string() const noexcept override;
 
-    bool operator==(template_type const& rhs)
-    {
-        auto const left_ast_as_param = get_ast_node_as_parameter();
-        auto const right_ast_as_param = rhs.get_ast_node_as_parameter();
-        if (left_ast_as_param && right_ast_as_param) {
-            // Compare two shared_ptr.  Return true when both point the same node.
-            return *left_ast_as_param == *right_ast_as_param;
-        }
-
-        auto const left_ast_as_var_decl = get_ast_node_as_var_decl();
-        auto const right_ast_as_var_decl = rhs.get_ast_node_as_var_decl();
-        if (left_ast_as_var_decl && right_ast_as_var_decl) {
-            // Compare two shared_ptr.  Return true when both point the same node.
-            return *left_ast_as_var_decl == *right_ast_as_var_decl;
-        }
-
-        // TODO: Add more possible nodes: instance variables
-        // ...
-
-        return false;
-    }
-
     template<class T>
     bool operator==(T const&) const noexcept
     {
@@ -636,7 +655,7 @@ struct template_type final : public basic_type {
 
     bool is_default_constructible() const noexcept override
     {
-        DACHS_RAISE_INTERNAL_COMPILATION_ERROR
+        return false;
     }
 };
 
@@ -663,11 +682,11 @@ inline any_type type_of(Variant const& v) noexcept
     return apply_lambda([](auto const& n){ return n->type; }, v);
 }
 
-helper::probable<any_type> from_ast(ast::node::any_type const&, scope::any_scope const& current) noexcept;
 ast::node::any_type to_ast(any_type const&, ast::location_type &&) noexcept;
 ast::node::any_type to_ast(any_type const&, ast::location_type const&) noexcept;
 bool is_instantiated_from(class_type const& instantiated_class, class_type const& template_class);
 bool is_instantiated_from(array_type const& instantiated_array, array_type const& template_array);
+bool is_instantiated_from(pointer_type const& instantiated_ptr, pointer_type const& template_ptr);
 
 template<class String>
 bool any_type::is_builtin(String const& name) const noexcept
@@ -679,6 +698,18 @@ bool any_type::is_builtin(String const& name) const noexcept
 
     return (*t)->name == name;
 }
+
+template<class Type>
+bool any_type::is_instantiated_from(Type const& from) const
+{
+    if (auto const t = helper::variant::get_as<Type>(value)) {
+        return ::dachs::type::is_instantiated_from(*t, from);
+    } else {
+        return false;
+    }
+}
+
+bool fuzzy_match(any_type const& lhs, any_type const& rhs);
 
 } // namespace type
 

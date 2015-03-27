@@ -29,6 +29,12 @@ static dachs::syntax::parser p;
             BOOST_CHECK_NO_THROW(dachs::semantics::analyze_semantics(t, i)); \
         } while (false);
 
+#define CHECK_THROW_NOT_IMPLEMENTED_ERROR(...) do { \
+            auto t = p.parse((__VA_ARGS__), "test_file"); \
+            dachs::syntax::importer i{{}, "test_file"}; \
+            BOOST_CHECK_THROW(dachs::semantics::analyze_semantics(t, i), dachs::not_implemented_error); \
+        } while (false);
+
 BOOST_AUTO_TEST_SUITE(analyzer)
 
 BOOST_AUTO_TEST_CASE(symbol_duplication_ok)
@@ -570,6 +576,128 @@ BOOST_AUTO_TEST_SUITE(class_definition)
 
             func main
                 f := new Foo{1, 2}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+            end
+
+            class Y
+                a
+
+                init(@a : X)
+                end
+            end
+
+            func main
+                new Y{42}
+            end
+        )");
+
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+            end
+
+            class Y
+                a
+            end
+
+            class Z
+                a : X
+
+                init(@a : X)
+                end
+            end
+
+            func main
+                new Z{new X{42}}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+            end
+
+            class Y
+                a
+            end
+
+            class Z
+                a : X
+
+                init(@a : Y)
+                end
+            end
+
+            func main
+                new Z{new Y{42}}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+            end
+
+            class Z
+                a : X(X(int))
+
+                init(@a : X(X(float)))
+                end
+            end
+
+            func main
+                new Z{new X{new X{3.14}}}
+            end
+        )");
+
+        CHECK_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+            end
+
+            class Y
+                a
+            end
+
+            class Z
+                a : X(X(int))
+
+                init(@a : X(Y(int)))
+                end
+            end
+
+            func main
+                new Z{new X{new Y{3}}}
+            end
+        )");
+
+        CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+            class X
+                a
+            end
+
+            class Y
+                a : X(int)
+
+                init(@a : X)
+                end
+            end
+
+            class Z
+                a : X(X(int))
+
+                init(@a : X(X))
+                end
+            end
+
+            func main
+                new Y{new X{3}}
+                new Z{new X{new X{3}}}
             end
         )");
     }
@@ -2966,6 +3094,57 @@ BOOST_AUTO_TEST_CASE(type_specifier)
         end
 
         func main
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(pointer)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            new pointer(int){1u, 'a'}
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            new pointer(int){1}
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+        end
+
+        func main
+            new X{new pointer{2u}}
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(typeof)
+{
+    CHECK_THROW_NOT_IMPLEMENTED_ERROR(R"(
+        func foo(a, b : typeof(a))
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_NOT_IMPLEMENTED_ERROR(R"(
+        class X
+            a, b : typeof(a)
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            42 : typeof(unknown)
         end
     )");
 }

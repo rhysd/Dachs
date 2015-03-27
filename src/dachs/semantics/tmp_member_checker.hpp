@@ -63,9 +63,8 @@ struct member_variable_checker : boost::static_visitor<helper::probable<type::ty
     result_type operator()(type::array_type const& a) const
     {
         if (member_name == "size") {
-            if (!a->size) {
-                return helper::oops("  size of array '" + a->to_string() + "' can't be determined");
-            }
+            assert(a->size);
+            (void) a;
             return builtin_type("uint");
         }
         return type::type{};

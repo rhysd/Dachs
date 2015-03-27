@@ -16,6 +16,7 @@
 #include "dachs/semantics/forward_analyzer.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/type.hpp"
+#include "dachs/semantics/type_from_ast.hpp"
 #include "dachs/semantics/error.hpp"
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/ast_walker.hpp"
@@ -272,6 +273,12 @@ class forward_symbol_analyzer {
         }
     }
 
+    template<class TypeNode>
+    auto from_ast(TypeNode const& node)
+    {
+        return type::from_ast<decltype(*this)>(node, current_scope);
+    }
+
 public:
 
     size_t failed;
@@ -405,7 +412,7 @@ public:
         // Note:
         // Get return type for checking duplication of overloaded function
         if (func_def->return_type) {
-            auto const result = type::from_ast(*func_def->return_type, current_scope);
+            auto const result = from_ast(*func_def->return_type);
 
             if (auto const error = result.get_error()) {
                 semantic_error(
@@ -487,7 +494,7 @@ public:
 
         // Set type if the type of variable is specified
         if (decl->maybe_type) {
-            auto const result = type::from_ast(*decl->maybe_type, current_scope);
+            auto const result = from_ast(*decl->maybe_type);
 
             if (auto const error = result.get_error()) {
                 semantic_error(
@@ -566,18 +573,25 @@ public:
             return;
         }
 
-        if (param_sym->type && !(*instance_var)->type.is_template()) {
-            if (param_sym->type != (*instance_var)->type) {
-                semantic_error(param,
-                        boost::format(
-                            "  Type of instance variable '%1%' in parameter doesn't match.\n"
-                            "  Note: The parameter type is '%2%' but the instance variable's type is actually '%3%'."
-                        ) % param->name % param_sym->type.to_string() % (*instance_var)->type.to_string()
-                    );
-            }
-        } else {
-            param_sym->type = (*instance_var)->type;
+        auto const& instance_var_type = (*instance_var)->type;
+
+        if (!param_sym->type) {
+            param_sym->type = instance_var_type;
             param->type = param_sym->type;
+            return;
+        }
+
+        if (type::is_a<type::template_type>(instance_var_type)) {
+            return;
+        }
+
+        if (!type::fuzzy_match(param_sym->type, instance_var_type)) {
+            semantic_error(param,
+                    boost::format(
+                        "  Type of instance variable '%1%' in parameter doesn't match.\n"
+                        "  Note: The parameter type is '%2%' but the instance variable's type is actually '%3%'."
+                    ) % param->name % param_sym->type.to_string() % instance_var_type.to_string()
+                );
         }
     }
 
@@ -599,7 +613,7 @@ public:
         param->param_symbol = new_param_sym;
 
         if (param->param_type) {
-            type::from_ast(*param->param_type, current_scope).apply(
+            from_ast(*param->param_type).apply(
 
                     [&](auto const& success)
                     {

@@ -61,11 +61,22 @@ class tmp_member_ir_emitter {
         val operator()(type::array_type const& t)
         {
             if (name == "size") {
-                if (t->size) {
-                    return ctx.builder.getInt64(*t->size);
-                } else {
-                    return nullptr;
-                }
+                return ctx.builder.getInt64(*t->size);
+            }
+
+            return nullptr;
+        }
+
+        val operator()(type::pointer_type const&)
+        {
+            if (name == "null?") {
+                auto *const ty = llvm::dyn_cast<llvm::PointerType>(value->getType());
+                assert(ty);
+                return ctx.builder.CreateICmpEQ(
+                        llvm::ConstantPointerNull::get(ty),
+                        value,
+                        "is_null"
+                    );
             }
 
             return nullptr;

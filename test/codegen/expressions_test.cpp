@@ -443,13 +443,13 @@ BOOST_AUTO_TEST_CASE(object_construction)
         end
 
         func main
-            a := new [char]{4u}
-            var b := new [float]{4u}
+            a := new [char]{4u, '\0'}
+            var b := new [float]{4u, 0.0}
             c := new [float]{4u, 3.14}
             var d := new [char]{4u, 'd'}
             var s := new [string]{4u, "aaa"}
 
-            var e := new [uint]{32u}
+            var e := new [uint]{32u, 0u}
             var x := new [X]{4u, new X}
 
             var i := 0u
@@ -1007,7 +1007,7 @@ BOOST_AUTO_TEST_CASE(getchar_builtin_function)
         end
 
         func main
-            s := gets(new [char]{256u})
+            s := gets(new [char]{256u, '\0'})
             for c in s
                 if c == '\0'
                     ret 0
@@ -1235,16 +1235,9 @@ BOOST_AUTO_TEST_CASE(static_array)
             v.size.println
             show_1(v)
 
-            a := [1, 2, 3]
-            b := a.data
-            for e in b
-                e.println
-            end
-            a.show_0
-            b.show_0
-            b.show_1
-
-            c := new static_array {3u, 'a'}
+            var c := new static_array {3u, 'a'}
+            c[0] = 'b'
+            c[1] = 'c'
             for e in c
                 e.println
             end
@@ -1265,14 +1258,226 @@ BOOST_AUTO_TEST_CASE(static_array)
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func main
-            a := [1, 2]
-            b : static_array(int) := a.data
+            a := new static_array{2u, 1}
+            b : static_array(int) := a
             (b : static_array(int))[1].println
             (b : static_array)[1].println
-            b2 : static_array := a.data
+            b2 : static_array := a
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(a : static_array)
+            for e in a
+                e.println
+            end
+        end
+
+        func main
+            a := new static_array(int){3u}
+            foo(a)
+
+            for e in new static_array(int){3u}
+                e.println
+            end
         end
     )");
 }
 
+BOOST_AUTO_TEST_CASE(pointer)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            do
+                var i := 42u
+                var p := new pointer(int){i}
+                p[3] = -30
+                p[3].println
+            end
+
+            do
+                var p := new pointer(int){42u}
+                p[3] = -30
+                p[3].println
+            end
+
+            do
+                var i := 0u
+                new pointer(int){i}
+                new pointer(int){0u}
+            end
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            var s := new pointer(char){4u}
+            s[0] = 'i'
+            s[1] = 'n'
+            s[2] = 'u'
+            s[3] = '\0'
+            s.println
+            s[2].println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(p)
+        end
+
+        func foo2(p : pointer(char))
+        end
+
+        func foo3(p : pointer)
+        end
+
+        func foo4(var p)
+        end
+
+        func foo5(var p : pointer(char))
+        end
+
+        func foo6(var p : pointer)
+        end
+
+        func main
+            var s := new pointer(char){4u}
+            s = new pointer(char){10u}
+
+            var i := 3u
+            s = new pointer(char){i}
+
+            i = 0u
+            s = new pointer(char){0u}
+            s = new pointer(char){i}
+
+            s : pointer(char)
+            s : pointer
+
+            foo(s)
+            foo2(s)
+            foo3(s)
+            foo4(s)
+            foo5(s)
+            foo6(s)
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            var p := new pointer(pointer(char)){4u}
+            var i := 0u
+            for i < 4u
+                p[i] = new pointer(char){4u}
+                p[i][0] = 'i'
+                p[i][1] = 'n'
+                p[i][2] = 'u'
+                p[i][3] = '\0'
+                i += 1u
+            end
+
+            i = 0u
+            for i < 4u
+                p[i].println
+                i += 1u
+            end
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            p1 := new pointer(int){0u}
+            p2 := new pointer(float){1u}
+
+            p1.null?.println
+            p2.null?.println
+            null?(p1).println
+            null?(p2).println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        func main
+            var p := new X{new pointer(int){3u}}
+            p.a[0] = 10
+            p.a[0].println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        import std.numeric
+
+        func main(args)
+            i := 3u
+            var p := new pointer(pointer(int)){i}
+            (0u...3u).each do |i|
+                p[i] = new pointer(int){3u}
+            end
+
+            (0u...3u).each do |i|
+                (0u...3u).each do |j|
+                    p[i][j] = i * j + i * j
+                end
+            end
+
+            (0u...3u).each do |i|
+                (0u...3u).each do |j|
+                    p[i][j].println
+                end
+            end
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        import std.numeric
+
+        class X
+            a
+        end
+
+        func main(args)
+            i := 3u
+            var p := new pointer(pointer(X(int))){i}
+            (0u...3u).each do |i|
+                p[i] = new pointer(X(int)){3u}
+            end
+
+            (0u...3u).each do |i|
+                (0u...3u).each do |j|
+                    p[i][j] = new X{i * j + i * j}
+                end
+            end
+
+            (0u...3u).each do |i|
+                (0u...3u).each do |j|
+                    p[i][j].a.println
+                end
+            end
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(typeof)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        func foo(a)
+            ret a + 42
+        end
+
+        func main
+            var i := 42
+            x := new X(typeof(foo(i)))
+            i : typeof(x.a * 2)
+        end
+    )");
+}
 
 BOOST_AUTO_TEST_SUITE_END()

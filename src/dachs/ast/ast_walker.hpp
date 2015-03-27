@@ -145,6 +145,20 @@ public:
         ));
     }
 
+    void walk(node::pointer_type &pt)
+    {
+        visitor.visit(pt, walker_for(
+            pt->pointee_type
+        ));
+    }
+
+    void walk(node::typeof_type &tt)
+    {
+        visitor.visit(tt, walker_for(
+            tt->expr
+        ));
+    }
+
     void walk(node::tuple_type &tt)
     {
         visitor.visit(tt, walker_for(

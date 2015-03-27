@@ -3,13 +3,42 @@ class array
   - capacity : uint
   - size : uint
 
-    init(@buf)
-        @capacity := @buf.size
-        @size := @buf.size
+    # TODO:
+    # init(rhs : static_array)
+    #     @size := rhs.size
+    #     @capacity := @size
+    #     @buf := new pointer(typeof(rhs[0])){@size}
+    # end
+
+    # TODO:
+    # init(@size : uint)
+    #     @buf := new typeof(@buf[0]){@size}
+    #     @capacity := @size
+    # end
+
+    init(@buf : pointer, @size : uint)
+        @capacity := @size
     end
 
-    init(@buf, @size)
+    init(@size : uint, elem)
         @capacity := @size
+        @buf := new pointer(typeof(elem)){@size}
+        var i := 0u
+        for i < @size
+            @buf[i] = elem
+            i += 1u
+        end
+    end
+
+    init(s : int, block)
+        @size := s as uint
+        @capacity := @size
+        @buf := new pointer{@size}
+        var i := 0u
+        for i < @size
+            @buf[i] = block(i)
+            i += 1u
+        end
     end
 
     func assign(rhs)
@@ -121,26 +150,25 @@ class array
     end
 
     func head
-        fatal("call first() for empty array") if @empty?()
         ret @buf[0u]
     end
 
     func last
-        fatal("call last() for empty array") if @empty?()
         ret @buf[@size - 1u]
     end
 
     func print
+        print('[')
+
         if @empty?()
-            print("[]")
+            print(']')
             ret
         end
 
-        print('[')
         var i := 0u
         for i < @size - 1u
             print(@buf[i])
-            print(", ")
+            print(',')
             i += 1u
         end
         print(@last())

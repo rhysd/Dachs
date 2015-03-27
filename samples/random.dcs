@@ -74,7 +74,7 @@ class Mt19937
     lower_mask
 
     init(seeds)
-        @mt := new [uint]{624u}
+        @mt := new [uint]{624u, 0u}
         @mti := 625u
         @n := 624u
         @m := 397u

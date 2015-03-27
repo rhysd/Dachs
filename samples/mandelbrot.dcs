@@ -39,9 +39,9 @@ func mandel'(xmin, xmax, xstep, ymin, ymax, ystep)
                     print_density(mandel_converge(x, y))
                     x += xstep
                 end
-                println("")
-                y += ystep
             end
+            println("")
+            y += ystep
         end
     end
 end

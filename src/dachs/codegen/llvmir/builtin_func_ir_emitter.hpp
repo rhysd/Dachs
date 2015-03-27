@@ -32,15 +32,14 @@ class builtin_function_emitter {
     type_ir_emitter &type_emitter;
 
     // Argument type name -> Function
-    using print_func_table_type = std::unordered_map<std::string, llvm::Function *const>;
-    using address_of_func_table_type = print_func_table_type;
-    print_func_table_type print_func_table;
-    print_func_table_type println_func_table;
+    using func_table_type = std::unordered_map<std::string, llvm::Function *const>;
+    std::unordered_map<std::string, func_table_type> print_func_tables;
     llvm::Function *cityhash_func = nullptr;
     llvm::Function *malloc_func = nullptr;
-    address_of_func_table_type address_of_func_table;
+    func_table_type address_of_func_table;
     llvm::Function *getchar_func = nullptr;
     std::array<llvm::Function *, 2> fatal_funcs = {{nullptr, nullptr}};
+    func_table_type is_null_func_table;
 
 public:
 
@@ -54,7 +53,7 @@ public:
     }
 
     template<class Table, class Type>
-    llvm::Function *emit_print_func_prototype(Table &table, std::string const& func_name, Type const& arg_type)
+    llvm::Function *emit_print_func_prototype(Table &&table, std::string const& func_name, Type const& arg_type)
     {
         auto const func_itr = table.find(func_name);
         if (func_itr != std::end(table)) {
@@ -160,6 +159,58 @@ public:
         return cityhash_func;
     }
 
+    llvm::Function *emit_is_null_func(type::type const& t)
+    {
+        auto const ptr = type::get<type::pointer_type>(t);
+        assert(ptr);
+
+        std::string const type_str = (*ptr)->pointee_type.to_string();
+
+        auto const func_itr = is_null_func_table.find(type_str);
+        if (func_itr != std::end(is_null_func_table)) {
+            return func_itr->second;
+        }
+
+        auto const func_ty = llvm::FunctionType::get(
+                c.builder.getInt1Ty(),
+                (llvm::Type *[1]){type_emitter.emit(*ptr)},
+                false
+            );
+
+        auto *const prototype = llvm::Function::Create(
+                    func_ty,
+                    llvm::Function::ExternalLinkage,
+                    "dachs.null?",
+                    module
+                );
+
+        prototype->addFnAttr(llvm::Attribute::NoUnwind);
+        prototype->addFnAttr(llvm::Attribute::AlwaysInline);
+
+        auto const arg_value = prototype->arg_begin();
+        arg_value->setName("ptr");
+        auto const block = llvm::BasicBlock::Create(c.llvm_context, "entry", prototype);
+
+        auto *const arg_ty = llvm::dyn_cast<llvm::PointerType>(arg_value->getType());
+        assert(arg_ty);
+
+        llvm::ReturnInst::Create(
+                c.llvm_context,
+                new llvm::ICmpInst(
+                    *block,
+                    llvm::CmpInst::Predicate::ICMP_EQ,
+                    llvm::ConstantPointerNull::get(arg_ty),
+                    arg_value,
+                    "null_check"
+                ),
+                block
+            );
+
+        is_null_func_table.emplace(type_str, prototype);
+
+        return prototype;
+    }
+
     std::string make_print_func_name(std::string const& name, std::string const& arg_name)
     {
         return "__dachs_" + name + "_" + arg_name + "__";
@@ -168,7 +219,7 @@ public:
     llvm::Function *emit_print_func(std::string const& name, type::builtin_type const& arg_type)
     {
         return emit_print_func_prototype(
-                name == "print" ? print_func_table : println_func_table,
+                print_func_tables[name],
                 make_print_func_name(name, arg_type->to_string()),
                 arg_type
             );
@@ -178,7 +229,20 @@ public:
     {
         if (arg_type->element_type.is_builtin("char")) {
             return emit_print_func_prototype(
-                    name == "print" ? print_func_table : println_func_table,
+                    print_func_tables[name],
+                    make_print_func_name(name, "string"),
+                    arg_type
+                );
+        } else {
+            return nullptr;
+        }
+    }
+
+    llvm::Function *emit_print_func(std::string const& name, type::pointer_type const& arg_type)
+    {
+        if (arg_type->pointee_type.is_builtin("char")) {
+            return emit_print_func_prototype(
+                    print_func_tables[name],
                     make_print_func_name(name, "string"),
                     arg_type
                 );
@@ -326,8 +390,10 @@ public:
             assert(arg_types.size() == 1);
             if (auto const b = type::get<type::builtin_type>(arg_types[0])) {
                 return emit_print_func(name, *b);
-            } if (auto const a = type::get<type::array_type>(arg_types[0])) {
+            } else if (auto const a = type::get<type::array_type>(arg_types[0])) {
                 return emit_print_func(name, *a);
+            } else if (auto const p = type::get<type::pointer_type>(arg_types[0])) {
+                return emit_print_func(name, *p);
             }
         } else if (name == "__builtin_read_cycle_counter") {
             return emit_read_cycle_counter_func();
@@ -342,6 +408,8 @@ public:
             } else {
                 return emit_fatal_func(arg_types[0]);
             }
+        } else if (name == "null?") {
+            return emit_is_null_func(arg_types[0]);
         } // else ...
 
         return nullptr;
@@ -353,3 +421,4 @@ public:
 } // namespace dachs
 
 #endif    // DACHS_CODEGEN_LLVMIR_BUILTIN_FUNC_IR_EMITTER_HPP_INCLUDED
+

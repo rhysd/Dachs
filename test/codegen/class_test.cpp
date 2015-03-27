@@ -547,6 +547,34 @@ BOOST_AUTO_TEST_CASE(constructor_restriction)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(both_instance_var_and_ctor_param_init_are_typed)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        class Y
+            a : X(int)
+
+            init(@a : X)
+            end
+        end
+
+        class Z
+            a : X(X(int))
+
+            init(@a : X(X))
+            end
+        end
+
+        func main
+            new Y{new X{3}}
+            new Z{new X{new X{3}}}
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(do_not_degrade)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
@@ -633,6 +661,23 @@ BOOST_AUTO_TEST_CASE(do_not_degrade)
 
         func main
             (new X).foo
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        class Z
+            a : X(int)
+
+            init(@a : X)
+            end
+        end
+
+        func main
+            new Z{new X{3}}
         end
     )");
 }

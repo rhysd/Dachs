@@ -4,6 +4,7 @@
 
 #include "../test_helper.hpp"
 
+#include "dachs/semantics/type_from_ast.hpp"
 #include "dachs/parser/parser.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/ast/ast_walker.hpp"

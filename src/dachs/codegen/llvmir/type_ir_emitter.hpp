@@ -3,8 +3,9 @@
 
 #include <vector>
 #include <unordered_map>
-#include <cassert>
 #include <type_traits>
+#include <cassert>
+#include <cstddef>
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/DerivedTypes.h>
@@ -23,7 +24,7 @@ namespace dachs {
 namespace codegen {
 namespace llvmir {
 
-struct type_ir_emitter_impl {
+class type_ir_emitter {
     llvm::LLVMContext &context;
     semantics::lambda_captures_type const& lambda_captures;
     std::unordered_map<scope::class_scope, llvm::PointerType *const> class_table;
@@ -43,7 +44,8 @@ struct type_ir_emitter_impl {
         return v;
     }
 
-    type_ir_emitter_impl(llvm::LLVMContext &c, decltype(lambda_captures) const& lc)
+public:
+    type_ir_emitter(llvm::LLVMContext &c, decltype(lambda_captures) const& lc)
         : context(c), lambda_captures(lc)
     {}
 
@@ -135,6 +137,24 @@ struct type_ir_emitter_impl {
         return llvm::PointerType::getUnqual(emit(a->element_type));
     }
 
+    llvm::PointerType *emit(type::pointer_type const& p)
+    {
+        auto *const ty = emit(p->pointee_type);
+        if (p->pointee_type.is_aggregate()) {
+            // Note:
+            // i64* -> i64*
+            // {i64, double}* -> {i64, double}*
+            auto *const ptr = llvm::dyn_cast<llvm::PointerType>(ty);
+            assert(ptr);
+            return ptr;
+        } else {
+            // Note:
+            // double -> double*
+            // i64* -> i64**
+            return llvm::PointerType::getUnqual(ty);
+        }
+    }
+
     llvm::Type *emit(type::func_type const&)
     {
         throw not_implemented_error{__FILE__, __func__, __LINE__, "function type LLVM IR generation"};
@@ -176,16 +196,6 @@ struct type_ir_emitter_impl {
     {
         DACHS_RAISE_INTERNAL_COMPILATION_ERROR
     }
-};
-
-class type_ir_emitter {
-    type_ir_emitter_impl emitter_impl;
-
-public:
-    template<class... Args>
-    type_ir_emitter(Args &&...  args)
-        : emitter_impl(std::forward<Args>(args)...)
-    {}
 
     llvm::Type *emit_alloc_type(type::type const& any)
     {
@@ -196,13 +206,20 @@ public:
     {
         // Note:
         // No need to strip pointer type because builtin type is treated by value.
-        return emitter_impl.emit(t);
+        return emit(t);
+    }
+
+    llvm::Type *emit_alloc_type(type::pointer_type const& t)
+    {
+        // Note:
+        // No need to strip pointer type because builtin type is treated by value.
+        return emit(t);
     }
 
     template<class T>
     llvm::Type *emit_alloc_type(T const& t)
     {
-        auto const ty = emitter_impl.emit(t);
+        auto const ty = emit(t);
         if (ty->isPointerTy()) {
             return ty->getPointerElementType();
         } else {
@@ -210,24 +227,19 @@ public:
         }
     }
 
-    llvm::Type *emit(type::type const& any)
-    {
-        return any.apply_lambda([this](auto const& t){ return emit(t); });
-    }
-
-    template<class T>
-    llvm::Type *emit(T const& t)
-    {
-        return emitter_impl.emit(t);
-    }
-
     llvm::ArrayType *emit_alloc_fixed_array(type::array_type const& a)
     {
-        if (!a->size) {
-            emitter_impl.error("  Size of array '" + a->to_string() + "' is unknown");
-        }
+        assert(a->size);
+        return emit_alloc_fixed_array(a->element_type, *a->size);
+    }
 
-        return llvm::ArrayType::get(emitter_impl.emit(a->element_type), *a->size);
+    llvm::ArrayType *emit_alloc_fixed_array(type::type const& e, std::size_t const size)
+    {
+        auto *const ty = e.is_aggregate()
+            ? emit(e)
+            : emit_alloc_type(e);
+
+        return llvm::ArrayType::get(ty, size);
     }
 };
 
