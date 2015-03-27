@@ -376,7 +376,7 @@ struct lambda_expr final : public expression {
     explicit lambda_expr(decltype(def) const& d)
         : expression()
         , def(d)
-        , receiver(helper::make<node::tuple_literal>())
+        , receiver(make<node::tuple_literal>())
     {
         receiver->set_source_location(*this);
         receiver->type = type::make<type::tuple_type>();
@@ -454,7 +454,7 @@ struct func_invocation final : public expression {
 
     void set_do_block(node::function_definition const& def)
     {
-        auto const lambda = helper::make<node::lambda_expr>(def);
+        auto const lambda = make<node::lambda_expr>(def);
         lambda->set_source_location(*def);
         lambda->receiver->set_source_location(*def);
         args.push_back(std::move(lambda));
@@ -538,7 +538,7 @@ struct object_construct final : public expression {
         : expression(), obj_type(t), args(a)
     {
         if (do_block) {
-            auto lambda = helper::make<node::lambda_expr>(*do_block);
+            auto lambda = make<node::lambda_expr>(*do_block);
             lambda->set_source_location(**do_block);
             lambda->receiver->set_source_location(**do_block);
             args.push_back(std::move(lambda));
@@ -561,10 +561,10 @@ struct object_construct final : public expression {
     // This ctor is used for range expression ".." and "..."
     object_construct(std::string const& op, node::any_expr lhs, node::any_expr rhs)
         : expression()
-        , obj_type(helper::make<node::primary_type>("range"))
+        , obj_type(make<node::primary_type>("range"))
         , args({std::move(lhs), std::move(rhs)})
     {
-        args.emplace_back(helper::make<node::primary_literal>(op == "..."));
+        args.emplace_back(make<node::primary_literal>(op == "..."));
     }
 
     object_construct(object_construct const&) = default;
@@ -706,26 +706,26 @@ struct typed_expr final : public expression {
 };
 
 struct primary_type final : public base {
-    std::string template_name;
-    std::vector<node::any_type> holders;
+    std::string name;
+    std::vector<node::any_type> template_params;
 
     primary_type(std::string const& tmpl
-                , decltype(holders) const& instantiated)
-        : base(), template_name(tmpl), holders(instantiated)
+                , decltype(template_params) const& instantiated)
+        : base(), name(tmpl), template_params(instantiated)
     {}
 
     primary_type(std::string const& tmpl
                 , node::any_type && param)
-        : base(), template_name(tmpl), holders({std::move(param)})
+        : base(), name(tmpl), template_params({std::move(param)})
     {}
 
     primary_type(std::string const& tmpl) noexcept
-        : base(), template_name(tmpl), holders()
+        : base(), name(tmpl), template_params()
     {}
 
     std::string to_string() const noexcept override
     {
-        return "PRIMARY_TYPE: " + template_name;
+        return "PRIMARY_TYPE: " + name;
     }
 };
 

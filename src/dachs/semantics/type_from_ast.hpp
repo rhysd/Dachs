@@ -52,20 +52,20 @@ public:
 
     any_type operator()(ast::node::primary_type const& t)
     {
-        auto const builtin = get_builtin_type(t->template_name.c_str());
+        auto const builtin = get_builtin_type(t->name.c_str());
         if (builtin) {
             return *builtin;
         }
 
-        auto const c = apply_lambda([&t](auto const& s){ return s->resolve_class(t->template_name); }, current_scope);
+        auto const c = apply_lambda([&t](auto const& s){ return s->resolve_class_by_name(t->name); }, current_scope);
         if (!c) {
-            failed_name = t->template_name;
+            failed_name = t->name;
             return {};
         }
 
         return make<class_type>(
                 *c,
-                t->holders | transformed(
+                t->template_params | transformed(
                     [this](auto const& i){ return apply_recursively(i); }
                     )
             );

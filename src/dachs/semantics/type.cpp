@@ -80,7 +80,7 @@ class type_to_node_translator
     template<class Ptr, class... Args>
     Ptr make(Args &&... args) const
     {
-        auto const node = helper::make<Ptr>(std::forward<Args>(args)...);
+        auto const node = ast::make<Ptr>(std::forward<Args>(args)...);
         set_location(node);
         return node;
     }

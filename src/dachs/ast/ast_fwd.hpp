@@ -9,6 +9,8 @@
 #include <boost/variant/variant.hpp>
 #include <boost/optional.hpp>
 
+#include "dachs/helper/make.hpp"
+
 namespace dachs {
 namespace ast {
 
@@ -330,6 +332,8 @@ inline bool is_a(any_node const& node) noexcept
 } // namespace node
 
 struct ast;
+
+using helper::make;
 
 } // namespace ast
 } // namespace dachs

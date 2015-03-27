@@ -106,7 +106,7 @@ class lambda_capture_resolver {
 
     ast::node::ufcs_invocation generate_invocation_from(ast::node::var_ref const& var, symbol::var_symbol const& symbol)
     {
-        auto const new_receiver_ref = helper::make<ast::node::var_ref>(receiver_symbol->name);
+        auto const new_receiver_ref = ast::make<ast::node::var_ref>(receiver_symbol->name);
         new_receiver_ref->is_lhs_of_assignment = var->is_lhs_of_assignment;
         new_receiver_ref->symbol = receiver_symbol;
         new_receiver_ref->set_source_location(*var);
@@ -114,7 +114,7 @@ class lambda_capture_resolver {
         // Note:
         // 'type' member will be set after the type of lambda object is determined.
 
-        auto const new_invocation = helper::make<ast::node::ufcs_invocation>(new_receiver_ref, get_member_name());
+        auto const new_invocation = ast::make<ast::node::ufcs_invocation>(new_receiver_ref, get_member_name());
         new_invocation->set_source_location(*var);
         new_invocation->type = symbol->type;
 
@@ -344,7 +344,7 @@ class lambda_resolver {
         // Substitute captured values as its fields
         for (auto const& c : capture->second.template get<semantics::tags::offset>()) {
             auto const& s = c.refered_symbol;
-            auto const new_var_ref = helper::make<ast::node::var_ref>(s->name);
+            auto const new_var_ref = ast::make<ast::node::var_ref>(s->name);
             new_var_ref->symbol = c.refered_symbol;
             new_var_ref->type = s->type;
             new_var_ref->set_source_location(*lambda);
@@ -356,7 +356,7 @@ class lambda_resolver {
     void set_lambda_receiver(ast::node::function_definition const& func_def, symbol::var_symbol const& receiver_sym)
     {
         auto const scope = func_def->scope.lock();
-        auto const new_param = helper::make<ast::node::parameter>(!receiver_sym->immutable, receiver_sym->name, boost::none);
+        auto const new_param = ast::make<ast::node::parameter>(!receiver_sym->immutable, receiver_sym->name, boost::none);
 
         new_param->set_source_location(*func_def);
         new_param->param_symbol = receiver_sym;

@@ -93,13 +93,13 @@ struct basic_scope {
                 }, enclosing_scope);
     }
 
-    virtual maybe_class_t resolve_class(std::string const& name) const
+    virtual maybe_class_t resolve_class_by_name(std::string const& name) const
     {
         return apply_lambda(
                 [&name](auto const& s)
                     -> maybe_class_t
                 {
-                    return s.lock()->resolve_class(name);
+                    return s.lock()->resolve_class_by_name(name);
                 }, enclosing_scope);
     }
 
@@ -225,7 +225,7 @@ struct global_scope final : public basic_scope {
 
     function_set resolve_func(std::string const& name, std::vector<type::type> const& args) const override;
 
-    maybe_class_t resolve_class(std::string const& name) const override
+    maybe_class_t resolve_class_by_name(std::string const& name) const override
     {
         return helper::find_if(classes, [&name](auto const& c){ return c->name == name; });
     }

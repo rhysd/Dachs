@@ -306,7 +306,7 @@ public:
                         [this](auto &val, auto && s)
                         {
                             implicit_import_installer.string_found = true;
-                            val = helper::make<ast::node::string_literal>(std::forward<decltype(s)>(s));
+                            val = ast::make<ast::node::string_literal>(std::forward<decltype(s)>(s));
                         },
                         _val, _a
                     )
@@ -341,7 +341,7 @@ public:
                     {
                         implicit_import_installer.array_found = true;
 
-                        return helper::make<ast::node::array_literal>(std::forward<decltype(exprs)>(exprs));
+                        return ast::make<ast::node::array_literal>(std::forward<decltype(exprs)>(exprs));
                     }
                     , as_vector(_1)
                 )
@@ -474,7 +474,7 @@ public:
                 _val = phx::bind(
                     [](auto && type, auto && args, auto && maybe_do)
                     {
-                        auto construct = helper::make<ast::node::object_construct>(
+                        auto construct = ast::make<ast::node::object_construct>(
                                     type,
                                     std::forward<decltype(args)>(args),
                                     std::forward<decltype(maybe_do)>(maybe_do)
@@ -489,16 +489,16 @@ public:
                         //
                         // This is temporary implementation to introduce variadic-length array (TODO)
                         if (auto const t = get_as<ast::node::primary_type>(type)) {
-                            if ((*t)->template_name == "array" && !(*t)->holders.empty()) {
-                                if (auto const a = get_as<ast::node::array_type>((*t)->holders[0])) {
+                            if ((*t)->name == "array" && !(*t)->template_params.empty()) {
+                                if (auto const a = get_as<ast::node::array_type>((*t)->template_params[0])) {
                                     auto inner_construct
-                                        = helper::make<ast::node::object_construct>(
+                                        = ast::make<ast::node::object_construct>(
                                                 *a
                                             );
                                     inner_construct->args = std::move(construct->args);
                                     construct->args.clear();
                                     construct->args.push_back(std::move(inner_construct));
-                                    (*t)->holders.clear();
+                                    (*t)->template_params.clear();
                                 }
                             }
                         }
@@ -558,9 +558,9 @@ public:
                                 return ast::node::func_invocation{};
                             }
 
-                            return helper::make<ast::node::func_invocation>(
-                                    helper::make<ast::node::lambda_expr>(
-                                        helper::make<ast::node::function_definition>(
+                            return ast::make<ast::node::func_invocation>(
+                                    ast::make<ast::node::lambda_expr>(
+                                        ast::make<ast::node::function_definition>(
                                             std::vector<ast::node::parameter>{},
                                             statements
                                         )
@@ -586,7 +586,7 @@ public:
                             }
 
                             assert(!inits.empty());
-                            auto stmts = helper::make<ast::node::statement_block>();
+                            auto stmts = ast::make<ast::node::statement_block>();
                             stmts->value.reserve(inits.size() + 1u);
                             stmts->set_source_location(*inits[0]);
 
@@ -609,7 +609,7 @@ public:
                                     return;
                                 }
 
-                                auto ret = helper::make<ast::node::return_stmt>(expr);
+                                auto ret = ast::make<ast::node::return_stmt>(expr);
                                 ret->set_source_location(ast::node::location_of(expr));
                                 body->value.emplace_back(
                                         std::move(ret)
@@ -641,9 +641,9 @@ public:
                                 return ast::node::func_invocation{};
                             }
 
-                            return helper::make<ast::node::func_invocation>(
-                                    helper::make<ast::node::lambda_expr>(
-                                        helper::make<ast::node::function_definition>(
+                            return ast::make<ast::node::func_invocation>(
+                                    ast::make<ast::node::lambda_expr>(
+                                        ast::make<ast::node::function_definition>(
                                             std::vector<ast::node::parameter>{},
                                             std::forward<decltype(body)>(body)
                                         )
@@ -1001,7 +1001,7 @@ public:
                             implicit_import_installer.string_found = true;
                         }
 
-                        val = helper::make<ast::node::primary_type>(
+                        val = ast::make<ast::node::primary_type>(
                                 std::forward<decltype(name)>(name),
                                 std::forward<decltype(templates)>(templates)
                             );
@@ -1023,10 +1023,10 @@ public:
                     [this](auto && param_type)
                     {
                         implicit_import_installer.array_found = true;
-                        return helper::make<ast::node::primary_type>(
+                        return ast::make<ast::node::primary_type>(
                                 "array",
                                 std::vector<ast::node::any_type>{
-                                    helper::make<ast::node::pointer_type>(
+                                    ast::make<ast::node::pointer_type>(
                                         std::forward<decltype(param_type)>(param_type)
                                     )
                                 }

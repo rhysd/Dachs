@@ -1388,9 +1388,6 @@ public:
                 return boost::none;
             };
 
-        // TODO:
-        // Now the parameter type of class is not a pointer but itself.  It will be pointer because Dachs has reference semantics.
-
         if (auto const maybe_idx = offset_of(ufcs->member_name)) {
             auto const& idx = *maybe_idx;
 

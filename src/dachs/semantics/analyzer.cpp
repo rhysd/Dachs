@@ -631,7 +631,7 @@ class symbol_analyzer {
         assert(!ctor->is_template());
 
         auto construct
-            = helper::make<ast::node::object_construct>(
+            = ast::make<ast::node::object_construct>(
                     type::to_ast(t, location)
                 );
         construct->set_source_location(std::forward<Location>(location));
@@ -722,7 +722,7 @@ public:
                 semantic_error(main_func->get_ast_node(), msg);
             };
 
-        auto const c = main_func->resolve_class("argv");
+        auto const c = main_func->resolve_class_by_name("argv");
         if (!c) {
             error("  Failed to analyze command line argument.  Class 'argv' is not found");
             return;
@@ -1162,7 +1162,7 @@ public:
 
     void visit_array_literal_construction(ast::node::array_literal const& arr_lit, type::type const& elem_type)
     {
-        auto cls = with_current_scope([](auto const& s){ return s->resolve_class("array"); });
+        auto cls = with_current_scope([](auto const& s){ return s->resolve_class_by_name("array"); });
         assert(cls);
         auto &array_class = *cls;
         assert(array_class->is_template());
@@ -1249,7 +1249,7 @@ public:
     template<class Walker>
     void visit(ast::node::string_literal const& str_lit, Walker const&)
     {
-        auto c = with_current_scope([](auto const& s){ return s->resolve_class("string"); });
+        auto c = with_current_scope([](auto const& s){ return s->resolve_class_by_name("string"); });
         assert(c);
         auto &str_scope = *c;
 
@@ -1799,7 +1799,7 @@ public:
         // bar(foo, ...)
         // foo.bar(...)
 
-        auto const instance_var_access = helper::make<ast::node::ufcs_invocation>(invocation->args[0], name);
+        auto const instance_var_access = ast::make<ast::node::ufcs_invocation>(invocation->args[0], name);
         instance_var_access->set_source_location(*invocation);
         instance_var_access->type = (*instance_var)->type;
 
@@ -2237,7 +2237,7 @@ public:
                     return nullptr;
                 }
 
-                auto decl = helper::make<ast::node::variable_decl>(false, name, boost::none);
+                auto decl = ast::make<ast::node::variable_decl>(false, name, boost::none);
                 decl->set_source_location(*construct);
                 {
                     auto const new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
@@ -2246,7 +2246,7 @@ public:
                     ctor->body->define_variable(new_var);
                 }
 
-                auto init = helper::make<ast::node::initialize_stmt>(
+                auto init = ast::make<ast::node::initialize_stmt>(
                             std::move(decl),
                             construct
                         );
@@ -2497,14 +2497,28 @@ public:
     {
         auto const ctor_candidates = scope->resolve_ctor(arg_types);
 
+        auto const note_msg
+            = [&arg_types]() -> std::string
+            {
+                if (arg_types.empty()) {
+                    return "";
+                }
+
+                std::string msg = "\n  Note: Tried to instantiate with types ";
+                for (auto const& t : arg_types) {
+                    msg += '\'' + t.to_string() + "', ";
+                }
+                return msg;
+            };
+
         if (ctor_candidates.empty()) {
-            return helper::oops("  No matching constructor to construct class '" + scope->to_string() + "'");
+            return helper::oops("  No matching constructor to construct class '" + scope->type.to_string() + "'" + note_msg());
         } else if (ctor_candidates.size() > 1u) {
-            std::string errmsg = "  Constructor candidates for '" + scope->to_string() + "' are ambiguous";
+            std::string errmsg = "  Constructor candidates for '" + scope->type.to_string() + "' are ambiguous";
             for (auto const& c : ctor_candidates) {
-                errmsg += "\n  Candidate: " + c->to_string();
+                errmsg += "\n    Candidate: " + c->to_string();
             }
-            return helper::oops(errmsg);
+            return helper::oops(errmsg + note_msg());
         }
 
         auto ctor = *std::begin(std::move(ctor_candidates));

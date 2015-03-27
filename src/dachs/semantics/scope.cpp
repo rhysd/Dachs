@@ -263,7 +263,7 @@ function_set global_scope::resolve_func(std::string const& name, std::vector<typ
 
 global_scope::maybe_class_t global_scope::resolve_class_template(std::string const& name, std::vector<type::type> const& specified) const
 {
-    auto const c = resolve_class(name);
+    auto const c = resolve_class_by_name(name);
     if (!c || !(*c)->is_template()) {
         return boost::none;
     }

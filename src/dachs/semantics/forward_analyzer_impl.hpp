@@ -181,7 +181,7 @@ class forward_symbol_analyzer {
     template<class Location>
     ast::node::var_ref generate_self_ref(Location const& location) const
     {
-        auto const ref = helper::make<ast::node::var_ref>("self");
+        auto const ref = ast::make<ast::node::var_ref>("self");
         ref->set_source_location(location);
         return ref;
     }
@@ -189,7 +189,7 @@ class forward_symbol_analyzer {
     ast::node::ufcs_invocation generate_self_member_access(ast::node::var_ref const& v) const
     {
         auto const self = generate_self_ref(*v);
-        auto const access = helper::make<ast::node::ufcs_invocation>(self, v->name.substr(1u));
+        auto const access = ast::make<ast::node::ufcs_invocation>(self, v->name.substr(1u));
         access->set_source_location(*v);
         return access;
     }
@@ -197,11 +197,11 @@ class forward_symbol_analyzer {
     template<class String, class Location>
     ast::node::parameter generate_receiver_node(String const& class_name, Location const& location) const
     {
-        auto const receiver_type_node = helper::make<ast::node::primary_type>(class_name);
+        auto const receiver_type_node = ast::make<ast::node::primary_type>(class_name);
         receiver_type_node->set_source_location(location);
 
         auto const receiver_node
-            = helper::make<ast::node::parameter>(
+            = ast::make<ast::node::parameter>(
                     true/* is_var */,
                     "self",
                     ast::node::any_type{receiver_type_node},
@@ -221,10 +221,10 @@ class forward_symbol_analyzer {
             };
 
         auto ctor_def
-            = helper::make<ast::node::function_definition>(
+            = ast::make<ast::node::function_definition>(
                 ast::node_type::function_definition::ctor_tag{},
                 params,
-                helper::make<ast::node::statement_block>()
+                ast::make<ast::node::statement_block>()
             );
         ctor_def->set_source_location(*def);
 
@@ -244,7 +244,7 @@ class forward_symbol_analyzer {
 
         for (auto const& d : def->instance_vars) {
             params.emplace_back(
-                    helper::make<ast::node::parameter>(
+                    ast::make<ast::node::parameter>(
                             true,
                             '@' + d->name,
                             boost::none
@@ -254,10 +254,10 @@ class forward_symbol_analyzer {
         }
 
         auto ctor_def
-            = helper::make<ast::node::function_definition>(
+            = ast::make<ast::node::function_definition>(
                 ast::node_type::function_definition::ctor_tag{},
                 params,
-                helper::make<ast::node::statement_block>()
+                ast::make<ast::node::statement_block>()
             );
         ctor_def->set_source_location(*def);
 
@@ -267,7 +267,7 @@ class forward_symbol_analyzer {
     void grow_main_arg_type_ast(ast::node::parameter const& p)
     {
         if (!p->param_type) {
-            auto argv = helper::make<ast::node::primary_type>("argv");
+            auto argv = ast::make<ast::node::primary_type>("argv");
             argv->set_source_location(*p);
             p->param_type = std::move(argv);
         }
@@ -775,10 +775,10 @@ public:
         expanded.reserve(num_elems);
 
         for (unsigned int const i : helper::indices(num_elems)) {
-            auto index_constant = helper::make<ast::node::primary_literal>(i);
+            auto index_constant = ast::make<ast::node::primary_literal>(i);
             index_constant->set_source_location(location);
 
-            auto access = helper::make<ast::node::index_access>(tuple_expr, std::move(index_constant));
+            auto access = ast::make<ast::node::index_access>(tuple_expr, std::move(index_constant));
             access->set_source_location(location);
             expanded.emplace_back(std::move(access));
         }
@@ -796,7 +796,7 @@ public:
     {
         auto location = ast::node::location_of(rhs);
         auto copied_lhs = ast::copy_ast(lhs);
-        auto const bin = helper::make<ast::node::binary_expr>(std::move(copied_lhs), op, std::move(rhs));
+        auto const bin = ast::make<ast::node::binary_expr>(std::move(copied_lhs), op, std::move(rhs));
         bin->set_source_location(std::move(location));
         return bin;
     }

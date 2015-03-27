@@ -1459,6 +1459,34 @@ BOOST_AUTO_TEST_CASE(pointer)
             end
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        import std.numeric
+
+        func main
+            var p := new pointer(pointer(int)){3u}
+
+            begin
+                var q := p
+
+                (0..2).each do |i|
+                    q[i] = new pointer(int){4u}
+                    var r := q[i]
+                    begin
+                        (0..3).each do |j|
+                            r[j] = i * j
+                        end
+                    end
+                end
+            end
+
+            (0..2).each do |i|
+                (0..3).each do |j|
+                    p[i][j].println
+                end
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(typeof)

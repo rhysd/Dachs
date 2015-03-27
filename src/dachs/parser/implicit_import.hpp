@@ -21,7 +21,7 @@ struct implicit_import {
             {
                 if (cond) {
                     program->imports.push_back(
-                            helper::make<ast::node::import>(module)
+                            ast::make<ast::node::import>(module)
                         );
                 }
             };
