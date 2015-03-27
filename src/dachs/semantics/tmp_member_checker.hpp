@@ -64,6 +64,7 @@ struct member_variable_checker : boost::static_visitor<helper::probable<type::ty
     {
         if (member_name == "size") {
             assert(a->size);
+            (void) a;
             return builtin_type("uint");
         }
         return type::type{};

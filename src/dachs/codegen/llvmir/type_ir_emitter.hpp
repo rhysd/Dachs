@@ -24,7 +24,7 @@ namespace dachs {
 namespace codegen {
 namespace llvmir {
 
-struct type_ir_emitter_impl {
+class type_ir_emitter {
     llvm::LLVMContext &context;
     semantics::lambda_captures_type const& lambda_captures;
     std::unordered_map<scope::class_scope, llvm::PointerType *const> class_table;
@@ -44,7 +44,8 @@ struct type_ir_emitter_impl {
         return v;
     }
 
-    type_ir_emitter_impl(llvm::LLVMContext &c, decltype(lambda_captures) const& lc)
+public:
+    type_ir_emitter(llvm::LLVMContext &c, decltype(lambda_captures) const& lc)
         : context(c), lambda_captures(lc)
     {}
 
@@ -195,16 +196,6 @@ struct type_ir_emitter_impl {
     {
         DACHS_RAISE_INTERNAL_COMPILATION_ERROR
     }
-};
-
-class type_ir_emitter {
-    type_ir_emitter_impl emitter_impl;
-
-public:
-    template<class... Args>
-    type_ir_emitter(Args &&...  args)
-        : emitter_impl(std::forward<Args>(args)...)
-    {}
 
     llvm::Type *emit_alloc_type(type::type const& any)
     {
@@ -215,36 +206,25 @@ public:
     {
         // Note:
         // No need to strip pointer type because builtin type is treated by value.
-        return emitter_impl.emit(t);
+        return emit(t);
     }
 
     llvm::Type *emit_alloc_type(type::pointer_type const& t)
     {
         // Note:
         // No need to strip pointer type because builtin type is treated by value.
-        return emitter_impl.emit(t);
+        return emit(t);
     }
 
     template<class T>
     llvm::Type *emit_alloc_type(T const& t)
     {
-        auto const ty = emitter_impl.emit(t);
+        auto const ty = emit(t);
         if (ty->isPointerTy()) {
             return ty->getPointerElementType();
         } else {
             return ty;
         }
-    }
-
-    llvm::Type *emit(type::type const& any)
-    {
-        return any.apply_lambda([this](auto const& t){ return emit(t); });
-    }
-
-    template<class T>
-    llvm::Type *emit(T const& t)
-    {
-        return emitter_impl.emit(t);
     }
 
     llvm::ArrayType *emit_alloc_fixed_array(type::array_type const& a)
@@ -256,7 +236,7 @@ public:
     llvm::ArrayType *emit_alloc_fixed_array(type::type const& e, std::size_t const size)
     {
         auto *const ty = e.is_aggregate()
-            ? emitter_impl.emit(e)
+            ? emit(e)
             : emit_alloc_type(e);
 
         return llvm::ArrayType::get(ty, size);
