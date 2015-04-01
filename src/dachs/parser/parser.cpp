@@ -240,7 +240,7 @@ public:
 
         stmt_block_before_end
             = (
-                -((compound_stmt - DACHS_KWD("inu")) % sep)
+                -((compound_stmt - DACHS_KWD("end")) % sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
@@ -451,7 +451,7 @@ public:
 
         parameter
             = (
-                -DACHS_KWD(qi::matches["dog_tricks"_l])
+                -DACHS_KWD(qi::matches["var"_l])
                 >> variable_name // '@' reveals in constructors
                 >> -(
                     -qi::eol >> ':' >> -qi::eol >> qualified_type
@@ -469,7 +469,7 @@ public:
 
         object_construct
             = (
-                DACHS_KWD("new_dog") >> qualified_type >> constructor_call >> -do_block
+                DACHS_KWD("new") >> qualified_type >> constructor_call >> -do_block
             ) [
                 _val = phx::bind(
                     [](auto && type, auto && args, auto && maybe_do)
@@ -489,7 +489,7 @@ public:
                         //
                         // This is temporary implementation to introduce variadic-length array (TODO)
                         if (auto const t = get_as<ast::node::primary_type>(type)) {
-                            if ((*t)->name == "dogs" && !(*t)->template_params.empty()) {
+                            if ((*t)->name == "array" && !(*t)->template_params.empty()) {
                                 if (auto const a = get_as<ast::node::array_type>((*t)->template_params[0])) {
                                     auto inner_construct
                                         = ast::make<ast::node::object_construct>(
@@ -515,7 +515,7 @@ public:
         // So, at first bind the parameters to _a and if "in" is parsed correctly, then substitute _a to _b.
         // Finally _b is used to construct ast::node::function_definition.
         lambda_expr_oneline
-            = "(^w^U)" >> -qi::eol >> (
+            = "->" >> -qi::eol >> (
                 (
                    ('(' >> -(parameter[phx::push_back(_a, _1)] % comma >> trailing_comma) >> ')' >> -qi::eol >> DACHS_KWD("in")[_b = _a])
                 | -(
@@ -532,10 +532,10 @@ public:
             ];
 
         lambda_expr_do_end
-            = "(^w^U)" >> -qi::eol >> (
+            = "->" >> -qi::eol >> (
                 (
-                    ('(' >> -(parameter % comma >> trailing_comma) >> ')') | -((parameter - "dog") % comma)
-                ) >> -qi::eol >> DACHS_KWD("dog") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
+                    ('(' >> -(parameter % comma >> trailing_comma) >> ')') | -((parameter - "do") % comma)
+                ) >> -qi::eol >> DACHS_KWD("do") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
             ) [
                 _val = make_node_ptr<ast::node::function_definition>(as_vector(_1), _2)
             ];
@@ -549,7 +549,7 @@ public:
 
         begin_end_expr
             = (
-                DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "inu"
+                DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
             ) [
                 _val = phx::bind(
                         [](auto const& statements)
@@ -574,7 +574,7 @@ public:
 
         let_expr
             = (
-                DACHS_KWD("dog_knows") >> -qi::eol
+                DACHS_KWD("let") >> -qi::eol
                 >> (
                     initialize_stmt % sep
                 ) [
@@ -618,7 +618,7 @@ public:
                             _a, _1
                         )
                     ] | (
-                        DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "inu"
+                        DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
                     ) [
                         phx::bind(
                             [](auto const& body, auto && stmts)
@@ -672,9 +672,9 @@ public:
 
         do_block
             = (
-                DACHS_KWD("dog"_l) >> -(
+                DACHS_KWD("do"_l) >> -(
                     '|' >> (parameter % comma) >> '|'
-                ) >> -qi::eol >> stmt_block_before_end >> -sep >> "inu"
+                ) >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
             ) [
                 make_and_assign_to_val<ast::node::function_definition>(as_vector(_1), _2)
             ] | (
@@ -717,21 +717,21 @@ public:
 
                     // primary.name ... do-end
                     | (
-                        -qi::eol >> '.' >> -qi::eol >> var_ref_before_space >> (typed_expr - "dog") % comma >> do_block
+                        -qi::eol >> '.' >> -qi::eol >> var_ref_before_space >> (typed_expr - "do") % comma >> do_block
                     ) [
                         make_and_assign_to_val<ast::node::func_invocation>(_1, _val, _2, _3)
                     ]
 
                     // primary.name ...
                     | (
-                        -qi::eol >> '.' >> -qi::eol >> var_ref_before_space >> !('+'_l | '-') >> (typed_expr - "dog") % comma
+                        -qi::eol >> '.' >> -qi::eol >> var_ref_before_space >> !('+'_l | '-') >> (typed_expr - "do") % comma
                     ) [
                         make_and_assign_to_val<ast::node::func_invocation>(_1, _val, _2)
                     ]
 
                     // primary.name [do-end]
                     | (
-                        -qi::eol >> '.' >> -qi::eol >> (var_ref - "dog") >> do_block
+                        -qi::eol >> '.' >> -qi::eol >> (var_ref - "do") >> do_block
                     ) [
                         make_and_assign_to_val<ast::node::func_invocation>(_2, _1, _val)
                     ]
@@ -745,7 +745,7 @@ public:
 
                     // primary ... do-end
                     | (
-                        qi::no_skip[&' '_l] >> !DACHS_KWD("as") >> (typed_expr - "dog") % comma >> do_block
+                        qi::no_skip[&' '_l] >> !DACHS_KWD("as") >> (typed_expr - "do") % comma >> do_block
                     ) [
                         make_and_assign_to_val<ast::node::func_invocation>(_val, _1, _2)
                     ]
@@ -982,7 +982,7 @@ public:
             ) [
                 make_and_assign_to_val<ast::node::array_type>(_1)
             ] | (
-                "poinuter"_l > -(
+                "pointer"_l > -(
                     '(' > -qi::eol > qualified_type > -qi::eol > ')'
                 )
             ) [
@@ -997,7 +997,7 @@ public:
                     {
                         if (name == "array") {
                             implicit_import_installer.array_found = true;
-                        } else if (name == "strinug") {
+                        } else if (name == "string") {
                             implicit_import_installer.string_found = true;
                         }
 
@@ -1056,7 +1056,7 @@ public:
         func_type
             = (
                 // Note: No need to use DACHS_KWD() because '(' or ':' follows it
-                "finuc" >> -('(' >> -(-qi::eol >> qualified_type % comma >> trailing_comma) >> ')') >>
+                "func" >> -('(' >> -(-qi::eol >> qualified_type % comma >> trailing_comma) >> ')') >>
                 -qi::eol >> ':' >> -qi::eol >> qualified_type
             ) [
                 make_and_assign_to_val<ast::node::func_type>(as_vector(_1), _2)
@@ -1068,7 +1068,7 @@ public:
 
         typeof_type
             = (
-                ("dogof"_l >> '(') > typed_expr > ')'
+                ("typeof"_l >> '(') > typed_expr > ')'
             ) [
                 _val = make_node_ptr<ast::node::typeof_type>(_1)
             ];
@@ -1110,7 +1110,7 @@ public:
 
         variable_decl
             = (
-                -DACHS_KWD(qi::matches["dog_tricks"_l])
+                -DACHS_KWD(qi::matches["var"_l])
                 >> variable_name >> -(
                     // Note: In this paren, > can't be used because of :=
                     -qi::eol >> ':' >> -qi::eol >> qualified_type
@@ -1150,7 +1150,7 @@ public:
 
         if_then_stmt_block
             = (
-                -((compound_stmt - DACHS_KWD("end") - DACHS_KWD("elseinu") - DACHS_KWD("else") - DACHS_KWD("then")) % sep)
+                -((compound_stmt - DACHS_KWD("end") - DACHS_KWD("elseif") - DACHS_KWD("else") - DACHS_KWD("then")) % sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
@@ -1168,7 +1168,7 @@ public:
                 >> if_then_stmt_block >> -sep
                 >> *(
                     qi::as<ast::node_type::if_stmt::elseif_type>()[
-                        DACHS_KWD("elseinu") >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
+                        DACHS_KWD("elseif") >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                         >> if_then_stmt_block >> -sep
                     ]
                 ) >> -(DACHS_KWD("else") >> -sep >> if_else_stmt_block >> -sep)
@@ -1216,7 +1216,7 @@ public:
                     ]
                 ) >> -(
                     DACHS_KWD("else") >> -sep >> stmt_block_before_end >> -sep
-                ) >> "inu"
+                ) >> "end"
             ) [
                 _val = make_node_ptr<ast::node::switch_stmt>(_1, _2, _3)
             ];
@@ -1224,9 +1224,9 @@ public:
         for_stmt
             = (
                 // Note: "do" might colide with do-end block in typed_expr
-                DACHS_KWD("osuwari") >> (parameter - DACHS_KWD("in")) % comma >> DACHS_KWD("in") >> typed_expr >> sep
+                DACHS_KWD("for") >> (parameter - DACHS_KWD("in")) % comma >> DACHS_KWD("in") >> typed_expr >> sep
                 >> stmt_block_before_end >> -sep
-                >> "inu"
+                >> "end"
             ) [
                 _val = make_node_ptr<ast::node::for_stmt>(_1, _2, _3)
             ];
@@ -1234,9 +1234,9 @@ public:
         while_stmt
             = (
                 // Note: "do" might colide with do-end block in typed_expr
-                DACHS_KWD("osuwari") >> typed_expr >> (DACHS_KWD("do") || sep)
+                DACHS_KWD("for") >> typed_expr >> (DACHS_KWD("do") || sep)
                 >> stmt_block_before_end >> -sep
-                >> "inu"
+                >> "end"
             ) [
                 _val = make_node_ptr<ast::node::while_stmt>(_1, _2)
             ];
@@ -1262,9 +1262,9 @@ public:
 
         do_stmt
             = (
-                DACHS_KWD("dog")
+                DACHS_KWD("do")
                 >> -qi::eol >> stmt_block_before_end >> -sep
-                >> DACHS_KWD("inu")
+                >> DACHS_KWD("end")
             );
 
         compound_stmt
@@ -1291,7 +1291,7 @@ public:
 
         func_body_stmt_block
             = (
-                -((compound_stmt - DACHS_KWD("ensure") - DACHS_KWD("inu")) % sep)
+                -((compound_stmt - DACHS_KWD("ensure") - DACHS_KWD("end")) % sep)
             ) [
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
@@ -1302,7 +1302,7 @@ public:
                 > func_body_stmt_block > -sep
                 > -(
                     "ensure" > sep > stmt_block_before_end > -sep
-                ) > "inu"
+                ) > "end"
             )[
                 _val = make_node_ptr<ast::node::function_definition>(_1, _2, _3, _4, _5, _6)
             ];
@@ -1375,16 +1375,16 @@ public:
 
         constructor
             = (
-                DACHS_KWD("inut") > function_param_decls > sep
+                DACHS_KWD("init") > function_param_decls > sep
                 > stmt_block_before_end > -sep
-                > "inu"
+                > "end"
             ) [
                 _val = make_node_ptr<ast::node::function_definition>(ast::node_type::function_definition::ctor_tag{}, _1, _2)
             ];
 
         class_definition
             = (
-                DACHS_KWD("kennel") > class_name
+                DACHS_KWD("class") > class_name
                 > *(
                     sep >> (
                         method_definition[
@@ -1393,18 +1393,18 @@ public:
                       | constructor[
                             phx::push_back(_b, _1)
                         ]
-                      | (instance_variable_decls - "inu")[
+                      | (instance_variable_decls - "end")[
                             phx::insert(_a, phx::end(_a), phx::begin(_1), phx::end(_1))
                         ]
                     )
-                ) > sep > "inu"
+                ) > sep > "end"
             )[
                 _val = make_node_ptr<ast::node::class_definition>(_1, _a, _b)
             ];
 
         import
             = (
-                    DACHS_KWD("inuport")
+                    DACHS_KWD("import")
                     > (
                         +(alnum | '_'_p)[_a += _1] % '.'_p[_a += _1]
                     )
@@ -1529,9 +1529,9 @@ public:
             // _2 : end of string to parse
             // _3 : iterator at failed point
             // _4 : what failed?
-            std::cerr << phx::val(c.red("Error") + " inu ")
+            std::cerr << phx::val(c.red("Error") + " in ")
                       << phx::bind([](auto const begin, auto const err_pos) {
-                              return (boost::format("linu:%1%, col:%2%") % spirit::get_line(err_pos) % spirit::get_column(begin, err_pos)).str();
+                              return (boost::format("line:%1%, col:%2%") % spirit::get_line(err_pos) % spirit::get_column(begin, err_pos)).str();
                           }, _1, _3) << '\n'
                       << c.bold("Expected ", false) << _4 << c.reset()
                       << "\n\n"
@@ -1770,8 +1770,8 @@ private:
         if_kind_rule_type()
         {
             add
-                ("inu", ast::symbol::if_kind::if_)
-                ("uninu", ast::symbol::if_kind::unless)
+                ("if", ast::symbol::if_kind::if_)
+                ("unless", ast::symbol::if_kind::unless)
             ;
         }
     } if_kind;
@@ -1789,7 +1789,7 @@ private:
         func_kind_rule_type()
         {
             add
-                ("finuc", ast::symbol::func_kind::func)
+                ("func", ast::symbol::func_kind::func)
                 ("proc", ast::symbol::func_kind::proc)
             ;
         }
