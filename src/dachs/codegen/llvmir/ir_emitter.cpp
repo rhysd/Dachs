@@ -1281,6 +1281,22 @@ public:
             );
     }
 
+    template<class Node>
+    val emit_user_defined_deepcopy(
+            Node const& node,
+            val const src_value,
+            scope::func_scope const& callee
+    ) {
+        return check(
+            node,
+            ctx.builder.CreateCall(
+                emit_non_builtin_callee(node, callee),
+                src_value
+            ),
+            "deep copy call"
+        );
+    }
+
     val emit(ast::node::binary_expr const& bin_expr)
     {
         auto const lhs_type = type::type_of(bin_expr->lhs);
@@ -1620,7 +1636,7 @@ public:
         assert(initializer_size != 0);
 
         auto const initialize
-            = [&, this](auto const& decl, auto *const value)
+            = [&, this](auto const& decl, auto *const value, auto const& deep_copier)
             {
                 if (decl->name == "_" && decl->symbol.expired()) {
                     return;
@@ -1651,17 +1667,34 @@ public:
                     assert(self_val);
                     assert(self_val->getType()->isPointerTy());
 
-                    auto *const dest_val = load_aggregate_elem(ctx.builder.CreateStructGEP(self_val, *offset), type);
+                    auto *const ptr_to_instance_var = ctx.builder.CreateStructGEP(self_val, *offset);
+
+                    if (!deep_copier.expired()) {
+                        ctx.builder.CreateStore(
+                                emit_user_defined_deepcopy(
+                                    decl, value, deep_copier.lock()
+                                ),
+                                ptr_to_instance_var
+                            );
+                        return;
+                    }
+
+                    auto *const dest_val = load_aggregate_elem(ptr_to_instance_var, type);
                     assert(dest_val);
+                    dest_val->setName(decl->name);
 
                     alloc_emitter.create_deep_copy(value, dest_val, type);
 
-                    dest_val->setName(decl->name);
-
                 } else if (decl->is_var) {
-                    auto *const allocated = alloc_emitter.alloc_and_deep_copy(value, type, sym->name);
-                    assert(allocated);
-                    register_var(std::move(sym), allocated);
+                    if (deep_copier.expired()) {
+                        auto *const allocated = alloc_emitter.alloc_and_deep_copy(value, type, sym->name);
+                        assert(allocated);
+                        register_var(std::move(sym), allocated);
+                    } else {
+                        val const copied = emit_user_defined_deepcopy(decl, value, deep_copier.lock());
+                        copied->setName(decl->name);
+                        register_var(std::move(sym), copied);
+                    }
                 } else {
                     // If the variable is immutable, do not copy rhs value
                     register_var(std::move(sym), value);
@@ -1670,11 +1703,11 @@ public:
 
         if (initializee_size == initializer_size) {
             helper::each(
-                    [&, this](auto const& d, auto const& e)
+                    [&, this](auto const& d, auto const& e, auto const& c)
                     {
-                        initialize(d, emit(e));
+                        initialize(d, emit(e), c);
                     }
-                    , init->var_decls, rhs_exprs
+                    , init->var_decls, rhs_exprs, init->deepcopy_callee_scopes
                 );
         } else if (initializee_size == 1) {
             assert(initializer_size > 1);
@@ -1682,7 +1715,7 @@ public:
             auto *const rhs_tuple_value
                 = emit_tuple_constant(rhs_exprs);
 
-            initialize(init->var_decls[0], rhs_tuple_value);
+            initialize(init->var_decls[0], rhs_tuple_value, init->deepcopy_callee_scopes[0]);
         } else if (initializer_size == 1) {
             assert(initializee_size > 1);
             auto const& rhs_expr = (rhs_exprs)[0];
@@ -1703,7 +1736,7 @@ public:
                 rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
             }
 
-            helper::each(initialize , init->var_decls, rhs_values);
+            helper::each(initialize , init->var_decls, rhs_values, init->deepcopy_callee_scopes);
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }

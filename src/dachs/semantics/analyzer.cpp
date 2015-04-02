@@ -642,6 +642,103 @@ class symbol_analyzer {
         return construct;
     }
 
+    // XXX:
+    // This function has duplicate code with resolve_func_call()
+    template<class Node>
+    boost::optional<scope::func_scope> resolve_deep_copy(type::type const& t, Node const& node)
+    {
+        if (!type::is_a<type::class_type>(t)) {
+            return boost::none;
+        }
+
+        auto const candidates =
+            with_current_scope(
+                    [&](auto const& s)
+                    {
+                        return s->resolve_func(":=", {t});
+                    }
+                );
+
+        if (candidates.empty()) {
+            return boost::none;
+        }
+
+        if (candidates.size() > 1u) {
+            std::string notes;
+            for (auto const& c : candidates) {
+                notes += "\n  Candidate: " + c->to_string();
+            }
+            semantic_error(node, "  Ambiguous deep copy operators for '" + t.to_string() + "'" + notes);
+            return boost::none;
+        }
+
+        auto func = std::move(*std::begin(candidates));
+        assert(!func->is_builtin());
+
+        auto func_def = func->get_ast_node();
+
+        if (func->is_template()) {
+            std::tie(func_def, func) = instantiate_function_from_template(func_def, func, {t});
+        }
+
+        if (!func_def->ret_type) {
+            if (!walk_recursively_with(global, func_def)) {
+                semantic_error(
+                        node,
+                        boost::format(
+                            "  Failed to analyze deep copy operator '%1%' defined at line:%2%, col:%3%"
+                            ) % func->to_string()
+                              % func_def->line
+                              % func_def->col
+                    );
+                return boost::none;
+            }
+        }
+
+        if (!func->ret_type) {
+            semantic_error(
+                    node,
+                    "  Cannot deduce the return type of deep copy operator '" + func->to_string() + "'"
+                );
+            return boost::none;
+        }
+
+        // Note:
+        // Check function accessibility
+        if (!func_def->is_public()) {
+            auto const f = with_current_scope([](auto const& s)
+                    {
+                        return s->get_enclosing_func();
+                    }
+                );
+            auto const cls = type::get<type::class_type>(func->params[0]->type);
+
+            assert(f);
+            assert(cls);
+
+            auto const error
+                = [&, this]
+                {
+                    semantic_error(
+                            node,
+                            boost::format("  member function '%1%' is a private member of class '%2%'")
+                                % func->to_string() % (*cls)->name
+                        );
+                    return boost::none;
+                };
+
+            if (auto const c = (*f)->get_receiver_class_scope()) {
+                if ((*cls)->name != (*c)->name) {
+                    return error();
+                }
+            } else {
+                return error();
+            }
+        }
+
+        return func;
+    }
+
     template<class Predicate>
     auto with_current_scope(Predicate const& p) const
     {
@@ -1199,6 +1296,9 @@ public:
         arr_lit->constructed_class_scope = class_and_ctor.first;
         arr_lit->callee_ctor_scope = class_and_ctor.second;
         arr_lit->type = class_and_ctor.first->type;
+
+        // TODO:
+        // Check deep_copy
     }
 
     template<class Walker>
@@ -1301,6 +1401,9 @@ public:
             type->element_types.push_back(type_of(e));
         }
         tuple_lit->type = type;
+
+        // TODO:
+        // Check deep_copy for each element
     }
 
     template<class Walker>
@@ -1452,6 +1555,9 @@ public:
         // index access.  I wanted to gather functions for index access here.
         result_type analyze_lhs_of_assign(type::type const& rhs_type) const
         {
+            // TODO:
+            // Check deep_copy
+
             if (access->type || !rhs_type) {
                 // Note:
                 // When the type of index access is already determined,
@@ -2250,7 +2356,7 @@ public:
                     return nullptr;
                 }
 
-                auto decl = ast::make<ast::node::variable_decl>(false, name, boost::none);
+                auto const decl = ast::make<ast::node::variable_decl>(false, name, boost::none);
                 decl->set_source_location(*construct);
                 {
                     auto const new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
@@ -2260,11 +2366,19 @@ public:
                 }
 
                 auto init = ast::make<ast::node::initialize_stmt>(
-                            std::move(decl),
+                            decl,
                             construct
                         );
                 assert(init);
                 init->set_source_location(*construct);
+
+                // TODO:
+                // Check deep_copy
+                if (auto const f = resolve_deep_copy(construct->type, decl)) {
+                    init->deepcopy_callee_scopes.emplace_back(*f);
+                } else {
+                    init->deepcopy_callee_scopes.emplace_back();
+                }
 
                 return init;
             };
@@ -2664,6 +2778,12 @@ public:
         } else if (auto const err = detail::ctor_checker{}(obj->type, obj->args)) {
             semantic_error(obj, *err);
             error();
+
+            // TODO:
+            // Check deep_copy
+            // Deep copy occur when constructing array with 2 arguments
+            // It deeply copies second argument to each elements of array
+
             obj->type = type::type{};
         }
     }
@@ -2956,6 +3076,11 @@ public:
                         init->maybe_rhs_exprs = std::vector<ast::node::any_expr>{
                                 default_construct
                             };
+                        if (auto const f = resolve_deep_copy(t, v)){
+                            init->deepcopy_callee_scopes.emplace_back(*f);
+                        } else {
+                            init->deepcopy_callee_scopes.emplace_back();
+                        }
                     } else {
                         semantic_error(
                                 v,
@@ -2989,6 +3114,7 @@ public:
             [this, &init, &maybe_ctor](auto const& decl, type::type const& t)
             {
                 if (decl->name == "_" && decl->symbol.expired()) {
+                    init->deepcopy_callee_scopes.emplace_back();
                     return;
                 }
                 auto const symbol = decl->symbol.lock();
@@ -3017,6 +3143,19 @@ public:
                         // So ensure any type not to be specified.
                         assert(receiver_type->param_types.empty());
                     }
+                }
+
+                // TODO:
+                // Check deep_copy
+                // Deep copy occurs in below cases
+                //   - instance var initialization
+                //   - initialize by value (define with 'var')
+                if (auto const f = resolve_deep_copy(t, decl)) {
+                    init->deepcopy_callee_scopes.emplace_back(*f);
+                } else {
+                    // Note:
+                    // Add empty function scope reference to fit in the number of decls.
+                    init->deepcopy_callee_scopes.emplace_back();
                 }
 
                 if (!symbol->type || symbol->type == t) {
@@ -3233,6 +3372,9 @@ public:
                                 );
                         }
                     }
+
+                    // TODO:
+                    // Check deep_copy
                 },
                 assign->assignees,
                 assign->rhs_exprs
@@ -3297,6 +3439,12 @@ public:
                 return;
             }
         }
+
+        // TODO:
+        // Check deep_copy
+        // deep copy will occur in below cases:
+        //   - pass by value (with 'var')
+        //   - instance variable initializer
 
         w();
     }

@@ -65,7 +65,7 @@ struct semantics_context {
     semantics_context &operator=(semantics_context &&) = default;
 
     template<class Stream = std::ostream>
-    void dump_lambda_captures(Stream &out = std::cerr) const noexcept
+    void dump_lambda_captures(Stream &out = std::cerr) const
     {
         out << "Lambda captures:" << std::endl;
         for (auto const& cs : lambda_captures) {
