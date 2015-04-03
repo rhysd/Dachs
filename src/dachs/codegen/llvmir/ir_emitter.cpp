@@ -686,7 +686,7 @@ public:
         return check(pl, boost::apply_visitor(visitor, pl->value), "constant");
     }
 
-    val emit_tuple_constant(type::tuple_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
+    val emit_tuple_constant(type::tuple_type const& t, std::vector<ast::node::any_expr> const& elem_exprs, std::vector<scope::weak_func_scope> deep_copiers = {})
     {
         if (elem_exprs.empty()) {
             if (!unit_constant) {
@@ -728,15 +728,25 @@ public:
             auto *const alloca_inst = alloc_emitter.create_alloca(t);
 
             for (auto const idx : helper::indices(elem_values)) {
-                auto const elem_type = type::type_of(elem_exprs[idx]);
-                alloc_emitter.create_deep_copy(
-                        elem_values[idx],
-                        load_aggregate_elem(
-                            ctx.builder.CreateStructGEP(alloca_inst, idx),
+                if (!deep_copiers.empty() && !deep_copiers[idx].expired()) {
+                    val const ptr_to_elem = ctx.builder.CreateStructGEP(alloca_inst, idx);
+                    val const copied = emit_user_defined_deepcopy(
+                            ast::node::location_of(elem_exprs[idx]),
+                            elem_values[idx],
+                            deep_copiers[idx].lock()
+                        );
+                    ctx.builder.CreateStore(copied, ptr_to_elem);
+                } else {
+                    auto const elem_type = type::type_of(elem_exprs[idx]);
+                    alloc_emitter.create_deep_copy(
+                            elem_values[idx],
+                            load_aggregate_elem(
+                                ctx.builder.CreateStructGEP(alloca_inst, idx),
+                                elem_type
+                            ),
                             elem_type
-                        ),
-                        elem_type
-                    );
+                        );
+                }
             }
 
             return alloca_inst;
@@ -753,7 +763,8 @@ public:
         return emit_tuple_constant(the_type, elem_exprs);
     }
 
-    val emit_array_constant(type::pointer_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
+    template<class MaybeCopier>
+    val emit_array_constant(type::pointer_type const& t, std::vector<ast::node::any_expr> const& elem_exprs, MaybeCopier && maybe_elem_copier)
     {
         auto const& elem_type = t->pointee_type;
 
@@ -784,18 +795,39 @@ public:
 
             return ctx.builder.CreateConstInBoundsGEP2_32(constant, 0u, 0u);
         } else {
+            // TODO:
+            // Now, static arrays are allocated with type [ElemType x N]* (e.g. [int x N]* for static_array(int)).
+            // However, I must consider the structure of array.  Because arrays are allocated directly as [T x N], all elements are
+            // allocated once and they can't be separated.  This means that when extracting a element from the array, compiler must
+            // copy the element instead of copying the pointer to the element.  And GC can't destroy the whole array until all elements
+            // are expired.
+            // So, the allocation of static array should be [ElemType* x N]*.
+
             auto *const allocated = ctx.builder.CreateConstInBoundsGEP2_32(ctx.builder.CreateAlloca(array_ty), 0u, 0u, "arrlit");
 
             for (auto const idx : helper::indices(elem_exprs)) {
                 auto *const elem_value = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);
-                alloc_emitter.create_deep_copy(
-                        load_if_ref(elem_values[idx], elem_type),
-                        load_aggregate_elem(
-                            elem_value,
+
+                if (maybe_elem_copier) {
+                    val const copied = emit_user_defined_deepcopy(
+                            ast::node::location_of(elem_exprs[idx]),
+                            elem_values[idx],
+                            *std::forward<MaybeCopier>(maybe_elem_copier)
+                        );
+
+                    // Note:
+                    // Copy an element of array because of array structure (see above TODO).
+                    ctx.builder.CreateStore(ctx.builder.CreateLoad(copied), elem_value);
+                } else {
+                    alloc_emitter.create_deep_copy(
+                            load_if_ref(elem_values[idx], elem_type),
+                            load_aggregate_elem(
+                                elem_value,
+                                elem_type
+                            ),
                             elem_type
-                        ),
-                        elem_type
-                    );
+                        );
+                }
             }
 
             return allocated;
@@ -810,7 +842,8 @@ public:
                 tuple,
                 emit_tuple_constant(
                     *type::get<type::tuple_type>(tuple->type),
-                    tuple->element_exprs
+                    tuple->element_exprs,
+                    tuple->deepcopy_callee_scopes
                 ),
                 "tuple literal"
             );
@@ -844,11 +877,17 @@ public:
         auto const underlying_type = literal->type.get_array_underlying_type();
         assert(underlying_type);
 
+        auto maybe_copier
+            = !literal->deepcopy_callee_scope.expired() ?
+                boost::optional<scope::func_scope>{literal->deepcopy_callee_scope.lock()} :
+                boost::none;
+
         auto *const native_array_value = check(
                 literal,
                 emit_array_constant(
                     *underlying_type,
-                    literal->element_exprs
+                    literal->element_exprs,
+                    std::move(maybe_copier)
                 ),
                 "inner static array in array literal"
             );

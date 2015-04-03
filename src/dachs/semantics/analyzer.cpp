@@ -673,9 +673,9 @@ class symbol_analyzer {
         }
 
         auto func = std::move(*std::begin(candidates));
-        assert(!func->is_builtin());
 
         auto func_def = func->get_ast_node();
+        assert(!func->is_builtin);
 
         if (func->is_template()) {
             std::tie(func_def, func) = instantiate_function_from_template(func_def, func, {t});
@@ -1299,6 +1299,9 @@ public:
 
         // TODO:
         // Check deep_copy
+        if (auto const f = resolve_deep_copy(elem_type, arr_lit)) {
+            arr_lit->deepcopy_callee_scope = *f;
+        }
     }
 
     template<class Walker>
@@ -1394,16 +1397,23 @@ public:
         if (tuple_lit->element_exprs.size() == 1) {
             semantic_error(tuple_lit, "  Size of tuple should not be 1");
         }
+
         w();
+
         auto const type = type::make<type::tuple_type>();
         type->element_types.reserve(tuple_lit->element_exprs.size());
         for (auto const& e : tuple_lit->element_exprs) {
-            type->element_types.push_back(type_of(e));
+            auto elem_type = type_of(e);
+
+            if (auto const f = resolve_deep_copy(elem_type, tuple_lit)) {
+                tuple_lit->deepcopy_callee_scopes.emplace_back(*f);
+            } else {
+                tuple_lit->deepcopy_callee_scopes.emplace_back();
+            }
+
+            type->element_types.emplace_back(std::move(elem_type));
         }
         tuple_lit->type = type;
-
-        // TODO:
-        // Check deep_copy for each element
     }
 
     template<class Walker>
