@@ -3149,4 +3149,49 @@ BOOST_AUTO_TEST_CASE(typeof)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(deep_copy_operator)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func :=
+                ret new X
+            end
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func :=(x : X)
+            ret new X
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            func :=
+                ret 42
+            end
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func :=(f : float)
+            ret f
+        end
+
+        func main
+        end
+    )");
+}
 BOOST_AUTO_TEST_SUITE_END()

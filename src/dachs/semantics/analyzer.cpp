@@ -981,7 +981,20 @@ public:
         }
 
         if (is_query_function && *func->ret_type != type::get_builtin_type("bool", type::no_opt)) {
-            semantic_error(func, boost::format("  Function '%1%' must return bool because it includes '?' in its name") % func->name);
+            semantic_error(func, boost::format("  Function '%1%' must return bool because it includes '?' in its name") % scope->to_string());
+        }
+
+        if (scope->name == ":=") {
+            assert(!scope->params.empty());
+            auto const receiver = type::get<type::class_type>(scope->params[0]->type);
+            if (!receiver) {
+                semantic_error(func, boost::format("  Invalid deep copy operator '%1%'.  You can define deep copy operator only for class type.") % scope->to_string());
+            }
+
+            assert(scope->ret_type);
+            if (*scope->ret_type != scope->params[0]->type) {
+                semantic_error(func, boost::format("  Invalid deep copy operator '%1%'.  Deep copy operator must returns the same type '%2%' as its receiver's type.") % scope->to_string() % scope->ret_type->to_string());
+            }
         }
 
         const_member_func_checker const_checker{scope, func_};
