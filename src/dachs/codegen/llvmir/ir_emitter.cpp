@@ -989,19 +989,22 @@ public:
 
         assert(type_emitter.emit(param_sym->type) == param_val->getType());
 
-        auto const inst
-            = check(
-                param,
-                alloc_emitter.alloc_and_deep_copy(param_val, param_sym->type, param->name),
-                "allocation for variable parameter"
-            );
+        if (param->deepcopy_callee_scope.expired()) {
+            auto const inst
+                = check(
+                    param,
+                    alloc_emitter.alloc_and_deep_copy(param_val, param_sym->type, param->name),
+                    "allocation for variable parameter"
+                );
 
-        auto const result = register_var(param_sym, inst);
-        assert(result);
-        (void) result;
+            register_var(param_sym, inst);
+        } else {
+            auto *const copied = emit_user_defined_deepcopy(param, param_val, param->deepcopy_callee_scope.lock());
+            register_var(param_sym, copied);
+        }
     }
 
-    void emit_instance_var_init_params(scope::func_scope const& ctor)
+    void emit_instance_var_init_params(scope::func_scope const& ctor, ast::node::function_definition const& def)
     {
         assert(ctor->is_member_func);
 
@@ -1014,20 +1017,32 @@ public:
         auto *const self_val = lookup_var(self_sym);
         assert(self_val);
 
-        for (auto const& p : ctor->params) {
-            if (p->is_instance_var()) {
-                auto *const initializer_val = lookup_var(p);
-                assert(initializer_val);
+        for (auto const& param : def->params) {
+            auto const param_sym = param->param_symbol.lock();
 
-                auto const offset = clazz->get_instance_var_offset_of(p->name.substr(1u)/* omit '@' */);
-                assert(offset);
+            if (!param_sym->is_instance_var()) {
+                continue;
+            }
+
+            auto *const init_val = lookup_var(param_sym);
+            assert(init_val);
+
+            auto const offset = clazz->get_instance_var_offset_of(param_sym->name.substr(1u)/* omit '@' */);
+            assert(offset);
+            auto *const elem_val = ctx.builder.CreateStructGEP(self_val, *offset);
+
+            if (param->deepcopy_callee_scope.expired()) {
                 auto *const dest_val = load_aggregate_elem(
-                        ctx.builder.CreateStructGEP(self_val, *offset),
-                        p->type
+                        elem_val,
+                        param_sym->type
                     );
 
                 assert(dest_val);
-                alloc_emitter.create_deep_copy(initializer_val, dest_val, p->type);
+                alloc_emitter.create_deep_copy(init_val, dest_val, param_sym->type);
+            } else {
+                auto *const copied = emit_user_defined_deepcopy(param, init_val, param->deepcopy_callee_scope.lock());
+                ctx.builder.CreateStore(copied, elem_val);
+                register_var(param_sym, copied);
             }
         }
     }
@@ -1056,7 +1071,7 @@ public:
         }
 
         if (scope->is_ctor()) {
-            emit_instance_var_init_params(scope);
+            emit_instance_var_init_params(scope, func_def);
         }
 
         emit(func_def->body);
@@ -1610,7 +1625,7 @@ public:
         auto const& param = for_->iter_vars[0];
         auto const sym = param->param_symbol;
         auto *const allocated =
-            param->is_var
+            param->is_var && param->deepcopy_callee_scope.expired()
                 ? alloc_emitter.create_alloca(param->type, false /*zero init?*/, param->name)
                 : nullptr;
 
@@ -1655,7 +1670,13 @@ public:
 
             auto const s = sym.lock();
 
-            if (allocated) {
+            if (!param->deepcopy_callee_scope.expired()) {
+                auto *const copied = emit_user_defined_deepcopy(
+                            param, elem_ptr_val, param->deepcopy_callee_scope.lock()
+                        );
+                copied->setName(param->name);
+                register_var(s, copied);
+            } else if (allocated) {
                 alloc_emitter.create_deep_copy(elem_ptr_val, allocated, s->type);
                 register_var(s, allocated);
             } else {
@@ -1666,7 +1687,7 @@ public:
 
         emit(for_->body_stmts);
 
-        ctx.builder.CreateStore(ctx.builder.CreateAdd(loaded_counter_val, ctx.builder.getInt64(1u)), counter_val);
+        ctx.builder.CreateStore(ctx.builder.CreateAdd(loaded_counter_val, ctx.builder.getInt64(1u), "incremented"), counter_val);
         helper.create_br(header_block, footer_block);
     }
 

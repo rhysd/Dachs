@@ -647,6 +647,8 @@ class symbol_analyzer {
     template<class Node>
     boost::optional<scope::func_scope> resolve_deep_copy(type::type const& t, Node const& node)
     {
+        assert(t);
+
         if (!type::is_a<type::class_type>(t)) {
             return boost::none;
         }
@@ -2851,6 +2853,12 @@ public:
                     assert(!param->param_symbol.expired());
                     param->param_symbol.lock()->type = t;
                 }
+
+                if (param->type && param->is_var) {
+                    if (auto const f = resolve_deep_copy(param->type, param)) {
+                        param->deepcopy_callee_scope = *f;
+                    }
+                }
             };
 
         auto const check_element =
@@ -3454,13 +3462,18 @@ public:
             }
         }
 
+        w();
+
         // TODO:
         // Check deep_copy
         // deep copy will occur in below cases:
         //   - pass by value (with 'var')
         //   - instance variable initializer
-
-        w();
+        if (param->type && !param->is_receiver && (param->is_var || param->is_instance_var_init())) {
+            if (auto const f = resolve_deep_copy(param->type, param)) {
+                param->deepcopy_callee_scope = *f;
+            }
+        }
     }
 
     template<class T, class Walker>
