@@ -1565,9 +1565,6 @@ public:
         // index access.  I wanted to gather functions for index access here.
         result_type analyze_lhs_of_assign(type::type const& rhs_type) const
         {
-            // TODO:
-            // Check deep_copy
-
             if (access->type || !rhs_type) {
                 // Note:
                 // When the type of index access is already determined,
@@ -3329,6 +3326,16 @@ public:
                 {
                     auto const rhs_type = type_of(rhs);
 
+                    // TODO:
+                    // Check deep_copy
+                    if (!rhs_type) {
+                        assign->deepcopy_callee_scopes.emplace_back();
+                    } else if (auto const f = resolve_deep_copy(rhs_type, assign)) {
+                        assign->deepcopy_callee_scopes.emplace_back(*f);
+                    } else {
+                        assign->deepcopy_callee_scopes.emplace_back();
+                    }
+
                     if (auto const a = get_as<ast::node::index_access>(lhs)) {
                         // Note:
                         // Edge case for lhs of assignment
@@ -3382,9 +3389,6 @@ public:
                                 );
                         }
                     }
-
-                    // TODO:
-                    // Check deep_copy
                 },
                 assign->assignees,
                 assign->rhs_exprs

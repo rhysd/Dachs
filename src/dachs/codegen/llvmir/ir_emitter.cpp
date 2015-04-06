@@ -418,22 +418,43 @@ class llvm_ir_emitter {
         return is_supported(lhs_builtin_type) && is_supported(rhs_builtin_type);
     }
 
-    template<class IREmitter>
+    template<class IREmitter, class Node>
     struct lhs_of_assign_emitter {
 
         IREmitter &emitter;
         val const rhs_value;
+        scope::weak_func_scope deep_copier;
+        Node const& node;
 
         void emit_copy_to_lhs(val const lhs_value, type::type const& lhs_type)
         {
             assert(lhs_value);
             assert(lhs_value->getType()->isPointerTy());
 
-            emitter.alloc_emitter.create_deep_copy(
-                    rhs_value,
-                    emitter.load_aggregate_elem(lhs_value, lhs_type),
-                    lhs_type
-                );
+            if (deep_copier.expired()) {
+                emitter.alloc_emitter.create_deep_copy(
+                        rhs_value,
+                        emitter.load_aggregate_elem(lhs_value, lhs_type),
+                        lhs_type
+                    );
+            } else {
+                auto *const copied
+                    = emitter.emit_user_defined_deepcopy(
+                            node,
+                            rhs_value,
+                            deep_copier.lock()
+                        );
+
+                // Note:
+                // Below assertion never fails because the copy target is class type
+                // and it is treated as the pointer value to struct.
+                assert(copied->getType() == lhs_value->getType());
+
+                emitter.ctx.builder.CreateStore(
+                        emitter.ctx.builder.CreateLoad(copied),
+                        lhs_value
+                    );
+            }
         }
 
         void emit(ast::node::var_ref const& ref)
@@ -1785,9 +1806,10 @@ public:
     {
         assert(assign->op == "=");
         assert(assign->assignees.size() == assign->rhs_exprs.size());
+        assert(assign->assignees.size() == assign->deepcopy_callee_scopes.size());
 
         helper::each(
-            [&, this](auto const& lhs_expr, auto const& rhs_expr)
+            [&, this](auto const& lhs_expr, auto const& rhs_expr, auto const& deep_copier)
             {
                 auto const lhs_type = type::type_of(lhs_expr);
                 if (!lhs_type) {
@@ -1798,9 +1820,9 @@ public:
                 auto const rhs_type = type::type_of(rhs_expr);
 
                 auto *const rhs_value = load_if_ref(emit(rhs_expr), rhs_type);
-                lhs_of_assign_emitter<self>{*this, rhs_value}.emit(lhs_expr);
+                lhs_of_assign_emitter<self, decltype(assign)>{*this, rhs_value, deep_copier, assign}.emit(lhs_expr);
             }
-            , assign->assignees, assign->rhs_exprs
+            , assign->assignees, assign->rhs_exprs, assign->deepcopy_callee_scopes
         );
     }
 
