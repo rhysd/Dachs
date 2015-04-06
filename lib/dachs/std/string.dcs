@@ -15,6 +15,9 @@ class string
         @data := new pointer(char){0u}
     end
 
+    # Note:
+    # No need to define deep copy operator because 'string' is immutable.
+
   - func strlen
         var i := 0u
         for @data[i] != '\0'
