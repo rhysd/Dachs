@@ -30,6 +30,11 @@ class array
         end
     end
 
+    func :=
+        new_buf := new typeof(@buf){@size}
+        ret new [typeof(@buf[0])]{new_buf, @size}
+    end
+
     init(s : int, block)
         @size := s as uint
         @capacity := @size
