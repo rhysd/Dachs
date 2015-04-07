@@ -339,6 +339,11 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         return name == "dachs.init";
     }
 
+    bool is_copier() const noexcept
+    {
+        return name == "dachs.copy";
+    }
+
     std::string to_string() const noexcept;
 
     maybe_var_t resolve_var(std::string const& name) const override
@@ -413,11 +418,6 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
     function_set resolve_ctor(std::vector<type::type> const& arg_types) const
     {
         return resolve_func("dachs.init", arg_types);
-    }
-
-    function_set resolve_copier() const
-    {
-        return resolve_func("dachs.copy", {});
     }
 
     boost::optional<size_t> get_instance_var_offset_of(std::string const& name) const noexcept

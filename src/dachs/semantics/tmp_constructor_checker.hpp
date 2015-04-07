@@ -59,7 +59,7 @@ public:
 
         if (obj->args.size() == 1) {
             if (a->element_type.is_template()) {
-                return std::string{"Type of element of array can't be determined"};
+                return std::string{"  Type of element of array can't be determined"};
             }
             if (!a->element_type.is_default_constructible()) {
                 return (
@@ -84,6 +84,10 @@ public:
 
             if (auto const f = emitter.resolve_deep_copy(elem_type, obj)) {
                 obj->array_elem_deepcopy_callee_scope = *f;
+            }
+
+            if (!emitter.resolve_deep_copy2(elem_type, obj)) {
+                return "  Invalid copier for '" + elem_type.to_string() + "'";
             }
         }
 

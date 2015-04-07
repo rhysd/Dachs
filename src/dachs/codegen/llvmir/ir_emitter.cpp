@@ -2113,6 +2113,7 @@ public:
 
 llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const& sctx, context &ctx)
 {
+    sctx.dump_copiers();
     auto &the_module = *detail::llvm_ir_emitter{a.name, ctx, sctx}.emit(a.root);
     std::string errmsg;
 

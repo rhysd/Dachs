@@ -3372,6 +3372,31 @@ BOOST_AUTO_TEST_CASE(deep_copy_operator)
             end
         end
     )");
-
 }
+
+BOOST_AUTO_TEST_CASE(deep_copy_operator)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            copy
+                ret new X
+            end
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            copy
+                ret 42
+            end
+        end
+
+        func main
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -744,6 +744,111 @@ class symbol_analyzer {
         return func;
     }
 
+    // XXX:
+    // This function has duplicate code with resolve_func_call()
+    template<class Node>
+    bool resolve_deep_copy2(type::type const& t, Node const& node)
+    {
+        assert(t);
+
+        auto const clazz = type::get<type::class_type>(t);
+        if (!clazz) {
+            return true;
+        }
+
+        if (copiers.find(*clazz) != std::end(copiers)) {
+            // Note: Already resolved
+            return true;
+        }
+
+        auto const candidates =
+            with_current_scope(
+                    [&](auto const& s)
+                    {
+                        return s->resolve_func("dachs.copy", {t});
+                    }
+                );
+
+        if (candidates.empty()) {
+            return true;
+        }
+
+        if (candidates.size() > 1u) {
+            std::string notes;
+            for (auto const& c : candidates) {
+                notes += "\n  Candidate: " + c->to_string();
+            }
+            semantic_error(node, "  Invalid copier for '" + t.to_string() + "'" + notes);
+            return false;
+        }
+
+        auto func = std::move(*std::begin(candidates));
+        auto func_def = func->get_ast_node();
+        assert(!func->is_builtin);
+
+        if (func->is_template()) {
+            std::tie(func_def, func) = instantiate_function_from_template(func_def, func, {t});
+        }
+
+        if (!func_def->ret_type) {
+            if (!walk_recursively_with(global, func_def)) {
+                semantic_error(
+                        node,
+                        boost::format(
+                            "  Failed to analyze copier defined at line:%1%, col:%2%"
+                            ) % func_def->line
+                              % func_def->col
+                    );
+                return false;
+            }
+        }
+
+        if (!func->ret_type) {
+            semantic_error(
+                    node,
+                    "  Cannot deduce the return type of copier"
+                );
+            return false;
+        }
+
+        // Note:
+        // Check function accessibility
+        if (!func_def->is_public()) {
+            auto const f = with_current_scope([](auto const& s)
+                    {
+                        return s->get_enclosing_func();
+                    }
+                );
+            auto const cls = type::get<type::class_type>(func->params[0]->type);
+
+            assert(f);
+            assert(cls);
+
+            auto const error
+                = [&, this]
+                {
+                    semantic_error(
+                            node,
+                            boost::format("  member function '%1%' is a private member of class '%2%'")
+                                % func->to_string() % (*cls)->name
+                        );
+                    return false;
+                };
+
+            if (auto const c = (*f)->get_receiver_class_scope()) {
+                if ((*cls)->name != (*c)->name) {
+                    return error();
+                }
+            } else {
+                return error();
+            }
+        }
+
+        copiers.emplace(*clazz, func);
+
+        return true;
+    }
+
     template<class Predicate>
     auto with_current_scope(Predicate const& p) const
     {
@@ -1086,6 +1191,8 @@ public:
             semantic_error(func, boost::format("  Function '%1%' must return bool because it includes '?' in its name") % scope->to_string());
         }
 
+        // TODO:
+        // Remove below
         if (scope->name == ":=") {
             assert(!scope->params.empty());
             auto const receiver = type::get<type::class_type>(scope->params[0]->type);
@@ -1099,6 +1206,21 @@ public:
                         func,
                         boost::format("  Invalid deep copy operator '%1%'.  Deep copy operator must returns the same type '%2%' as its receiver's type but it is actually '%3%'.")
                             % scope->to_string()
+                            % scope->params[0]->type.to_string()
+                            % scope->ret_type->to_string()
+                    );
+            }
+        }
+
+        if (scope->is_copier()) {
+            assert(!scope->params.empty());
+            assert(type::is_a<type::class_type>(scope->params[0]->type));
+            assert(scope->ret_type);
+
+            if (*scope->ret_type != scope->params[0]->type) {
+                semantic_error(
+                        func,
+                        boost::format("  Invalid copier for type '%1%'.  Copier must returns the same type '%1%' as its receiver's type but it is actually '%2%'.")
                             % scope->params[0]->type.to_string()
                             % scope->ret_type->to_string()
                     );
@@ -1313,6 +1435,8 @@ public:
         if (auto const f = resolve_deep_copy(elem_type, arr_lit)) {
             arr_lit->deepcopy_callee_scope = *f;
         }
+
+        resolve_deep_copy2(elem_type, arr_lit);
     }
 
     template<class Walker>
@@ -2360,7 +2484,7 @@ public:
                     boost::format(
                         "  Failed to instantiate class template '%1%'\n"
                         "  Type of instance variable '%2%' can't be determined\n"
-                        "  Note: Used contructor is at line:%3%, col:%4%"
+                        "  Note: Used constructor is at line:%3%, col:%4%"
                     ) % clazz->to_string() % i.first % ctor_def->line % ctor_def->col
                 );
             fail = true;
@@ -2396,6 +2520,10 @@ public:
                     init->deepcopy_callee_scopes.emplace_back(*f);
                 } else {
                     init->deepcopy_callee_scopes.emplace_back();
+                }
+
+                if (!resolve_deep_copy2(construct->type, decl)) {
+                    return nullptr;
                 }
 
                 return init;
@@ -2585,7 +2713,7 @@ public:
         arg_types[0] = instantiated_scope->type;
 
         // Note:
-        // Re-resolve contructor for the instantiated class.
+        // Re-resolve constructor for the instantiated class.
         auto const ctors_from_instantiated = instantiated_scope->resolve_ctor(arg_types);
         // TODO: check it's the only candidate.
         assert(!ctors_from_instantiated.empty());
@@ -3190,6 +3318,8 @@ public:
                     init->deepcopy_callee_scopes.emplace_back();
                 }
 
+                resolve_deep_copy2(t, decl);
+
                 if (!symbol->type || symbol->type == t) {
                     symbol->type = t;
                     return;
@@ -3361,6 +3491,12 @@ public:
                         assign->deepcopy_callee_scopes.emplace_back();
                     }
 
+                    if (!rhs_type) {
+                        if (!resolve_deep_copy2(rhs_type, assign)) {
+                            return;
+                        }
+                    }
+
                     if (auto const a = get_as<ast::node::index_access>(lhs)) {
                         // Note:
                         // Edge case for lhs of assignment
@@ -3495,6 +3631,8 @@ public:
             if (auto const f = resolve_deep_copy(param->type, param)) {
                 param->deepcopy_callee_scope = *f;
             }
+
+            resolve_deep_copy2(param->type, param);
         }
     }
 
