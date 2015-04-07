@@ -309,7 +309,6 @@ struct array_literal final : public expression {
     std::vector<node::any_expr> element_exprs;
     scope::weak_class_scope constructed_class_scope;
     scope::weak_func_scope callee_ctor_scope;
-    scope::weak_func_scope deepcopy_callee_scope;
 
     explicit array_literal(std::vector<node::any_expr> const& elems) noexcept
         : expression(), element_exprs(elems)
@@ -323,7 +322,6 @@ struct array_literal final : public expression {
 
 struct tuple_literal final : public expression {
     std::vector<node::any_expr> element_exprs;
-    std::vector<scope::weak_func_scope> deepcopy_callee_scopes;
 
     explicit tuple_literal(decltype(element_exprs) const& elems) noexcept
         : expression(), element_exprs(elems)
@@ -423,7 +421,6 @@ struct parameter final : public base {
     dachs::symbol::weak_var_symbol param_symbol;
     type::type type;
     bool is_receiver;
-    scope::weak_func_scope deepcopy_callee_scope;
 
     template<class T>
     parameter(
@@ -532,7 +529,6 @@ struct object_construct final : public expression {
     std::vector<node::any_expr> args;
     scope::weak_class_scope constructed_class_scope;
     scope::weak_func_scope callee_ctor_scope;
-    scope::weak_func_scope array_elem_deepcopy_callee_scope;
 
     object_construct(
             node::any_type const& t,
@@ -900,7 +896,6 @@ struct variable_decl final : public base {
 struct initialize_stmt final : public statement {
     std::vector<node::variable_decl> var_decls;
     boost::optional<std::vector<node::any_expr>> maybe_rhs_exprs;
-    std::vector<scope::weak_func_scope> deepcopy_callee_scopes;
 
     initialize_stmt(decltype(var_decls) const& vars,
                     decltype(maybe_rhs_exprs) const& rhss = boost::none) noexcept
@@ -923,7 +918,6 @@ struct assignment_stmt final : public statement {
     std::vector<node::any_expr> rhs_exprs;
     std::vector<scope::weak_func_scope> callee_scopes;
     bool rhs_tuple_expansion = false;
-    std::vector<scope::weak_func_scope> deepcopy_callee_scopes;
 
     assignment_stmt(decltype(assignees) const& assignees,
                     std::string const& op,

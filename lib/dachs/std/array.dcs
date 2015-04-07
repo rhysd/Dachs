@@ -30,7 +30,7 @@ class array
         end
     end
 
-    # func :=
+    # copy
     #     var new_buf := new typeof(@buf){@size}
     #     var i := 0u
     #     for i < @size

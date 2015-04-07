@@ -128,7 +128,7 @@ class forward_symbol_analyzer {
     std::size_t check_operator_function_args(Funcs const& functions) const
     {
         std::unordered_set<std::string> const
-            unary_only = {"~", "!", ":="},
+            unary_only = {"~", "!"},
             binary_only = {
                 ">>" , "<<" , "<="
               , ">=" , "==" , "!="

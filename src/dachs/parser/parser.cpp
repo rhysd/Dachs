@@ -421,7 +421,7 @@ public:
 
         func_def_name
             =
-                ternary_operator | binary_operator | unary_operator | ":="_p | function_name
+                ternary_operator | binary_operator | unary_operator | function_name
             ;
 
         variable_name

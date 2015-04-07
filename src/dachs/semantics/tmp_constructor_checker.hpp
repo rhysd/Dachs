@@ -82,11 +82,7 @@ public:
                 ).str();
             }
 
-            if (auto const f = emitter.resolve_deep_copy(elem_type, obj)) {
-                obj->array_elem_deepcopy_callee_scope = *f;
-            }
-
-            if (!emitter.resolve_deep_copy2(elem_type, obj)) {
+            if (!emitter.resolve_deep_copy(elem_type, obj)) {
                 return "  Invalid copier for '" + elem_type.to_string() + "'";
             }
         }

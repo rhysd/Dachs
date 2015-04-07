@@ -648,106 +648,7 @@ class symbol_analyzer {
     // XXX:
     // This function has duplicate code with resolve_func_call()
     template<class Node>
-    boost::optional<scope::func_scope> resolve_deep_copy(type::type const& t, Node const& node)
-    {
-        assert(t);
-
-        if (!type::is_a<type::class_type>(t)) {
-            return boost::none;
-        }
-
-        auto const candidates =
-            with_current_scope(
-                    [&](auto const& s)
-                    {
-                        return s->resolve_func(":=", {t});
-                    }
-                );
-
-        if (candidates.empty()) {
-            return boost::none;
-        }
-
-        if (candidates.size() > 1u) {
-            std::string notes;
-            for (auto const& c : candidates) {
-                notes += "\n  Candidate: " + c->to_string();
-            }
-            semantic_error(node, "  Ambiguous deep copy operators for '" + t.to_string() + "'" + notes);
-            return boost::none;
-        }
-
-        auto func = std::move(*std::begin(candidates));
-
-        auto func_def = func->get_ast_node();
-        assert(!func->is_builtin);
-
-        if (func->is_template()) {
-            std::tie(func_def, func) = instantiate_function_from_template(func_def, func, {t});
-        }
-
-        if (!func_def->ret_type) {
-            if (!walk_recursively_with(global, func_def)) {
-                semantic_error(
-                        node,
-                        boost::format(
-                            "  Failed to analyze deep copy operator '%1%' defined at line:%2%, col:%3%"
-                            ) % func->to_string()
-                              % func_def->line
-                              % func_def->col
-                    );
-                return boost::none;
-            }
-        }
-
-        if (!func->ret_type) {
-            semantic_error(
-                    node,
-                    "  Cannot deduce the return type of deep copy operator '" + func->to_string() + "'"
-                );
-            return boost::none;
-        }
-
-        // Note:
-        // Check function accessibility
-        if (!func_def->is_public()) {
-            auto const f = with_current_scope([](auto const& s)
-                    {
-                        return s->get_enclosing_func();
-                    }
-                );
-            auto const cls = type::get<type::class_type>(func->params[0]->type);
-
-            assert(f);
-            assert(cls);
-
-            auto const error
-                = [&, this]
-                {
-                    semantic_error(
-                            node,
-                            boost::format("  member function '%1%' is a private member of class '%2%'")
-                                % func->to_string() % (*cls)->name
-                        );
-                    return boost::none;
-                };
-
-            if (auto const c = (*f)->get_receiver_class_scope()) {
-                if ((*cls)->name != (*c)->name) {
-                    return error();
-                }
-            } else {
-                return error();
-            }
-        }
-
-        return func;
-    }
-
-    // XXX:
-    // This function has duplicate code with resolve_func_call()
-    template<class Node>
-    bool resolve_deep_copy2(type::type const& t, Node const& node)
+    bool resolve_deep_copy(type::type const& t, Node const& node)
     {
         assert(t);
 
@@ -1191,27 +1092,6 @@ public:
             semantic_error(func, boost::format("  Function '%1%' must return bool because it includes '?' in its name") % scope->to_string());
         }
 
-        // TODO:
-        // Remove below
-        if (scope->name == ":=") {
-            assert(!scope->params.empty());
-            auto const receiver = type::get<type::class_type>(scope->params[0]->type);
-            if (!receiver) {
-                semantic_error(func, boost::format("  Invalid deep copy operator '%1%'.  You can define deep copy operator only for class type.") % scope->to_string());
-            }
-
-            assert(scope->ret_type);
-            if (*scope->ret_type != scope->params[0]->type) {
-                semantic_error(
-                        func,
-                        boost::format("  Invalid deep copy operator '%1%'.  Deep copy operator must returns the same type '%2%' as its receiver's type but it is actually '%3%'.")
-                            % scope->to_string()
-                            % scope->params[0]->type.to_string()
-                            % scope->ret_type->to_string()
-                    );
-            }
-        }
-
         if (scope->is_copier()) {
             assert(!scope->params.empty());
             assert(type::is_a<type::class_type>(scope->params[0]->type));
@@ -1430,13 +1310,7 @@ public:
         arr_lit->callee_ctor_scope = class_and_ctor.second;
         arr_lit->type = class_and_ctor.first->type;
 
-        // TODO:
-        // Check deep_copy
-        if (auto const f = resolve_deep_copy(elem_type, arr_lit)) {
-            arr_lit->deepcopy_callee_scope = *f;
-        }
-
-        resolve_deep_copy2(elem_type, arr_lit);
+        resolve_deep_copy(elem_type, arr_lit);
     }
 
     template<class Walker>
@@ -1538,15 +1412,7 @@ public:
         auto const type = type::make<type::tuple_type>();
         type->element_types.reserve(tuple_lit->element_exprs.size());
         for (auto const& e : tuple_lit->element_exprs) {
-            auto elem_type = type_of(e);
-
-            if (auto const f = resolve_deep_copy(elem_type, tuple_lit)) {
-                tuple_lit->deepcopy_callee_scopes.emplace_back(*f);
-            } else {
-                tuple_lit->deepcopy_callee_scopes.emplace_back();
-            }
-
-            type->element_types.emplace_back(std::move(elem_type));
+            type->element_types.emplace_back(type_of(e));
         }
         tuple_lit->type = type;
     }
@@ -2514,15 +2380,7 @@ public:
                 assert(init);
                 init->set_source_location(*construct);
 
-                // TODO:
-                // Check deep_copy
-                if (auto const f = resolve_deep_copy(construct->type, decl)) {
-                    init->deepcopy_callee_scopes.emplace_back(*f);
-                } else {
-                    init->deepcopy_callee_scopes.emplace_back();
-                }
-
-                if (!resolve_deep_copy2(construct->type, decl)) {
+                if (!resolve_deep_copy(construct->type, decl)) {
                     return nullptr;
                 }
 
@@ -2935,11 +2793,6 @@ public:
 
             obj->type = type::type{};
         }
-
-        // TODO:
-        // Check deep_copy
-        // Deep copy occur when constructing array with 2 arguments
-        // It deeply copies second argument to each elements of array
     }
 
     template<class Walker>
@@ -3000,9 +2853,7 @@ public:
                 }
 
                 if (param->type && param->is_var) {
-                    if (auto const f = resolve_deep_copy(param->type, param)) {
-                        param->deepcopy_callee_scope = *f;
-                    }
+                    resolve_deep_copy(param->type, param);
                 }
             };
 
@@ -3236,11 +3087,7 @@ public:
                         init->maybe_rhs_exprs = std::vector<ast::node::any_expr>{
                                 default_construct
                             };
-                        if (auto const f = resolve_deep_copy(t, v)){
-                            init->deepcopy_callee_scopes.emplace_back(*f);
-                        } else {
-                            init->deepcopy_callee_scopes.emplace_back();
-                        }
+                        resolve_deep_copy(t, v);
                     } else {
                         semantic_error(
                                 v,
@@ -3274,7 +3121,6 @@ public:
             [this, &init, &maybe_ctor](auto const& decl, type::type const& t)
             {
                 if (decl->name == "_" && decl->symbol.expired()) {
-                    init->deepcopy_callee_scopes.emplace_back();
                     return;
                 }
                 auto const symbol = decl->symbol.lock();
@@ -3305,20 +3151,9 @@ public:
                     }
                 }
 
-                // TODO:
-                // Check deep_copy
-                // Deep copy occurs in below cases
-                //   - instance var initialization
-                //   - initialize by value (define with 'var')
-                if (auto const f = resolve_deep_copy(t, decl)) {
-                    init->deepcopy_callee_scopes.emplace_back(*f);
-                } else {
-                    // Note:
-                    // Add empty function scope reference to fit in the number of decls.
-                    init->deepcopy_callee_scopes.emplace_back();
+                if (!resolve_deep_copy(t, decl)) {
+                    return;
                 }
-
-                resolve_deep_copy2(t, decl);
 
                 if (!symbol->type || symbol->type == t) {
                     symbol->type = t;
@@ -3481,18 +3316,8 @@ public:
                 {
                     auto const rhs_type = type_of(rhs);
 
-                    // TODO:
-                    // Check deep_copy
                     if (!rhs_type) {
-                        assign->deepcopy_callee_scopes.emplace_back();
-                    } else if (auto const f = resolve_deep_copy(rhs_type, assign)) {
-                        assign->deepcopy_callee_scopes.emplace_back(*f);
-                    } else {
-                        assign->deepcopy_callee_scopes.emplace_back();
-                    }
-
-                    if (!rhs_type) {
-                        if (!resolve_deep_copy2(rhs_type, assign)) {
+                        if (!resolve_deep_copy(rhs_type, assign)) {
                             return;
                         }
                     }
@@ -3622,17 +3447,8 @@ public:
 
         w();
 
-        // TODO:
-        // Check deep_copy
-        // deep copy will occur in below cases:
-        //   - pass by value (with 'var')
-        //   - instance variable initializer
         if (param->type && !param->is_receiver && (param->is_var || param->is_instance_var_init())) {
-            if (auto const f = resolve_deep_copy(param->type, param)) {
-                param->deepcopy_callee_scope = *f;
-            }
-
-            resolve_deep_copy2(param->type, param);
+            resolve_deep_copy(param->type, param);
         }
     }
 
