@@ -395,6 +395,8 @@ class symbol_analyzer {
 
     using class_instantiation_type_map_type = std::unordered_map<std::string, type::type>;
 
+    friend class detail::ctor_checker<symbol_analyzer &>;
+
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
     template<class Scope, class Walker, class... Args>
@@ -2779,22 +2781,30 @@ public:
             return;
         }
 
+        // Note: Construct user defined class
         if (auto const maybe_class_type = type::get<type::class_type>(obj->type)) {
             if (!visit_class_construct(obj, *maybe_class_type)) {
                 error();
                 obj->type = type::type{};
             }
-        } else if (auto const err = detail::ctor_checker{}(obj->type, obj->args)) {
+            return;
+        }
+
+        // Note:
+        // Construct built-in type value
+        detail::ctor_checker<decltype(*this)> checker{obj, *this};
+
+        if (auto const err = obj->type.apply_visitor(checker)) {
             semantic_error(obj, *err);
             error();
 
-            // TODO:
-            // Check deep_copy
-            // Deep copy occur when constructing array with 2 arguments
-            // It deeply copies second argument to each elements of array
-
             obj->type = type::type{};
         }
+
+        // TODO:
+        // Check deep_copy
+        // Deep copy occur when constructing array with 2 arguments
+        // It deeply copies second argument to each elements of array
     }
 
     template<class Walker>

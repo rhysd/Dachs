@@ -630,12 +630,14 @@ BOOST_AUTO_TEST_CASE(deep_copy_operator)
             "\ninstance var init".println
             new Y{x, 42}
 
+            "\nstatic_array construction".println
+            new static_array{3u, x}
+
             "\nfor loop var init".println
-            xs.size.println
             for var e in xs
             end
         end
-    )");
+)");
 }
 
 BOOST_AUTO_TEST_CASE(do_not_degrade)

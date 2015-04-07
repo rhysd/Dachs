@@ -85,7 +85,7 @@ class llvm_ir_emitter {
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
     builder::alloc_helper alloc_emitter;
     builder::inst_emit_helper inst_emitter;
-    tmp_constructor_ir_emitter builtin_ctor_emitter;
+    tmp_constructor_ir_emitter<llvm_ir_emitter> builtin_ctor_emitter;
     llvm::GlobalVariable *unit_constant = nullptr;
 
     val lookup_var(symbol::var_symbol const& s) const
@@ -639,7 +639,7 @@ public:
         , member_emitter(ctx)
         , alloc_emitter(ctx, type_emitter, sc.lambda_captures)
         , inst_emitter(ctx, type_emitter)
-        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, module)
+        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, module, *this)
     {}
 
     val emit(ast::node::symbol_literal const& sl)
