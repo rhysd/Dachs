@@ -36,6 +36,7 @@
 #include "dachs/semantics/tmp_member_checker.hpp"
 #include "dachs/semantics/tmp_constructor_checker.hpp"
 #include "dachs/semantics/const_func_checker.hpp"
+#include "dachs/semantics/copy_resolver.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/util.hpp"
@@ -396,7 +397,10 @@ class symbol_analyzer {
 
     using class_instantiation_type_map_type = std::unordered_map<std::string, type::type>;
 
-    friend class detail::ctor_checker<symbol_analyzer &>;
+    friend class ctor_checker<symbol_analyzer &>;
+
+    template<class Analyzer, class Node>
+    friend class copy_resolver;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -645,109 +649,11 @@ class symbol_analyzer {
         return construct;
     }
 
-    // XXX:
-    // This function has duplicate code with resolve_func_call()
     template<class Node>
     bool resolve_deep_copy(type::type const& t, Node const& node)
     {
-        assert(t);
-
-        auto const clazz = type::get<type::class_type>(t);
-        if (!clazz) {
-            return true;
-        }
-
-        if (copiers.find(*clazz) != std::end(copiers)) {
-            // Note: Already resolved
-            return true;
-        }
-
-        auto const candidates =
-            with_current_scope(
-                    [&](auto const& s)
-                    {
-                        return s->resolve_func("dachs.copy", {t});
-                    }
-                );
-
-        if (candidates.empty()) {
-            return true;
-        }
-
-        if (candidates.size() > 1u) {
-            std::string notes;
-            for (auto const& c : candidates) {
-                notes += "\n  Candidate: " + c->to_string();
-            }
-            semantic_error(node, "  Invalid copier for '" + t.to_string() + "'" + notes);
-            return false;
-        }
-
-        auto func = std::move(*std::begin(candidates));
-        auto func_def = func->get_ast_node();
-        assert(!func->is_builtin);
-
-        if (func->is_template()) {
-            std::tie(func_def, func) = instantiate_function_from_template(func_def, func, {t});
-        }
-
-        if (!func_def->ret_type) {
-            if (!walk_recursively_with(global, func_def)) {
-                semantic_error(
-                        node,
-                        boost::format(
-                            "  Failed to analyze copier defined at line:%1%, col:%2%"
-                            ) % func_def->line
-                              % func_def->col
-                    );
-                return false;
-            }
-        }
-
-        if (!func->ret_type) {
-            semantic_error(
-                    node,
-                    "  Cannot deduce the return type of copier"
-                );
-            return false;
-        }
-
-        // Note:
-        // Check function accessibility
-        if (!func_def->is_public()) {
-            auto const f = with_current_scope([](auto const& s)
-                    {
-                        return s->get_enclosing_func();
-                    }
-                );
-            auto const cls = type::get<type::class_type>(func->params[0]->type);
-
-            assert(f);
-            assert(cls);
-
-            auto const error
-                = [&, this]
-                {
-                    semantic_error(
-                            node,
-                            boost::format("  member function '%1%' is a private member of class '%2%'")
-                                % func->to_string() % (*cls)->name
-                        );
-                    return false;
-                };
-
-            if (auto const c = (*f)->get_receiver_class_scope()) {
-                if ((*cls)->name != (*c)->name) {
-                    return error();
-                }
-            } else {
-                return error();
-            }
-        }
-
-        copiers.emplace(*clazz, func);
-
-        return true;
+        copy_resolver<symbol_analyzer, Node> resolver{*this, node};
+        return t.apply_visitor(resolver);
     }
 
     template<class Predicate>
@@ -3316,7 +3222,7 @@ public:
                 {
                     auto const rhs_type = type_of(rhs);
 
-                    if (!rhs_type) {
+                    if (rhs_type) {
                         if (!resolve_deep_copy(rhs_type, assign)) {
                             return;
                         }
