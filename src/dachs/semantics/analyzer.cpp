@@ -392,6 +392,7 @@ class symbol_analyzer {
     std::unordered_set<ast::node::class_definition> already_visited_classes;
     std::unordered_set<ast::node::function_definition> already_visited_ctors;
     boost::optional<scope::func_scope> main_arg_ctor = boost::none;
+    std::unordered_map<type::class_type, scope::weak_func_scope> copiers;
 
     using class_instantiation_type_map_type = std::unordered_map<std::string, type::type>;
 
@@ -3440,6 +3441,11 @@ public:
         return std::move(main_arg_ctor);
     }
 
+    auto get_copiers()
+    {
+        return std::move(copiers);
+    }
+
     template<class Walker>
     void visit(ast::node::class_definition const& class_def, Walker const& w)
     {
@@ -3517,7 +3523,12 @@ semantics_context check_semantics(ast::ast &a, scope::scope_tree &t, syntax::imp
     // Note:
     // Aggregate initialization here makes clang 3.4.2 crash.
     // I avoid it by explicitly specifying 'semantics_context'.
-    return semantics_context{t, resolver.resolve_lambda(a.root), resolver.get_main_arg_ctor()};
+    return semantics_context{
+        t,
+        resolver.resolve_lambda(a.root),
+        resolver.get_main_arg_ctor(),
+        resolver.get_copiers()
+    };
 }
 
 } // namespace semantics

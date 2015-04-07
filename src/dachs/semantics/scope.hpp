@@ -415,6 +415,11 @@ struct class_scope final : public basic_scope, public symbol_node::basic_symbol 
         return resolve_func("dachs.init", arg_types);
     }
 
+    function_set resolve_copier() const
+    {
+        return resolve_func("dachs.copy", {});
+    }
+
     boost::optional<size_t> get_instance_var_offset_of(std::string const& name) const noexcept
     {
         for (auto offset = 0u; offset < instance_var_symbols.size(); ++offset) {
