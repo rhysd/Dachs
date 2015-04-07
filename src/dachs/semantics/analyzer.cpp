@@ -1094,7 +1094,13 @@ public:
 
             assert(scope->ret_type);
             if (*scope->ret_type != scope->params[0]->type) {
-                semantic_error(func, boost::format("  Invalid deep copy operator '%1%'.  Deep copy operator must returns the same type '%2%' as its receiver's type.") % scope->to_string() % scope->ret_type->to_string());
+                semantic_error(
+                        func,
+                        boost::format("  Invalid deep copy operator '%1%'.  Deep copy operator must returns the same type '%2%' as its receiver's type but it is actually '%3%'.")
+                            % scope->to_string()
+                            % scope->params[0]->type.to_string()
+                            % scope->ret_type->to_string()
+                    );
             }
         }
 
