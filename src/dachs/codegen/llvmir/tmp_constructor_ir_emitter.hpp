@@ -165,18 +165,15 @@ class tmp_constructor_ir_emitter {
                     return allocated;
                 }
 
-                auto const deep_copier
-                    = node->array_elem_deepcopy_callee_scope.lock();
-
                 for (auto const idx : helper::indices(size)) {
                     auto *const dest = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);
 
-                    if (deep_copier) {
+                    if (auto const copier = emitter.copier_of(a->element_type)) {
                         val const copied
-                            = emitter.emit_user_defined_deepcopy(
+                            = emitter.emit_copier_call(
                                     node,
                                     arg_values[1],
-                                    deep_copier
+                                    *copier
                                 );
                         ctx.builder.CreateStore(copied, dest);
                     } else {

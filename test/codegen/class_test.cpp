@@ -637,6 +637,71 @@ BOOST_AUTO_TEST_CASE(deep_copy_operator)
             for var e in xs
             end
         end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(copier)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+
+            copy
+                println("deep copied")
+                ret new X{@a}
+            end
+        end
+
+        class Y
+            a
+
+            init(a)
+                @a := a
+            end
+
+            init(@a, i : int)
+            end
+        end
+
+        func foo(var x : X)
+        end
+
+        func foo2(var x)
+        end
+
+        func main
+            "init".println
+            var x := new X{42}
+
+            "\ninstance var init".println
+            new Y{x}
+
+            "\narray literal".println
+            var xs := [x]
+
+            "\ntuple literal".println
+            (x, 42)
+
+            "\nsubstitution".println
+            x = new X{21}
+
+            "\nindex substitution".println
+            xs[0] = x
+
+            "\nparameter".println
+            foo(x)
+            foo2(x)
+
+            "\ninstance var init".println
+            new Y{x, 42}
+
+            "\nstatic_array construction".println
+            new static_array{3u, x}
+
+            "\nfor loop var init".println
+            for var e in xs
+            end
+        end
 )");
 }
 

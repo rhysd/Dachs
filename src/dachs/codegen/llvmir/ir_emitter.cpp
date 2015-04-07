@@ -423,7 +423,6 @@ class llvm_ir_emitter {
 
         IREmitter &emitter;
         val const rhs_value;
-        scope::weak_func_scope deep_copier;
         Node const& node;
 
         void emit_copy_to_lhs(val const lhs_value, type::type const& lhs_type)
@@ -431,18 +430,12 @@ class llvm_ir_emitter {
             assert(lhs_value);
             assert(lhs_value->getType()->isPointerTy());
 
-            if (deep_copier.expired()) {
-                emitter.alloc_emitter.create_deep_copy(
-                        rhs_value,
-                        emitter.load_aggregate_elem(lhs_value, lhs_type),
-                        lhs_type
-                    );
-            } else {
+            if (auto const copier = emitter.copier_of(lhs_type)) {
                 auto *const copied
-                    = emitter.emit_user_defined_deepcopy(
+                    = emitter.emit_copier_call(
                             node,
                             rhs_value,
-                            deep_copier.lock()
+                            *copier
                         );
 
                 // Note:
@@ -453,6 +446,12 @@ class llvm_ir_emitter {
                 emitter.ctx.builder.CreateStore(
                         emitter.ctx.builder.CreateLoad(copied),
                         lhs_value
+                    );
+            } else {
+                emitter.alloc_emitter.create_deep_copy(
+                        rhs_value,
+                        emitter.load_aggregate_elem(lhs_value, lhs_type),
+                        lhs_type
                     );
             }
         }
@@ -707,7 +706,7 @@ public:
         return check(pl, boost::apply_visitor(visitor, pl->value), "constant");
     }
 
-    val emit_tuple_constant(type::tuple_type const& t, std::vector<ast::node::any_expr> const& elem_exprs, std::vector<scope::weak_func_scope> deep_copiers = {})
+    val emit_tuple_constant(type::tuple_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
     {
         if (elem_exprs.empty()) {
             if (!unit_constant) {
@@ -749,16 +748,17 @@ public:
             auto *const alloca_inst = alloc_emitter.create_alloca(t);
 
             for (auto const idx : helper::indices(elem_values)) {
-                if (!deep_copiers.empty() && !deep_copiers[idx].expired()) {
+                auto const elem_type = type::type_of(elem_exprs[idx]);
+
+                if (auto const copier = copier_of(elem_type)) {
                     val const ptr_to_elem = ctx.builder.CreateStructGEP(alloca_inst, idx);
-                    val const copied = emit_user_defined_deepcopy(
+                    val const copied = emit_copier_call(
                             ast::node::location_of(elem_exprs[idx]),
                             elem_values[idx],
-                            deep_copiers[idx].lock()
+                            *copier
                         );
                     ctx.builder.CreateStore(copied, ptr_to_elem);
                 } else {
-                    auto const elem_type = type::type_of(elem_exprs[idx]);
                     alloc_emitter.create_deep_copy(
                             elem_values[idx],
                             load_aggregate_elem(
@@ -784,8 +784,7 @@ public:
         return emit_tuple_constant(the_type, elem_exprs);
     }
 
-    template<class MaybeCopier>
-    val emit_array_constant(type::pointer_type const& t, std::vector<ast::node::any_expr> const& elem_exprs, MaybeCopier && maybe_elem_copier)
+    val emit_array_constant(type::pointer_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
     {
         auto const& elem_type = t->pointee_type;
 
@@ -829,11 +828,11 @@ public:
             for (auto const idx : helper::indices(elem_exprs)) {
                 auto *const elem_value = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);
 
-                if (maybe_elem_copier) {
-                    val const copied = emit_user_defined_deepcopy(
+                if (auto const copier = copier_of(elem_type)) {
+                    val const copied = emit_copier_call(
                             ast::node::location_of(elem_exprs[idx]),
                             elem_values[idx],
-                            *std::forward<MaybeCopier>(maybe_elem_copier)
+                            *copier
                         );
 
                     // Note:
@@ -863,8 +862,7 @@ public:
                 tuple,
                 emit_tuple_constant(
                     *type::get<type::tuple_type>(tuple->type),
-                    tuple->element_exprs,
-                    tuple->deepcopy_callee_scopes
+                    tuple->element_exprs
                 ),
                 "tuple literal"
             );
@@ -898,17 +896,11 @@ public:
         auto const underlying_type = literal->type.get_array_underlying_type();
         assert(underlying_type);
 
-        auto maybe_copier
-            = !literal->deepcopy_callee_scope.expired() ?
-                boost::optional<scope::func_scope>{literal->deepcopy_callee_scope.lock()} :
-                boost::none;
-
         auto *const native_array_value = check(
                 literal,
                 emit_array_constant(
                     *underlying_type,
-                    literal->element_exprs,
-                    std::move(maybe_copier)
+                    literal->element_exprs
                 ),
                 "inner static array in array literal"
             );
@@ -989,7 +981,10 @@ public:
 
         assert(type_emitter.emit(param_sym->type) == param_val->getType());
 
-        if (param->deepcopy_callee_scope.expired()) {
+        if (auto const copier = copier_of(param->type)) {
+            auto *const copied = emit_copier_call(param, param_val, *copier);
+            register_var(param_sym, copied);
+        } else {
             auto const inst
                 = check(
                     param,
@@ -998,9 +993,6 @@ public:
                 );
 
             register_var(param_sym, inst);
-        } else {
-            auto *const copied = emit_user_defined_deepcopy(param, param_val, param->deepcopy_callee_scope.lock());
-            register_var(param_sym, copied);
         }
     }
 
@@ -1031,7 +1023,11 @@ public:
             assert(offset);
             auto *const elem_val = ctx.builder.CreateStructGEP(self_val, *offset);
 
-            if (param->deepcopy_callee_scope.expired()) {
+            if (auto const copier = copier_of(param_sym->type)) {
+                auto *const copied = emit_copier_call(param, init_val, *copier);
+                ctx.builder.CreateStore(copied, elem_val);
+                register_var(param_sym, copied);
+            } else {
                 auto *const dest_val = load_aggregate_elem(
                         elem_val,
                         param_sym->type
@@ -1039,10 +1035,6 @@ public:
 
                 assert(dest_val);
                 alloc_emitter.create_deep_copy(init_val, dest_val, param_sym->type);
-            } else {
-                auto *const copied = emit_user_defined_deepcopy(param, init_val, param->deepcopy_callee_scope.lock());
-                ctx.builder.CreateStore(copied, elem_val);
-                register_var(param_sym, copied);
             }
         }
     }
@@ -1356,20 +1348,35 @@ public:
             );
     }
 
+    boost::optional<scope::func_scope> copier_of(type::type const& t) const
+    {
+        auto const c = type::get<type::class_type>(t);
+        if (!c) {
+            return boost::none;
+        }
+
+        auto const itr = semantics_ctx.copiers.find(*c);
+        if (itr == std::end(semantics_ctx.copiers)) {
+            return boost::none;
+        }
+
+        return itr->second.lock();
+    }
+
     template<class Node>
-    val emit_user_defined_deepcopy(
+    val emit_copier_call(
             Node const& node,
             val const src_value,
             scope::func_scope const& callee
     ) {
         return check(
-            node,
-            ctx.builder.CreateCall(
-                emit_non_builtin_callee(node, callee),
-                src_value
-            ),
-            "deep copy call"
-        );
+                node,
+                ctx.builder.CreateCall(
+                    emit_non_builtin_callee(node, callee),
+                    src_value
+                ),
+                "copier call"
+            );
     }
 
     val emit(ast::node::binary_expr const& bin_expr)
@@ -1625,7 +1632,7 @@ public:
         auto const& param = for_->iter_vars[0];
         auto const sym = param->param_symbol;
         auto *const allocated =
-            param->is_var && param->deepcopy_callee_scope.expired()
+            param->is_var && copier_of(param->type)
                 ? alloc_emitter.create_alloca(param->type, false /*zero init?*/, param->name)
                 : nullptr;
 
@@ -1670,9 +1677,9 @@ public:
 
             auto const s = sym.lock();
 
-            if (!param->deepcopy_callee_scope.expired()) {
-                auto *const copied = emit_user_defined_deepcopy(
-                            param, elem_ptr_val, param->deepcopy_callee_scope.lock()
+            if (auto const copier = copier_of(s->type)) {
+                auto *const copied = emit_copier_call(
+                            param, elem_ptr_val, *copier
                         );
                 copied->setName(param->name);
                 register_var(s, copied);
@@ -1717,7 +1724,7 @@ public:
         assert(initializer_size != 0);
 
         auto const initialize
-            = [&, this](auto const& decl, auto *const value, auto const& deep_copier)
+            = [&, this](auto const& decl, auto *const value)
             {
                 if (decl->name == "_" && decl->symbol.expired()) {
                     return;
@@ -1750,10 +1757,10 @@ public:
 
                     auto *const ptr_to_instance_var = ctx.builder.CreateStructGEP(self_val, *offset);
 
-                    if (!deep_copier.expired()) {
+                    if (auto const copier = copier_of(type)) {
                         ctx.builder.CreateStore(
-                                emit_user_defined_deepcopy(
-                                    decl, value, deep_copier.lock()
+                                emit_copier_call(
+                                    decl, value, *copier
                                 ),
                                 ptr_to_instance_var
                             );
@@ -1767,14 +1774,14 @@ public:
                     alloc_emitter.create_deep_copy(value, dest_val, type);
 
                 } else if (decl->is_var) {
-                    if (deep_copier.expired()) {
+                    if (auto const copier = copier_of(type)) {
+                        val const copied = emit_copier_call(decl, value, *copier);
+                        copied->setName(decl->name);
+                        register_var(std::move(sym), copied);
+                    } else {
                         auto *const allocated = alloc_emitter.alloc_and_deep_copy(value, type, sym->name);
                         assert(allocated);
                         register_var(std::move(sym), allocated);
-                    } else {
-                        val const copied = emit_user_defined_deepcopy(decl, value, deep_copier.lock());
-                        copied->setName(decl->name);
-                        register_var(std::move(sym), copied);
                     }
                 } else {
                     // If the variable is immutable, do not copy rhs value
@@ -1784,11 +1791,11 @@ public:
 
         if (initializee_size == initializer_size) {
             helper::each(
-                    [&, this](auto const& d, auto const& e, auto const& c)
+                    [&, this](auto const& d, auto const& e)
                     {
-                        initialize(d, emit(e), c);
+                        initialize(d, emit(e));
                     }
-                    , init->var_decls, rhs_exprs, init->deepcopy_callee_scopes
+                    , init->var_decls, rhs_exprs
                 );
         } else if (initializee_size == 1) {
             assert(initializer_size > 1);
@@ -1796,7 +1803,7 @@ public:
             auto *const rhs_tuple_value
                 = emit_tuple_constant(rhs_exprs);
 
-            initialize(init->var_decls[0], rhs_tuple_value, init->deepcopy_callee_scopes[0]);
+            initialize(init->var_decls[0], rhs_tuple_value);
         } else if (initializer_size == 1) {
             assert(initializee_size > 1);
             auto const& rhs_expr = (rhs_exprs)[0];
@@ -1817,7 +1824,7 @@ public:
                 rhs_values.push_back(ctx.builder.CreateLoad(ctx.builder.CreateStructGEP(rhs_value, idx)));
             }
 
-            helper::each(initialize , init->var_decls, rhs_values, init->deepcopy_callee_scopes);
+            helper::each(initialize , init->var_decls, rhs_values);
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }
@@ -1827,10 +1834,9 @@ public:
     {
         assert(assign->op == "=");
         assert(assign->assignees.size() == assign->rhs_exprs.size());
-        assert(assign->assignees.size() == assign->deepcopy_callee_scopes.size());
 
         helper::each(
-            [&, this](auto const& lhs_expr, auto const& rhs_expr, auto const& deep_copier)
+            [&, this](auto const& lhs_expr, auto const& rhs_expr)
             {
                 auto const lhs_type = type::type_of(lhs_expr);
                 if (!lhs_type) {
@@ -1841,9 +1847,9 @@ public:
                 auto const rhs_type = type::type_of(rhs_expr);
 
                 auto *const rhs_value = load_if_ref(emit(rhs_expr), rhs_type);
-                lhs_of_assign_emitter<self, decltype(assign)>{*this, rhs_value, deep_copier, assign}.emit(lhs_expr);
+                lhs_of_assign_emitter<self, decltype(assign)>{*this, rhs_value, assign}.emit(lhs_expr);
             }
-            , assign->assignees, assign->rhs_exprs, assign->deepcopy_callee_scopes
+            , assign->assignees, assign->rhs_exprs
         );
     }
 
@@ -2113,7 +2119,6 @@ public:
 
 llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const& sctx, context &ctx)
 {
-    sctx.dump_copiers();
     auto &the_module = *detail::llvm_ir_emitter{a.name, ctx, sctx}.emit(a.root);
     std::string errmsg;
 
