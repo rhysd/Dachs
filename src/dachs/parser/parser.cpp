@@ -1382,6 +1382,13 @@ public:
                 _val = make_node_ptr<ast::node::function_definition>(ast::node_type::function_definition::ctor_tag{}, _1, _2)
             ];
 
+        copier
+            = (
+                DACHS_KWD("copy") > sep > stmt_block_before_end > -sep > "end"
+            ) [
+                _val = make_node_ptr<ast::node::function_definition>(ast::node_type::function_definition::copier_tag{}, _1)
+            ];
+
         class_definition
             = (
                 DACHS_KWD("class") > class_name
@@ -1391,6 +1398,9 @@ public:
                             phx::push_back(_b, _1)
                         ]
                       | constructor[
+                            phx::push_back(_b, _1)
+                        ]
+                      | copier[
                             phx::push_back(_b, _1)
                         ]
                       | (instance_variable_decls - "end")[
@@ -1478,6 +1488,7 @@ public:
                 , do_stmt
                 , function_definition
                 , constructor
+                , copier
                 , class_definition
                 , constant_decl
                 , constant_definition
@@ -1609,6 +1620,7 @@ public:
         compound_stmt.name("compound statement");
         function_definition.name("function definition");
         constructor.name("constructor");
+        copier.name("copier");
         class_definition.name("class definition");
         constant_decl.name("constant declaration");
         constant_definition.name("constant definition");
@@ -1681,7 +1693,7 @@ private:
     rule<bool()> boolean_literal;
     rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
     rule<ast::node::initialize_stmt()> constant_definition;
-    rule<ast::node::function_definition()> do_block, lambda_expr_do_end, constructor;
+    rule<ast::node::function_definition()> do_block, lambda_expr_do_end, constructor, copier;
     rule<ast::node::statement_block()> do_stmt;
     rule<bool()> access_specifier;
     rule<ast::node::function_definition(), qi::locals<bool>> method_definition;

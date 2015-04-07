@@ -2099,9 +2099,9 @@ BOOST_AUTO_TEST_CASE(clazz)
         class foo
             aaa, bbb
 
-            # ctor(@aaa, b)
-            #     @bbb = @aaa + b
-            # end
+            init(@aaa, b)
+                @bbb = @aaa + b
+            end
 
             func foo(a, b)
                 @aaa = 42
@@ -2112,6 +2112,23 @@ BOOST_AUTO_TEST_CASE(clazz)
             end
         end
     )"));
+
+    // Copiers
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        class foo
+            copy
+                ret new foo
+            end
+        end
+    )"));
+
+    CHECK_PARSE_THROW(R"(
+        class foo
+            copy(a, b)
+                ret new foo
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(import)
