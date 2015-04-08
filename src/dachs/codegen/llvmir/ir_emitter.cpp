@@ -640,7 +640,7 @@ public:
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , builtin_func_emitter(ctx, type_emitter)
         , member_emitter(ctx)
-        , alloc_emitter(ctx, type_emitter, sc.lambda_captures, semantics_ctx)
+        , alloc_emitter(ctx, type_emitter, sc.lambda_captures, semantics_ctx, *module)
         , inst_emitter(ctx, type_emitter)
         , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, module, *this)
     {
@@ -658,7 +658,7 @@ public:
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , builtin_func_emitter(ctx, type_emitter)
         , member_emitter(ctx)
-        , alloc_emitter(ctx, type_emitter, sc.lambda_captures, semantics_ctx)
+        , alloc_emitter(ctx, type_emitter, sc.lambda_captures, semantics_ctx, m)
         , inst_emitter(ctx, type_emitter)
         , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, module, *this)
     {

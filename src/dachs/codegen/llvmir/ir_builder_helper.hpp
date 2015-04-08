@@ -12,6 +12,7 @@
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/semantics/type.hpp"
+#include "dachs/semantics/semantics_context.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/helper/util.hpp"
@@ -269,11 +270,13 @@ class alloc_helper {
     context &ctx;
     type_ir_emitter &type_emitter;
     semantics::lambda_captures_type const& lambda_captures;
+    semantics::semantics_context const& semantics_ctx;
+    llvm::Module &module;
 
 public:
 
-    alloc_helper(context &c, type_ir_emitter &e, decltype(lambda_captures) const& cs)
-        : ctx(c), type_emitter(e), lambda_captures(cs)
+    alloc_helper(context &c, type_ir_emitter &e, decltype(lambda_captures) const& cs, decltype(semantics_ctx) const& sctx, llvm::Module &m)
+        : ctx(c), type_emitter(e), lambda_captures(cs), semantics_ctx(sctx), module(m)
     {}
 
     template<class Ptr>
@@ -477,6 +480,25 @@ public:
         return ctx.builder.CreateStore(ctx.builder.CreateLoad(from), to);
     }
 
+    template<class V1, class V2>
+    void deep_copy_recursively(V1 *const from, V2 *const to, type::type const& t)
+    {
+        if (auto const copier = semantics_ctx.copier_of(t)) {
+            ctx.builder.CreateCall(
+                    module.getFunction((*copier)->to_string()),
+                    ctx.builder.CreateLoad(from),
+                    "copier_call"
+                );
+            return;
+        }
+
+        create_deep_copy(
+                ctx.builder.CreateLoad(from),
+                ctx.builder.CreateLoad(to),
+                t
+            );
+    }
+
     // TODO:
     // Use visitor which visits type::type
     template<class V1, class V2>
@@ -499,7 +521,7 @@ public:
                     continue;
                 }
 
-                create_deep_copy(ctx.builder.CreateLoad(elem_from), ctx.builder.CreateLoad(elem_to), elem_type);
+                deep_copy_recursively(elem_from, elem_to, elem_type);
             }
         } else if (auto const array_ = type::get<type::array_type>(t)) {
             auto const& array = *array_;
@@ -513,14 +535,12 @@ public:
             assert(array->size);
 
             for (uint64_t const idx : helper::indices(*array->size)) {
-                auto *const elem_from = ctx.builder.CreateLoad(
-                            ctx.builder.CreateConstInBoundsGEP1_32(from, idx)
-                        );
-                auto *const elem_to = ctx.builder.CreateLoad(
-                            ctx.builder.CreateConstInBoundsGEP1_32(to, idx)
-                        );
+                auto *const elem_from =
+                            ctx.builder.CreateConstInBoundsGEP1_32(from, idx);
+                auto *const elem_to =
+                            ctx.builder.CreateConstInBoundsGEP1_32(to, idx);
 
-                create_deep_copy(elem_from, elem_to, elem_type);
+                deep_copy_recursively(elem_from, elem_to, elem_type);
             }
         } else if (type::is_a<type::pointer_type>(t)) {
             // Note:
@@ -542,7 +562,7 @@ public:
                     continue;
                 }
 
-                create_deep_copy(ctx.builder.CreateLoad(elem_from), ctx.builder.CreateLoad(elem_to), var_type);
+                deep_copy_recursively(elem_from, elem_to, var_type);
             }
         } else if (auto const generic_func = type::get<type::generic_func_type>(t)){
             auto const& g = *generic_func;
@@ -566,7 +586,7 @@ public:
                     continue;
                 }
 
-                create_deep_copy(ctx.builder.CreateLoad(elem_from), ctx.builder.CreateLoad(elem_to), capture_type);
+                deep_copy_recursively(elem_from, elem_to, capture_type);
             }
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
