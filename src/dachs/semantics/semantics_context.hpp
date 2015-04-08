@@ -10,6 +10,7 @@
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
+#include <boost/optional.hpp>
 
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/scope.hpp"
@@ -65,6 +66,26 @@ struct semantics_context {
     semantics_context &operator=(semantics_context const&) = delete;
     semantics_context(semantics_context &&) = default;
     semantics_context &operator=(semantics_context &&) = default;
+
+    boost::optional<scope::func_scope> copier_of(type::class_type const& t) const
+    {
+        auto const itr = copiers.find(t);
+        if (itr == std::end(copiers)) {
+            return boost::none;
+        }
+
+        return itr->second.lock();
+    }
+
+    boost::optional<scope::func_scope> copier_of(type::type const& t) const
+    {
+        auto const c = type::get<type::class_type>(t);
+        if (!c) {
+            return boost::none;
+        }
+
+        return copier_of(*c);
+    }
 
     template<class Stream = std::ostream>
     void dump_lambda_captures(Stream &out = std::cerr) const

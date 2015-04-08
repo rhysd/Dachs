@@ -430,7 +430,7 @@ class llvm_ir_emitter {
             assert(lhs_value);
             assert(lhs_value->getType()->isPointerTy());
 
-            if (auto const copier = emitter.copier_of(lhs_type)) {
+            if (auto const copier = emitter.semantics_ctx.copier_of(lhs_type)) {
                 auto *const copied
                     = emitter.emit_copier_call(
                             node,
@@ -750,7 +750,7 @@ public:
             for (auto const idx : helper::indices(elem_values)) {
                 auto const elem_type = type::type_of(elem_exprs[idx]);
 
-                if (auto const copier = copier_of(elem_type)) {
+                if (auto const copier = semantics_ctx.copier_of(elem_type)) {
                     val const ptr_to_elem = ctx.builder.CreateStructGEP(alloca_inst, idx);
                     val const copied = emit_copier_call(
                             ast::node::location_of(elem_exprs[idx]),
@@ -828,7 +828,7 @@ public:
             for (auto const idx : helper::indices(elem_exprs)) {
                 auto *const elem_value = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);
 
-                if (auto const copier = copier_of(elem_type)) {
+                if (auto const copier = semantics_ctx.copier_of(elem_type)) {
                     val const copied = emit_copier_call(
                             ast::node::location_of(elem_exprs[idx]),
                             elem_values[idx],
@@ -981,7 +981,7 @@ public:
 
         assert(type_emitter.emit(param_sym->type) == param_val->getType());
 
-        if (auto const copier = copier_of(param->type)) {
+        if (auto const copier = semantics_ctx.copier_of(param->type)) {
             auto *const copied = emit_copier_call(param, param_val, *copier);
             register_var(param_sym, copied);
         } else {
@@ -1023,7 +1023,7 @@ public:
             assert(offset);
             auto *const elem_val = ctx.builder.CreateStructGEP(self_val, *offset);
 
-            if (auto const copier = copier_of(param_sym->type)) {
+            if (auto const copier = semantics_ctx.copier_of(param_sym->type)) {
                 auto *const copied = emit_copier_call(param, init_val, *copier);
                 ctx.builder.CreateStore(copied, elem_val);
                 register_var(param_sym, copied);
@@ -1348,21 +1348,6 @@ public:
             );
     }
 
-    boost::optional<scope::func_scope> copier_of(type::type const& t) const
-    {
-        auto const c = type::get<type::class_type>(t);
-        if (!c) {
-            return boost::none;
-        }
-
-        auto const itr = semantics_ctx.copiers.find(*c);
-        if (itr == std::end(semantics_ctx.copiers)) {
-            return boost::none;
-        }
-
-        return itr->second.lock();
-    }
-
     template<class Node>
     val emit_copier_call(
             Node const& node,
@@ -1632,7 +1617,7 @@ public:
         auto const& param = for_->iter_vars[0];
         auto const sym = param->param_symbol;
         auto *const allocated =
-            param->is_var && copier_of(param->type)
+            param->is_var && semantics_ctx.copier_of(param->type)
                 ? alloc_emitter.create_alloca(param->type, false /*zero init?*/, param->name)
                 : nullptr;
 
@@ -1677,7 +1662,7 @@ public:
 
             auto const s = sym.lock();
 
-            if (auto const copier = copier_of(s->type)) {
+            if (auto const copier = semantics_ctx.copier_of(s->type)) {
                 auto *const copied = emit_copier_call(
                             param, elem_ptr_val, *copier
                         );
@@ -1757,7 +1742,7 @@ public:
 
                     auto *const ptr_to_instance_var = ctx.builder.CreateStructGEP(self_val, *offset);
 
-                    if (auto const copier = copier_of(type)) {
+                    if (auto const copier = semantics_ctx.copier_of(type)) {
                         ctx.builder.CreateStore(
                                 emit_copier_call(
                                     decl, value, *copier
@@ -1774,7 +1759,7 @@ public:
                     alloc_emitter.create_deep_copy(value, dest_val, type);
 
                 } else if (decl->is_var) {
-                    if (auto const copier = copier_of(type)) {
+                    if (auto const copier = semantics_ctx.copier_of(type)) {
                         val const copied = emit_copier_call(decl, value, *copier);
                         copied->setName(decl->name);
                         register_var(std::move(sym), copied);

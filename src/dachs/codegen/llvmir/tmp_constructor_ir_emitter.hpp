@@ -168,7 +168,7 @@ class tmp_constructor_ir_emitter {
                 for (auto const idx : helper::indices(size)) {
                     auto *const dest = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);
 
-                    if (auto const copier = emitter.copier_of(a->element_type)) {
+                    if (auto const copier = emitter.semantics_ctx.copier_of(a->element_type)) {
                         val const copied
                             = emitter.emit_copier_call(
                                     node,
