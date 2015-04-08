@@ -632,17 +632,38 @@ class llvm_ir_emitter {
 public:
 
     llvm_ir_emitter(std::string const& f, context &c, semantics::semantics_context const& sc)
-        : ctx(c)
+        : module(new llvm::Module(f, c.llvm_context))
+        , ctx(c)
         , semantics_ctx(sc)
         , var_table()
         , file(f)
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , builtin_func_emitter(ctx, type_emitter)
         , member_emitter(ctx)
-        , alloc_emitter(ctx, type_emitter, sc.lambda_captures)
+        , alloc_emitter(ctx, type_emitter, sc.lambda_captures, semantics_ctx)
         , inst_emitter(ctx, type_emitter)
         , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, module, *this)
-    {}
+    {
+        module->setDataLayout(ctx.data_layout->getStringRepresentation());
+        module->setTargetTriple(ctx.triple.getTriple());
+        builtin_func_emitter.set_module(module);
+    }
+
+    llvm_ir_emitter(std::string const& f, context &c, semantics::semantics_context const& sc, llvm::Module &m)
+        : module(&m)
+        , ctx(c)
+        , semantics_ctx(sc)
+        , var_table()
+        , file(f)
+        , type_emitter(ctx.llvm_context, sc.lambda_captures)
+        , builtin_func_emitter(ctx, type_emitter)
+        , member_emitter(ctx)
+        , alloc_emitter(ctx, type_emitter, sc.lambda_captures, semantics_ctx)
+        , inst_emitter(ctx, type_emitter)
+        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, module, *this)
+    {
+        builtin_func_emitter.set_module(module);
+    }
 
     val emit(ast::node::symbol_literal const& sl)
     {
@@ -925,16 +946,6 @@ public:
 
     llvm::Module *emit(ast::node::inu const& p)
     {
-        module = new llvm::Module(file, ctx.llvm_context);
-        if (!module) {
-            error(p, "module");
-        }
-
-        module->setDataLayout(ctx.data_layout->getStringRepresentation());
-        module->setTargetTriple(ctx.triple.getTriple());
-
-        builtin_func_emitter.set_module(module);
-
         // Note:
         // emit Function prototypes in advance for forward reference
         for (auto const& f : p->functions) {
