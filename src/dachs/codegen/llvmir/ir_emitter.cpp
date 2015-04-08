@@ -41,6 +41,7 @@
 #include "dachs/helper/llvm.hpp"
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
+#include "dachs/codegen/llvmir/allocation_emitter.hpp"
 #include "dachs/codegen/llvmir/tmp_builtin_operator_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/builtin_func_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/ir_builder_helper.hpp"
@@ -86,8 +87,9 @@ class llvm_ir_emitter {
     builtin_function_emitter builtin_func_emitter;
     tmp_member_ir_emitter member_emitter;
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
-    builder::alloc_helper alloc_emitter;
+    builder::allocation_helper alloc_helper;
     builder::inst_emit_helper inst_emitter;
+    allocation_emitter alloc_emitter;
     tmp_constructor_ir_emitter<llvm_ir_emitter> builtin_ctor_emitter;
     llvm::GlobalVariable *unit_constant = nullptr;
 
@@ -298,7 +300,7 @@ class llvm_ir_emitter {
 
                     // Note:
                     // Allocate object to construct of 'argv' class
-                    auto const obj_val = alloc_emitter.create_alloca(ctor->params[0]->type);
+                    auto const obj_val = alloc_helper.create_alloca(ctor->params[0]->type);
                     obj_val->setName("argv_obj");
 
                     // Note:
@@ -451,7 +453,7 @@ class llvm_ir_emitter {
                         lhs_value
                     );
             } else {
-                emitter.alloc_emitter.create_deep_copy(
+                emitter.alloc_helper.create_deep_copy(
                         rhs_value,
                         emitter.load_aggregate_elem(lhs_value, lhs_type),
                         lhs_type
@@ -640,9 +642,10 @@ public:
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , builtin_func_emitter(ctx, type_emitter)
         , member_emitter(ctx)
-        , alloc_emitter(ctx, type_emitter, sc.lambda_captures, semantics_ctx, *module)
+        , alloc_helper(ctx, type_emitter, sc.lambda_captures, semantics_ctx, *module)
         , inst_emitter(ctx, type_emitter)
-        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, module, *this)
+        , alloc_emitter(c, type_emitter)
+        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, alloc_helper, module, *this)
     {
         module->setDataLayout(ctx.data_layout->getStringRepresentation());
         module->setTargetTriple(ctx.triple.getTriple());
@@ -658,9 +661,10 @@ public:
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , builtin_func_emitter(ctx, type_emitter)
         , member_emitter(ctx)
-        , alloc_emitter(ctx, type_emitter, sc.lambda_captures, semantics_ctx, m)
+        , alloc_helper(ctx, type_emitter, sc.lambda_captures, semantics_ctx, m)
         , inst_emitter(ctx, type_emitter)
-        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, module, *this)
+        , alloc_emitter(c, type_emitter)
+        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, alloc_helper, module, *this)
     {
         builtin_func_emitter.set_module(module);
     }
@@ -769,7 +773,7 @@ public:
             return constant;
         } else {
             // XXX
-            auto *const alloca_inst = alloc_emitter.create_alloca(t);
+            auto *const alloca_inst = alloc_helper.create_alloca(t);
 
             for (auto const idx : helper::indices(elem_values)) {
                 auto const elem_type = type::type_of(elem_exprs[idx]);
@@ -783,7 +787,7 @@ public:
                         );
                     ctx.builder.CreateStore(copied, ptr_to_elem);
                 } else {
-                    alloc_emitter.create_deep_copy(
+                    alloc_helper.create_deep_copy(
                             elem_values[idx],
                             load_aggregate_elem(
                                 ctx.builder.CreateStructGEP(alloca_inst, idx),
@@ -863,7 +867,7 @@ public:
                     // Copy an element of array because of array structure (see above TODO).
                     ctx.builder.CreateStore(ctx.builder.CreateLoad(copied), elem_value);
                 } else {
-                    alloc_emitter.create_deep_copy(
+                    alloc_helper.create_deep_copy(
                             load_if_ref(elem_values[idx], elem_type),
                             load_aggregate_elem(
                                 elem_value,
@@ -1002,7 +1006,7 @@ public:
             auto const inst
                 = check(
                     param,
-                    alloc_emitter.alloc_and_deep_copy(param_val, param_sym->type, param->name),
+                    alloc_helper.alloc_and_deep_copy(param_val, param_sym->type, param->name),
                     "allocation for variable parameter"
                 );
 
@@ -1048,7 +1052,7 @@ public:
                     );
 
                 assert(dest_val);
-                alloc_emitter.create_deep_copy(init_val, dest_val, param_sym->type);
+                alloc_helper.create_deep_copy(init_val, dest_val, param_sym->type);
             }
         }
     }
@@ -1632,7 +1636,7 @@ public:
         auto const sym = param->param_symbol;
         auto *const allocated =
             param->is_var && semantics_ctx.copier_of(param->type)
-                ? alloc_emitter.create_alloca(param->type, false /*zero init?*/, param->name)
+                ? alloc_helper.create_alloca(param->type, false /*zero init?*/, param->name)
                 : nullptr;
 
         // Note:
@@ -1683,7 +1687,7 @@ public:
                 copied->setName(param->name);
                 register_var(s, copied);
             } else if (allocated) {
-                alloc_emitter.create_deep_copy(elem_ptr_val, allocated, s->type);
+                alloc_helper.create_deep_copy(elem_ptr_val, allocated, s->type);
                 register_var(s, allocated);
             } else {
                 register_var(s, elem_ptr_val);
@@ -1708,7 +1712,7 @@ public:
             for (auto const& d : init->var_decls) {
                 auto const sym = d->symbol.lock();
                 assert(d->maybe_type);
-                auto *const allocated = alloc_emitter.create_alloca(sym->type);
+                auto *const allocated = alloc_helper.create_alloca(sym->type);
                 assert(allocated);
                 register_var(std::move(sym), allocated);
             }
@@ -1770,7 +1774,7 @@ public:
                     assert(dest_val);
                     dest_val->setName(decl->name);
 
-                    alloc_emitter.create_deep_copy(value, dest_val, type);
+                    alloc_helper.create_deep_copy(value, dest_val, type);
 
                 } else if (decl->is_var) {
                     if (auto const copier = semantics_ctx.copier_of(type)) {
@@ -1778,7 +1782,7 @@ public:
                         copied->setName(decl->name);
                         register_var(std::move(sym), copied);
                     } else {
-                        auto *const allocated = alloc_emitter.alloc_and_deep_copy(value, type, sym->name);
+                        auto *const allocated = alloc_helper.alloc_and_deep_copy(value, type, sym->name);
                         assert(allocated);
                         register_var(std::move(sym), allocated);
                     }
@@ -2078,7 +2082,7 @@ public:
     template<class Construction>
     val emit_class_object_construct(Construction const& obj, type::class_type const& t, std::vector<val> && arg_values)
     {
-        auto const obj_val = alloc_emitter.create_alloca(t);
+        auto const obj_val = alloc_helper.create_alloca(t);
 
         arg_values.insert(std::begin(arg_values), obj_val);
 

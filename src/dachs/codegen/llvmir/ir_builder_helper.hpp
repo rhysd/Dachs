@@ -266,7 +266,7 @@ public:
     }
 };
 
-class alloc_helper {
+class allocation_helper {
     context &ctx;
     type_ir_emitter &type_emitter;
     semantics::lambda_captures_type const& lambda_captures;
@@ -275,7 +275,7 @@ class alloc_helper {
 
 public:
 
-    alloc_helper(context &c, type_ir_emitter &e, decltype(lambda_captures) const& cs, decltype(semantics_ctx) const& sctx, llvm::Module &m)
+    allocation_helper(context &c, type_ir_emitter &e, decltype(lambda_captures) const& cs, decltype(semantics_ctx) const& sctx, llvm::Module &m)
         : ctx(c), type_emitter(e), lambda_captures(cs), semantics_ctx(sctx), module(m)
     {}
 
