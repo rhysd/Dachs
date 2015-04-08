@@ -902,7 +902,7 @@ struct initialize_stmt final : public statement {
         : statement(), var_decls(vars), maybe_rhs_exprs(rhss)
     {}
 
-    initialize_stmt(node::variable_decl && lhs, node::any_expr const& rhs)
+    initialize_stmt(node::variable_decl const& lhs, node::any_expr const& rhs)
         : statement(), var_decls({lhs}), maybe_rhs_exprs(std::vector<node::any_expr>{rhs})
     {}
 
@@ -1104,6 +1104,7 @@ struct statement_block final : public base {
 struct function_definition final : public statement {
 
     struct ctor_tag {};
+    struct copier_tag {};
 
     symbol::func_kind kind;
     std::string name;
@@ -1151,13 +1152,27 @@ struct function_definition final : public statement {
     // Note:
     // For constructor
     function_definition(ctor_tag, decltype(params) const& p, node::statement_block const& b) noexcept
-        : statement()
-        , kind(symbol::func_kind::func)
-        , name("dachs.init")
-        , params(p)
-        , return_type(boost::none)
-        , body(b)
-        , ensure_body(boost::none)
+        : function_definition(
+                symbol::func_kind::func,
+                "dachs.init",
+                p,
+                boost::none,
+                b,
+                boost::none
+            )
+    {}
+
+    // Note:
+    // For copier
+    function_definition(copier_tag, node::statement_block const& b) noexcept
+        : function_definition(
+                symbol::func_kind::func,
+                "dachs.copy",
+                {},
+                boost::none,
+                b,
+                boost::none
+            )
     {}
 
     bool is_template() noexcept;
@@ -1172,6 +1187,11 @@ struct function_definition final : public statement {
     bool is_ctor() const noexcept
     {
         return name == "dachs.init";
+    }
+
+    bool is_copier() const noexcept
+    {
+        return name == "dachs.copy";
     }
 
     bool is_main_func() const noexcept

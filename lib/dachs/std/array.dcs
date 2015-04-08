@@ -30,6 +30,16 @@ class array
         end
     end
 
+    # copy
+    #     var new_buf := new typeof(@buf){@size}
+    #     var i := 0u
+    #     for i < @size
+    #         new_buf[i] = @buf[i]
+    #         i += 1u
+    #     end
+    #     ret new [typeof(@buf[0])]{new_buf, @size}
+    # end
+
     init(s : int, block)
         @size := s as uint
         @capacity := @size

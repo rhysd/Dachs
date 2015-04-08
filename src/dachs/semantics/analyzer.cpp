@@ -36,6 +36,7 @@
 #include "dachs/semantics/tmp_member_checker.hpp"
 #include "dachs/semantics/tmp_constructor_checker.hpp"
 #include "dachs/semantics/const_func_checker.hpp"
+#include "dachs/semantics/copy_resolver.hpp"
 #include "dachs/fatal.hpp"
 #include "dachs/helper/variant.hpp"
 #include "dachs/helper/util.hpp"
@@ -392,8 +393,14 @@ class symbol_analyzer {
     std::unordered_set<ast::node::class_definition> already_visited_classes;
     std::unordered_set<ast::node::function_definition> already_visited_ctors;
     boost::optional<scope::func_scope> main_arg_ctor = boost::none;
+    std::unordered_map<type::class_type, scope::weak_func_scope> copiers;
 
     using class_instantiation_type_map_type = std::unordered_map<std::string, type::type>;
+
+    friend class ctor_checker<symbol_analyzer &>;
+
+    template<class Analyzer, class Node>
+    friend class copy_resolver;
 
     // Introduce a new scope and ensure to restore the old scope
     // after the visit process
@@ -640,6 +647,13 @@ class symbol_analyzer {
         construct->callee_ctor_scope = ctor;
 
         return construct;
+    }
+
+    template<class Node>
+    bool resolve_deep_copy(type::type const& t, Node const& node)
+    {
+        copy_resolver<symbol_analyzer, Node> resolver{*this, node};
+        return t.apply_visitor(resolver);
     }
 
     template<class Predicate>
@@ -981,7 +995,22 @@ public:
         }
 
         if (is_query_function && *func->ret_type != type::get_builtin_type("bool", type::no_opt)) {
-            semantic_error(func, boost::format("  Function '%1%' must return bool because it includes '?' in its name") % func->name);
+            semantic_error(func, boost::format("  Function '%1%' must return bool because it includes '?' in its name") % scope->to_string());
+        }
+
+        if (scope->is_copier()) {
+            assert(!scope->params.empty());
+            assert(type::is_a<type::class_type>(scope->params[0]->type));
+            assert(scope->ret_type);
+
+            if (*scope->ret_type != scope->params[0]->type) {
+                semantic_error(
+                        func,
+                        boost::format("  Invalid copier for type '%1%'.  Copier must returns the same type '%1%' as its receiver's type but it is actually '%2%'.")
+                            % scope->params[0]->type.to_string()
+                            % scope->ret_type->to_string()
+                    );
+            }
         }
 
         const_member_func_checker const_checker{scope, func_};
@@ -1186,6 +1215,8 @@ public:
         arr_lit->constructed_class_scope = class_and_ctor.first;
         arr_lit->callee_ctor_scope = class_and_ctor.second;
         arr_lit->type = class_and_ctor.first->type;
+
+        resolve_deep_copy(elem_type, arr_lit);
     }
 
     template<class Walker>
@@ -1281,11 +1312,13 @@ public:
         if (tuple_lit->element_exprs.size() == 1) {
             semantic_error(tuple_lit, "  Size of tuple should not be 1");
         }
+
         w();
+
         auto const type = type::make<type::tuple_type>();
         type->element_types.reserve(tuple_lit->element_exprs.size());
         for (auto const& e : tuple_lit->element_exprs) {
-            type->element_types.push_back(type_of(e));
+            type->element_types.emplace_back(type_of(e));
         }
         tuple_lit->type = type;
     }
@@ -2223,7 +2256,7 @@ public:
                     boost::format(
                         "  Failed to instantiate class template '%1%'\n"
                         "  Type of instance variable '%2%' can't be determined\n"
-                        "  Note: Used contructor is at line:%3%, col:%4%"
+                        "  Note: Used constructor is at line:%3%, col:%4%"
                     ) % clazz->to_string() % i.first % ctor_def->line % ctor_def->col
                 );
             fail = true;
@@ -2237,7 +2270,7 @@ public:
                     return nullptr;
                 }
 
-                auto decl = ast::make<ast::node::variable_decl>(false, name, boost::none);
+                auto const decl = ast::make<ast::node::variable_decl>(false, name, boost::none);
                 decl->set_source_location(*construct);
                 {
                     auto const new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
@@ -2247,11 +2280,15 @@ public:
                 }
 
                 auto init = ast::make<ast::node::initialize_stmt>(
-                            std::move(decl),
+                            decl,
                             construct
                         );
                 assert(init);
                 init->set_source_location(*construct);
+
+                if (!resolve_deep_copy(construct->type, decl)) {
+                    return nullptr;
+                }
 
                 return init;
             };
@@ -2440,7 +2477,7 @@ public:
         arg_types[0] = instantiated_scope->type;
 
         // Note:
-        // Re-resolve contructor for the instantiated class.
+        // Re-resolve constructor for the instantiated class.
         auto const ctors_from_instantiated = instantiated_scope->resolve_ctor(arg_types);
         // TODO: check it's the only candidate.
         assert(!ctors_from_instantiated.empty());
@@ -2643,14 +2680,23 @@ public:
             return;
         }
 
+        // Note: Construct user defined class
         if (auto const maybe_class_type = type::get<type::class_type>(obj->type)) {
             if (!visit_class_construct(obj, *maybe_class_type)) {
                 error();
                 obj->type = type::type{};
             }
-        } else if (auto const err = detail::ctor_checker{}(obj->type, obj->args)) {
+            return;
+        }
+
+        // Note:
+        // Construct built-in type value
+        detail::ctor_checker<decltype(*this)> checker{obj, *this};
+
+        if (auto const err = obj->type.apply_visitor(checker)) {
             semantic_error(obj, *err);
             error();
+
             obj->type = type::type{};
         }
     }
@@ -2710,6 +2756,10 @@ public:
                     param->type = t;
                     assert(!param->param_symbol.expired());
                     param->param_symbol.lock()->type = t;
+                }
+
+                if (param->type && param->is_var) {
+                    resolve_deep_copy(param->type, param);
                 }
             };
 
@@ -2943,6 +2993,7 @@ public:
                         init->maybe_rhs_exprs = std::vector<ast::node::any_expr>{
                                 default_construct
                             };
+                        resolve_deep_copy(t, v);
                     } else {
                         semantic_error(
                                 v,
@@ -3004,6 +3055,10 @@ public:
                         // So ensure any type not to be specified.
                         assert(receiver_type->param_types.empty());
                     }
+                }
+
+                if (!resolve_deep_copy(t, decl)) {
+                    return;
                 }
 
                 if (!symbol->type || symbol->type == t) {
@@ -3167,6 +3222,12 @@ public:
                 {
                     auto const rhs_type = type_of(rhs);
 
+                    if (rhs_type) {
+                        if (!resolve_deep_copy(rhs_type, assign)) {
+                            return;
+                        }
+                    }
+
                     if (auto const a = get_as<ast::node::index_access>(lhs)) {
                         // Note:
                         // Edge case for lhs of assignment
@@ -3247,6 +3308,11 @@ public:
         return std::move(main_arg_ctor);
     }
 
+    auto get_copiers()
+    {
+        return std::move(copiers);
+    }
+
     template<class Walker>
     void visit(ast::node::class_definition const& class_def, Walker const& w)
     {
@@ -3286,6 +3352,10 @@ public:
         }
 
         w();
+
+        if (param->type && !param->is_receiver && (param->is_var || param->is_instance_var_init())) {
+            resolve_deep_copy(param->type, param);
+        }
     }
 
     template<class T, class Walker>
@@ -3313,7 +3383,12 @@ semantics_context check_semantics(ast::ast &a, scope::scope_tree &t, syntax::imp
     // Note:
     // Aggregate initialization here makes clang 3.4.2 crash.
     // I avoid it by explicitly specifying 'semantics_context'.
-    return semantics_context{t, resolver.resolve_lambda(a.root), resolver.get_main_arg_ctor()};
+    return semantics_context{
+        t,
+        resolver.resolve_lambda(a.root),
+        resolver.get_main_arg_ctor(),
+        resolver.get_copiers()
+    };
 }
 
 } // namespace semantics

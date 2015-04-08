@@ -5,6 +5,7 @@
 
 #include <boost/optional.hpp>
 #include <boost/format.hpp>
+#include <boost/variant/static_visitor.hpp>
 
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/type.hpp"
@@ -14,30 +15,31 @@ namespace dachs {
 namespace semantics {
 namespace detail {
 
-struct ctor_checker {
+template<class Emitter>
+class ctor_checker : public boost::static_visitor<boost::optional<std::string>> {
 
-    using result_type = boost::optional<std::string>;
+    ast::node::object_construct const& obj;
+    Emitter &emitter;
 
-    template<class Exprs>
-    result_type operator()(type::type const& type, Exprs const& args) const
+public:
+
+    ctor_checker(decltype(obj) const& o, Emitter &e)
+        : obj(o), emitter(e)
+    {}
+
+    result_type operator()(type::array_type const& a)
     {
-        return type.apply_lambda([this, &args](auto const& t){ return (*this)(t, args); });
-    }
-
-    template<class Exprs>
-    result_type operator()(type::array_type const& a, Exprs const& args) const
-    {
-        if (args.size() > 2) {
-            return (boost::format("  Invalid argument for constructor of '%1%' (%2% for 0..2)") % a->to_string() % args.size()).str();
+        if (obj->args.size() > 2) {
+            return (boost::format("  Invalid argument for constructor of '%1%' (%2% for 0..2)") % a->to_string() % obj->args.size()).str();
         }
 
         // XXX:
         // When default constructed, static_array is constructed with null
-        if (args.empty() && !a->element_type.is_template()) {
+        if (obj->args.empty() && !a->element_type.is_template()) {
             return boost::none;
         }
 
-        auto const maybe_lit = helper::variant::get_as<ast::node::primary_literal>(args[0]);
+        auto const maybe_lit = helper::variant::get_as<ast::node::primary_literal>(obj->args[0]);
 
         auto const err_msg = (boost::format("  1st argument of constructor of '%1%' must be constant uint") % a->to_string()).str();
         if (!maybe_lit) {
@@ -55,9 +57,9 @@ struct ctor_checker {
 
         a->size = *maybe_uint;
 
-        if (args.size() == 1) {
+        if (obj->args.size() == 1) {
             if (a->element_type.is_template()) {
-                return std::string{"Type of element of array can't be determined"};
+                return std::string{"  Type of element of array can't be determined"};
             }
             if (!a->element_type.is_default_constructible()) {
                 return (
@@ -67,8 +69,8 @@ struct ctor_checker {
             if (a->element_type.is_template()) {
                 return std::string{"  Element type of static_array 'can't be determined"};
             }
-        } else if (args.size() == 2) {
-            auto const elem_type = type::type_of(args[1]);
+        } else if (obj->args.size() == 2) {
+            auto const elem_type = type::type_of(obj->args[1]);
             if (a->element_type.is_template()) {
                 a->element_type = elem_type;
             } else if (elem_type != a->element_type) {
@@ -79,18 +81,22 @@ struct ctor_checker {
                         % a->element_type.to_string()
                 ).str();
             }
+
+            if (!emitter.resolve_deep_copy(elem_type, obj)) {
+                return "  Invalid copier for '" + elem_type.to_string() + "'";
+            }
         }
+
         return boost::none;
     }
 
-    template<class Exprs>
-    result_type operator()(type::pointer_type const& p, Exprs const& args) const
+    result_type operator()(type::pointer_type const& p)
     {
-        if (args.size() != 1) {
-            return (boost::format("  Invalid argument for constructor of '%1%' (%2% for 1)") % p->to_string() % args.size()).str();
+        if (obj->args.size() != 1) {
+            return (boost::format("  Invalid argument for constructor of '%1%' (%2% for 1)") % p->to_string() % obj->args.size()).str();
         }
 
-        auto const arg_type = type::type_of(args[0]);
+        auto const arg_type = type::type_of(obj->args[0]);
         if (!arg_type || p->pointee_type.is_template()) {
             return std::string{"  Invalid pointee element type for pointer construction"};
         }
@@ -106,8 +112,8 @@ struct ctor_checker {
         return boost::none;
     }
 
-    template<class T, class Exprs>
-    result_type operator()(T const& t, Exprs const&) const
+    template<class T>
+    result_type operator()(T const& t)
     {
         return (boost::format("  Invalid constructor for '%1%'") % t->to_string()).str();
     }

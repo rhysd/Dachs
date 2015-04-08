@@ -3149,4 +3149,208 @@ BOOST_AUTO_TEST_CASE(typeof)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(copier)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            copy
+                ret new X
+            end
+        end
+
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            copy
+                ret 42
+            end
+        end
+
+        func main
+        end
+    )");
+
+    // Note:
+    // Below test cases have an invalid deep copy operator definition
+    // (it should return X(int) but actually do int).
+    // So, when the deep copy operator is checked, it occurs error although
+    // no error occurs when the deep copy is not checked.
+    // So error means that 'deep copy is correctly analyzed'.
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            copy
+                ret 42
+            end
+        end
+
+        func main
+            var x := new X{42}
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            copy
+                ret 42
+            end
+        end
+
+        class Y
+            a
+
+            init(a)
+                @a := a
+            end
+
+            init(@a, i : int)
+            end
+        end
+
+        func main
+            var x := new X{42}
+            new Y{x}
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            copy
+                ret 42
+            end
+        end
+
+        func main
+            var x := new X{42}
+            var xs := [x]
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            copy
+                ret 42
+            end
+        end
+
+        func main
+            var x := new X{42}
+            (x, 42)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            copy
+                ret 42
+            end
+        end
+
+        func main
+            var x := new X{42}
+            x = new X{21}
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            copy
+                ret 42
+            end
+        end
+
+        func main
+            var x := new X{42}
+            var xs := [x]
+            xs[0] = x
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            copy
+                ret 42
+            end
+        end
+
+        func foo(var x : X)
+        end
+
+        func main
+            var x := new X{42}
+            foo(x)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            copy
+                ret 42
+            end
+        end
+
+        class Y
+            a
+
+            init(@a)
+            end
+        end
+
+        func main
+            var x := new X{42}
+            new Y{x}
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            copy
+                ret 42
+            end
+        end
+
+        func main
+            var x := new X{42}
+            new static_array{3u, x}
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+
+            copy
+                ret 42
+            end
+        end
+
+        func main
+            var x := new X{42}
+            var xs := [x]
+            for var e in xs
+            end
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

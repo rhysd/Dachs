@@ -72,6 +72,9 @@ class llvm_ir_emitter {
     using self = llvm_ir_emitter;
     using var_table_type = std::unordered_map<symbol::var_symbol, val>;
 
+    template<class Emitter>
+    friend class tmp_constructor_ir_emitter;
+
     llvm::Module *module = nullptr;
     context &ctx;
     semantics::semantics_context const& semantics_ctx;
@@ -85,7 +88,7 @@ class llvm_ir_emitter {
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
     builder::alloc_helper alloc_emitter;
     builder::inst_emit_helper inst_emitter;
-    tmp_constructor_ir_emitter builtin_ctor_emitter;
+    tmp_constructor_ir_emitter<llvm_ir_emitter> builtin_ctor_emitter;
     llvm::GlobalVariable *unit_constant = nullptr;
 
     val lookup_var(symbol::var_symbol const& s) const
@@ -418,22 +421,42 @@ class llvm_ir_emitter {
         return is_supported(lhs_builtin_type) && is_supported(rhs_builtin_type);
     }
 
-    template<class IREmitter>
+    template<class IREmitter, class Node>
     struct lhs_of_assign_emitter {
 
         IREmitter &emitter;
         val const rhs_value;
+        Node const& node;
 
         void emit_copy_to_lhs(val const lhs_value, type::type const& lhs_type)
         {
             assert(lhs_value);
             assert(lhs_value->getType()->isPointerTy());
 
-            emitter.alloc_emitter.create_deep_copy(
-                    rhs_value,
-                    emitter.load_aggregate_elem(lhs_value, lhs_type),
-                    lhs_type
-                );
+            if (auto const copier = emitter.semantics_ctx.copier_of(lhs_type)) {
+                auto *const copied
+                    = emitter.emit_copier_call(
+                            node,
+                            rhs_value,
+                            *copier
+                        );
+
+                // Note:
+                // Below assertion never fails because the copy target is class type
+                // and it is treated as the pointer value to struct.
+                assert(copied->getType() == lhs_value->getType());
+
+                emitter.ctx.builder.CreateStore(
+                        emitter.ctx.builder.CreateLoad(copied),
+                        lhs_value
+                    );
+            } else {
+                emitter.alloc_emitter.create_deep_copy(
+                        rhs_value,
+                        emitter.load_aggregate_elem(lhs_value, lhs_type),
+                        lhs_type
+                    );
+            }
         }
 
         void emit(ast::node::var_ref const& ref)
@@ -609,17 +632,38 @@ class llvm_ir_emitter {
 public:
 
     llvm_ir_emitter(std::string const& f, context &c, semantics::semantics_context const& sc)
-        : ctx(c)
+        : module(new llvm::Module(f, c.llvm_context))
+        , ctx(c)
         , semantics_ctx(sc)
         , var_table()
         , file(f)
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , builtin_func_emitter(ctx, type_emitter)
         , member_emitter(ctx)
-        , alloc_emitter(ctx, type_emitter, sc.lambda_captures)
+        , alloc_emitter(ctx, type_emitter, sc.lambda_captures, semantics_ctx, *module)
         , inst_emitter(ctx, type_emitter)
-        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, module)
-    {}
+        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, module, *this)
+    {
+        module->setDataLayout(ctx.data_layout->getStringRepresentation());
+        module->setTargetTriple(ctx.triple.getTriple());
+        builtin_func_emitter.set_module(module);
+    }
+
+    llvm_ir_emitter(std::string const& f, context &c, semantics::semantics_context const& sc, llvm::Module &m)
+        : module(&m)
+        , ctx(c)
+        , semantics_ctx(sc)
+        , var_table()
+        , file(f)
+        , type_emitter(ctx.llvm_context, sc.lambda_captures)
+        , builtin_func_emitter(ctx, type_emitter)
+        , member_emitter(ctx)
+        , alloc_emitter(ctx, type_emitter, sc.lambda_captures, semantics_ctx, m)
+        , inst_emitter(ctx, type_emitter)
+        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, module, *this)
+    {
+        builtin_func_emitter.set_module(module);
+    }
 
     val emit(ast::node::symbol_literal const& sl)
     {
@@ -729,14 +773,25 @@ public:
 
             for (auto const idx : helper::indices(elem_values)) {
                 auto const elem_type = type::type_of(elem_exprs[idx]);
-                alloc_emitter.create_deep_copy(
-                        elem_values[idx],
-                        load_aggregate_elem(
-                            ctx.builder.CreateStructGEP(alloca_inst, idx),
+
+                if (auto const copier = semantics_ctx.copier_of(elem_type)) {
+                    val const ptr_to_elem = ctx.builder.CreateStructGEP(alloca_inst, idx);
+                    val const copied = emit_copier_call(
+                            ast::node::location_of(elem_exprs[idx]),
+                            elem_values[idx],
+                            *copier
+                        );
+                    ctx.builder.CreateStore(copied, ptr_to_elem);
+                } else {
+                    alloc_emitter.create_deep_copy(
+                            elem_values[idx],
+                            load_aggregate_elem(
+                                ctx.builder.CreateStructGEP(alloca_inst, idx),
+                                elem_type
+                            ),
                             elem_type
-                        ),
-                        elem_type
-                    );
+                        );
+                }
             }
 
             return alloca_inst;
@@ -784,18 +839,39 @@ public:
 
             return ctx.builder.CreateConstInBoundsGEP2_32(constant, 0u, 0u);
         } else {
+            // TODO:
+            // Now, static arrays are allocated with type [ElemType x N]* (e.g. [int x N]* for static_array(int)).
+            // However, I must consider the structure of array.  Because arrays are allocated directly as [T x N], all elements are
+            // allocated once and they can't be separated.  This means that when extracting a element from the array, compiler must
+            // copy the element instead of copying the pointer to the element.  And GC can't destroy the whole array until all elements
+            // are expired.
+            // So, the allocation of static array should be [ElemType* x N]*.
+
             auto *const allocated = ctx.builder.CreateConstInBoundsGEP2_32(ctx.builder.CreateAlloca(array_ty), 0u, 0u, "arrlit");
 
             for (auto const idx : helper::indices(elem_exprs)) {
                 auto *const elem_value = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);
-                alloc_emitter.create_deep_copy(
-                        load_if_ref(elem_values[idx], elem_type),
-                        load_aggregate_elem(
-                            elem_value,
+
+                if (auto const copier = semantics_ctx.copier_of(elem_type)) {
+                    val const copied = emit_copier_call(
+                            ast::node::location_of(elem_exprs[idx]),
+                            elem_values[idx],
+                            *copier
+                        );
+
+                    // Note:
+                    // Copy an element of array because of array structure (see above TODO).
+                    ctx.builder.CreateStore(ctx.builder.CreateLoad(copied), elem_value);
+                } else {
+                    alloc_emitter.create_deep_copy(
+                            load_if_ref(elem_values[idx], elem_type),
+                            load_aggregate_elem(
+                                elem_value,
+                                elem_type
+                            ),
                             elem_type
-                        ),
-                        elem_type
-                    );
+                        );
+                }
             }
 
             return allocated;
@@ -870,16 +946,6 @@ public:
 
     llvm::Module *emit(ast::node::inu const& p)
     {
-        module = new llvm::Module(file, ctx.llvm_context);
-        if (!module) {
-            error(p, "module");
-        }
-
-        module->setDataLayout(ctx.data_layout->getStringRepresentation());
-        module->setTargetTriple(ctx.triple.getTriple());
-
-        builtin_func_emitter.set_module(module);
-
         // Note:
         // emit Function prototypes in advance for forward reference
         for (auto const& f : p->functions) {
@@ -929,19 +995,22 @@ public:
 
         assert(type_emitter.emit(param_sym->type) == param_val->getType());
 
-        auto const inst
-            = check(
-                param,
-                alloc_emitter.alloc_and_deep_copy(param_val, param_sym->type, param->name),
-                "allocation for variable parameter"
-            );
+        if (auto const copier = semantics_ctx.copier_of(param->type)) {
+            auto *const copied = emit_copier_call(param, param_val, *copier);
+            register_var(param_sym, copied);
+        } else {
+            auto const inst
+                = check(
+                    param,
+                    alloc_emitter.alloc_and_deep_copy(param_val, param_sym->type, param->name),
+                    "allocation for variable parameter"
+                );
 
-        auto const result = register_var(param_sym, inst);
-        assert(result);
-        (void) result;
+            register_var(param_sym, inst);
+        }
     }
 
-    void emit_instance_var_init_params(scope::func_scope const& ctor)
+    void emit_instance_var_init_params(scope::func_scope const& ctor, ast::node::function_definition const& def)
     {
         assert(ctor->is_member_func);
 
@@ -954,20 +1023,32 @@ public:
         auto *const self_val = lookup_var(self_sym);
         assert(self_val);
 
-        for (auto const& p : ctor->params) {
-            if (p->is_instance_var()) {
-                auto *const initializer_val = lookup_var(p);
-                assert(initializer_val);
+        for (auto const& param : def->params) {
+            auto const param_sym = param->param_symbol.lock();
 
-                auto const offset = clazz->get_instance_var_offset_of(p->name.substr(1u)/* omit '@' */);
-                assert(offset);
+            if (!param_sym->is_instance_var()) {
+                continue;
+            }
+
+            auto *const init_val = lookup_var(param_sym);
+            assert(init_val);
+
+            auto const offset = clazz->get_instance_var_offset_of(param_sym->name.substr(1u)/* omit '@' */);
+            assert(offset);
+            auto *const elem_val = ctx.builder.CreateStructGEP(self_val, *offset);
+
+            if (auto const copier = semantics_ctx.copier_of(param_sym->type)) {
+                auto *const copied = emit_copier_call(param, init_val, *copier);
+                ctx.builder.CreateStore(copied, elem_val);
+                register_var(param_sym, copied);
+            } else {
                 auto *const dest_val = load_aggregate_elem(
-                        ctx.builder.CreateStructGEP(self_val, *offset),
-                        p->type
+                        elem_val,
+                        param_sym->type
                     );
 
                 assert(dest_val);
-                alloc_emitter.create_deep_copy(initializer_val, dest_val, p->type);
+                alloc_emitter.create_deep_copy(init_val, dest_val, param_sym->type);
             }
         }
     }
@@ -996,7 +1077,7 @@ public:
         }
 
         if (scope->is_ctor()) {
-            emit_instance_var_init_params(scope);
+            emit_instance_var_init_params(scope, func_def);
         }
 
         emit(func_def->body);
@@ -1281,6 +1362,22 @@ public:
             );
     }
 
+    template<class Node>
+    val emit_copier_call(
+            Node const& node,
+            val const src_value,
+            scope::func_scope const& callee
+    ) {
+        return check(
+                node,
+                ctx.builder.CreateCall(
+                    emit_non_builtin_callee(node, callee),
+                    src_value
+                ),
+                "copier call"
+            );
+    }
+
     val emit(ast::node::binary_expr const& bin_expr)
     {
         auto const lhs_type = type::type_of(bin_expr->lhs);
@@ -1534,7 +1631,7 @@ public:
         auto const& param = for_->iter_vars[0];
         auto const sym = param->param_symbol;
         auto *const allocated =
-            param->is_var
+            param->is_var && semantics_ctx.copier_of(param->type)
                 ? alloc_emitter.create_alloca(param->type, false /*zero init?*/, param->name)
                 : nullptr;
 
@@ -1579,7 +1676,13 @@ public:
 
             auto const s = sym.lock();
 
-            if (allocated) {
+            if (auto const copier = semantics_ctx.copier_of(s->type)) {
+                auto *const copied = emit_copier_call(
+                            param, elem_ptr_val, *copier
+                        );
+                copied->setName(param->name);
+                register_var(s, copied);
+            } else if (allocated) {
                 alloc_emitter.create_deep_copy(elem_ptr_val, allocated, s->type);
                 register_var(s, allocated);
             } else {
@@ -1590,7 +1693,7 @@ public:
 
         emit(for_->body_stmts);
 
-        ctx.builder.CreateStore(ctx.builder.CreateAdd(loaded_counter_val, ctx.builder.getInt64(1u)), counter_val);
+        ctx.builder.CreateStore(ctx.builder.CreateAdd(loaded_counter_val, ctx.builder.getInt64(1u), "incremented"), counter_val);
         helper.create_br(header_block, footer_block);
     }
 
@@ -1651,17 +1754,34 @@ public:
                     assert(self_val);
                     assert(self_val->getType()->isPointerTy());
 
-                    auto *const dest_val = load_aggregate_elem(ctx.builder.CreateStructGEP(self_val, *offset), type);
+                    auto *const ptr_to_instance_var = ctx.builder.CreateStructGEP(self_val, *offset);
+
+                    if (auto const copier = semantics_ctx.copier_of(type)) {
+                        ctx.builder.CreateStore(
+                                emit_copier_call(
+                                    decl, value, *copier
+                                ),
+                                ptr_to_instance_var
+                            );
+                        return;
+                    }
+
+                    auto *const dest_val = load_aggregate_elem(ptr_to_instance_var, type);
                     assert(dest_val);
+                    dest_val->setName(decl->name);
 
                     alloc_emitter.create_deep_copy(value, dest_val, type);
 
-                    dest_val->setName(decl->name);
-
                 } else if (decl->is_var) {
-                    auto *const allocated = alloc_emitter.alloc_and_deep_copy(value, type, sym->name);
-                    assert(allocated);
-                    register_var(std::move(sym), allocated);
+                    if (auto const copier = semantics_ctx.copier_of(type)) {
+                        val const copied = emit_copier_call(decl, value, *copier);
+                        copied->setName(decl->name);
+                        register_var(std::move(sym), copied);
+                    } else {
+                        auto *const allocated = alloc_emitter.alloc_and_deep_copy(value, type, sym->name);
+                        assert(allocated);
+                        register_var(std::move(sym), allocated);
+                    }
                 } else {
                     // If the variable is immutable, do not copy rhs value
                     register_var(std::move(sym), value);
@@ -1726,7 +1846,7 @@ public:
                 auto const rhs_type = type::type_of(rhs_expr);
 
                 auto *const rhs_value = load_if_ref(emit(rhs_expr), rhs_type);
-                lhs_of_assign_emitter<self>{*this, rhs_value}.emit(lhs_expr);
+                lhs_of_assign_emitter<self, decltype(assign)>{*this, rhs_value, assign}.emit(lhs_expr);
             }
             , assign->assignees, assign->rhs_exprs
         );

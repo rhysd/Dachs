@@ -24,6 +24,7 @@ namespace detail {
 
 using helper::dump;
 
+template<class Emitter>
 class tmp_constructor_ir_emitter {
     using val = llvm::Value *;
 
@@ -31,6 +32,7 @@ class tmp_constructor_ir_emitter {
     type_ir_emitter &type_emitter;
     builder::alloc_helper &alloc_emitter;
     llvm::Module * const& module;
+    Emitter &emitter;
 
     template<class Values, class Node>
     struct type_ctor_emitter : boost::static_visitor<val> {
@@ -40,11 +42,12 @@ class tmp_constructor_ir_emitter {
         llvm::Module &module;
         Values const& arg_values;
         std::shared_ptr<Node> const& node;
+        Emitter &emitter;
 
-        type_ctor_emitter(context &c, type_ir_emitter &t, builder::alloc_helper &e, llvm::Module &m, Values const& a, std::shared_ptr<Node> const& n)
-            : ctx(c), type_emitter(t), alloc_emitter(e), module(m), arg_values(a), node(n)
+        type_ctor_emitter(context &c, type_ir_emitter &t, builder::alloc_helper &a, llvm::Module &m, Values const& vs, std::shared_ptr<Node> const& n, Emitter &e)
+            : ctx(c), type_emitter(t), alloc_emitter(a), module(m), arg_values(vs), node(n), emitter(e)
         {
-            assert(a.size() <= 2);
+            assert(vs.size() <= 2);
         }
 
         bool should_deref(llvm::Value *const v, type::type const& t)
@@ -158,9 +161,22 @@ class tmp_constructor_ir_emitter {
             } else {
                 auto *const allocated = alloc_emitter.create_alloca(a);
 
-                if (arg_values.size() == 2) {
-                    for (auto const idx : helper::indices(size)) {
-                        auto *const dest = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);
+                if (arg_values.size() != 2) {
+                    return allocated;
+                }
+
+                for (auto const idx : helper::indices(size)) {
+                    auto *const dest = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);
+
+                    if (auto const copier = emitter.semantics_ctx.copier_of(a->element_type)) {
+                        val const copied
+                            = emitter.emit_copier_call(
+                                    node,
+                                    arg_values[1],
+                                    *copier
+                                );
+                        ctx.builder.CreateStore(copied, dest);
+                    } else {
                         alloc_emitter.create_deep_copy(
                                 arg_values[1],
                                 should_deref(dest, a->element_type)
@@ -184,16 +200,16 @@ class tmp_constructor_ir_emitter {
 
 public:
 
-    tmp_constructor_ir_emitter(context &c, type_ir_emitter &t, builder::alloc_helper &a, llvm::Module *const& m) noexcept
-        : ctx(c), type_emitter(t), alloc_emitter(a), module(m)
+    tmp_constructor_ir_emitter(context &c, type_ir_emitter &t, builder::alloc_helper &a, llvm::Module *const& m, Emitter &e) noexcept
+        : ctx(c), type_emitter(t), alloc_emitter(a), module(m), emitter(e)
     {}
 
     template<class Values, class Node>
     val emit(type::type &type, Values const& arg_values, std::shared_ptr<Node> const& node)
     {
         assert(module);
-        type_ctor_emitter<Values, Node> emitter{ctx, type_emitter, alloc_emitter, *module, arg_values, node};
-        return type.apply_visitor(emitter);
+        type_ctor_emitter<Values, Node> ctor_emitter{ctx, type_emitter, alloc_emitter, *module, arg_values, node, emitter};
+        return type.apply_visitor(ctor_emitter);
     }
 };
 

@@ -10,9 +10,11 @@
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
+#include <boost/optional.hpp>
 
 #include "dachs/ast/ast.hpp"
 #include "dachs/semantics/scope.hpp"
+#include "dachs/semantics/type.hpp"
 #include "dachs/semantics/symbol.hpp"
 
 namespace dachs {
@@ -58,14 +60,35 @@ struct semantics_context {
     scope::scope_tree scopes;
     lambda_captures_type lambda_captures;
     boost::optional<scope::func_scope> main_arg_constructor;
+    std::unordered_map<type::class_type, scope::weak_func_scope> copiers;
 
     semantics_context(semantics_context const&) = delete;
     semantics_context &operator=(semantics_context const&) = delete;
     semantics_context(semantics_context &&) = default;
     semantics_context &operator=(semantics_context &&) = default;
 
+    boost::optional<scope::func_scope> copier_of(type::class_type const& t) const
+    {
+        auto const itr = copiers.find(t);
+        if (itr == std::end(copiers)) {
+            return boost::none;
+        }
+
+        return itr->second.lock();
+    }
+
+    boost::optional<scope::func_scope> copier_of(type::type const& t) const
+    {
+        auto const c = type::get<type::class_type>(t);
+        if (!c) {
+            return boost::none;
+        }
+
+        return copier_of(*c);
+    }
+
     template<class Stream = std::ostream>
-    void dump_lambda_captures(Stream &out = std::cerr) const noexcept
+    void dump_lambda_captures(Stream &out = std::cerr) const
     {
         out << "Lambda captures:" << std::endl;
         for (auto const& cs : lambda_captures) {
@@ -73,6 +96,16 @@ struct semantics_context {
             for (auto const& c : cs.second.get<semantics::tags::offset>()) {
                 out << "    " << c.refered_symbol->name << ':' << c.introduced->line << ':' << c.introduced->col << " -> " << c.introduced->member_name << std::endl;
             }
+        }
+    }
+
+    template<class Stream = std::ostream>
+    void dump_copiers(Stream &out = std::cerr) const
+    {
+        out << "Copiers:" << std::endl;
+        for (auto const& entry : copiers) {
+            out << "  " << entry.first->to_string() << " -> "
+                << entry.second.lock()->to_string() << std::endl;
         }
     }
 };

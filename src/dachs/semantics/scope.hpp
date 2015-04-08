@@ -339,6 +339,11 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
         return name == "dachs.init";
     }
 
+    bool is_copier() const noexcept
+    {
+        return name == "dachs.copy";
+    }
+
     std::string to_string() const noexcept;
 
     maybe_var_t resolve_var(std::string const& name) const override
