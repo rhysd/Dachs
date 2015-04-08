@@ -72,6 +72,9 @@ class llvm_ir_emitter {
     using self = llvm_ir_emitter;
     using var_table_type = std::unordered_map<symbol::var_symbol, val>;
 
+    template<class Emitter>
+    friend class tmp_constructor_ir_emitter;
+
     llvm::Module *module = nullptr;
     context &ctx;
     semantics::semantics_context const& semantics_ctx;
