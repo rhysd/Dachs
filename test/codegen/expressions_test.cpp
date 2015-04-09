@@ -678,6 +678,12 @@ BOOST_AUTO_TEST_CASE(cast_expr)
             var i6 := 3.14 as int
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            new pointer(int){3u} as uint
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(function_variable)

@@ -2014,6 +2014,13 @@ public:
             return child_val;
         }
 
+        if (type::is_a<type::pointer_type>(child_type)) {
+            if (cast->type.is_builtin("uint")) {
+                assert(child_val->getType()->isPointerTy());
+                return ctx.builder.CreatePtrToInt(child_val, ctx.builder.getInt64Ty());
+            }
+        }
+
         auto const cast_error
             = [&]
             {
