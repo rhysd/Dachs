@@ -644,7 +644,7 @@ public:
         , member_emitter(ctx)
         , alloc_helper(ctx, type_emitter, sc.lambda_captures, semantics_ctx, *module)
         , inst_emitter(ctx, type_emitter)
-        , alloc_emitter(c, type_emitter)
+        , alloc_emitter(c, type_emitter, *module)
         , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, alloc_helper, module, *this)
     {
         module->setDataLayout(ctx.data_layout->getStringRepresentation());
@@ -663,7 +663,7 @@ public:
         , member_emitter(ctx)
         , alloc_helper(ctx, type_emitter, sc.lambda_captures, semantics_ctx, m)
         , inst_emitter(ctx, type_emitter)
-        , alloc_emitter(c, type_emitter)
+        , alloc_emitter(c, type_emitter, m)
         , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, alloc_helper, module, *this)
     {
         builtin_func_emitter.set_module(module);
