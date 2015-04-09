@@ -140,8 +140,10 @@ auto parse_command_options(ArgPtr arg)
             cmdopts.enable_color = false;
         } else if (*arg == run_str) {
             cmdopts.run = true;
-            for (; *arg; ++arg) {
+            ++arg;
+            while (*arg) {
                 cmdopts.run_args.emplace_back(*arg);
+                ++arg;
             }
             return cmdopts;
         } else if (*arg == debug_str) {
