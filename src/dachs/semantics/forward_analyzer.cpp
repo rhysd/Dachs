@@ -79,6 +79,14 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a, syntax::importer &i)
             is_null_func->define_param(detail::make_global_func_param("ptr", type::make<type::pointer_type>(dummy_template_type)));
         }
 
+        {
+            // func realloc(p : pointer, uint new_size)
+            auto pointer_type = type::make<type::pointer_type>(dummy_template_type);
+            auto realloc_func = detail::make_global_func(scope_root, "realloc", pointer_type);
+            realloc_func->define_param(detail::make_global_func_param("ptr", pointer_type));
+            realloc_func->define_param(detail::make_global_func_param("new_size", *type::get_builtin_type("uint")));
+        }
+
         // Operators
         // cast functions
     }

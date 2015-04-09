@@ -94,11 +94,9 @@ class allocation_emitter {
 
         val const casted_ptr = emit_bit_cast(ptr_value, ctx.builder.getInt8PtrTy(), insert_end);
 
-        auto *const size_constant = llvm::dyn_cast<llvm::ConstantInt>(size_value);
-        val const new_size_value
-            = size_constant ?
-                val{llvm::ConstantInt::get(intptr_ty, size_constant->getZExtValue() * elem_size)} :
-                llvm::BinaryOperator::CreateMul(size_value, elem_size_value, "newsize");
+        auto const new_size_value
+            = llvm::BinaryOperator::CreateMul(size_value, elem_size_value, "newsize");
+        insert_end->getInstList().push_back(new_size_value);
 
         auto *const reallocated
             = llvm::CallInst::Create(
@@ -109,6 +107,8 @@ class allocation_emitter {
                     },
                     "realloccall"
                 );
+
+        insert_end->getInstList().push_back(reallocated);
 
         return emit_bit_cast(reallocated, ptr_ty, insert_end);
     }
@@ -123,14 +123,12 @@ class allocation_emitter {
         auto *const nonzero_block = llvm::BasicBlock::Create(ctx.llvm_context, "alloc.nonzero", parent);
         auto *const merge_block = llvm::BasicBlock::Create(ctx.llvm_context, "alloc.merge", parent);
 
-        auto *const cond_value = ctx.builder.CreateICmpEQ(size_value, ctx.builder.getInt64(0u));
+        auto *const cond_value = ctx.builder.CreateICmpEQ(size_value, llvm::ConstantInt::get(ctx.builder.getIntPtrTy(ctx.data_layout), 0u));
         ctx.builder.CreateCondBr(cond_value, merge_block, nonzero_block);
 
         ctx.builder.SetInsertPoint(nonzero_block);
         auto *const nonnull_value = unless_zero(nonzero_block);
         ctx.builder.CreateBr(merge_block);
-
-        assert(then_value->getType() == nonnull_value->getType());
 
         ctx.builder.SetInsertPoint(merge_block);
 

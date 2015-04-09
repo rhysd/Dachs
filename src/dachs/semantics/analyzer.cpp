@@ -557,6 +557,37 @@ class symbol_analyzer {
         return std::make_pair(instantiated_func_def, instantiated_func_scope);
     }
 
+    template<class ArgTypes>
+    scope::func_scope instantiate_builtin_function(scope::func_scope const& scope, ArgTypes const& arg_types)
+    {
+        auto func = scope::make<scope::func_scope>(nullptr, global, scope->name, true);
+        func->body = scope::make<scope::local_scope>(func);
+        auto func_var = symbol::make<symbol::var_symbol>(nullptr, scope->name, true, true);
+        func_var->type = type::make<type::generic_func_type>(func);
+        func_var->is_global = true;
+        global->define_function(func);
+        global->force_define_constant(std::move(func_var));
+
+        helper::each(
+                [&func](auto const& p, auto const& t)
+                {
+                    func->params.push_back(symbol::make<symbol::var_symbol>(nullptr, p->name, true, true));
+                    func->params.back()->type = t;
+                },
+                scope->params,
+                arg_types
+            );
+
+        if (scope->name == "realloc") {
+            func->ret_type = func->params[0]->type;
+        } else {
+            assert(scope->ret_type && !scope->ret_type->is_template());
+            func->ret_type = scope->ret_type;
+        }
+
+        return func;
+    }
+
     type::type from_type_node(ast::node::any_type const& n) noexcept
     {
         return type::from_ast<decltype(*this)>(n, current_scope, *this).apply(
@@ -1719,7 +1750,11 @@ public:
 
         if (func->is_builtin) {
             assert(func->ret_type);
-            return {func};
+            if (!func->is_template()) {
+                return {func};
+            }
+
+            return {instantiate_builtin_function(func, arg_types)};
         }
 
         auto func_def = func->get_ast_node();

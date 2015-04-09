@@ -892,6 +892,36 @@ BOOST_AUTO_TEST_CASE(address_of)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(realloc)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            var p := new pointer(int){8u}
+            (p as uint).println
+
+            p = p.realloc(10u)
+            (p as uint).println
+
+            p = p.realloc(0u)
+            (p as uint).println
+
+            var i := 3u
+            p = p.realloc(i)
+            (p as uint).println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            p := new pointer(int){8u}
+            p.realloc(10u)
+            p.realloc(0u)
+            var i := 3u
+            p.realloc(i)
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(let_expr)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(

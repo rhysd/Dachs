@@ -20,6 +20,7 @@
 #include "dachs/semantics/scope.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
+#include "dachs/codegen/llvmir/allocation_emitter.hpp"
 #include "dachs/exception.hpp"
 
 namespace dachs {
@@ -30,6 +31,7 @@ class builtin_function_emitter {
     llvm::Module *module = nullptr;
     context &c;
     type_ir_emitter &type_emitter;
+    detail::allocation_emitter &alloc_emitter;
 
     // Argument type name -> Function
     using func_table_type = std::unordered_map<std::string, llvm::Function *const>;
@@ -39,11 +41,12 @@ class builtin_function_emitter {
     llvm::Function *getchar_func = nullptr;
     std::array<llvm::Function *, 2> fatal_funcs = {{nullptr, nullptr}};
     func_table_type is_null_func_table;
+    func_table_type realloc_func_table;
 
 public:
 
-    builtin_function_emitter(decltype(c) &ctx, type_ir_emitter &e)
-        : c(ctx), type_emitter(e)
+    builtin_function_emitter(decltype(c) &ctx, type_ir_emitter &te, detail::allocation_emitter &ae) noexcept
+        : c(ctx), type_emitter(te), alloc_emitter(ae)
     {}
 
     void set_module(llvm::Module *m) noexcept
@@ -319,6 +322,60 @@ public:
         return func;
     }
 
+    llvm::Function *emit_realloc_func(type::type const& from_ptr_type, type::type const& new_size_type)
+    {
+        assert(new_size_type.is_builtin("uint"));
+        auto const ptr_type = type::get<type::pointer_type>(from_ptr_type);
+        assert(ptr_type);
+
+        auto *const ptr_ty = type_emitter.emit(*ptr_type);
+        std::string type_str = (*ptr_type)->pointee_type.to_string();
+
+        {
+            auto const itr = realloc_func_table.find(type_str);
+            if (itr != std::end(realloc_func_table)) {
+                return itr->second;
+            }
+        }
+
+        auto *const size_ty = type_emitter.emit(new_size_type);
+        auto *const func_ty = llvm::FunctionType::get(
+                ptr_ty,
+                {ptr_ty, size_ty},
+                false
+            );
+
+        auto *const prototype = llvm::Function::Create(
+                func_ty,
+                llvm::Function::ExternalLinkage,
+                "dachs.realloc." + type_str,
+                module
+            );
+
+        prototype->addFnAttr(llvm::Attribute::NoUnwind);
+        prototype->addFnAttr(llvm::Attribute::InlineHint);
+
+        auto const ptr_value = prototype->arg_begin();
+        ptr_value->setName("ptr");
+        auto const size_value = std::next(ptr_value);
+        size_value->setName("new_size");
+
+        auto const saved_insert_point = c.builder.GetInsertBlock();
+        auto const body = llvm::BasicBlock::Create(c.llvm_context, "entry", prototype);
+        c.builder.SetInsertPoint(body);
+        c.builder.CreateRet(
+                alloc_emitter.emit_realloc(
+                    ptr_value,
+                    c.builder.CreateTrunc(size_value, c.builder.getIntPtrTy(c.data_layout))
+                )
+            );
+        c.builder.SetInsertPoint(saved_insert_point);
+
+        realloc_func_table.emplace(std::move(type_str), prototype);
+
+        return prototype;
+    }
+
     llvm::Function *emit(std::string const& name, std::vector<type::type> const& arg_types)
     {
         if (name == "print" || name == "println") {
@@ -343,6 +400,8 @@ public:
             }
         } else if (name == "null?") {
             return emit_is_null_func(arg_types[0]);
+        } else if (name == "realloc") {
+            return emit_realloc_func(arg_types[0], arg_types[1]);
         } // else ...
 
         return nullptr;
