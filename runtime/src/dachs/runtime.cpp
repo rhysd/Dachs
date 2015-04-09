@@ -90,11 +90,6 @@ extern "C" {
         va_end(l);
     }
 
-    void* __dachs_malloc__(std::uint64_t const size)
-    {
-        return std::malloc(size);
-    }
-
     char __dachs_getchar__()
     {
         return std::getchar();

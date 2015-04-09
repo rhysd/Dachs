@@ -35,7 +35,6 @@ class builtin_function_emitter {
     using func_table_type = std::unordered_map<std::string, llvm::Function *const>;
     std::unordered_map<std::string, func_table_type> print_func_tables;
     llvm::Function *cityhash_func = nullptr;
-    llvm::Function *malloc_func = nullptr;
     func_table_type address_of_func_table;
     llvm::Function *getchar_func = nullptr;
     std::array<llvm::Function *, 2> fatal_funcs = {{nullptr, nullptr}};
@@ -83,57 +82,6 @@ public:
 
         table.emplace(func_name, target_func);
         return target_func;
-    }
-
-    llvm::Function *emit_malloc_func()
-    {
-        if (malloc_func) {
-            return malloc_func;
-        }
-
-        auto const func_type = llvm::FunctionType::get(
-                c.builder.getInt8PtrTy(),
-                {c.builder.getInt64Ty()},
-                false
-            );
-
-        malloc_func
-            = llvm::Function::Create(
-                    func_type,
-                    llvm::Function::ExternalLinkage,
-                    "__dachs_malloc__",
-                    module
-                );
-
-        return malloc_func;
-    }
-
-    llvm::Value *emit_malloc_call(llvm::Type *const ty)
-    {
-        auto const size = c.data_layout->getTypeAllocSize(ty);
-        if (size == 0u) {
-            return llvm::ConstantPointerNull::get(ty->getPointerTo());
-        }
-
-        auto *const malloc_func = emit_malloc_func();
-
-        auto *const size_value
-            = llvm::ConstantInt::get(
-                c.builder.getInt64Ty(),
-                size,
-                false /*isSigned*/
-            );
-
-        auto *const call_inst
-            = c.builder.CreateCall(
-                    malloc_func,
-                    size_value
-                );
-
-        return c.builder.CreateBitCast(
-                call_inst,
-                ty->getPointerTo()
-            );
     }
 
     llvm::Function *emit_cityhash_func()
