@@ -643,7 +643,7 @@ public:
         , alloc_emitter(c, type_emitter, *module)
         , builtin_func_emitter(m, ctx, type_emitter, alloc_emitter)
         , member_emitter(ctx)
-        , alloc_helper(ctx, type_emitter, sc.lambda_captures, semantics_ctx, m)
+        , alloc_helper(ctx, type_emitter, alloc_emitter, sc.lambda_captures, semantics_ctx, m)
         , inst_emitter(ctx, type_emitter)
         , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, alloc_helper, module, *this)
     {}
@@ -837,7 +837,7 @@ public:
             // are expired.
             // So, the allocation of static array should be [ElemType* x N]*.
 
-            auto *const allocated = ctx.builder.CreateConstInBoundsGEP2_32(ctx.builder.CreateAlloca(array_ty), 0u, 0u, "arrlit");
+            auto *const allocated = alloc_emitter.emit_malloc(elem_type, elem_exprs.size(), "arrlit");
 
             for (auto const idx : helper::indices(elem_exprs)) {
                 auto *const elem_value = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);

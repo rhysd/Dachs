@@ -50,7 +50,8 @@ class allocation_emitter {
             );
     }
 
-    val emit_malloc_call(llvm::BasicBlock *const insert_end, llvm::Type *const elem_ty, val const size_value)
+    template<class String>
+    val emit_malloc_call(llvm::BasicBlock *const insert_end, llvm::Type *const elem_ty, val const size_value, String const& name)
     {
         auto *const intptr_ty = ctx.builder.getIntPtrTy(ctx.data_layout);
         auto *const emitted
@@ -66,6 +67,8 @@ class allocation_emitter {
         ctx.builder.Insert(emitted);
 
         assert(emitted->getType() == elem_ty->getPointerTo());
+
+        emitted->setName(name);
 
         return emitted;
     }
@@ -148,7 +151,8 @@ public:
         : ctx(c), type_emitter(e), module(m)
     {}
 
-    val emit_malloc(type::type const& elem_type, std::size_t const array_size)
+    template<class String = char const*>
+    val emit_malloc(type::type const& elem_type, std::size_t const array_size, String const& name = "")
     {
         auto *const elem_ty = type_emitter.emit_alloc_type(elem_type);
         if (array_size == 0u) {
@@ -157,17 +161,19 @@ public:
             return emit_malloc_call(
                     ctx.builder.GetInsertBlock(),
                     elem_ty,
-                    llvm::ConstantInt::get(ctx.builder.getIntPtrTy(ctx.data_layout), array_size)
+                    llvm::ConstantInt::get(ctx.builder.getIntPtrTy(ctx.data_layout), array_size),
+                    name
                 );
         }
     }
 
-    val emit_malloc(type::type const& elem_type, val size_value)
+    template<class String = char const*>
+    val emit_malloc(type::type const& elem_type, val size_value, String const& name = "")
     {
         if (auto *const const_size = llvm::dyn_cast<llvm::ConstantInt>(size_value)) {
             // Note:
             // Although it optimizes and removes the branch, I do that by my hand to be sure
-            return emit_malloc(elem_type, const_size->getZExtValue());
+            return emit_malloc(elem_type, const_size->getZExtValue(), name);
         }
 
         auto *const intptr_ty = ctx.builder.getIntPtrTy(ctx.data_layout);
@@ -180,20 +186,35 @@ public:
 
         return emit_null_on_zero_otherwise(
                 size_value,
-                [&elem_type, size_value, this](auto const else_block)
+                [&name, &elem_type, size_value, this](auto const else_block)
                 {
                     return emit_malloc_call(
                         else_block,
                         type_emitter.emit_alloc_type(elem_type),
-                        size_value
+                        size_value,
+                        name
                     );
                 }
             );
     }
 
-    val emit_malloc(type::type const& elem_type)
+    template<class String = char const*>
+    val emit_malloc(type::type const& elem_type, String const& name = "")
     {
-        return emit_malloc(elem_type, 1u);
+        return emit_malloc(elem_type, 1u, name);
+    }
+
+    template<class String = char const*>
+    val emit_alloc(type::type const& elem_type, String const& name = "")
+    {
+        // Note:
+        // Primitive types are treated by value.  No need to allocate them in heap.
+
+        if (elem_type.is_aggregate()) {
+            return emit_malloc(elem_type, name);
+        } else {
+            return ctx.builder.CreateAlloca(type_emitter.emit_alloc_type(elem_type), nullptr, name);
+        }
     }
 
     val emit_realloc(val const ptr_value, std::size_t const array_size)
