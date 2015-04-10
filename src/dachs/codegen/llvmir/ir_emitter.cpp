@@ -633,25 +633,6 @@ class llvm_ir_emitter {
 
 public:
 
-    llvm_ir_emitter(std::string const& f, context &c, semantics::semantics_context const& sc)
-        : module(new llvm::Module(f, c.llvm_context))
-        , ctx(c)
-        , semantics_ctx(sc)
-        , var_table()
-        , file(f)
-        , type_emitter(ctx.llvm_context, sc.lambda_captures)
-        , alloc_emitter(c, type_emitter, *module)
-        , builtin_func_emitter(ctx, type_emitter, alloc_emitter)
-        , member_emitter(ctx)
-        , alloc_helper(ctx, type_emitter, sc.lambda_captures, semantics_ctx, *module)
-        , inst_emitter(ctx, type_emitter)
-        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, alloc_helper, module, *this)
-    {
-        module->setDataLayout(ctx.data_layout->getStringRepresentation());
-        module->setTargetTriple(ctx.triple.getTriple());
-        builtin_func_emitter.set_module(module);
-    }
-
     llvm_ir_emitter(std::string const& f, context &c, semantics::semantics_context const& sc, llvm::Module &m)
         : module(&m)
         , ctx(c)
@@ -659,14 +640,19 @@ public:
         , var_table()
         , file(f)
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
-        , alloc_emitter(c, type_emitter, m)
-        , builtin_func_emitter(ctx, type_emitter, alloc_emitter)
+        , alloc_emitter(c, type_emitter, *module)
+        , builtin_func_emitter(m, ctx, type_emitter, alloc_emitter)
         , member_emitter(ctx)
         , alloc_helper(ctx, type_emitter, sc.lambda_captures, semantics_ctx, m)
         , inst_emitter(ctx, type_emitter)
         , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, alloc_helper, module, *this)
+    {}
+
+    llvm_ir_emitter(std::string const& f, context &c, semantics::semantics_context const& sc)
+        : llvm_ir_emitter(f, c, sc, *new llvm::Module(f, c.llvm_context))
     {
-        builtin_func_emitter.set_module(module);
+        module->setDataLayout(ctx.data_layout->getStringRepresentation());
+        module->setTargetTriple(ctx.triple.getTriple());
     }
 
     val emit(ast::node::symbol_literal const& sl)

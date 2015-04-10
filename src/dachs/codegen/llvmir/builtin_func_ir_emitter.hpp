@@ -28,7 +28,7 @@ namespace codegen {
 namespace llvmir {
 
 class builtin_function_emitter {
-    llvm::Module *module = nullptr;
+    llvm::Module &module;
     context &c;
     type_ir_emitter &type_emitter;
     detail::allocation_emitter &alloc_emitter;
@@ -45,14 +45,9 @@ class builtin_function_emitter {
 
 public:
 
-    builtin_function_emitter(decltype(c) &ctx, type_ir_emitter &te, detail::allocation_emitter &ae) noexcept
-        : c(ctx), type_emitter(te), alloc_emitter(ae)
+    builtin_function_emitter(llvm::Module &m, decltype(c) &ctx, type_ir_emitter &te, detail::allocation_emitter &ae) noexcept
+        : module(m), c(ctx), type_emitter(te), alloc_emitter(ae)
     {}
-
-    void set_module(llvm::Module *m) noexcept
-    {
-        module = m;
-    }
 
     template<class Table, class Type>
     llvm::Function *emit_print_func_prototype(Table &&table, std::string const& func_name, Type const& arg_type)
@@ -76,11 +71,10 @@ public:
                         print_func_type,
                         llvm::Function::ExternalLinkage,
                         func_name,
-                        module
+                        &module
                     );
             };
 
-        assert(module);
         auto *const target_func = define_func_prototype(type_emitter.emit(arg_type));
 
         table.emplace(func_name, target_func);
@@ -104,7 +98,7 @@ public:
                     func_type,
                     llvm::Function::ExternalLinkage,
                     "__dachs_cityhash__",
-                    module
+                    &module
                 );
 
         return cityhash_func;
@@ -132,7 +126,7 @@ public:
                     func_ty,
                     llvm::Function::ExternalLinkage,
                     "dachs.null?",
-                    module
+                    &module
                 );
 
         prototype->addFnAttr(llvm::Attribute::NoUnwind);
@@ -191,8 +185,7 @@ public:
 
     llvm::Function *emit_read_cycle_counter_func()
     {
-        assert(module);
-        return llvm::Intrinsic::getDeclaration(module, llvm::Intrinsic::readcyclecounter);
+        return llvm::Intrinsic::getDeclaration(&module, llvm::Intrinsic::readcyclecounter);
     }
 
     llvm::Function *emit_getchar_func()
@@ -211,7 +204,7 @@ public:
                     func_type,
                     llvm::Function::ExternalLinkage,
                     "__dachs_getchar__",
-                    module
+                    &module
                 );
 
         return getchar_func;
@@ -244,7 +237,7 @@ public:
                 func_ty,
                 llvm::Function::ExternalLinkage,
                 "__builtin_address_of",
-                module
+                &module
             );
         prototype->addFnAttr(llvm::Attribute::NoUnwind);
         prototype->addFnAttr(llvm::Attribute::InlineHint);
@@ -280,7 +273,7 @@ public:
                 func_ty,
                 llvm::Function::ExternalLinkage,
                 "__dachs_fatal__",
-                module
+                &module
             );
 
         prototype->addFnAttr(llvm::Attribute::NoUnwind);
@@ -308,7 +301,7 @@ public:
                 func_ty,
                 llvm::Function::ExternalLinkage,
                 "__dachs_fatal_reason__",
-                module
+                &module
             );
 
         prototype->addFnAttr(llvm::Attribute::NoUnwind);
@@ -349,7 +342,7 @@ public:
                 func_ty,
                 llvm::Function::ExternalLinkage,
                 "dachs.realloc." + type_str,
-                module
+                &module
             );
 
         prototype->addFnAttr(llvm::Attribute::NoUnwind);
