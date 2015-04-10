@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <array>
 #include <utility>
+#include <initializer_list>
 #include <cstdint>
 
 #include <llvm/IR/Module.h>
@@ -43,6 +44,43 @@ class builtin_function_emitter {
     func_table_type is_null_func_table;
     func_table_type realloc_func_table;
 
+    template<class String>
+    llvm::Function *create_func_prototype(String const& name, llvm::Type *const ret_ty, std::initializer_list<llvm::Type *> const& arg_tys)
+    {
+        auto *const func_ty = llvm::FunctionType::get(
+                ret_ty,
+                arg_tys,
+                false
+            );
+
+        auto *const func = llvm::Function::Create(
+                func_ty,
+                llvm::Function::ExternalLinkage,
+                name,
+                &module
+            );
+
+        func->addFnAttr(llvm::Attribute::NoUnwind);
+
+        return func;
+    }
+
+    template<class String>
+    llvm::Function *create_cached_func_prototype(llvm::Function *&func, String const& name, llvm::Type *const ret_ty, std::initializer_list<llvm::Type *> const& arg_tys)
+    {
+        if (func) {
+            return func;
+        }
+
+        func = create_func_prototype(
+                name,
+                ret_ty,
+                arg_tys
+            );
+
+        return func;
+    }
+
 public:
 
     builtin_function_emitter(llvm::Module &m, decltype(c) &ctx, type_ir_emitter &te, detail::allocation_emitter &ae) noexcept
@@ -57,25 +95,11 @@ public:
             return func_itr->second;
         }
 
-        auto const define_func_prototype =
-            [&](llvm::Type *arg_type_ir)
-            {
-                std::vector<llvm::Type *> param_types
-                    = {arg_type_ir};
-                auto const print_func_type = llvm::FunctionType::get(
-                        llvm::StructType::get(c.llvm_context, {})->getPointerTo(),
-                        param_types,
-                        false
-                    );
-                return llvm::Function::Create(
-                        print_func_type,
-                        llvm::Function::ExternalLinkage,
-                        func_name,
-                        &module
-                    );
-            };
-
-        auto *const target_func = define_func_prototype(type_emitter.emit(arg_type));
+        auto *const target_func = create_func_prototype(
+                func_name,
+                llvm::StructType::get(c.llvm_context, {})->getPointerTo(),
+                {type_emitter.emit(arg_type)}
+            );
 
         table.emplace(func_name, target_func);
         return target_func;
@@ -83,25 +107,12 @@ public:
 
     llvm::Function *emit_cityhash_func()
     {
-        if (cityhash_func) {
-            return cityhash_func;
-        }
-
-        auto const func_type = llvm::FunctionType::get(
+        return create_cached_func_prototype(
+                cityhash_func,
+                "__dachs_cityhash__",
                 c.builder.getInt64Ty(),
-                {c.builder.getInt8PtrTy()},
-                false
+                {c.builder.getInt8PtrTy()}
             );
-
-        cityhash_func
-            = llvm::Function::Create(
-                    func_type,
-                    llvm::Function::ExternalLinkage,
-                    "__dachs_cityhash__",
-                    &module
-                );
-
-        return cityhash_func;
     }
 
     llvm::Function *emit_is_null_func(type::type const& t)
@@ -116,20 +127,12 @@ public:
             return func_itr->second;
         }
 
-        auto const func_ty = llvm::FunctionType::get(
+        auto *const prototype = create_func_prototype(
+                "dachs.null?",
                 c.builder.getInt1Ty(),
-                (llvm::Type *[1]){type_emitter.emit(*ptr)},
-                false
+                {type_emitter.emit(*ptr)}
             );
 
-        auto *const prototype = llvm::Function::Create(
-                    func_ty,
-                    llvm::Function::ExternalLinkage,
-                    "dachs.null?",
-                    &module
-                );
-
-        prototype->addFnAttr(llvm::Attribute::NoUnwind);
         prototype->addFnAttr(llvm::Attribute::AlwaysInline);
 
         auto const arg_value = prototype->arg_begin();
@@ -190,24 +193,12 @@ public:
 
     llvm::Function *emit_getchar_func()
     {
-        if (getchar_func) {
-            return getchar_func;
-        }
-
-        auto const func_type = llvm::FunctionType::get(
+        return create_cached_func_prototype(
+                getchar_func,
+                "__dachs_getchar__",
                 c.builder.getInt8Ty(),
-                false
+                {}
             );
-
-        getchar_func
-            = llvm::Function::Create(
-                    func_type,
-                    llvm::Function::ExternalLinkage,
-                    "__dachs_getchar__",
-                    &module
-                );
-
-        return getchar_func;
     }
 
     llvm::Function *emit_address_of_func(type::type const& arg_type)
@@ -227,19 +218,12 @@ public:
             return func_itr->second;
         }
 
-        auto *const func_ty = llvm::FunctionType::get(
+        auto *const prototype = create_func_prototype(
+                "__builtin_address_of",
                 c.builder.getInt64Ty(),
-                (llvm::Type *[1]){arg_ty},
-                false
+                {arg_ty}
             );
 
-        auto *const prototype = llvm::Function::Create(
-                func_ty,
-                llvm::Function::ExternalLinkage,
-                "__builtin_address_of",
-                &module
-            );
-        prototype->addFnAttr(llvm::Attribute::NoUnwind);
         prototype->addFnAttr(llvm::Attribute::InlineHint);
 
         auto const arg_value = prototype->arg_begin();
@@ -259,60 +243,25 @@ public:
 
     llvm::Function *emit_fatal_func()
     {
-        auto &func = fatal_funcs[0];
-        if (func) {
-            return func;
-        }
-
-        auto *const func_ty = llvm::FunctionType::get(
-                type_emitter.emit(type::get_unit_type()),
-                false
-            );
-
-        auto *const prototype = llvm::Function::Create(
-                func_ty,
-                llvm::Function::ExternalLinkage,
+        return create_cached_func_prototype(
+                fatal_funcs[0],
                 "__dachs_fatal__",
-                &module
+                type_emitter.emit(type::get_unit_type()),
+                {}
             );
-
-        prototype->addFnAttr(llvm::Attribute::NoUnwind);
-        prototype->addFnAttr(llvm::Attribute::InlineHint);
-
-        func = prototype;
-
-        return func;
     }
 
     llvm::Function *emit_fatal_func(type::type const& arg_type)
     {
-        auto &func = fatal_funcs[1];
-        if (func) {
-            return func;
-        }
-
-        auto *const func_ty = llvm::FunctionType::get(
-                type_emitter.emit(type::get_unit_type()),
-                (llvm::Type *[1]){type_emitter.emit(arg_type)},
-                false
-            );
-
-        auto *const prototype = llvm::Function::Create(
-                func_ty,
-                llvm::Function::ExternalLinkage,
+        auto *const f = create_cached_func_prototype(
+                fatal_funcs[1],
                 "__dachs_fatal_reason__",
-                &module
+                type_emitter.emit(type::get_unit_type()),
+                {type_emitter.emit(arg_type)}
             );
 
-        prototype->addFnAttr(llvm::Attribute::NoUnwind);
-        prototype->addFnAttr(llvm::Attribute::InlineHint);
-
-        auto const arg_value = prototype->arg_begin();
-        arg_value->setName("reason");
-
-        func = prototype;
-
-        return func;
+        f->arg_begin()->setName("reason");
+        return f;
     }
 
     llvm::Function *emit_realloc_func(type::type const& from_ptr_type, type::type const& new_size_type)
@@ -332,20 +281,13 @@ public:
         }
 
         auto *const size_ty = type_emitter.emit(new_size_type);
-        auto *const func_ty = llvm::FunctionType::get(
-                ptr_ty,
-                {ptr_ty, size_ty},
-                false
-            );
 
-        auto *const prototype = llvm::Function::Create(
-                func_ty,
-                llvm::Function::ExternalLinkage,
+        auto *const prototype = create_func_prototype(
                 "dachs.realloc." + type_str,
-                &module
+                ptr_ty,
+                {ptr_ty, size_ty}
             );
 
-        prototype->addFnAttr(llvm::Attribute::NoUnwind);
         prototype->addFnAttr(llvm::Attribute::InlineHint);
 
         auto const ptr_value = prototype->arg_begin();
