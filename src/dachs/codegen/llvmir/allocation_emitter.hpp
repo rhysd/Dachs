@@ -162,13 +162,21 @@ public:
         }
     }
 
-    val emit_malloc(type::type const& elem_type, val const size_value)
+    val emit_malloc(type::type const& elem_type, val size_value)
     {
         if (auto *const const_size = llvm::dyn_cast<llvm::ConstantInt>(size_value)) {
             // Note:
             // Although it optimizes and removes the branch, I do that by my hand to be sure
             return emit_malloc(elem_type, const_size->getZExtValue());
         }
+
+        auto *const intptr_ty = ctx.builder.getIntPtrTy(ctx.data_layout);
+
+        if (size_value->getType() == ctx.builder.getInt64Ty()) {
+            size_value = ctx.builder.CreateTrunc(size_value, intptr_ty);
+        }
+
+        assert(size_value->getType() == intptr_ty);
 
         return emit_null_on_zero_otherwise(
                 size_value,
