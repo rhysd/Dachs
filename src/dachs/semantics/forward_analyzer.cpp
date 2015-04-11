@@ -87,6 +87,12 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a, syntax::importer &i)
             realloc_func->define_param(detail::make_global_func_param("new_size", *type::get_builtin_type("uint")));
         }
 
+        {
+            // func free(ptr)
+            auto free_func = detail::make_global_func(scope_root, "__builtin_free", type::get_unit_type());
+            free_func->define_param(detail::make_global_func_param("ptr", dummy_template_type));
+        }
+
         // Operators
         // cast functions
     }

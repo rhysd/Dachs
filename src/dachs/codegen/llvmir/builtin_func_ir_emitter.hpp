@@ -43,6 +43,7 @@ class builtin_function_emitter {
     std::array<llvm::Function *, 2> fatal_funcs = {{nullptr, nullptr}};
     func_table_type is_null_func_table;
     func_table_type realloc_func_table;
+    func_table_type free_func_table;
 
     template<class String>
     llvm::Function *create_func_prototype(String const& name, llvm::Type *const ret_ty, std::initializer_list<llvm::Type *> const& arg_tys)
@@ -95,6 +96,9 @@ public:
             return func_itr->second;
         }
 
+        // XXX:
+        // Return type mismatches.
+        // print() in Dachs returns () but print() in runtime returns void
         auto *const target_func = create_func_prototype(
                 func_name,
                 llvm::StructType::get(c.llvm_context, {})->getPointerTo(),
@@ -311,6 +315,31 @@ public:
         return prototype;
     }
 
+    llvm::Function *emit_free_func(type::type const& arg_type)
+    {
+        auto const ptr_type = type::get<type::pointer_type>(arg_type);
+        assert(ptr_type);
+        std::string type_str = (*ptr_type)->pointee_type.to_string();
+
+        auto const itr = free_func_table.find(type_str);
+        if (itr != std::end(free_func_table)) {
+            return itr->second;
+        }
+
+        // XXX:
+        // Return type mismatches.
+        // print() in Dachs returns () but print() in runtime returns void
+        auto *const prototype = create_func_prototype(
+                "free",
+                llvm::StructType::get(c.llvm_context, {})->getPointerTo(),
+                {type_emitter.emit(*ptr_type)}
+            );
+
+        free_func_table.emplace(std::move(type_str), prototype);
+
+        return prototype;
+    }
+
     llvm::Function *emit(std::string const& name, std::vector<type::type> const& arg_types)
     {
         if (name == "print" || name == "println") {
@@ -337,6 +366,8 @@ public:
             return emit_is_null_func(arg_types[0]);
         } else if (name == "realloc") {
             return emit_realloc_func(arg_types[0], arg_types[1]);
+        } else if (name == "__builtin_free") {
+            return emit_free_func(arg_types[0]);
         } // else ...
 
         return nullptr;
