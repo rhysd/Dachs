@@ -578,7 +578,7 @@ class symbol_analyzer {
                 arg_types
             );
 
-        if (scope->name == "realloc") {
+        if (scope->name == "__builtin_realloc") {
             func->ret_type = func->params[0]->type;
         } else {
             assert(scope->ret_type && !scope->ret_type->is_template());

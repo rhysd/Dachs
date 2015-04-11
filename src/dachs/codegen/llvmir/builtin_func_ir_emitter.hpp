@@ -362,9 +362,9 @@ public:
             } else {
                 return emit_fatal_func(arg_types[0]);
             }
-        } else if (name == "null?") {
+        } else if (name == "__builtin_null?") {
             return emit_is_null_func(arg_types[0]);
-        } else if (name == "realloc") {
+        } else if (name == "__builtin_realloc") {
             return emit_realloc_func(arg_types[0], arg_types[1]);
         } else if (name == "__builtin_free") {
             return emit_free_func(arg_types[0]);

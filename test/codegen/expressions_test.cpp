@@ -899,14 +899,14 @@ BOOST_AUTO_TEST_CASE(realloc)
             var p := new pointer(int){8u}
             (p as uint).println
 
-            p = p.realloc(10u)
+            p = p.__builtin_realloc(10u)
             (p as uint).println
 
-            p = p.realloc(0u)
+            p = p.__builtin_realloc(0u)
             (p as uint).println
 
             var i := 3u
-            p = p.realloc(i)
+            p = p.__builtin_realloc(i)
             (p as uint).println
         end
     )");
@@ -914,10 +914,10 @@ BOOST_AUTO_TEST_CASE(realloc)
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func main
             p := new pointer(int){8u}
-            p.realloc(10u)
-            p.realloc(0u)
+            p.__builtin_realloc(10u)
+            p.__builtin_realloc(0u)
             var i := 3u
-            p.realloc(i)
+            p.__builtin_realloc(i)
         end
     )");
 }
@@ -1425,10 +1425,10 @@ BOOST_AUTO_TEST_CASE(pointer)
             p1 := new pointer(int){0u}
             p2 := new pointer(float){1u}
 
-            p1.null?.println
-            p2.null?.println
-            null?(p1).println
-            null?(p2).println
+            p1.__builtin_null?.println
+            p2.__builtin_null?.println
+            __builtin_null?(p1).println
+            __builtin_null?(p2).println
         end
     )");
 
