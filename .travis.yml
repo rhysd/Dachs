@@ -46,7 +46,7 @@ install: |
     case $TRAVIS_OS_NAME in
     linux)
         sudo apt-get -qq update
-        sudo apt-get -qq install g++-4.9 libboost1.55-all-dev cmake llvm${LLVM_VERSION}-dev clang${LLVM_VERSION}
+        sudo apt-get -qq install g++-4.9 libboost1.55-all-dev cmake llvm${LLVM_VERSION}-dev clang${LLVM_VERSION} libgc-dev
         ;;
     osx)
         brew install llvm --with-clang
