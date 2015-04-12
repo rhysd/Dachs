@@ -129,6 +129,7 @@ end
 - [x] Block
 - [ ] Variadic arguments
 - [ ] Module
+- [ ] GC
 - [x] Tests
 - [x] CMakeLists.txt
 - [x] Travis-CI
