@@ -24,6 +24,7 @@ class gc_alloc_emitter {
     type_ir_emitter &type_emitter;
     llvm::Module &module;
     llvm::Function *realloc_func = nullptr;
+    llvm::Function *gc_init_func = nullptr;
 
     using val = llvm::Value *;
 
@@ -33,7 +34,7 @@ class gc_alloc_emitter {
             return realloc_func;
         }
 
-        auto const func_type = llvm::FunctionType::get(
+        auto const func_ty = llvm::FunctionType::get(
                 ctx.builder.getInt8PtrTy(),
                 {
                     ctx.builder.getInt8PtrTy(),
@@ -42,12 +43,36 @@ class gc_alloc_emitter {
                 false
             );
 
-        return llvm::Function::Create(
-                func_type,
+        realloc_func = llvm::Function::Create(
+                func_ty,
                 llvm::Function::ExternalLinkage,
                 "realloc",
                 &module
             );
+
+        return realloc_func;
+    }
+
+    llvm::Function *emit_gc_init_func()
+    {
+        if (gc_init_func) {
+            return gc_init_func;
+        }
+
+        auto const func_ty = llvm::FunctionType::get(
+                ctx.builder.getVoidTy(),
+                {},
+                false
+            );
+
+        gc_init_func = llvm::Function::Create(
+                func_ty,
+                llvm::Function::ExternalLinkage,
+                "GC_init",
+                &module
+            );
+
+        return gc_init_func;
     }
 
     template<class String>
@@ -252,6 +277,12 @@ public:
                     );
                 }
             );
+    }
+
+    val emit_init()
+    {
+        auto *const gc_init = emit_gc_init_func();
+        return ctx.builder.CreateCall(gc_init);
     }
 };
 

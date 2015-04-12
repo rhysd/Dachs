@@ -279,6 +279,8 @@ class llvm_ir_emitter {
         auto const emit_inner_main_call
             = [has_cmdline_arg, main_func_value, entry_func_value, this]
             {
+                gc_emitter.emit_init();
+
                 if (!has_cmdline_arg) {
                     return ctx.builder.CreateCall(
                             main_func_value,
