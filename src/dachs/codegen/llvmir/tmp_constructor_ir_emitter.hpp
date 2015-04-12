@@ -13,7 +13,7 @@
 #include "dachs/semantics/type.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
-#include "dachs/codegen/llvmir/allocation_emitter.hpp"
+#include "dachs/codegen/llvmir/gc_alloc_emitter.hpp"
 #include "dachs/codegen/llvmir/ir_builder_helper.hpp"
 #include "dachs/helper/util.hpp"
 #include "dachs/helper/llvm.hpp"
@@ -31,7 +31,7 @@ class tmp_constructor_ir_emitter {
 
     context &ctx;
     type_ir_emitter &type_emitter;
-    allocation_emitter &alloc_emitter;
+    gc_alloc_emitter &gc_emitter;
     builder::allocation_helper &alloc_helper;
     llvm::Module * const& module;
     Emitter &emitter;
@@ -40,7 +40,7 @@ class tmp_constructor_ir_emitter {
     struct type_ctor_emitter : boost::static_visitor<val> {
         context &ctx;
         type_ir_emitter &type_emitter;
-        allocation_emitter &alloc_emitter;
+        gc_alloc_emitter &gc_emitter;
         builder::allocation_helper &alloc_helper;
         llvm::Module &module;
         Values const& arg_values;
@@ -50,7 +50,7 @@ class tmp_constructor_ir_emitter {
         type_ctor_emitter(
                 context &c,
                 type_ir_emitter &t,
-                allocation_emitter &ae,
+                gc_alloc_emitter &ae,
                 builder::allocation_helper &a,
                 llvm::Module &m,
                 Values const& vs,
@@ -59,7 +59,7 @@ class tmp_constructor_ir_emitter {
         ) noexcept
             : ctx(c)
             , type_emitter(t)
-            , alloc_emitter(ae)
+            , gc_emitter(ae)
             , alloc_helper(a)
             , module(m)
             , arg_values(vs)
@@ -81,7 +81,7 @@ class tmp_constructor_ir_emitter {
         val operator()(type::pointer_type const& p)
         {
             assert(arg_values.size() == 1u);
-            return alloc_emitter.emit_malloc(p->pointee_type, arg_values[0]);
+            return gc_emitter.emit_malloc(p->pointee_type, arg_values[0]);
         }
 
         val operator()(type::array_type const& a)
@@ -169,14 +169,14 @@ public:
     tmp_constructor_ir_emitter(
             context &c,
             type_ir_emitter &t,
-            allocation_emitter &ae,
+            gc_alloc_emitter &ge,
             builder::allocation_helper &a,
             llvm::Module *const& m,
             Emitter &e
     ) noexcept
         : ctx(c)
         , type_emitter(t)
-        , alloc_emitter(ae)
+        , gc_emitter(ge)
         , alloc_helper(a)
         , module(m)
         , emitter(e)
@@ -189,7 +189,7 @@ public:
         type_ctor_emitter<Values, Node> ctor_emitter{
                 ctx,
                 type_emitter,
-                alloc_emitter,
+                gc_emitter,
                 alloc_helper,
                 *module, 
                 arg_values,

@@ -21,7 +21,7 @@
 #include "dachs/semantics/scope.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
-#include "dachs/codegen/llvmir/allocation_emitter.hpp"
+#include "dachs/codegen/llvmir/gc_alloc_emitter.hpp"
 #include "dachs/exception.hpp"
 
 namespace dachs {
@@ -32,7 +32,7 @@ class builtin_function_emitter {
     llvm::Module &module;
     context &c;
     type_ir_emitter &type_emitter;
-    detail::allocation_emitter &alloc_emitter;
+    detail::gc_alloc_emitter &gc_emitter;
 
     // Argument type name -> Function
     using func_table_type = std::unordered_map<std::string, llvm::Function *const>;
@@ -84,8 +84,8 @@ class builtin_function_emitter {
 
 public:
 
-    builtin_function_emitter(llvm::Module &m, decltype(c) &ctx, type_ir_emitter &te, detail::allocation_emitter &ae) noexcept
-        : module(m), c(ctx), type_emitter(te), alloc_emitter(ae)
+    builtin_function_emitter(llvm::Module &m, decltype(c) &ctx, type_ir_emitter &te, detail::gc_alloc_emitter &ge) noexcept
+        : module(m), c(ctx), type_emitter(te), gc_emitter(ge)
     {}
 
     template<class Table, class Type>
@@ -303,7 +303,7 @@ public:
         auto const body = llvm::BasicBlock::Create(c.llvm_context, "entry", prototype);
         c.builder.SetInsertPoint(body);
         c.builder.CreateRet(
-                alloc_emitter.emit_realloc(
+                gc_emitter.emit_realloc(
                     ptr_value,
                     c.builder.CreateTrunc(size_value, c.builder.getIntPtrTy(c.data_layout))
                 )

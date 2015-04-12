@@ -41,7 +41,7 @@
 #include "dachs/helper/llvm.hpp"
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
-#include "dachs/codegen/llvmir/allocation_emitter.hpp"
+#include "dachs/codegen/llvmir/gc_alloc_emitter.hpp"
 #include "dachs/codegen/llvmir/tmp_builtin_operator_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/builtin_func_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/ir_builder_helper.hpp"
@@ -84,7 +84,7 @@ class llvm_ir_emitter {
     std::string const& file;
     std::stack<llvm::BasicBlock *> loop_stack; // Loop stack for continue and break statements
     type_ir_emitter type_emitter;
-    allocation_emitter alloc_emitter;
+    gc_alloc_emitter gc_emitter;
     builtin_function_emitter builtin_func_emitter;
     tmp_member_ir_emitter member_emitter;
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
@@ -640,12 +640,12 @@ public:
         , var_table()
         , file(f)
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
-        , alloc_emitter(c, type_emitter, *module)
-        , builtin_func_emitter(m, ctx, type_emitter, alloc_emitter)
+        , gc_emitter(c, type_emitter, *module)
+        , builtin_func_emitter(m, ctx, type_emitter, gc_emitter)
         , member_emitter(ctx)
-        , alloc_helper(ctx, type_emitter, alloc_emitter, sc.lambda_captures, semantics_ctx, m)
+        , alloc_helper(ctx, type_emitter, gc_emitter, sc.lambda_captures, semantics_ctx, m)
         , inst_emitter(ctx, type_emitter)
-        , builtin_ctor_emitter(ctx, type_emitter, alloc_emitter, alloc_helper, module, *this)
+        , builtin_ctor_emitter(ctx, type_emitter, gc_emitter, alloc_helper, module, *this)
     {}
 
     llvm_ir_emitter(std::string const& f, context &c, semantics::semantics_context const& sc)
@@ -837,7 +837,7 @@ public:
             // are expired.
             // So, the allocation of static array should be [ElemType* x N]*.
 
-            auto *const allocated = alloc_emitter.emit_malloc(elem_type, elem_exprs.size(), "arrlit");
+            auto *const allocated = gc_emitter.emit_malloc(elem_type, elem_exprs.size(), "arrlit");
 
             for (auto const idx : helper::indices(elem_exprs)) {
                 auto *const elem_value = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);

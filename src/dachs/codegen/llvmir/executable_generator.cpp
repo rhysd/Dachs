@@ -204,8 +204,8 @@ public:
         auto const executable_name = parent_dir_path + get_base_name_from_module(*modules[0]);
         auto command
             = os_type == llvm::Triple::Darwin
-                ? "ld -macosx_version_min 10.9.0 \"" + objs_string + "\" -o \"" + executable_name + "\" -lSystem -ldachs-runtime -L /usr/lib -L /usr/local/lib -L " DACHS_INSTALL_PREFIX "/lib"
-                : (DACHS_CXX_COMPILER " ") + objs_string + " -o " + executable_name + " -ldachs-runtime -L /usr/lib -L /usr/local/lib -L " DACHS_INSTALL_PREFIX "/lib"; // Fallback...
+                ? "ld -macosx_version_min 10.9.0 \"" + objs_string + "\" -o \"" + executable_name + "\" -lSystem -ldachs-runtime -lgc -L /usr/lib -L /usr/local/lib -L " DACHS_INSTALL_PREFIX "/lib"
+                : (DACHS_CXX_COMPILER " ") + objs_string + " -o " + executable_name + " -ldachs-runtime -lgc -L /usr/lib -L /usr/local/lib -L " DACHS_INSTALL_PREFIX "/lib"; // Fallback...
 
         for (auto const& lib : libdirs) {
             command += " -L \"" + lib + '"';

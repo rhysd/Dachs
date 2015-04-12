@@ -15,7 +15,7 @@
 #include "dachs/semantics/semantics_context.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
-#include "dachs/codegen/llvmir/allocation_emitter.hpp"
+#include "dachs/codegen/llvmir/gc_alloc_emitter.hpp"
 #include "dachs/helper/util.hpp"
 #include "dachs/helper/llvm.hpp"
 #include "dachs/helper/probable.hpp"
@@ -270,7 +270,7 @@ public:
 class allocation_helper {
     context &ctx;
     type_ir_emitter &type_emitter;
-    detail::allocation_emitter &alloc_emitter;
+    detail::gc_alloc_emitter &gc_emitter;
     semantics::lambda_captures_type const& lambda_captures;
     semantics::semantics_context const& semantics_ctx;
     llvm::Module &module;
@@ -280,14 +280,14 @@ public:
     allocation_helper(
             context &c,
             type_ir_emitter &e,
-            detail::allocation_emitter &ae,
+            detail::gc_alloc_emitter &ge,
             decltype(lambda_captures) const& cs,
             decltype(semantics_ctx) const& sctx,
             llvm::Module &m
     ) noexcept
         : ctx(c)
         , type_emitter(e)
-        , alloc_emitter(ae)
+        , gc_emitter(ge)
         , lambda_captures(cs)
         , semantics_ctx(sctx)
         , module(m)
@@ -370,7 +370,7 @@ public:
             return ctx.builder.CreateConstInBoundsGEP2_32(allocated, 0u, 0u);
         }
 
-        return alloc_emitter.emit_alloc(t, name);
+        return gc_emitter.emit_alloc(t, name);
     }
 
     // TODO:

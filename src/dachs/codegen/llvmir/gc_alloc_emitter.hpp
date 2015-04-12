@@ -1,5 +1,5 @@
-#if !defined DACHS_CODEGEN_LLVMIR_ALLOCATION_EMITTER_HPP_INCLUDED
-#define      DACHS_CODEGEN_LLVMIR_ALLOCATION_EMITTER_HPP_INCLUDED
+#if !defined DACHS_CODEGEN_LLVMIR_GC_ALLOC_EMITTER_HPP_INCLUDED
+#define      DACHS_CODEGEN_LLVMIR_GC_ALLOC_EMITTER_HPP_INCLUDED
 
 #include <cassert>
 
@@ -19,7 +19,7 @@ namespace detail {
 // Note:
 // Should I define our original malloc() and realloc() in runtime?
 
-class allocation_emitter {
+class gc_alloc_emitter {
     context &ctx;
     type_ir_emitter &type_emitter;
     llvm::Module &module;
@@ -147,7 +147,7 @@ class allocation_emitter {
 
 public:
 
-    allocation_emitter(context &c, type_ir_emitter &e, llvm::Module &m) noexcept
+    gc_alloc_emitter(context &c, type_ir_emitter &e, llvm::Module &m) noexcept
         : ctx(c), type_emitter(e), module(m)
     {}
 
@@ -260,4 +260,4 @@ public:
 } // namespace codegen
 } // namespace dachs
 
-#endif    // DACHS_CODEGEN_LLVMIR_ALLOCATION_EMITTER_HPP_INCLUDED
+#endif    // DACHS_CODEGEN_LLVMIR_GC_ALLOC_EMITTER_HPP_INCLUDED
