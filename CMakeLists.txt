@@ -60,6 +60,23 @@ else ()
 endif ()
 # }}}
 
+# Detect libgc {{{
+if (NOT DACHS_LIBGC_PATH)
+    find_path(LIBGC_INCLUDE_DIR gc.h)
+
+    if (NOT IS_DIRECTORY "${LIBGC_INCLUDE_DIR}/../lib")
+        message(FATAL_ERROR "The path to libgc can't be detected.  Set -DDACHS_LIBGC_PATH option properly.")
+    endif()
+
+    set(DACHS_LIBGC_PATH "${LIBGC_INCLUDE_DIR}/../lib")
+    message(STATUS "Detected libgc: ${DACHS_LIBGC_PATH}")
+else ()
+    if (NOT IS_DIRECTORY ${DACHS_LIBGC_PATH})
+        message(FATAL_ERROR "'${DACHS_LIBGC_PATH}' directory is not found. Set -DDACHS_LIBGC_PATH option properly.")
+    endif()
+endif ()
+# }}}
+
 # LLVM configurations {{{
 execute_process(
     COMMAND
@@ -172,7 +189,7 @@ set(LLVM_DEFINITIONS
     -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
     )
 set(DACHS_DEFINITIONS
-    -DDACHS_CXX_COMPILER="${CMAKE_CXX_COMPILER}" -DDACHS_INSTALL_PREFIX="${CMAKE_INSTALL_PREFIX}"
+    -DDACHS_CXX_COMPILER="${CMAKE_CXX_COMPILER}" -DDACHS_INSTALL_PREFIX="${CMAKE_INSTALL_PREFIX}" -DDACHS_LIBGC_PATH="${DACHS_LIBGC_PATH}"
     )
 add_definitions(${LLVM_DEFINITIONS})
 add_definitions(${DACHS_DEFINITIONS})
