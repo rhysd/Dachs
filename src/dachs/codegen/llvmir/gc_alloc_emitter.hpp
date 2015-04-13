@@ -23,10 +23,35 @@ class gc_alloc_emitter {
     context &ctx;
     type_ir_emitter &type_emitter;
     llvm::Module &module;
+    llvm::Function *malloc_func = nullptr;
     llvm::Function *realloc_func = nullptr;
     llvm::Function *gc_init_func = nullptr;
 
     using val = llvm::Value *;
+
+    llvm::Function *emit_malloc_func()
+    {
+        if (malloc_func) {
+            return malloc_func;
+        }
+
+        auto const func_ty = llvm::FunctionType::get(
+                ctx.builder.getInt8PtrTy(),
+                {
+                    ctx.builder.getIntPtrTy(ctx.data_layout)
+                },
+                false
+            );
+
+        malloc_func = llvm::Function::Create(
+                func_ty,
+                llvm::Function::ExternalLinkage,
+                "GC_malloc",
+                &module
+            );
+
+        return malloc_func;
+    }
 
     llvm::Function *emit_realloc_func()
     {
@@ -46,7 +71,7 @@ class gc_alloc_emitter {
         realloc_func = llvm::Function::Create(
                 func_ty,
                 llvm::Function::ExternalLinkage,
-                "realloc",
+                "GC_realloc",
                 &module
             );
 
@@ -86,7 +111,7 @@ class gc_alloc_emitter {
                     elem_ty,
                     llvm::ConstantInt::get(intptr_ty, ctx.data_layout->getTypeAllocSize(elem_ty)),
                     size_value,
-                    nullptr /*malloc func*/,
+                    emit_malloc_func(),
                     "malloc.call"
                 );
         ctx.builder.Insert(emitted);

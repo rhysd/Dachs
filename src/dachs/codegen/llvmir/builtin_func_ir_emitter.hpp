@@ -330,7 +330,7 @@ public:
         // Return type mismatches.
         // print() in Dachs returns () but print() in runtime returns void
         auto *const prototype = create_func_prototype(
-                "free",
+                "GC_free",
                 llvm::StructType::get(c.llvm_context, {})->getPointerTo(),
                 {type_emitter.emit(*ptr_type)}
             );
