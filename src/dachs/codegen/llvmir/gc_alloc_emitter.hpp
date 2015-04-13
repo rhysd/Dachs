@@ -5,13 +5,13 @@
 #include <initializer_list>
 #include <unordered_map>
 
-#include "dachs/semantics/type.hpp"
-
 #include <llvm/IR/Value.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Function.h>
+
+#include "dachs/semantics/type.hpp"
 
 namespace dachs {
 namespace codegen {
@@ -49,6 +49,9 @@ class gc_alloc_emitter {
                 name,
                 &module
             );
+
+        func->addFnAttr(llvm::Attribute::NoUnwind);
+        func->addFnAttr(llvm::Attribute::NoAlias);
 
         func_table.emplace(name, func);
 
