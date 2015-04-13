@@ -91,7 +91,6 @@ class llvm_ir_emitter {
     builder::allocation_helper alloc_helper;
     builder::inst_emit_helper inst_emitter;
     tmp_constructor_ir_emitter<llvm_ir_emitter> builtin_ctor_emitter;
-    llvm::GlobalVariable *unit_constant = nullptr;
 
     val lookup_var(symbol::var_symbol const& s) const
     {
@@ -725,11 +724,21 @@ public:
     val emit_tuple_constant(type::tuple_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
     {
         if (elem_exprs.empty()) {
+            auto *unit_constant
+                = module->getGlobalVariable("unit", true /*Allow internal*/);
+
             if (!unit_constant) {
-                unit_constant = new llvm::GlobalVariable(*module, llvm::StructType::get(ctx.llvm_context, {}), true, llvm::GlobalValue::PrivateLinkage, llvm::ConstantStruct::getAnon(ctx.llvm_context, {}));
+                unit_constant = new llvm::GlobalVariable(
+                        *module,
+                        llvm::StructType::get(ctx.llvm_context, {}),
+                        true,
+                        llvm::GlobalValue::PrivateLinkage,
+                        llvm::ConstantStruct::getAnon(ctx.llvm_context, {}),
+                        "unit"
+                    );
                 unit_constant->setUnnamedAddr(true);
-                unit_constant->setName("unit");
             }
+
             return unit_constant;
         }
 

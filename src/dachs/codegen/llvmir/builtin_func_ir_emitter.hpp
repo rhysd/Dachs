@@ -330,10 +330,39 @@ public:
         // Return type mismatches.
         // print() in Dachs returns () but print() in runtime returns void
         auto *const prototype = create_func_prototype(
-                "GC_free",
+                "__builtin_free",
                 llvm::StructType::get(c.llvm_context, {})->getPointerTo(),
                 {type_emitter.emit(*ptr_type)}
             );
+
+        prototype->addFnAttr(llvm::Attribute::InlineHint);
+
+        auto const arg_value = prototype->arg_begin();
+        arg_value->setName("ptr");
+
+        auto *const body = llvm::BasicBlock::Create(c.llvm_context, "entry", prototype);
+        auto *const saved_insert_point = c.builder.GetInsertBlock();
+        c.builder.SetInsertPoint(body);
+        gc_emitter.emit_free(arg_value);
+
+        auto *unit_constant
+            = module.getGlobalVariable("unit", true /*Allow internal*/);
+
+        if (!unit_constant) {
+            unit_constant = new llvm::GlobalVariable(
+                        module,
+                        llvm::StructType::get(c.llvm_context, {}),
+                        true,
+                        llvm::GlobalValue::PrivateLinkage,
+                        llvm::ConstantStruct::getAnon(c.llvm_context, {}),
+                        "unit"
+                    );
+            unit_constant->setUnnamedAddr(true);
+        }
+
+        c.builder.CreateRet(unit_constant);
+
+        c.builder.SetInsertPoint(saved_insert_point);
 
         free_func_table.emplace(std::move(type_str), prototype);
 

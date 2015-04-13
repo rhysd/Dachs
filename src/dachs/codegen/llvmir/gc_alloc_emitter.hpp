@@ -2,6 +2,8 @@
 #define      DACHS_CODEGEN_LLVMIR_GC_ALLOC_EMITTER_HPP_INCLUDED
 
 #include <cassert>
+#include <initializer_list>
+#include <unordered_map>
 
 #include "dachs/semantics/type.hpp"
 
@@ -23,85 +25,77 @@ class gc_alloc_emitter {
     context &ctx;
     type_ir_emitter &type_emitter;
     llvm::Module &module;
-    llvm::Function *malloc_func = nullptr;
-    llvm::Function *realloc_func = nullptr;
-    llvm::Function *gc_init_func = nullptr;
+    std::unordered_map<std::string, llvm::Function *> func_table;
 
     using val = llvm::Value *;
 
-    llvm::Function *emit_malloc_func()
+    template<class String>
+    llvm::Function *create_func(String const& name, llvm::Type *const ret_ty, std::initializer_list<llvm::Type *> const& arg_tys)
     {
-        if (malloc_func) {
-            return malloc_func;
+        auto const itr = func_table.find(name);
+        if (itr != std::end(func_table)) {
+            return itr->second;
         }
 
-        auto const func_ty = llvm::FunctionType::get(
-                ctx.builder.getInt8PtrTy(),
-                {
-                    ctx.builder.getIntPtrTy(ctx.data_layout)
-                },
+        auto *const func_ty = llvm::FunctionType::get(
+                ret_ty,
+                arg_tys,
                 false
             );
 
-        malloc_func = llvm::Function::Create(
+        auto *const func = llvm::Function::Create(
                 func_ty,
                 llvm::Function::ExternalLinkage,
-                "GC_malloc",
+                name,
                 &module
             );
 
-        return malloc_func;
+        func_table.emplace(name, func);
+
+        return func;
     }
 
-    llvm::Function *emit_realloc_func()
+    llvm::Function *create_malloc_func()
     {
-        if (realloc_func) {
-            return realloc_func;
-        }
+        return create_func(
+                "GC_malloc",
+                ctx.builder.getInt8PtrTy(),
+                {ctx.builder.getIntPtrTy(ctx.data_layout)}
+            );
+    }
 
-        auto const func_ty = llvm::FunctionType::get(
+    llvm::Function *create_realloc_func()
+    {
+        return create_func(
+                "GC_realloc",
                 ctx.builder.getInt8PtrTy(),
                 {
                     ctx.builder.getInt8PtrTy(),
                     ctx.builder.getIntPtrTy(ctx.data_layout)
-                },
-                false
+                }
             );
-
-        realloc_func = llvm::Function::Create(
-                func_ty,
-                llvm::Function::ExternalLinkage,
-                "GC_realloc",
-                &module
-            );
-
-        return realloc_func;
     }
 
-    llvm::Function *emit_gc_init_func()
+    llvm::Function *create_gc_init_func()
     {
-        if (gc_init_func) {
-            return gc_init_func;
-        }
-
-        auto const func_ty = llvm::FunctionType::get(
-                ctx.builder.getVoidTy(),
-                {},
-                false
-            );
-
-        gc_init_func = llvm::Function::Create(
-                func_ty,
-                llvm::Function::ExternalLinkage,
+        return create_func(
                 "GC_init",
-                &module
+                ctx.builder.getVoidTy(),
+                {}
             );
+    }
 
-        return gc_init_func;
+    llvm::Function *create_free_func()
+    {
+        return create_func(
+                "GC_free",
+                ctx.builder.getVoidTy(),
+                {ctx.builder.getInt8PtrTy()}
+            );
     }
 
     template<class String>
-    val emit_malloc_call(llvm::BasicBlock *const insert_end, llvm::Type *const elem_ty, val const size_value, String const& name)
+    val create_malloc_call(llvm::BasicBlock *const insert_end, llvm::Type *const elem_ty, val const size_value, String const& name)
     {
         auto *const intptr_ty = ctx.builder.getIntPtrTy(ctx.data_layout);
         auto *const emitted
@@ -111,7 +105,7 @@ class gc_alloc_emitter {
                     elem_ty,
                     llvm::ConstantInt::get(intptr_ty, ctx.data_layout->getTypeAllocSize(elem_ty)),
                     size_value,
-                    emit_malloc_func(),
+                    create_malloc_func(),
                     "malloc.call"
                 );
         ctx.builder.Insert(emitted);
@@ -123,7 +117,7 @@ class gc_alloc_emitter {
         return emitted;
     }
 
-    val emit_bit_cast(val const from_val, llvm::Type *const to_ty, llvm::BasicBlock *const insert_end) const
+    val create_bit_cast(val const from_val, llvm::Type *const to_ty, llvm::BasicBlock *const insert_end) const
     {
         auto const ty = from_val->getType();
         assert(ty->isPointerTy() && to_ty->isPointerTy());
@@ -135,7 +129,7 @@ class gc_alloc_emitter {
         return new llvm::BitCastInst(from_val, to_ty, "", insert_end);
     }
 
-    val emit_realloc_call(llvm::BasicBlock *const insert_end, val const ptr_value, val const size_value)
+    val create_realloc_call(llvm::BasicBlock *const insert_end, val const ptr_value, val const size_value)
     {
         auto *const intptr_ty = ctx.builder.getIntPtrTy(ctx.data_layout);
         auto *const ptr_ty = ptr_value->getType();
@@ -145,7 +139,7 @@ class gc_alloc_emitter {
         auto const elem_size = ctx.data_layout->getTypeAllocSize(elem_ty);
         auto *const elem_size_value = llvm::ConstantInt::get(intptr_ty, elem_size);
 
-        val const casted_ptr = emit_bit_cast(ptr_value, ctx.builder.getInt8PtrTy(), insert_end);
+        val const casted_ptr = create_bit_cast(ptr_value, ctx.builder.getInt8PtrTy(), insert_end);
 
         auto const new_size_value
             = llvm::BinaryOperator::CreateMul(size_value, elem_size_value, "newsize");
@@ -153,7 +147,7 @@ class gc_alloc_emitter {
 
         auto *const reallocated
             = llvm::CallInst::Create(
-                    emit_realloc_func(),
+                    create_realloc_func(),
                     {
                         casted_ptr,
                         new_size_value
@@ -163,7 +157,7 @@ class gc_alloc_emitter {
 
         insert_end->getInstList().push_back(reallocated);
 
-        return emit_bit_cast(reallocated, ptr_ty, insert_end);
+        return create_bit_cast(reallocated, ptr_ty, insert_end);
     }
 
     template<class AllocEmitter>
@@ -208,7 +202,7 @@ public:
         if (array_size == 0u) {
             return llvm::ConstantPointerNull::get(elem_ty->getPointerTo());
         } else {
-            return emit_malloc_call(
+            return create_malloc_call(
                     ctx.builder.GetInsertBlock(),
                     elem_ty,
                     llvm::ConstantInt::get(ctx.builder.getIntPtrTy(ctx.data_layout), array_size),
@@ -238,7 +232,7 @@ public:
                 size_value,
                 [&name, &elem_type, size_value, this](auto const else_block)
                 {
-                    return emit_malloc_call(
+                    return create_malloc_call(
                         else_block,
                         type_emitter.emit_alloc_type(elem_type),
                         size_value,
@@ -275,7 +269,7 @@ public:
         if (array_size == 0u) {
             return llvm::ConstantPointerNull::get(ptr_ty);
         } else {
-            return emit_realloc_call(
+            return create_realloc_call(
                     ctx.builder.GetInsertBlock(),
                     ptr_value,
                     llvm::ConstantInt::get(ctx.builder.getIntPtrTy(ctx.data_layout), array_size)
@@ -295,7 +289,7 @@ public:
                 size_value,
                 [ptr_value, size_value, this](auto const else_block)
                 {
-                    return emit_realloc_call(
+                    return create_realloc_call(
                         else_block,
                         ptr_value,
                         size_value
@@ -306,8 +300,18 @@ public:
 
     val emit_init()
     {
-        auto *const gc_init = emit_gc_init_func();
+        auto *const gc_init = create_gc_init_func();
         return ctx.builder.CreateCall(gc_init);
+    }
+
+    val emit_free(val const ptr_value)
+    {
+        auto *const void_ptr_value = create_bit_cast(ptr_value, ctx.builder.getInt8PtrTy(), ctx.builder.GetInsertBlock());
+
+        return ctx.builder.CreateCall(
+                create_free_func(),
+                void_ptr_value
+            );
     }
 };
 
