@@ -10,12 +10,6 @@ class array
     #     @buf := new pointer(typeof(rhs[0])){@size}
     # end
 
-    # TODO:
-    # init(@size : uint)
-    #     @buf := new typeof(@buf[0]){@size}
-    #     @capacity := @size
-    # end
-
     init(@buf : pointer, @size : uint)
         @capacity := @size
     end
@@ -30,40 +24,25 @@ class array
         end
     end
 
-    # copy
-    #     var new_buf := new typeof(@buf){@size}
-    #     var i := 0u
-    #     for i < @size
-    #         new_buf[i] = @buf[i]
-    #         i += 1u
-    #     end
-    #     ret new [typeof(@buf[0])]{new_buf, @size}
-    # end
+    copy
+        var new_buf := new typeof(@buf){@size}
+        var i := 0u
+        for i < @size
+            new_buf[i] = @buf[i]
+            i += 1u
+        end
+        ret new [typeof(@buf[0])]{new_buf, @size}
+    end
 
     init(s : int, block)
         @size := s as uint
         @capacity := @size
-        @buf := new pointer{@size}
+        @buf := new pointer(typeof(block(0))){@size}
         var i := 0u
         for i < @size
             @buf[i] = block(i)
             i += 1u
         end
-    end
-
-    func assign(rhs)
-        if rhs.size > @capacity
-            ret false
-        end
-
-        var i := 0u
-        for i < rhs.size
-            @buf[i] = rhs[i]
-            i += 1u
-        end
-        @size = rhs.size
-
-        ret true
     end
 
     func []=(idx, rhs)
@@ -119,6 +98,7 @@ class array
         self.each do |i|
             predicate(obj, i)
         end
+        ret obj
     end
 
     func append(elem)
@@ -204,6 +184,25 @@ class array
 
     func !=(rhs : array)
         ret !(self == rhs)
+    end
+
+    func +(rhs : array)
+        new_size := @size + rhs.size
+        var new_buf := new pointer(typeof(@buf[0])){new_size}
+
+        var i := 0u
+        for i < @size
+            new_buf[i] = @buf[i]
+            i += 1u
+        end
+
+        i = 0u
+        for i < rhs.size
+            new_buf[i + @size] = rhs[i]
+            i += 1u
+        end
+
+        ret new typeof(self){new_buf, new_size}
     end
 end
 

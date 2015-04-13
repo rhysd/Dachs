@@ -142,6 +142,26 @@ class string
         ret true
     end
 
+    func +(rhs : string)
+        var p := new pointer(char){@size + rhs.size + 1u}
+
+        var i := 0u
+        for i < @size
+            p[i] = self[i]
+            i += 1u
+        end
+
+        i = 0u
+        for i < rhs.size
+            p[i + @size] = rhs[i]
+            i += 1u
+        end
+
+        p[i + @size] = '\0'
+
+        ret new string{p, @size + rhs.size}
+    end
+
     func print
         print(@data)
     end
