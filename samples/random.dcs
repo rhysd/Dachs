@@ -1,3 +1,5 @@
+import std.numeric
+
 class Xor128
     - x : uint
     , y : uint
@@ -85,14 +87,14 @@ class Mt19937
     end
 
     init
-        @mt := new [uint]{624u}
+        @mt := new [uint]{624u, 0u}
         @mti := 625u
         @n := 624u
         @m := 397u
         @matrix_a := 0x9908b0dfu
         @upper_mask := 0x80000000u
         @lower_mask := 0x7fffffffu
-        dummy := @init_by_array([
+        @init_by_array([
                     __builtin_read_cycle_counter(),
                     __builtin_read_cycle_counter(),
                     __builtin_read_cycle_counter(),
@@ -198,6 +200,10 @@ class Random
     init(@generator)
     end
 
+    init
+        @generator := new Mt19937{[0x123u, 0x234u, 0x345u, 0x456u]}
+    end
+
     func new_seed(seeds)
         @generator.new_seed(seeds)
     end
@@ -210,10 +216,8 @@ end
 func main
     test := -> n, r do
         n.println
-        var i := 0
-        for i < 5
+        5.times do
             r.gen.println
-            i += 1
         end
         println("")
     end
@@ -229,7 +233,7 @@ func main
     end
 
     do
-        r := new Random{new Mt19937{[0x123u, 0x234u, 0x345u, 0x456u]}}
+        r := new Random{new Mt19937{[0x123u, 0x234u, 0x345u, 0x456]}}
         "Mt19937".test r
     end
 end
