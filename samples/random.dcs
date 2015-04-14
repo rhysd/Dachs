@@ -233,7 +233,7 @@ func main
     end
 
     do
-        r := new Random{new Mt19937{[0x123u, 0x234u, 0x345u, 0x456]}}
+        r := new Random{new Mt19937{[0x123u, 0x234u, 0x345u, 0x456u]}}
         "Mt19937".test r
     end
 end

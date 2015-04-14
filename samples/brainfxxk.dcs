@@ -7,7 +7,7 @@ class BrainFxxk
         @tape := ""
     end
 
-    init(@memory)
+    init
         @memory := new [int]{30000u, 0}
         @tape := ""
     end
