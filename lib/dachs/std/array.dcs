@@ -101,16 +101,6 @@ class array
         ret obj
     end
 
-    func append(elem)
-        if @size+1u > @capacity
-            ret false
-        end
-
-        @buf[@size] = elem
-        @size += 1u
-        ret true
-    end
-
     func at(idx)
         if idx as uint >= @size
             ret @buf[0], true
@@ -203,6 +193,134 @@ class array
         end
 
         ret new typeof(self){new_buf, new_size}
+    end
+
+  - func new_capacity(delta)
+        new_size := @size + delta
+
+        ret @capacity if new_size <= @capacity
+
+        if @capacity == 0u
+            ret new_size * 2u
+        end
+
+        var c := @capacity
+        for c < new_size
+            c *= 2u
+        end
+
+        ret c
+    end
+
+  - func expand_buf(new_capa)
+        @buf = __builtin_realloc(@buf, new_capa)
+        @capacity = new_capa
+    end
+
+    func <<(rhs : array)
+        c := @new_capacity(rhs.size)
+
+        if c > @capacity
+            @expand_buf(c)
+        end
+
+        var i := 0u
+        for i < rhs.size
+            @buf[i + @size] = rhs[i]
+            i += 1u
+        end
+
+        @size += rhs.size
+
+        ret self
+    end
+
+    func <<(elem)
+        c := @new_capacity(1u)
+        if c > @capacity
+            @expand_buf(c)
+        end
+
+        @buf[@size] = elem
+        @size += 1u
+
+        ret self
+    end
+
+    func map(predicate)
+        var ptr := new pointer(typeof(predicate(@buf[0]))){@size}
+
+        self.each_with_index do |e, i|
+            ptr[i] = predicate(e)
+        end
+
+        ret new [typeof(ptr[0])]{ptr, @size}
+    end
+
+    func map'(predicate)
+        var i := 0u
+        for i < @size
+            @buf[i] = predicate(@buf[i])
+            i += 1u
+        end
+        ret self
+    end
+
+    func filter(predicate)
+        var result := [] : typeof(self)
+
+        self.each do |e|
+            if predicate(e)
+                println(e)
+                result << e
+            end
+        end
+
+        ret result
+    end
+
+    func zip_with(rhs : array, predicate)
+        s := if @size < (rhs.size) then @size else rhs.size
+
+        var ptr := new pointer(typeof(predicate(@buf[0], rhs[0]))){s}
+
+        var i := 0u
+        for i < s
+            ptr[i] = predicate(@buf[i], rhs[i])
+            println(@buf[i])
+            i += 1u
+        end
+
+        ret new [typeof(ptr[0])]{ptr, s}
+    end
+
+    func zip(rhs : array)
+        ret @zip_with(rhs) {|l, r| (l, r)}
+    end
+
+    func foldl(var init, predicate)
+        var i := 0u
+        for i < @size
+            init = predicate(init, @buf[i])
+            i += 1u
+        end
+        ret init
+    end
+
+    func foldl(predicate)
+        fatal() if @empty?()
+        ret @foldl(@buf[0], predicate)
+    end
+
+    func delete_at(var pos : uint)
+        var saved := @buf[pos]
+        for pos + 1u < @size
+            @buf[pos] = @buf[pos + 1u]
+            pos += 1u
+        end
+        @size -= 1u
+
+        ret saved
     end
 end
 
