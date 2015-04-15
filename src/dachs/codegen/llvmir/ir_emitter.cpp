@@ -492,7 +492,8 @@ class llvm_ir_emitter {
                 emit_copy_to_lhs(
                         emitter.ctx.builder.CreateStructGEP(
                             child_val,
-                            constant_index->getZExtValue()
+                            constant_index->getZExtValue(),
+                            "tuple.idx"
                         ),
                         access->type
                     );
@@ -501,7 +502,8 @@ class llvm_ir_emitter {
                 emit_copy_to_lhs(
                     emitter.ctx.builder.CreateInBoundsGEP(
                         child_val,
-                        index_val
+                        index_val,
+                        "array.idx"
                     ),
                     access->type
                 );
@@ -510,7 +512,8 @@ class llvm_ir_emitter {
                 emit_copy_to_lhs(
                     emitter.ctx.builder.CreateInBoundsGEP(
                         emitter.load_if_ref(child_val, child_type),
-                        index_val
+                        index_val,
+                        "ptr.idx"
                     ),
                     access->type
                 );
@@ -838,7 +841,7 @@ public:
                     );
             constant->setUnnamedAddr(true);
 
-            return ctx.builder.CreateConstInBoundsGEP2_32(constant, 0u, 0u);
+            return ctx.builder.CreateConstInBoundsGEP2_32(constant, 0u, 0u, "array_lit");
         } else {
             // TODO:
             // Now, static arrays are allocated with type [ElemType x N]* (e.g. [int x N]* for static_array(int)).
@@ -1026,6 +1029,7 @@ public:
 
         for (auto const& param : def->params) {
             auto const param_sym = param->param_symbol.lock();
+            auto const name_hint = clazz->name + '.' + param_sym->name;
 
             if (!param_sym->is_instance_var()) {
                 continue;
@@ -1036,7 +1040,7 @@ public:
 
             auto const offset = clazz->get_instance_var_offset_of(param_sym->name.substr(1u)/* omit '@' */);
             assert(offset);
-            auto *const elem_val = ctx.builder.CreateStructGEP(self_val, *offset);
+            auto *const elem_val = ctx.builder.CreateStructGEP(self_val, *offset, name_hint);
 
             if (auto const copier = semantics_ctx.copier_of(param_sym->type)) {
                 auto *const copied = emit_copier_call(param, init_val, *copier);
@@ -1462,7 +1466,7 @@ public:
             return emit_tuple_constant(type::get_unit_type(), {});
         }
 
-        val const elem_ptr = ctx.builder.CreateStructGEP(child_val, capture->offset);
+        val const elem_ptr = ctx.builder.CreateStructGEP(child_val, capture->offset, "capture." + ufcs->member_name);
 
         // Note:
         // (a : ([int], double))[0]: (i64*, double)* -> i64** -> i64*
@@ -2095,7 +2099,8 @@ public:
 
         ctx.builder.CreateCall(
                 emit_non_builtin_callee(obj, ctor_scope),
-                std::move(arg_values)
+                std::move(arg_values),
+                "ctor.call"
             );
 
         return obj_val;

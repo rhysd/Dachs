@@ -505,8 +505,7 @@ public:
                     ctx.builder.CreateLoad(from),
                     "copier_call"
                 ),
-            to,
-            "copier_copy"
+            to
         );
     }
 
@@ -583,6 +582,9 @@ public:
                 auto *const elem_from = ctx.builder.CreateStructGEP(from, idx);
                 auto *const elem_to = ctx.builder.CreateStructGEP(to, idx);
 
+                elem_from->setName("copy." + scope->name + "." + scope->instance_var_symbols[idx]->name + ".from");
+                elem_to->setName("copy." + scope->name + "." + scope->instance_var_symbols[idx]->name + ".to");
+
                 if (!var_type.is_aggregate()) {
                     copy_non_aggregate_value(elem_from, elem_to);
                     continue;
@@ -606,6 +608,9 @@ public:
                 auto const& capture_type = capture.introduced->type;
                 auto *const elem_from = ctx.builder.CreateStructGEP(from, capture.offset);
                 auto *const elem_to = ctx.builder.CreateStructGEP(to, capture.offset);
+
+                elem_from->setName("copy.lambda." + capture.refered_symbol->name + ".from");
+                elem_to->setName("copy.lambda." + capture.refered_symbol->name + ".to");
 
                 if (!capture_type.is_aggregate()) {
                     copy_non_aggregate_value(elem_from, elem_to);
