@@ -30,6 +30,41 @@ using boost::algorithm::all_of;
 using std::size_t;
 
 
+void basic_scope::warn_or_check_shadowing_var_recursively(maybe_var_t const& maybe_shadowing, symbol::var_symbol const& new_var) const
+{
+    if (maybe_shadowing) {
+        auto const the_node = new_var->ast_node.get_shared();
+        auto const prev_node = (*maybe_shadowing)->ast_node.get_shared();
+        assert(the_node);
+        if (prev_node) {
+            output_warning(the_node, boost::format(
+                            "  Shadowing variable '%1%'. It shadows a variable at line:%2%, col:%3%"
+                        ) % new_var->name % prev_node->line % prev_node->col
+                    );
+        } else {
+            output_warning(the_node, boost::format(
+                            "  Shadowing variable '%1%'. It shadows a built-in variable"
+                        ) % new_var->name
+                    );
+        }
+    } else {
+        apply_lambda(
+            [&new_var](auto const& s){ s.lock()->check_shadowing_variable(new_var); },
+            enclosing_scope
+        );
+    }
+}
+
+void basic_scope::check_shadowing_variable(symbol::var_symbol const& new_var) const
+{
+    apply_lambda(
+        [&new_var](auto const& s)
+        {
+            s.lock()->check_shadowing_variable(new_var);
+        }, enclosing_scope
+    );
+}
+
 namespace detail {
 
 struct template_depth_calculator : boost::static_visitor<unsigned int> {

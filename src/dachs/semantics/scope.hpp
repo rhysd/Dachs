@@ -154,32 +154,8 @@ struct basic_scope {
                 );
     }
 
-    void check_shadowing_variable(symbol::var_symbol new_var) const
-    {
-        auto const maybe_shadowing_var = apply_lambda(
-                [&new_var](auto const& s)
-                    -> maybe_var_t
-                {
-                    return s.lock()->resolve_var(new_var->name);
-                }, enclosing_scope);
-
-        if (maybe_shadowing_var) {
-            auto const the_node = new_var->ast_node.get_shared();
-            auto const prev_node = (*maybe_shadowing_var)->ast_node.get_shared();
-            assert(the_node);
-            if (prev_node) {
-                output_warning(the_node, boost::format(
-                                "  Shadowing variable '%1%'. It shadows a variable at line:%2%, col:%3%"
-                            ) % new_var->name % prev_node->line % prev_node->col
-                        );
-            } else {
-                output_warning(the_node, boost::format(
-                                "  Shadowing variable '%1%'. It shadows a built-in variable"
-                            ) % new_var->name
-                        );
-            }
-        }
-    }
+    void warn_or_check_shadowing_var_recursively(maybe_var_t const& maybe_shadowing, symbol::var_symbol const& new_var) const;
+    virtual void check_shadowing_variable(symbol::var_symbol const& new_var) const;
 };
 
 struct global_scope final : public basic_scope {
@@ -237,6 +213,13 @@ struct global_scope final : public basic_scope {
         return helper::find_if(const_symbols, [&name](auto const& v){ return v->name == name; });
     }
 
+    void check_shadowing_variable(symbol::var_symbol const&) const override
+    {
+        // Note:
+        // Do nothing
+        // Global variables (including functions and classes) can be shadowed implicitly.
+    }
+
     maybe_func_t get_enclosing_func() const override
     {
         return boost::none;
@@ -275,6 +258,14 @@ struct local_scope final : public basic_scope {
         return target_var ?
                 *target_var :
                 apply_lambda([&name](auto const& s){ return s.lock()->resolve_var(name); }, enclosing_scope);
+    }
+
+    void check_shadowing_variable(symbol::var_symbol const& new_var) const override
+    {
+        warn_or_check_shadowing_var_recursively(
+                helper::find_if(local_vars, [&new_var](auto const& v){ return v->name == new_var->name; }),
+                new_var
+            );
     }
 };
 
@@ -355,6 +346,14 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
                         {
                             return s.lock()->resolve_var(name);
                         }, enclosing_scope);
+    }
+
+    void check_shadowing_variable(symbol::var_symbol const& new_var) const override
+    {
+        warn_or_check_shadowing_var_recursively(
+                helper::find_if(params, [&new_var](auto const& v){ return v->name == new_var->name; }),
+                new_var
+            );
     }
 
     maybe_var_t resolve_receiver() const override
