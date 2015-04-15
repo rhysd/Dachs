@@ -134,6 +134,77 @@ class string
         ret false
     end
 
+    func index_of(s : string, var idx : uint)
+        sz := s.size
+
+        find_at := -> i, buf do
+            var j := 0u
+            for j < sz
+                ret false unless buf[i + j] == s[j]
+                j += 1u
+            end
+            ret true
+        end
+
+        for idx < @size
+            ret -1 if idx + sz > @size
+            ret (idx as int) if find_at(idx, @data)
+            idx += 1u
+        end
+
+        ret -1
+    end
+
+    func index_of(s : string)
+        ret @index_of(s, 0u)
+    end
+
+    func index_of(c : char, var idx : uint)
+        for idx < @size
+            ret (idx as int) if @data[idx] == c
+            idx += 1u
+        end
+        ret -1
+    end
+
+    func index_of(c : char)
+        ret @index_of(c, 0u)
+    end
+
+    func slice(var start : uint, last : uint)
+        ret "" if start >= last || last >= @size
+
+        s := last - start
+        var ptr := new pointer(char){s}
+        var i := 0u
+        for start <= last
+            ptr[i] = @data[start]
+            start, i += 1u, 1u
+        end
+
+        ret new string{ptr, s}
+    end
+
+    func split(sep : string)
+        var start := 0u
+        var result := [] : [string]
+        var last := @index_of(sep)
+
+        for last != -1
+            result << @slice(start, (last as uint))
+            start = (last as uint) + sep.size
+            last = @index_of(sep, start)
+        end
+
+        result << @slice(start, @size - 1u)
+
+        ret result
+    end
+
+    func split
+        ret @split("\n")
+    end
+
     func ==(rhs : string)
         ret false unless @size == rhs.size
 
