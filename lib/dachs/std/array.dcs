@@ -1,3 +1,5 @@
+import std.string
+
 class array
   - buf
   - capacity : uint
@@ -321,6 +323,40 @@ class array
         @size -= 1u
 
         ret saved
+    end
+
+    func join(sep : string)
+        s := self.foldl(1u){|acc, s| acc + s.size } +
+            (unless @empty?() then sep.size * (@size - 1u) else 0u)
+
+        var ptr := new pointer(char){s}
+        var pos := 0u
+
+        var i := 0u
+        for i < @size
+            var j := 0u
+            for j < @buf[i].size
+                ptr[pos] = @buf[i][j]
+                j, pos += 1u, 1u
+            end
+
+            i += 1u
+
+            unless i == @size
+                j = 0u
+                for j < sep.size
+                    ptr[pos] = sep[j]
+                    j, pos += 1u, 1u
+                end
+            end
+        end
+
+        ptr[pos] = '\0'
+        ret new string{ptr, s-1u} # Omit '\0' from size
+    end
+
+    func join
+        ret @join("")
     end
 end
 

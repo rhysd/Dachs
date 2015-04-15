@@ -1,3 +1,32 @@
+import std.array
+
+class string_builder
+    buffer : [string]
+
+    init
+        @buffer := [] : [string]
+    end
+
+    init(@buffer)
+    end
+
+    func append(s : string)
+        @buffer << s
+    end
+
+    func <<(s : string)
+        @buffer << s
+    end
+
+    func size
+        ret @buffer.size
+    end
+
+    func build
+        ret @buffer.join
+    end
+end
+
 class string
   - data : pointer(char)
   - size : uint
