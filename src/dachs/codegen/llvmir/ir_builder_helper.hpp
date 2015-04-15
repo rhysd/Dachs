@@ -497,14 +497,24 @@ public:
     }
 
     template<class V1, class V2>
+    void user_defined_copy(scope::func_scope const& copier, V1 *const from, V2 *const to)
+    {
+        ctx.builder.CreateStore(
+            ctx.builder.CreateCall(
+                    module.getFunction(copier->to_string()),
+                    ctx.builder.CreateLoad(from),
+                    "copier_call"
+                ),
+            to,
+            "copier_copy"
+        );
+    }
+
+    template<class V1, class V2>
     void deep_copy_recursively(V1 *const from, V2 *const to, type::type const& t)
     {
         if (auto const copier = semantics_ctx.copier_of(t)) {
-            ctx.builder.CreateCall(
-                    module.getFunction((*copier)->to_string()),
-                    ctx.builder.CreateLoad(from),
-                    "copier_call"
-                );
+            user_defined_copy(*copier, from, to);
             return;
         }
 
