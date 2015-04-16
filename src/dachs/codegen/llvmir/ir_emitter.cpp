@@ -2135,11 +2135,11 @@ llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const
     std::string errmsg;
 
 #if (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 4)
-    if (llvm::verifyModule(the_module, llvm::ReturnStatusAction, &errmsg)) {
+    if (llvm::verifyModule(the_module, llvm::ReturnStatusAction, &errmsg) && !errmsg.empty()) {
 
 #elif (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR <= 5)
     llvm::raw_string_ostream rso(errmsg);
-    if (llvm::verifyModule(the_module, &rso)) {
+    if (llvm::verifyModule(the_module, &rso) && !errmsg.empty()) {
 
 #else
 # error LLVM: Not supported version.
@@ -2147,7 +2147,6 @@ llvm::Module &emit_llvm_ir(ast::ast const& a, semantics::semantics_context const
 
         helper::colorizer c;
         std::cerr << c.red(errmsg) << std::endl;
-        // DACHS_RAISE_INTERNAL_COMPILATION_ERROR
     }
 
     return the_module;
