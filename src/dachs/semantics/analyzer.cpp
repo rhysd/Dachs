@@ -2762,15 +2762,144 @@ public:
         }
     }
 
+    void visit_tuple_traverse(type::tuple_type const& range_type, ast::node::for_stmt const& for_)
+    {
+        auto const iter_size = for_->iter_vars.size();
+
+        auto const check_param_type
+            = [this](auto const& param, auto const& rhs_type)
+            {
+                if (param->type && param->type != rhs_type) {
+                    semantic_error(
+                            param,
+                            boost::format(
+                                "  Type mismatch on substitution of iteration variable in 'for' statement."
+                                "  Type of iteration variable '%1%' is '%2%' but substituted type is '%3%'."
+                            ) % param->name
+                              % param->type.to_string()
+                              % rhs_type.to_string()
+                        );
+                    return false;
+                }
+
+                return true;
+            };
+
+        if (iter_size > 1u) {
+            for (auto const& t : range_type->element_types) {
+                auto const elem_tuple = type::get<type::tuple_type>(t);
+
+                if (!elem_tuple || (*elem_tuple)->element_types.size() != iter_size) {
+                    semantic_error(
+                            for_,
+                            boost::format(
+                                "  Bad substitution on 'for' statement of iteration variable(s)."
+                                "  The number of iteration variable(s) is %1%, but the element of tuple '%2%',"
+                                " '%3%', is not a tuple or the number of the elements mismatches."
+                            ) % iter_size
+                              % range_type->to_string()
+                              % t.to_string()
+                        );
+                    return;
+                }
+
+                auto const& elems_of_elem_tuple = (*elem_tuple)->element_types;
+                for (auto const i : helper::indices(elems_of_elem_tuple.size())) {
+                    if (!check_param_type(for_->iter_vars[i], elems_of_elem_tuple[i])) {
+                        return;
+                    }
+                }
+            }
+        } else {
+            for (auto const& t : range_type->element_types) {
+                if (!check_param_type(for_->iter_vars[0], t)) {
+                    return;
+                }
+            }
+        }
+
+        auto const& parent_scope = for_->body_stmts->scope.lock();
+
+        // Note:
+        // From:
+        //   for e in (1, 'a')
+        //      ...
+        //   end
+        //
+        // To:
+        //  do
+        //      e := {define symbol for the 1st element of (1, 'a')}
+        //      ...
+        //  end
+        //  do
+        //      e := {define symbol for the 2nd element of (1, 'a')}
+        //      ...
+        //  end
+        //
+
+        auto const expand_tuple_elem_visit
+            = [&, this](auto const& elem_type)
+            {
+                auto copied_block = ast::copy_ast(for_->body_stmts);
+                failed += dispatch_forward_analyzer(copied_block, parent_scope, importer);
+                assert(!copied_block->scope.expired());
+                auto const scope = copied_block->scope.lock();
+
+                auto const define_iter_var
+                    = [&, this](auto const& param, auto const& type)
+                    {
+                        auto new_var = symbol::make<symbol::var_symbol>(param, param->name, !param->is_var);
+                        new_var->type = type;
+                        if (!scope->define_variable_without_shadowing_check(std::move(new_var))) {
+                            failed++;
+                        }
+                    };
+
+                if (for_->iter_vars.size() == 1) {
+                    define_iter_var(for_->iter_vars[0], elem_type);
+                } else {
+                    auto const elem_tuple = type::get<type::tuple_type>(elem_type);
+                    assert(elem_tuple && for_->iter_vars.size() == (*elem_tuple)->element_types.size());
+
+                    for (auto const i : helper::indices(for_->iter_vars)) {
+                        define_iter_var(for_->iter_vars[i], (*elem_tuple)->element_types[i]);
+                    }
+                }
+
+                return copied_block;
+            };
+
+        // Note:
+        // All child scopes of local scope for 'for_->body_stmts' are dead.  They should perhaps be erased before new scopes are defined.
+        // And local variables are ditto.
+
+        std::vector<ast::node::compound_stmt> elem_blocks;
+
+        for (auto const& elem_type : range_type->element_types) {
+            auto block_for_elem = expand_tuple_elem_visit(elem_type);
+            walk_recursively_with(block_for_elem->scope.lock(), block_for_elem);
+            elem_blocks.emplace_back(std::move(block_for_elem));
+        }
+
+        for_->body_stmts->value = std::move(elem_blocks);
+    }
+
     template<class Walker>
     void visit(ast::node::for_stmt const& for_, Walker const& w)
     {
-        w(for_->iter_vars, for_->range_expr);
+        w(for_->range_expr);
 
         auto const range_t = type_of(for_->range_expr);
         if (!range_t) {
             return;
         }
+
+        if (auto const maybe_tuple = type::get<type::tuple_type>(range_t)) {
+            visit_tuple_traverse(*maybe_tuple, for_);
+            return;
+        }
+
+        w(for_->iter_vars);
 
         auto const substitute_param_type =
             [this](auto const& param, auto const& t)
