@@ -26,16 +26,6 @@ class array
         end
     end
 
-    copy
-        var new_buf := new typeof(@buf){@size}
-        var i := 0u
-        for i < @size
-            new_buf[i] = @buf[i]
-            i += 1u
-        end
-        ret new [typeof(@buf[0])]{new_buf, @size}
-    end
-
     init(s : int, block)
         @size := s as uint
         @capacity := @size
@@ -45,6 +35,16 @@ class array
             @buf[i] = block(i)
             i += 1u
         end
+    end
+
+    copy
+        var new_buf := new typeof(@buf){@size}
+        var i := 0u
+        for i < @size
+            new_buf[i] = @buf[i]
+            i += 1u
+        end
+        ret new [typeof(@buf[0])]{new_buf, @size}
     end
 
     func []=(idx, rhs)
@@ -197,6 +197,10 @@ class array
         ret new typeof(self){new_buf, new_size}
     end
 
+    func concat(rhs : array)
+        ret self + rhs
+    end
+
   - func new_capacity(delta)
         new_size := @size + delta
 
@@ -249,6 +253,47 @@ class array
         ret self
     end
 
+    func take(i : uint)
+        var ptr := new pointer(typeof(@buf[0])){i}
+        var j := 0u
+        for j < i
+            ptr[j] = @buf[j]
+            j += 1u
+        end
+        ret new typeof(self){ptr, i}
+    end
+
+    func take_while(predicate)
+        var i := 0u
+        for i < @size && predicate(i)
+            i += 1u
+        end
+        ret @take(if i == 0u then 0u else i - 1u)
+    end
+
+    func drop(count : uint)
+        size := @size - count
+        var ptr := new pointer(typeof(@buf[0])){size}
+        var i := count
+        for i < @size
+            ptr[i - count] = @buf[i]
+            i += 1u
+        end
+        ret new typeof(self){ptr, size}
+    end
+
+    func drop_while(predicate)
+        var i := 0u
+        for i < @size && predicate(i)
+            i += 1u
+        end
+        ret @drop(if i == 0u then 0u else i - 1u)
+    end
+
+    func tail
+        ret @drop(1u)
+    end
+
     func map(predicate)
         var ptr := new pointer(typeof(predicate(@buf[0]))){@size}
 
@@ -268,14 +313,19 @@ class array
         ret self
     end
 
-    func filter(predicate)
-        var result := [] : typeof(self)
+    func fmap(predicate)
+        ret map(predicate)
+    end
 
-        self.each do |e|
-            if predicate(e)
-                println(e)
-                result << e
+    func filter(predicate)
+        var result := new typeof(self){new typeof(@buf){0u}, 0u}
+
+        var i := 0u
+        for i < @size
+            if predicate(@buf[i])
+                result << @buf[i]
             end
+            i += 1u
         end
 
         ret result
@@ -289,7 +339,6 @@ class array
         var i := 0u
         for i < s
             ptr[i] = predicate(@buf[i], rhs[i])
-            println(@buf[i])
             i += 1u
         end
 
@@ -309,11 +358,6 @@ class array
         ret init
     end
 
-    func foldl(predicate)
-        fatal() if @empty?()
-        ret @foldl(@buf[0], predicate)
-    end
-
     func delete_at(var pos : uint)
         var saved := @buf[pos]
         for pos + 1u < @size
@@ -323,6 +367,10 @@ class array
         @size -= 1u
 
         ret saved
+    end
+
+    func init
+        ret @take(@size - 1u)
     end
 
     func join(sep : string)
@@ -357,6 +405,25 @@ class array
 
     func join
         ret @join("")
+    end
+
+    # func flatten
+    #     ret @foldl([] : typeof(self)){|a, i| a + i }
+    # end
+    func flatten
+        size := @foldl(0u){|a, i| a + i.size }
+
+        var ptr := new pointer(typeof(@buf[0][0])){size}
+        @foldl(0u) do |var pos, item|
+            var i := 0u
+            for i < item.size
+                ptr[pos] = item[i]
+                i,pos += 1u,1u
+            end
+            ret pos
+        end
+
+        ret new typeof(@buf[0]){ptr, size}
     end
 end
 

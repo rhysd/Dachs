@@ -191,7 +191,7 @@ class string
         var last := @index_of(sep)
 
         for last != -1
-            result << @slice(start, (last as uint))
+            result << @slice(start, last as uint - 1u)
             start = (last as uint) + sep.size
             last = @index_of(sep, start)
         end
