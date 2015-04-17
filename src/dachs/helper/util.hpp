@@ -2,13 +2,15 @@
 #define      DACHS_HELPER_UTIL_HPP_INCLUDED
 
 #include <iterator>
+#include <string>
 #include <fstream>
 #include <memory>
 #include <type_traits>
-#include <cstddef>
 #include <algorithm>
 #include <initializer_list>
 #include <sstream>
+#include <cstddef>
+
 #include <boost/optional.hpp>
 #include <boost/range/algorithm/find.hpp>
 #include <boost/range/algorithm/find_if.hpp>
@@ -208,6 +210,23 @@ inline boost::optional<std::size_t> index_of(std::vector<T> const& v, typename s
         }
     }
     return boost::none;
+}
+
+template<class Int>
+inline std::string to_ordinal(Int const i)
+{
+    auto const d = i % 10;
+
+    switch(d) {
+    case 1:
+        return std::to_string(i) + "st";
+    case 2:
+        return std::to_string(i) + "nd";
+    case 3:
+        return std::to_string(i) + "rd";
+    default:
+        return std::to_string(i) + "th";
+    }
 }
 
 } // namespace helper

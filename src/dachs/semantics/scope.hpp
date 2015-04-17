@@ -247,6 +247,11 @@ struct local_scope final : public basic_scope {
         return define_symbol(local_vars, new_var);
     }
 
+    bool define_variable_without_shadowing_check(symbol::var_symbol const& new_var) noexcept
+    {
+        return define_symbol(local_vars, new_var);
+    }
+
     bool define_unnamed_func(scope::func_scope const& new_func) noexcept
     {
         return define_symbol(unnamed_funcs, new_func);

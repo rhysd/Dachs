@@ -3353,4 +3353,89 @@ BOOST_AUTO_TEST_CASE(copier)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(tuple_traverse)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            for e in (1, 'a')
+            end
+
+            for a, b in ((1, 'a'), (3.14, 10u))
+            end
+
+            for var a, var b in ((1, 'a'), (3.14, 10u))
+            end
+
+            for a : int, var b in ((1, 'a'), (3, 10u))
+            end
+
+            for a, b in ((1, 'a'), (3.14, 10u))
+                for var c, var d in ((1, 'a'), (3.14, 10u))
+                    for e : int, var f in ((1, 'a'), (3, 10u))
+                    end
+                end
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            for e : char in (1, 2)
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            for a, b in (1, 2)
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            for a, b in ((1, 2), (1, 2, 3))
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            for a : int, b in ((1, 2), ('a', 'b'))
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            for a : int, b in ((1, 2), ('a', 'b'))
+            end
+        end
+    )");
+
+    // Note: Failure on forward analyzer in block
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            for a in (1, 'a')
+                __builtin_foo := a
+            end
+        end
+    )");
+
+    // Note: Failure on analyzer in block
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        end
+
+        func foo(a : int)
+        end
+
+        func main
+            for e in (1, new X)
+                foo(e)
+            end
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

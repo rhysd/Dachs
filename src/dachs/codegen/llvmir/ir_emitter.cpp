@@ -1583,6 +1583,100 @@ public:
         helper.terminate_with_br(cond_block, exit_block);
     }
 
+    void emit_tuple_traverse(ast::node::for_stmt const& for_, type::tuple_type const& tuple, val const range_value)
+    {
+        // Note:
+        // From:
+        //   for e in (1, 'a')
+        //      ...
+        //   end
+        //
+        // To:
+        //  do
+        //      e := {define symbol for the 1st element of (1, 'a')}
+        //      ...
+        //  end
+        //  do
+        //      e := {define symbol for the 2nd element of (1, 'a')}
+        //      ...
+        //  end
+        //
+
+        assert(for_->body_stmts->value.size() == tuple->element_types.size());
+
+        for (auto const idx : helper::indices(tuple->element_types)) {
+            auto const& elem_type = tuple->element_types[idx];
+            auto const block = get_as<ast::node::statement_block>(for_->body_stmts->value[idx]);
+            assert(block);
+
+            auto const scope = (*block)->scope.lock();
+            auto const elem_access
+                = inst_emitter.emit_builtin_element_access(
+                        range_value,
+                        ctx.builder.getInt64(idx),
+                        tuple
+                    );
+
+            if (auto const err = elem_access.get_error()) {
+                error(for_, *err);
+            }
+
+            auto *const elem_access_value = elem_access.get_unsafe();
+
+            auto const emit_iter_var
+                = [&, this](auto const& param, val const the_value)
+                {
+                    auto const iter_symbol = helper::find_if(
+                            scope->local_vars,
+                            [&](auto const& s){ return s->name == param->name; }
+                        );
+                    assert(iter_symbol);
+                    auto const& sym = *iter_symbol;
+
+                    if (sym->immutable) {
+                        register_var(sym, the_value);
+                        the_value->setName(sym->name);
+                    } else {
+                        if (auto const copier = semantics_ctx.copier_of(sym->type)) {
+                            val const copied = emit_copier_call(param, the_value, *copier);
+                            copied->setName(sym->name);
+                            register_var(sym, copied);
+                        } else {
+                            auto *const allocated = alloc_helper.alloc_and_deep_copy(the_value, sym->type, sym->name);
+                            assert(allocated);
+                            register_var(sym, allocated);
+                        }
+                    }
+                };
+
+            if (for_->iter_vars.size() == 1) {
+                emit_iter_var(for_->iter_vars[0], elem_access_value);
+            } else {
+                auto const elem_tuple = type::get<type::tuple_type>(elem_type);
+                assert(elem_tuple && (*elem_tuple)->element_types.size() == for_->iter_vars.size());
+
+                for (auto const i : helper::indices(for_->iter_vars)) {
+                    auto const& p = for_->iter_vars[i];
+                    auto const elem_elem_access
+                        = inst_emitter.emit_builtin_element_access(
+                                elem_access_value,
+                                ctx.builder.getInt64(i),
+                                *elem_tuple
+                            );
+
+
+                    if (auto const err = elem_elem_access.get_error()) {
+                        error(p, *err);
+                    }
+
+                    emit_iter_var(p, elem_elem_access.get_unsafe());
+                }
+            }
+
+            emit(*block);
+        }
+    }
+
     void emit(ast::node::for_stmt const& for_)
     {
         auto helper = bb_helper(for_);
@@ -1596,6 +1690,11 @@ public:
             );
 
         auto const range_type = type::type_of(for_->range_expr);
+        if (auto const tuple = type::get<type::tuple_type>(range_type)) {
+            emit_tuple_traverse(for_, *tuple, range_val);
+            return;
+        }
+
         auto const array_range_type = type::get<type::array_type>(range_type);
         auto const class_range_type = type::get<type::class_type>(range_type);
 
