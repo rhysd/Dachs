@@ -2773,7 +2773,7 @@ public:
                     semantic_error(
                             param,
                             boost::format(
-                                "  Type mismatch on substitution of iteration variable in 'for' statement."
+                                "  Type mismatch on substitution of iteration variable '%1%' in 'for' statement."
                                 "  Type of iteration variable '%1%' is '%2%' but substituted type is '%3%'."
                             ) % param->name
                               % param->type.to_string()
@@ -2785,37 +2785,47 @@ public:
                 return true;
             };
 
+        bool fail = false;
+
         if (iter_size > 1u) {
-            for (auto const& t : range_type->element_types) {
+            for (auto const idx : helper::indices(range_type->element_types)) {
+                auto const& t = range_type->element_types[idx];
                 auto const elem_tuple = type::get<type::tuple_type>(t);
 
                 if (!elem_tuple || (*elem_tuple)->element_types.size() != iter_size) {
                     semantic_error(
                             for_,
                             boost::format(
-                                "  Bad substitution on 'for' statement of iteration variable(s)."
-                                "  The number of iteration variable(s) is %1%, but the element of tuple '%2%',"
-                                " '%3%', is not a tuple or the number of the elements mismatches."
-                            ) % iter_size
+                                "  Bad substitution on 'for' statement of the %1% iteration variable."
+                                "  The number of iteration variable(s) is %2%, but the element of tuple '%3%',"
+                                " '%4%', is not a tuple or the wrong number of the elements."
+                            ) % helper::to_ordinal(idx)
+                              % iter_size
                               % range_type->to_string()
                               % t.to_string()
                         );
-                    return;
+                    fail = true;
+                    continue;
                 }
 
                 auto const& elems_of_elem_tuple = (*elem_tuple)->element_types;
                 for (auto const i : helper::indices(elems_of_elem_tuple.size())) {
                     if (!check_param_type(for_->iter_vars[i], elems_of_elem_tuple[i])) {
-                        return;
+                        fail = true;
                     }
                 }
             }
         } else {
             for (auto const& t : range_type->element_types) {
                 if (!check_param_type(for_->iter_vars[0], t)) {
-                    return;
+                    fail = true;
                 }
             }
+        }
+
+        if (fail) {
+            // Note: Output error as many as possible.
+            return;
         }
 
         auto const& parent_scope = for_->body_stmts->scope.lock();
@@ -2837,11 +2847,27 @@ public:
         //  end
         //
 
+        auto const tuple_traverse_error
+            = [&for_, this](auto const& t)
+            {
+                semantic_error(
+                        for_,
+                        "  Failed to analyze an element of tuple while analyzing tuple traverse in 'for' statement."
+                        "  Note: Element type is '" + t.to_string() + "'"
+                    );
+            };
+
         auto const expand_tuple_elem_visit
             = [&, this](auto const& elem_type)
             {
                 auto copied_block = ast::copy_ast(for_->body_stmts);
-                failed += dispatch_forward_analyzer(copied_block, parent_scope, importer);
+                auto const dispatch_failed = dispatch_forward_analyzer(copied_block, parent_scope, importer);
+                if (dispatch_failed > 0u) {
+                    failed += dispatch_failed;
+                    tuple_traverse_error(elem_type);
+                    return decltype(copied_block){};
+                }
+
                 assert(!copied_block->scope.expired());
                 auto const scope = copied_block->scope.lock();
 
@@ -2877,7 +2903,15 @@ public:
 
         for (auto const& elem_type : range_type->element_types) {
             auto block_for_elem = expand_tuple_elem_visit(elem_type);
-            walk_recursively_with(block_for_elem->scope.lock(), block_for_elem);
+            if (!block_for_elem) {
+                continue;
+            }
+
+            if (!walk_recursively_with(block_for_elem->scope.lock(), block_for_elem)) {
+                tuple_traverse_error(elem_type);
+                continue;
+            }
+
             elem_blocks.emplace_back(std::move(block_for_elem));
         }
 
