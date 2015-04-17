@@ -336,6 +336,46 @@ BOOST_AUTO_TEST_CASE(for_statement)
             end
         end
     )");
+
+    // Note: Tuples
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func each(t, predicate)
+            for e in t
+                predicate(e)
+            end
+        end
+
+        class X
+            a
+        end
+
+        func println(x : X)
+            print("X{")
+            print(x.a)
+            println('}')
+        end
+
+        func main
+            for e in (1, 'a', new X{3.14})
+                println(e)
+            end
+
+            for a, b in ((1, 'a'), (3.14, new X{10u}))
+                print(a); print(", "); println(b)
+            end
+
+            var a := [] : [int]
+            t := (1, 2, 3)
+
+            for e in t
+                a << e
+            end
+
+            t.each do |e|
+                e.println
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(while_statement)
