@@ -425,5 +425,23 @@ class array
 
         ret new typeof(@buf[0]){ptr, size}
     end
+
+    func count(obj)
+        var i, var c := 0u, 0u
+        for i < @size
+            c += 1u if @buf[i] == obj
+            i += 1u
+        end
+        ret c
+    end
+
+    func count_if(pred)
+        var i, var c := 0u, 0u
+        for i < @size
+            c += 1u if pred(@buf[i])
+            i += 1u
+        end
+        ret c
+    end
 end
 
