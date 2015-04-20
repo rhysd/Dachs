@@ -435,13 +435,68 @@ class array
         ret c
     end
 
-    func count_if(pred)
+    func count_by(pred)
         var i, var c := 0u, 0u
         for i < @size
             c += 1u if pred(@buf[i])
             i += 1u
         end
         ret c
+    end
+
+  - func swap(i, j) : ()
+        var tmp := @buf[i]
+        @buf[i] = @buf[j]
+        @buf[j] = tmp
+    end
+
+  - func sort_by_impl(start, last, less) : ()
+        ret unless start < last
+
+        var s, var l, := start, last
+        pivot := @buf[(start + last) / 2u]
+
+        for true
+            for less(@buf[s], pivot)
+                s += 1u
+            end
+
+            for less(pivot, @buf[l])
+                l -= 1u
+            end
+
+            if s >= l
+                @sort_by_impl(start, s-1u, less)
+                @sort_by_impl(l+1u, last, less)
+                ret
+            end
+
+            @swap(s, l)
+            s += 1u
+            l -= 1u
+        end
+    end
+
+    func sort_by'(less)
+        ret if @empty?()
+        @sort_by_impl(0u, @size-1u, less)
+    end
+
+    func sort_by(less)
+        var copied := self
+        copied.sort_by'(less)
+        ret copied
+    end
+
+    func sort'
+        ret if @empty?()
+        @sort_by_impl(0u, @size-1u, -> x, y in x < y)
+    end
+
+    func sort
+        var copied := self
+        copied.sort'
+        ret copied
     end
 end
 
