@@ -451,10 +451,10 @@ class array
     end
 
   - func sort_by_impl(start, last, less) : ()
-        ret unless start < last
+        ret unless less(start, last)
 
         var s, var l, := start, last
-        pivot := @buf[(start + last) / 2u]
+        var pivot := @buf[start + (last - start) / 2u]
 
         for true
             for less(@buf[s], pivot)
@@ -465,7 +465,7 @@ class array
                 l -= 1u
             end
 
-            if s >= l
+            unless less(s, l)
                 @sort_by_impl(start, s-1u, less)
                 @sort_by_impl(l+1u, last, less)
                 ret
