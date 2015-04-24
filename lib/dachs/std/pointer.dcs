@@ -1,0 +1,10 @@
+func new_native_array(size : uint, builder)
+    var p := new pointer(typeof(builder(0u))){size}
+    var i := 0u
+    for i < 0u
+        p[i] = builder(i)
+        i += 1u
+    end
+    ret p
+end
+

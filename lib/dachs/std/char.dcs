@@ -1,0 +1,52 @@
+func digit?(c : char)
+    ret '0' <= c && c <= '9'
+end
+
+func succ(c : char)
+    ret c + (1 as char)
+end
+
+func lower?(c : char)
+    ret 'a' <= c && c <= 'z'
+end
+
+func upper?(c : char)
+    ret 'A' <= c && c <= 'Z'
+end
+
+func alphabet?(c : char)
+    ret c.lower? || c.upper?
+end
+
+func alnum?(c : char)
+    ret c.alphabet? || c.digit?
+end
+
+func to_upper(c : char)
+    ret c unless c.lower?
+    ret (c - 'a') + 'A'
+end
+
+func to_upper(c : char)
+    ret c unless c.upper?
+    ret (c - 'A') + 'a'
+end
+
+func to_string(c : char)
+    var p := new pointer(char){2u}
+    p[0u] = c
+    p[1u] = '\0'
+    ret new string{p, 1u}
+end
+
+func to_string(cs : [char])
+    var p := new pointer(char){cs.size + 1u}
+    var i := 0u
+    for i < cs.size
+        p[i] = cs[i]
+        i += 1u
+    end
+    p[i] = '\0'
+    ret new string{p, cs.size + 1u}
+end
+
