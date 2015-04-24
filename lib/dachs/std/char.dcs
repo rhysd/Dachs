@@ -2,6 +2,12 @@ func digit?(c : char)
     ret '0' <= c && c <= '9'
 end
 
+func xdigit?(c : char)
+    ret c.digit? ||
+        ('a' <= c && c <= 'f') ||
+        ('A' <= c && c <= 'F')
+end
+
 func succ(c : char)
     ret c + (1 as char)
 end
@@ -20,6 +26,23 @@ end
 
 func alnum?(c : char)
     ret c.alphabet? || c.digit?
+end
+
+# Ref: http://en.cppreference.com/w/cpp/string/byte/isspace
+func printable?(c : char)
+    code := c as uint
+    ret 0x20 <= code && code <= 0x7e
+end
+
+func cntrl?(c : char)
+    ret !c.printable?
+end
+
+func space?(c : char)
+    ret c == '\t' ||
+        c == ' '  ||
+        c == '\n' ||
+        c == '\r'
 end
 
 func to_upper(c : char)
