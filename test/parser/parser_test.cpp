@@ -438,6 +438,8 @@ BOOST_AUTO_TEST_CASE(literals)
             '\b'
             '\f'
             '\t'
+            '\v'
+            '\e'
             '\\'
             '\0'
             ' '
@@ -450,7 +452,7 @@ BOOST_AUTO_TEST_CASE(literals)
             "\\aaa\\"
             ""
             "include white spaces"
-            "\n\b\f\t\\"
+            "\n\b\f\t\v\e\\"
 
             # boolean
             true
