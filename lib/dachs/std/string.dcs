@@ -172,15 +172,16 @@ class string
     end
 
     func slice(var start : uint, last : uint)
-        ret "" if start >= last || last >= @size
+        ret "" if start > last || last >= @size
 
-        s := last - start
+        s := last - start + 1u
         var ptr := new pointer(char){s}
         var i := 0u
         for start <= last
             ptr[i] = @data[start]
             start, i += 1u, 1u
         end
+        ptr[i] = '\0'
 
         ret new string{ptr, s}
     end
@@ -201,8 +202,24 @@ class string
         ret result
     end
 
+    func split(c : char)
+        var start := 0u
+        var result := [] : [string]
+        var last := @index_of(c)
+
+        for last != -1
+            result << @slice(start, last as uint - 1u)
+            start = (last as uint) + 1u
+            last = @index_of(c, start)
+        end
+
+        result << @slice(start, @size - 1u)
+
+        ret result
+    end
+
     func split
-        ret @split("\n")
+        ret @split('\n')
     end
 
     func ==(rhs : string)
@@ -260,6 +277,72 @@ class string
         p[i + @size] = '\0'
 
         ret new string{p, @size + rhs.size}
+    end
+
+    func *(num : uint)
+        new_size := @size * num + 1u
+        var p := new pointer(char){new_size}
+
+        var i, var pos := 0u, 0u
+        for i < num
+            var j := 0u
+            for j < @size
+                p[pos] = @data[j]
+                j, pos += 1u, 1u
+            end
+            i += 1u
+        end
+
+        p[new_size] = '\0'
+        ret new string{p, new_size}
+    end
+
+    func chomp
+        ret new string{@data, @size} if @empty?() || @data[@size - 1u] != '\n'
+        var p := new pointer(char){@size}
+        var i := 0u
+        for i < @size
+            p[i] = @data[i]
+            i += 1u
+        end
+        p[@size] = '\0'
+        ret new string{p, @size - 1u}
+    end
+
+    func count_by(predicate)
+        var i, var c := 0u, 0u
+        for i < @size
+            c += 1u if predicate(@data[i])
+            i += 1u
+        end
+        ret c
+    end
+
+    func count(chr : char)
+        ret self.count_by do |c|
+            ret c == chr
+        end
+    end
+
+    func each_line(predicate)
+        @split()
+        self.split.each do |l|
+            predicate(l)
+        end
+    end
+
+    func reverse
+        ret "" if @empty?()
+
+        var p := new pointer(char){@size + 1u}
+        var i := 0u
+        for i < @size
+            p[@size - 1u - i] = @data[i]
+            i += 1u
+        end
+        p[@size] = '\0'
+
+        ret new string{p, @size}
     end
 
     func print
