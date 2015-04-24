@@ -6,10 +6,6 @@ func succ(i : uint)
     ret i + 1u
 end
 
-func succ(c : char)
-    ret c + (1 as char)
-end
-
 func odd?(i : int)
     ret i % 2 == 1
 end
@@ -36,4 +32,15 @@ end
 
 func times(i : uint, pred)
     times(i as int, pred)
+end
+
+func upto(var i : int, to : int, step : int, predicate)
+    for i < to
+        predicate(i)
+        i += step
+    end
+end
+
+func upto(var i : int, to : int, predicate)
+    i.upto(to, 1, predicate)
 end
