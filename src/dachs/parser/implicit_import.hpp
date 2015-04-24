@@ -9,6 +9,7 @@
 namespace dachs {
 namespace syntax {
 
+template<bool CheckOnly>
 struct implicit_import {
     bool range_expr_found = false;
     bool array_found = false;
@@ -47,6 +48,19 @@ struct implicit_import {
         // 'seems' main function.
         import_if(main_func_itr != boost::end(program->functions), "std.argv");
     }
+};
+
+// Note:
+// --check-syntax only checks a current file.
+// So it doesn't need to import modules.
+template<>
+struct implicit_import<true> {
+    bool range_expr_found = false;
+    bool array_found = false;
+    bool string_found = false;
+
+    void install(ast::node::inu const&) const
+    {}
 };
 
 } // namespace syntax

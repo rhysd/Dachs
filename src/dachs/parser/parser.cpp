@@ -221,7 +221,7 @@ class dachs_grammar final
 
 public:
 
-    implicit_import implicit_import_installer;
+    implicit_import<CheckOnly> implicit_import_installer;
 
     dachs_grammar(Iterator const code_begin) noexcept
         : dachs_grammar::base_type(inu)
