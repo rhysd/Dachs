@@ -498,5 +498,33 @@ class array
         copied.sort'
         ret copied
     end
+
+    func *(times : uint)
+        new_size := @size * times
+        var new_buf := new typeof(@buf){new_size}
+        var pos, var i := 0u, 0u
+
+        for i < times
+            var j := 0u
+            for j < @size
+                new_buf[pos] = @buf[j]
+                j, pos += 1u, 1u
+            end
+            i += 1u
+        end
+
+        ret new typeof(self){new_buf, new_size}
+    end
+
+    func reverse
+        var new_buf := new typeof(@buf){@size}
+        var i := 0u
+        for i < @size
+            new_buf[@size - 1u - i] = @buf[i]
+            i += 1u
+        end
+
+        ret new typeof(self){new_buf, @size}
+    end
 end
 
