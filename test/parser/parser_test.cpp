@@ -2176,6 +2176,26 @@ BOOST_AUTO_TEST_CASE(static_array)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(converter)
+{
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        cast(i : int) : float
+        end
+        cast(i : int) : float; ret 3.14 end
+    )"));
+
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        class X
+            cast : float
+                ret 3.14
+            end
+
+            cast : char; ret 'a' end
+            cast() : uint; ret 'a' end
+        end
+    )"));
+}
+
 BOOST_AUTO_TEST_CASE(do_not_degrade)
 {
     // :foo was parsed as the return type of function 'main'
