@@ -3438,4 +3438,57 @@ BOOST_AUTO_TEST_CASE(tuple_traverse)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(conversion)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        cast(i : int) : char
+            ret 'a'
+        end
+        func main; end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X; end
+        cast(i) : X; end
+        func main; end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X; end
+        cast(x : X) : int; ret 42 end
+        cast(x : X) : int; ret 42 end
+        func main; end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            cast : int; ret 42 end
+        end
+        cast(x : X) : int; ret 42 end
+        func main; end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+            cast : int
+                ret 42
+            end
+            cast : char
+                ret 'a'
+            end
+        end
+
+        cast(x : X(int)) : int
+            ret x.a
+        end
+
+        cast(x : X(int)) : char
+            ret x.a as char
+        end
+
+        func main; end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

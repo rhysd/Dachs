@@ -178,6 +178,77 @@ class forward_symbol_analyzer {
         return failed;
     }
 
+    template<class Funcs>
+    std::size_t check_cast_funcs_duplication(Funcs const& cast_funcs) const
+    {
+        std::size_t failed = 0u;
+
+        auto const error
+            = [&failed, this](auto const& f, auto && msg)
+            {
+                output_semantic_error(
+                        f->get_ast_node(),
+                        std::forward<decltype(msg)>(msg)
+                    );
+                ++failed;
+            };
+
+        for (auto const& f : cast_funcs) {
+            assert(f->ret_type);
+
+            if (f->params.size() != 1u) {
+                error(
+                    f,
+                    "  Wrong number of parameters ("
+                        + std::to_string(f->params.size())
+                        + " for 1).  Cast function must have only one parameter."
+                );
+                continue;
+            }
+
+            if (type::is_a<type::template_type>(f->params[0]->type)) {
+                error(f, "  Cast function must know its type of parameter.  Specify the type of parameter explicitly.");
+            }
+
+            if (f->params[0]->type.is_builtin() && f->ret_type->is_builtin()) {
+                error(f, "  Cast from built-in type to built-in type can't be defined.");
+            }
+        }
+
+        if (failed != 0u) {
+            return failed;
+        }
+
+        // Note:
+        // Check the duplication of cast functions.
+        // Note:
+        // Can't use check_functions_duplication() because it overloads by its return type.
+        auto const end = cast_funcs.cend();
+        for (auto left = cast_funcs.cbegin(); left != end; ++left) {
+            for (auto right = std::next(left); right != end; ++right) {
+                auto const& r = *right;
+                auto const& l = *left;
+                if (r->params[0]->type == l->params[0]->type && r->ret_type == l->ret_type) {
+                    auto const ldef = l->get_ast_node();
+                    output_semantic_error(
+                        r->get_ast_node(),
+                        boost::format(
+                            "  Cast function is redefined.\n"
+                            "  Note: Cast from '%1%' to '%2%'.\n"
+                            "  Note: Previous definition is at line:%3%, col:%4%"
+                        ) % r->params[0]->type.to_string()
+                          % r->ret_type->to_string()
+                          % ldef->line
+                          % ldef->col
+                    );
+                    ++failed;
+                }
+            }
+        }
+
+        return failed;
+    }
+
     template<class Location>
     ast::node::var_ref generate_self_ref(Location const& location) const
     {
@@ -363,6 +434,7 @@ public:
         failed += check_functions_duplication(global->functions, "global scope");
         failed += check_classes_duplication(inu->classes);
         failed += check_operator_function_args(global->functions);
+        failed += check_cast_funcs_duplication(global->cast_funcs);
     }
 
     template<class Walker>

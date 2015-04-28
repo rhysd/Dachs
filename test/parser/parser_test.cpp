@@ -2176,7 +2176,7 @@ BOOST_AUTO_TEST_CASE(static_array)
     )");
 }
 
-BOOST_AUTO_TEST_CASE(converter)
+BOOST_AUTO_TEST_CASE(cast_function)
 {
     BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         cast(i : int) : float
@@ -2194,6 +2194,18 @@ BOOST_AUTO_TEST_CASE(converter)
             cast() : uint; ret 'a' end
         end
     )"));
+
+    CHECK_PARSE_THROW(R"(
+        cast(i : int)
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        class X
+            cast
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(do_not_degrade)

@@ -3564,7 +3564,6 @@ public:
     }
 };
 
-
 } // namespace detail
 
 semantics_context check_semantics(ast::ast &a, scope::scope_tree &t, syntax::importer &i)

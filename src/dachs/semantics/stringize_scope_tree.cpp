@@ -73,7 +73,8 @@ public:
         return indent(i) + c.green("GLOBAL_SCOPE")
             + visit_symbols(g->const_symbols, i+1, "SYMBOL: ")
             + visit_scopes(g->functions, i+1)
-            + visit_scopes(g->classes, i+1);
+            + visit_scopes(g->classes, i+1)
+            + visit_scopes(g->cast_funcs, i+1);
     }
 
     std::string visit(class_scope const& cl, size_t const i) const
