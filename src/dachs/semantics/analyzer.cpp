@@ -2041,6 +2041,13 @@ public:
             return;
         }
 
+        if (cast->type.is_template()) {
+            semantic_error(cast, boost::format(
+                    "  Can not cast to template type '%1%'"
+                ) % cast->type.to_string());
+            return;
+        }
+
         auto const maybe_cast_func = global->resolve_cast_func(child_type, cast->type);
 
         if (!maybe_cast_func) {

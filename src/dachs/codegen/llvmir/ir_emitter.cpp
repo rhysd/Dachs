@@ -2114,6 +2114,17 @@ public:
             return child_val;
         }
 
+        if (auto const callee = cast->callee_cast_scope.lock()) {
+            return check(
+                    cast,
+                    ctx.builder.CreateCall(
+                        emit_non_builtin_callee(cast, callee),
+                        child_val
+                    ),
+                    "invalid cast function call"
+                );
+        }
+
         if (type::is_a<type::pointer_type>(child_type)) {
             if (cast->type.is_builtin("uint")) {
                 assert(child_val->getType()->isPointerTy());
@@ -2126,9 +2137,7 @@ public:
             {
                 error(
                     cast,
-                    boost::format("Cannot cast from '%1%' to '%2%'\n"
-                                  "  Note: Now only some built-in primary types are supported."
-                                  "(int, uint, float and char)")
+                    boost::format("Cannot cast from '%1%' to '%2%'")
                         % type::to_string(child_type)
                         % type::to_string(cast->type)
                 );

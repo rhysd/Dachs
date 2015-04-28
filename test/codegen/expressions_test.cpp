@@ -1544,4 +1544,35 @@ BOOST_AUTO_TEST_CASE(typeof)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(cast)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class Foo
+            a
+
+            cast : char
+                ret 'a'
+            end
+        end
+
+        cast(f : Foo(char)) : char
+            ret f.a
+        end
+
+        cast(i : int) : Foo(int)
+            ret new Foo{42}
+        end
+
+        func main
+            f := new Foo{42}
+            (f as char).println
+            f2 := new Foo{'p'}
+            (f2 as char).println
+
+            (42 as Foo(int)).a.println
+        end
+    )");
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()
