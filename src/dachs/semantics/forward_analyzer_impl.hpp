@@ -210,7 +210,7 @@ class forward_symbol_analyzer {
                 error(f, "  Cast function must know its type of parameter.  Specify the type of parameter explicitly.");
             }
 
-            if (f->params[0]->type.is_builtin() && f->ret_type->is_builtin()) {
+            if (!f->params[0]->type.is_aggregate() && !f->ret_type->is_aggregate()) {
                 error(f, "  Cast from built-in type to built-in type can't be defined.");
             }
         }

@@ -645,6 +645,7 @@ struct unary_expr final : public expression {
 struct cast_expr final : public expression {
     node::any_expr child;
     node::any_type cast_type;
+    scope::weak_func_scope callee_cast_scope;
 
     cast_expr(node::any_expr const& c,
               node::any_type const& t) noexcept
