@@ -2034,6 +2034,12 @@ public:
     {
         w();
         cast->type = from_type_node(cast->cast_type);
+        if (!instantiate_param_types(cast->type, cast)) {
+            semantic_error(cast, boost::format(
+                    "  Instantiating casted type '%1%' failed"
+                ) % cast->type.to_string());
+            return;
+        }
 
         auto const child_type = type_of(cast->child);
         if ((!cast->type.is_aggregate() && !child_type.is_aggregate())
