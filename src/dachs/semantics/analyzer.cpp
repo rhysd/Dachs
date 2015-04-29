@@ -1721,6 +1721,35 @@ public:
         if_->type = then_type;
     }
 
+    boost::optional<std::string> check_member_func_visibility(scope::func_scope const& member_func) const
+    {
+        auto const f = with_current_scope([](auto const& s)
+                {
+                    return s->get_enclosing_func();
+                }
+            );
+        auto const t = type::get<type::class_type>(member_func->params[0]->type);
+
+        assert(f);
+        assert(t);
+
+        auto const error
+            = [&t=*t, &member_func, this]
+            {
+                return (boost::format("  member function '%1%' is a private member of class '%2%'") % member_func->to_string() % t->name).str();
+            };
+
+        if (auto const c = (*f)->get_receiver_class_scope()) {
+            if ((*t)->name != (*c)->name) {
+                return error();
+            }
+        } else {
+            return error();
+        }
+
+        return boost::none;
+    }
+
     template<class ArgTypes>
     helper::probable<scope::func_scope>
     resolve_func_call(std::string const& func_name, ArgTypes const& arg_types)
@@ -1782,30 +1811,8 @@ public:
         // Note:
         // Check function accessibility
         if (!func_def->is_public()) {
-            auto const f = with_current_scope([](auto const& s)
-                    {
-                        return s->get_enclosing_func();
-                    }
-                );
-            auto const t = type::get<type::class_type>(func->params[0]->type);
-
-            assert(f);
-            assert(t);
-
-            auto const error
-                = [t=*t, &func, this]
-                {
-                    return helper::oops_fmt("  member function '%1%' is a private member of class '%2%'"
-                                , func->to_string(), t->name
-                            );
-                };
-
-            if (auto const c = (*f)->get_receiver_class_scope()) {
-                if ((*t)->name != (*c)->name) {
-                    return error();
-                }
-            } else {
-                return error();
+            if (auto const errmsg = check_member_func_visibility(func)) {
+                return helper::oops_fmt(*errmsg);
             }
         }
 
@@ -2028,8 +2035,53 @@ public:
         w();
         cast->type = from_type_node(cast->cast_type);
 
-        // TODO:
-        // Find cast function and get its result type
+        if (!instantiate_param_types(cast->type, cast)) {
+            semantic_error(cast, boost::format(
+                    "  Failed to instantiate casted type '%1%'"
+                ) % cast->type.to_string());
+            return;
+        }
+
+        auto const child_type = type_of(cast->child);
+        if ((!cast->type.is_aggregate() && !child_type.is_aggregate())
+                || child_type == cast->type) {
+            return;
+        }
+
+        if (cast->type.is_template()) {
+            semantic_error(cast, boost::format(
+                    "  Can not cast to template type '%1%'"
+                ) % cast->type.to_string());
+            return;
+        }
+
+        auto const maybe_cast_func = global->resolve_cast_func(child_type, cast->type);
+
+        if (!maybe_cast_func) {
+            semantic_error(cast, boost::format(
+                    "  Cast function is not found.\n"
+                    "  Note: Cast from '%1%' to '%2%'"
+                ) % child_type.to_string() % cast->type.to_string());
+            return;
+        }
+
+        auto cast_func = *maybe_cast_func;
+        auto cast_func_def = cast_func->get_ast_node();
+
+        if (cast_func->is_template()) {
+            // Note:
+            // Instantiate
+            std::tie(cast_func_def, cast_func) = instantiate_function_from_template(cast_func_def, cast_func, {child_type});
+        }
+
+        if (!cast_func_def->is_public()) {
+            if (auto const errmsg = check_member_func_visibility(cast_func)) {
+                semantic_error(cast, *errmsg);
+                return;
+            }
+        }
+
+        cast->callee_cast_scope = cast_func;
     }
 
     // Note:
@@ -3563,7 +3615,6 @@ public:
         walker();
     }
 };
-
 
 } // namespace detail
 

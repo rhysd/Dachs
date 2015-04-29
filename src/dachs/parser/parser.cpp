@@ -249,7 +249,8 @@ public:
             = (
                 -sep > -(
                     (
-                        function_definition[phx::push_back(_a, _1)]
+                        converter[phx::push_back(_a, _1)]
+                      | function_definition[phx::push_back(_a, _1)]
                       | constant_definition[phx::push_back(_b, _1)]
                       | class_definition[phx::push_back(_c, _1)]
                       | import[phx::push_back(_d, _1)]
@@ -1388,9 +1389,23 @@ public:
 
         copier
             = (
-                DACHS_KWD("copy") > sep > stmt_block_before_end > -sep > "end"
+                DACHS_KWD("copy") > sep > func_body_stmt_block > -sep > "end"
             ) [
                 _val = make_node_ptr<ast::node::function_definition>(ast::node_type::function_definition::copier_tag{}, _1)
+            ];
+
+        converter
+            = (
+                DACHS_KWD("cast") > function_param_decls
+                > (':' >> -qi::eol) > qualified_type > sep
+                > func_body_stmt_block > -sep > "end"
+            ) [
+                _val = make_node_ptr<ast::node::function_definition>(
+                        ast::node_type::function_definition::converter_tag{},
+                        _1,
+                        _2,
+                        _3
+                    )
             ];
 
         class_definition
@@ -1405,6 +1420,9 @@ public:
                             phx::push_back(_b, _1)
                         ]
                       | copier[
+                            phx::push_back(_b, _1)
+                        ]
+                      | converter[
                             phx::push_back(_b, _1)
                         ]
                       | (instance_variable_decls - "end")[
@@ -1493,6 +1511,7 @@ public:
                 , function_definition
                 , constructor
                 , copier
+                , converter
                 , class_definition
                 , constant_decl
                 , constant_definition
@@ -1624,7 +1643,8 @@ public:
         compound_stmt.name("compound statement");
         function_definition.name("function definition");
         constructor.name("constructor");
-        copier.name("copier");
+        copier.name("copy special function");
+        converter.name("conversion special function");
         class_definition.name("class definition");
         constant_decl.name("constant declaration");
         constant_definition.name("constant definition");
@@ -1697,7 +1717,7 @@ private:
     rule<bool()> boolean_literal;
     rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
     rule<ast::node::initialize_stmt()> constant_definition;
-    rule<ast::node::function_definition()> do_block, lambda_expr_do_end, constructor, copier;
+    rule<ast::node::function_definition()> do_block, lambda_expr_do_end, constructor, copier, converter;
     rule<ast::node::statement_block()> do_stmt;
     rule<bool()> access_specifier;
     rule<ast::node::function_definition(), qi::locals<bool>> method_definition;

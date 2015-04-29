@@ -163,18 +163,16 @@ struct global_scope final : public basic_scope {
     std::vector<symbol::var_symbol> const_symbols;
     std::vector<scope::class_scope> classes;
     std::weak_ptr<ast::node_type::inu> ast_root;
+    std::vector<scope::func_scope> cast_funcs;
 
     template<class RootType>
     global_scope(RootType const& ast_root) noexcept
         : basic_scope(), ast_root(ast_root)
     {}
 
+    // Note:
     // Check function duplication after forward analysis because of overload resolution
-    void define_function(scope::func_scope const& new_func) noexcept
-    {
-        // Do check nothing
-        functions.push_back(new_func);
-    }
+    void define_function(scope::func_scope const& new_func) noexcept;
 
     bool define_variable(symbol::var_symbol const& new_var) noexcept
     {
@@ -200,6 +198,8 @@ struct global_scope final : public basic_scope {
     }
 
     function_set resolve_func(std::string const& name, std::vector<type::type> const& args) const override;
+
+    maybe_func_t resolve_cast_func(type::type const& from, type::type const& to) const;
 
     maybe_class_t resolve_class_by_name(std::string const& name) const override
     {
@@ -338,6 +338,11 @@ struct func_scope final : public basic_scope, public symbol_node::basic_symbol {
     bool is_copier() const noexcept
     {
         return name == "dachs.copy";
+    }
+
+    bool is_converter() const noexcept
+    {
+        return name == "dachs.conv";
     }
 
     std::string to_string() const noexcept;

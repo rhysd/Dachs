@@ -3438,4 +3438,122 @@ BOOST_AUTO_TEST_CASE(tuple_traverse)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(conversion)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        cast(i : int) : char
+            ret 'a'
+        end
+        func main; end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        cast(p : pointer(char)) : char
+            ret p[0]
+        end
+        func main; end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        cast(i : uint) : pointer(int)
+            ret new pointer(int){i}
+        end
+        func main; end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X; end
+        cast(i) : X; end
+        func main; end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X; end
+        cast(x : X) : int; ret 42 end
+        cast(x : X) : int; ret 42 end
+        func main; end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            cast : int; ret 42 end
+        end
+        cast(x : X) : int; ret 42 end
+        func main; end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X; end
+        func main
+            X as X
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+        end
+
+        cast(i : int) : X(int)
+            ret new X{i}
+        end
+
+        func main
+            42 as X
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+            cast : int
+                ret 42
+            end
+            cast : char
+                ret 'a'
+            end
+        end
+
+        cast(x : X(int)) : int
+            ret x.a
+        end
+
+        cast(x : X(int)) : char
+            ret x.a as char
+        end
+
+        func main; end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X; end
+        func main
+            42 as X
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X; end
+        func main
+            new X as int
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X; end
+        cast(i : int) : X; end
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X; end
+        cast(i : int) : X(int)
+            ret new X
+        end
+        func main
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

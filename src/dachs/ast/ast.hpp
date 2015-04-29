@@ -645,6 +645,7 @@ struct unary_expr final : public expression {
 struct cast_expr final : public expression {
     node::any_expr child;
     node::any_type cast_type;
+    scope::weak_func_scope callee_cast_scope;
 
     cast_expr(node::any_expr const& c,
               node::any_type const& t) noexcept
@@ -1105,6 +1106,7 @@ struct function_definition final : public statement {
 
     struct ctor_tag {};
     struct copier_tag {};
+    struct converter_tag {};
 
     symbol::func_kind kind;
     std::string name;
@@ -1175,6 +1177,24 @@ struct function_definition final : public statement {
             )
     {}
 
+    // Note:
+    // For converter
+    function_definition(
+            converter_tag,
+            decltype(params) const& p,
+            node::any_type const& r,
+            node::statement_block const& b
+    ) noexcept
+        : function_definition(
+                symbol::func_kind::func,
+                "dachs.conv",
+                p,
+                r,
+                b,
+                boost::none
+            )
+    {}
+
     bool is_template() noexcept;
 
     bool is_public() const noexcept
@@ -1192,6 +1212,11 @@ struct function_definition final : public statement {
     bool is_copier() const noexcept
     {
         return name == "dachs.copy";
+    }
+
+    bool is_converter() const noexcept
+    {
+        return name == "dachs.conv";
     }
 
     bool is_main_func() const noexcept

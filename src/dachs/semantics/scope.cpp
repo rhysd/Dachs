@@ -291,9 +291,39 @@ inline function_set get_overloaded_function(Funcs const& candidates, std::string
 
 } // namespace detail
 
+void global_scope::define_function(scope::func_scope const& new_func) noexcept
+{
+    // Do check nothing
+    if (new_func->is_converter()) {
+        cast_funcs.push_back(new_func);
+    } else {
+        functions.push_back(new_func);
+    }
+}
+
 function_set global_scope::resolve_func(std::string const& name, std::vector<type::type> const& arg_types) const
 {
     return detail::get_overloaded_function(functions, name, arg_types);
+}
+
+global_scope::maybe_func_t global_scope::resolve_cast_func(type::type const& from, type::type const& to) const
+{
+    global_scope::maybe_func_t result = boost::none;
+
+    for (auto const& c : cast_funcs) {
+        if (to != *c->ret_type) {
+            continue;
+        }
+        auto const& t = c->params[0]->type;
+
+        if (from == t) {
+            return c;
+        } else if (from.is_instantiated_from(t)) {
+            result = c;
+        }
+    }
+
+    return result;
 }
 
 global_scope::maybe_class_t global_scope::resolve_class_template(std::string const& name, std::vector<type::type> const& specified) const
