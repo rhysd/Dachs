@@ -1553,6 +1553,20 @@ BOOST_AUTO_TEST_CASE(cast)
             cast : char
                 ret 'a'
             end
+
+            cast : Bar
+                ret new Bar
+            end
+        end
+
+        class Bar
+            cast : int
+                ret 42
+            end
+        end
+
+        cast(b : Bar) : Foo(float)
+            ret new Foo{3.14}
         end
 
         cast(f : Foo(char)) : char
@@ -1570,6 +1584,13 @@ BOOST_AUTO_TEST_CASE(cast)
             (f2 as char).println
 
             (42 as Foo(int)).a.println
+            (f2 as Foo(char)).a.println
+            f as Bar
+            f2 as Bar
+
+            var b := new Bar
+            (b as int).println
+            (b as Foo(float)).a.println
         end
     )");
 }

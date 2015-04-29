@@ -2034,9 +2034,10 @@ public:
     {
         w();
         cast->type = from_type_node(cast->cast_type);
+
         if (!instantiate_param_types(cast->type, cast)) {
             semantic_error(cast, boost::format(
-                    "  Instantiating casted type '%1%' failed"
+                    "  Failed to instantiate casted type '%1%'"
                 ) % cast->type.to_string());
             return;
         }

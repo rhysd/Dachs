@@ -3538,6 +3538,22 @@ BOOST_AUTO_TEST_CASE(conversion)
             new X as int
         end
     )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X; end
+        cast(i : int) : X; end
+        func main
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X; end
+        cast(i : int) : X(int)
+            ret new X
+        end
+        func main
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
