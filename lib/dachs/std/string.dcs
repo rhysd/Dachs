@@ -16,6 +16,7 @@ class string_builder
 
     func <<(s : string)
         @buffer << s
+        ret self
     end
 
     func size
@@ -352,4 +353,8 @@ class string
     func println
         println(@data)
     end
+end
+
+func to_string(x)
+    ret x as string
 end

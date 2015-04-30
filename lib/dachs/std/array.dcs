@@ -47,6 +47,10 @@ class array
         ret new [typeof(@buf[0])]{new_buf, @size}
     end
 
+    cast : string
+        ret "[" + self.map{|i| i as string}.join(",") + "]"
+    end
+
     func []=(idx, rhs)
         @buf[idx] = rhs
     end
@@ -373,40 +377,6 @@ class array
         ret @take(@size - 1u)
     end
 
-    func join(sep : string)
-        s := self.foldl(1u){|acc, s| acc + s.size } +
-            (unless @empty?() then sep.size * (@size - 1u) else 0u)
-
-        var ptr := new pointer(char){s}
-        var pos := 0u
-
-        var i := 0u
-        for i < @size
-            var j := 0u
-            for j < @buf[i].size
-                ptr[pos] = @buf[i][j]
-                j, pos += 1u, 1u
-            end
-
-            i += 1u
-
-            unless i == @size
-                j = 0u
-                for j < sep.size
-                    ptr[pos] = sep[j]
-                    j, pos += 1u, 1u
-                end
-            end
-        end
-
-        ptr[pos] = '\0'
-        ret new string{ptr, s-1u} # Omit '\0' from size
-    end
-
-    func join
-        ret @join("")
-    end
-
     # func flatten
     #     ret @foldl([] : typeof(self)){|a, i| a + i }
     # end
@@ -526,5 +496,50 @@ class array
 
         ret new typeof(self){new_buf, @size}
     end
+
+    func reverse' : ()
+        ret if @empty?()
+
+        var s, var l := 0u, @size - 1u
+        for s < l
+            @swap(s, l)
+            s += 1u
+            l -= 1u
+        end
+    end
+end
+
+func join(arr : [string], sep : string)
+    s := arr.foldl(1u){|acc, s| acc + s.size } +
+        (unless arr.empty?() then sep.size * (arr.size - 1u) else 0u)
+
+    var ptr := new pointer(char){s}
+    var pos := 0u
+
+    var i := 0u
+    for i < arr.size
+        var j := 0u
+        for j < arr[i].size
+            ptr[pos] = arr[i][j]
+            j, pos += 1u, 1u
+        end
+
+        i += 1u
+
+        unless i == arr.size
+            j = 0u
+            for j < sep.size
+                ptr[pos] = sep[j]
+                j, pos += 1u, 1u
+            end
+        end
+    end
+
+    ptr[pos] = '\0'
+    ret new string{ptr, s-1u} # Omit '\0' from size
+end
+
+func join(arr : [string])
+    ret arr.join("")
 end
 

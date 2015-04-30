@@ -31,7 +31,7 @@ end
 # Ref: http://en.cppreference.com/w/cpp/string/byte/isspace
 func printable?(c : char)
     code := c as uint
-    ret 0x20 <= code && code <= 0x7e
+    ret 0x20u <= code && code <= 0x7eu
 end
 
 func cntrl?(c : char)
@@ -50,19 +50,19 @@ func to_upper(c : char)
     ret (c - 'a') + 'A'
 end
 
-func to_upper(c : char)
+func to_lower(c : char)
     ret c unless c.upper?
     ret (c - 'A') + 'a'
 end
 
-func to_string(c : char)
+cast (c : char) : string
     var p := new pointer(char){2u}
     p[0u] = c
     p[1u] = '\0'
     ret new string{p, 1u}
 end
 
-func to_string(cs : [char])
+func string_of(cs : [char]) : string
     var p := new pointer(char){cs.size + 1u}
     var i := 0u
     for i < cs.size
@@ -70,6 +70,6 @@ func to_string(cs : [char])
         i += 1u
     end
     p[i] = '\0'
-    ret new string{p, cs.size + 1u}
+    ret new string{p, cs.size}
 end
 

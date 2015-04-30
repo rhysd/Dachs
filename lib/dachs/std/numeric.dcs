@@ -1,3 +1,5 @@
+import std.char
+
 func succ(i : int)
     ret i + 1
 end
@@ -43,4 +45,74 @@ end
 
 func upto(var i : int, to : int, predicate)
     i.upto(to, 1, predicate)
+end
+
+func abs(i)
+    if i < (0 as typeof(i))
+        ret -i
+    else
+        ret i
+    end
+end
+
+cast(var i : int) : string
+    if i == 0
+        ret "0"
+    end
+
+    var buffer := [] : [char]
+    negative := i < 0
+    i = i.abs
+
+    for i != 0
+        buffer << (i % 10) as char + '0'
+        i = i / 10
+    end
+
+    if negative
+        buffer << '-'
+        i = -i
+    end
+
+    buffer.reverse'
+    ret string_of(buffer)
+end
+
+cast(var u : uint) : string
+    if u == 0u
+        ret "0u"
+    end
+
+    var buffer := ['u'] : [char]
+
+    for u != 0u
+        buffer << (u % 10u) as char + '0'
+        u = u / 10u
+    end
+
+    buffer.reverse'
+    ret string_of(buffer)
+end
+
+# XXX:
+# This implementation is too bad.
+# I should use snprintf() to convert float value to string.
+cast(var f : float) : string
+    var buffer := [] : [char]
+
+    integer := f.abs as int
+    decimal := begin
+        var i := ((f.abs - (integer as float)) * 1000000.0) as int
+        for i % 10 == 0
+            i /= 10
+        end
+        ret i
+    end
+
+    var builder := new string_builder
+
+    builder << "-" if f < 0.0
+    builder << integer as string << "." << decimal as string
+
+    ret builder.build
 end
