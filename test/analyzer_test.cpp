@@ -2892,6 +2892,20 @@ BOOST_AUTO_TEST_CASE(assignment_stmt)
             t = (21, 'b')
         end
     )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            var p := new pointer(int){1u}
+            p[3.14] = 42
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            var p := new pointer(int){1u}
+            p[0] = 3.14
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(for_stmt)

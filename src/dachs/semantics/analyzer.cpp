@@ -1393,7 +1393,7 @@ public:
         result_type operator()(type::array_type const& arr) const
         {
             if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
-                return "  Index of array must be int or uint but actually '" + index_type.to_string() + "'";
+                return "  Index of array must be 'int' or 'uint' but actually '" + index_type.to_string() + "'";
             }
             access->type = arr->element_type;
             return boost::none;
@@ -1402,7 +1402,7 @@ public:
         result_type operator()(type::pointer_type const& ptr) const
         {
             if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
-                return "  Index of pointer must be int or uint but actually '" + index_type.to_string() + "'";
+                return "  Index of pointer must be 'int' or 'uint' but actually '" + index_type.to_string() + "'";
             }
             access->type = ptr->pointee_type;
             return boost::none;
@@ -1415,7 +1415,7 @@ public:
                     (!has<int>((*maybe_primary_literal)->value)
                      && !has<uint>((*maybe_primary_literal)->value))
                ) {
-                return std::string{"  Index of tuple must be int or uint literal"};
+                return std::string{"  Index of tuple must be 'int' or 'uint' literal"};
             }
 
             auto const& literal = (*maybe_primary_literal)->value;
@@ -1442,7 +1442,7 @@ public:
         {
             if (builtin->name == "string") {
                 if (!index_type.is_builtin("int") && !index_type.is_builtin("uint")) {
-                    return "  Index of string must be int or uint but actually '" + index_type.to_string() + "'";
+                    return "  Index of string must be 'int' or 'uint' but actually '" + index_type.to_string() + "'";
                 }
                 access->type = type::get_builtin_type("char", type::no_opt);
                 return boost::none;
@@ -1503,11 +1503,22 @@ public:
         // index access.  I wanted to gather functions for index access here.
         result_type analyze_lhs_of_assign(type::type const& rhs_type) const
         {
-            if (access->type || !rhs_type) {
+            if (!rhs_type) {
+                // Note: Error already occurred.
+                return boost::none;
+            }
+
+            if (access->type) {
                 // Note:
                 // When the type of index access is already determined,
                 // it means that it doesn't need function call and already analyzed
                 // at visiting ast::node::index_access.
+
+                if (access->type != rhs_type) {
+                    return "  Type mismatch on assignment of indexed value.\n"
+                           "  Note: Lhs is '" + access->type.to_string() + "' but rhs is '" + rhs_type.to_string() + "'";
+                }
+
                 return boost::none;
             }
 
@@ -1699,7 +1710,7 @@ public:
             semantic_error(
                     if_,
                     boost::format(
-                        "  Type of condition in if expression must be bool\n"
+                        "  Type of condition in if expression must be 'bool'\n"
                         "  Note: Type of condition is '%1%'"
                     ) % condition_type.to_string()
                 );
@@ -3118,7 +3129,7 @@ public:
             [this](auto const& e)
             {
                 if (e->type != type::get_builtin_type("bool", type::no_opt)) {
-                    semantic_error(e, boost::format("  Type of condition must be bool but actually '%1%'") % e->type.to_string());
+                    semantic_error(e, boost::format("  Type of condition must be 'bool' but actually '%1%'") % e->type.to_string());
                 }
             }
             , expr
