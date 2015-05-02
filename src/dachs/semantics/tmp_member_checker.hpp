@@ -81,9 +81,8 @@ member_variable_checker::result_type
 check_member_var(ast::node::ufcs_invocation const& ufcs, type::type const& child_type, scope::any_scope const& current_scope)
 {
     if (ufcs->member_name == "__type") {
-        return type::make<type::array_type>(
-                type::get_builtin_type("char", type::no_opt),
-                child_type.to_string().size()
+        return type::make<type::pointer_type>(
+                type::get_builtin_type("char", type::no_opt)
             );
     }
 

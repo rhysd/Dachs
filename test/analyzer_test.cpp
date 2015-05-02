@@ -3556,4 +3556,13 @@ BOOST_AUTO_TEST_CASE(conversion)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(type_inspection)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (1, 'a', 3.14).__type.println
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

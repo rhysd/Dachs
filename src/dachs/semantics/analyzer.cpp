@@ -2137,6 +2137,7 @@ public:
             }
         }
 
+        // Note:
         // Check data member 'ufcs->member_name' of 'ufcs->child'.
         // Now, built-in data member is only available.
         auto const checked = check_member_var(ufcs, child_type, current_scope);
