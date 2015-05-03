@@ -820,14 +820,14 @@ BOOST_AUTO_TEST_CASE(string)
             ret c
         end
 
-        func main(args)
+        func main
             "abcdefghijklmnopqrstu".each(println)
             "abcdefghijklmnopqrstu".len.println
         end
     )");
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
-        func main(args)
+        func main
             var h := "hello"
             h2 := "hello"
             var i := 4
@@ -1447,21 +1447,21 @@ BOOST_AUTO_TEST_CASE(pointer)
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         import std.numeric
 
-        func main(args)
-            i := 3u
-            var p := new pointer(pointer(int)){i}
-            (0u...3u).each do |i|
+        func main
+            s := 3u
+            var p := new pointer(pointer(int)){s}
+            (0...3).each do |i|
                 p[i] = new pointer(int){3u}
             end
 
-            (0u...3u).each do |i|
-                (0u...3u).each do |j|
+            (0...3).each do |i|
+                (0...3).each do |j|
                     p[i][j] = i * j + i * j
                 end
             end
 
-            (0u...3u).each do |i|
-                (0u...3u).each do |j|
+            (0...3).each do |i|
+                (0...3).each do |j|
                     p[i][j].println
                 end
             end
@@ -1475,21 +1475,21 @@ BOOST_AUTO_TEST_CASE(pointer)
             a
         end
 
-        func main(args)
-            i := 3u
-            var p := new pointer(pointer(X(int))){i}
-            (0u...3u).each do |i|
+        func main
+            s := 3u
+            var p := new pointer(pointer(X(int))){s}
+            (0...3).each do |i|
                 p[i] = new pointer(X(int)){3u}
             end
 
-            (0u...3u).each do |i|
-                (0u...3u).each do |j|
+            (0...3).each do |i|
+                (0...3).each do |j|
                     p[i][j] = new X{i * j + i * j}
                 end
             end
 
-            (0u...3u).each do |i|
-                (0u...3u).each do |j|
+            (0...3).each do |i|
+                (0...3).each do |j|
                     p[i][j].a.println
                 end
             end

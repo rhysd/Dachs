@@ -51,7 +51,6 @@ class gc_alloc_emitter {
             );
 
         func->addFnAttr(llvm::Attribute::NoUnwind);
-        func->addFnAttr(llvm::Attribute::NoAlias);
 
         func_table.emplace(name, func);
 
