@@ -7,9 +7,9 @@
 #include "dachs/runtime.hpp"
 
 extern "C" {
-    std::uint64_t __dachs_cityhash__(char const* const s)
+    std::uint64_t __dachs_gen_symbol__(char const* const s, std::uint64_t const size)
     {
-        return dachs::runtime::cityhash64<std::uint64_t>{}(s, std::strlen(s));
+        return dachs::runtime::cityhash64<std::uint64_t>{}(s, size);
     }
 
     void __dachs_println_float__(double const d)

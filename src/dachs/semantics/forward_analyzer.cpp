@@ -93,6 +93,13 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a, syntax::importer &i)
             free_func->define_param(detail::make_global_func_param("ptr", dummy_template_type));
         }
 
+        {
+            // func gen_symbol(ptr, size)
+            auto gen_symbol_func = detail::make_global_func(scope_root, "__builtin_gen_symbol", type::get_builtin_type("symbol"));
+            gen_symbol_func->define_param(detail::make_global_func_param("ptr", type::make<type::pointer_type>(*type::get_builtin_type("char"))));
+            gen_symbol_func->define_param(detail::make_global_func_param("size", *type::get_builtin_type("uint")));
+        }
+
         // Operators
         // cast functions
     }

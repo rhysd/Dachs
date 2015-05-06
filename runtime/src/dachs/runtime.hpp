@@ -212,7 +212,7 @@ private:
 } // namespace dachs
 
 extern "C" {
-    std::uint64_t __dachs_cityhash__(char const* const s);
+    std::uint64_t __dachs_gen_symbol__(char const* const s, std::uint64_t const size);
     void __dachs_println_float__(double const d);
     void __dachs_println_int__(std::int64_t const i);
     void __dachs_println_uint__(std::uint64_t const u);

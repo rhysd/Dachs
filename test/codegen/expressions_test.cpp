@@ -922,6 +922,21 @@ BOOST_AUTO_TEST_CASE(realloc)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(gen_symbol)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            p := new pointer(char){4u}
+            p[0] = 'd'
+            p[1] = 'o'
+            p[2] = 'g'
+            p[3] = '\0'
+            sym := __builtin_gen_symbol(p, 3u)
+            sym == :dog
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(let_expr)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(

@@ -37,7 +37,7 @@ class builtin_function_emitter {
     // Argument type name -> Function
     using func_table_type = std::unordered_map<std::string, llvm::Function *const>;
     std::unordered_map<std::string, func_table_type> print_func_tables;
-    llvm::Function *cityhash_func = nullptr;
+    llvm::Function *gen_symbol_func = nullptr;
     func_table_type address_of_func_table;
     llvm::Function *getchar_func = nullptr;
     std::array<llvm::Function *, 2> fatal_funcs = {{nullptr, nullptr}};
@@ -109,13 +109,16 @@ public:
         return target_func;
     }
 
-    llvm::Function *emit_cityhash_func()
+    llvm::Function *emit_gen_symbol_func()
     {
         return create_cached_func_prototype(
-                cityhash_func,
-                "__dachs_cityhash__",
+                gen_symbol_func,
+                "__dachs_gen_symbol__",
                 c.builder.getInt64Ty(),
-                {c.builder.getInt8PtrTy()}
+                {
+                    c.builder.getInt8PtrTy(),
+                    c.builder.getInt64Ty()
+                }
             );
     }
 
@@ -397,6 +400,8 @@ public:
             return emit_realloc_func(arg_types[0], arg_types[1]);
         } else if (name == "__builtin_free") {
             return emit_free_func(arg_types[0]);
+        } else if (name == "__builtin_gen_symbol") {
+            return emit_gen_symbol_func();
         } // else ...
 
         return nullptr;

@@ -45,6 +45,14 @@ class string
         @data := new pointer(char){0u}
     end
 
+    cast : pointer(char)
+        ret @data
+    end
+
+    cast : symbol
+        ret __builtin_gen_symbol(@data, @size)
+    end
+
     # Note:
     # No need to define deep copy operator because 'string' is immutable.
 
@@ -58,10 +66,6 @@ class string
 
     func size
         ret @size
-    end
-
-    func _data
-        ret @data
     end
 
     func [](idx)
