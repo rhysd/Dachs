@@ -56,7 +56,11 @@ public:
     template<class Invocation>
     void visit_invocation(Invocation const& invocation) noexcept
     {
-        assert(!invocation->callee_scope.expired());
+        if (invocation->callee_scope.expired()) {
+            // Note: Already error occurred
+            return;
+        }
+
         auto const callee = invocation->callee_scope.lock();
         if (callee == scope) {
             return;
