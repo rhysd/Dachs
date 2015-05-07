@@ -1262,6 +1262,11 @@ public:
                 return;
             }
 
+            if (arr_lit->type.is_template()) {
+                semantic_error(arr_lit, "  Empty array must not be typed with template type");
+                return;
+            }
+
             if (auto const p = arr_lit->type.get_array_underlying_type()) {
                 visit_array_literal_construction(arr_lit, (*p)->pointee_type);
                 return;

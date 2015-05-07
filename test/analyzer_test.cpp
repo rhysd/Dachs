@@ -3579,4 +3579,17 @@ BOOST_AUTO_TEST_CASE(type_inspection)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(array)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+        end
+
+        func main
+            [] : [X]
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

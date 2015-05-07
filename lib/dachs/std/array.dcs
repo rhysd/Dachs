@@ -12,8 +12,15 @@ class array
     #     @buf := new pointer(typeof(rhs[0])){@size}
     # end
 
+    # Note:
+    # Unsafe! For internal use.
     init(@buf : pointer, @size : uint)
         @capacity := @size
+    end
+
+    # Note:
+    # Unsafe! For internal use.
+    init(@buf : pointer, @size : uint, @capacity : uint)
     end
 
     init(@size : uint, elem)
@@ -27,9 +34,11 @@ class array
     end
 
     init(s : int, block)
+        fatal("size must be positive") unless s >= 0
+
         @size := s as uint
         @capacity := @size
-        @buf := new pointer(typeof(block(0))){@size}
+        @buf := new pointer(typeof(block(0u))){@size}
         var i := 0u
         for i < @size
             @buf[i] = block(i)

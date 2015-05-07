@@ -926,7 +926,7 @@ BOOST_AUTO_TEST_CASE(gen_symbol)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func main
-            p := new pointer(char){4u}
+            var p := new pointer(char){4u}
             p[0] = 'd'
             p[1] = 'o'
             p[2] = 'g'
