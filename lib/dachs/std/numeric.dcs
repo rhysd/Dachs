@@ -55,64 +55,56 @@ func abs(i)
     end
 end
 
-cast(var i : int) : string
-    if i == 0
-        ret "0"
-    end
+# TODO
+# Caluculate the size of buffer for string in advance
+# to avoid resizing the buffer of array.
+func to_string(var i : int, b)
+    ret "0" if i == 0
 
+    base := b as int
     var buffer := [] : [char]
-    negative := i < 0
+    negate := i < 0
     i = i.abs
 
     for i != 0
-        buffer << (i % 10) as char + '0'
-        i = i / 10
+        buffer << ((i % base) as char).to_radix
+        i = i / base
     end
 
-    if negative
-        buffer << '-'
-        i = -i
-    end
+    buffer << '-' if negate
 
-    buffer.reverse'
-    ret string_of(buffer)
+    ret reverse_string_of(buffer)
 end
 
-cast(var u : uint) : string
-    if u == 0u
-        ret "0u"
-    end
+func to_string(i : int)
+    ret i.to_string(10)
+end
 
+# TODO
+# Caluculate the size of buffer for string in advance
+# to avoid resizing the buffer of array.
+func to_string(var u : uint, b)
+    ret "0u" if u == 0u
+
+    base := b as uint
     var buffer := ['u'] : [char]
 
     for u != 0u
-        buffer << (u % 10u) as char + '0'
-        u = u / 10u
+        buffer << ((u % base) as char).to_radix
+        u = u / base
     end
 
-    buffer.reverse'
-    ret string_of(buffer)
+    ret reverse_string_of(buffer)
 end
 
-# XXX:
-# This implementation is too bad.
-# I should use snprintf() to convert float value to string.
-cast(var f : float) : string
-    var buffer := [] : [char]
+func to_string(u : uint)
+    ret u.to_string(10u)
+end
 
-    integer := f.abs as int
-    decimal := begin
-        var i := ((f.abs - (integer as float)) * 1000000.0) as int
-        for i % 10 == 0
-            i /= 10
-        end
-        ret i
-    end
+cast(i : int) : string
+    ret i.to_string
+end
 
-    var builder := new string_builder
-
-    builder << "-" if f < 0.0
-    builder << integer as string << "." << decimal as string
-
-    ret builder.build
+cast(u : uint) : string
+    ret u.to_string
 end

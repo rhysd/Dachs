@@ -73,3 +73,25 @@ func string_of(cs : [char]) : string
     ret new string{p, cs.size}
 end
 
+func reverse_string_of(cs : [char]) : string
+    var p := new pointer(char){cs.size + 1u}
+    var i := 0u
+    for i < cs.size
+        p[i] = cs[cs.size - i - 1u]
+        i += 1u
+    end
+    p[i] = '\0'
+    ret new string{p, cs.size}
+end
+
+func to_radix(i) : char
+    n := i as int
+    case
+    when 0 <= n && n < 10
+        ret n as char + '0'
+    when 10 <= n && n < 36
+        ret (n - 10) as char + 'a'
+    else
+        fatal("invalid radix")
+    end
+end
