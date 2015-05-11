@@ -80,6 +80,10 @@ class array
         ret @buf
     end
 
+    func reserve(size)
+        @expand_buf(size) if @capacity < size
+    end
+
     func out_of_bounds?(idx)
         i := idx as int
         ret i < 0 || @size <= i
@@ -220,7 +224,8 @@ class array
         ret @capacity if new_size <= @capacity
 
         if @capacity == 0u
-            ret new_size * 2u
+            c := new_size * 2u
+            ret (if c > 3u then c else 3u)
         end
 
         var c := @capacity
@@ -239,9 +244,7 @@ class array
     func <<(rhs : array)
         c := @new_capacity(rhs.size)
 
-        if c > @capacity
-            @expand_buf(c)
-        end
+        @expand_buf(c) if c > @capacity
 
         var i := 0u
         for i < rhs.size
@@ -256,9 +259,7 @@ class array
 
     func <<(elem)
         c := @new_capacity(1u)
-        if c > @capacity
-            @expand_buf(c)
-        end
+        @expand_buf(c) if c > @capacity
 
         @buf[@size] = elem
         @size += 1u

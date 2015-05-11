@@ -205,8 +205,9 @@ BOOST_AUTO_TEST_CASE(do_)
     )");
 }
 
-BOOST_AUTO_TEST_CASE(lambda_return_type_deduction)
+BOOST_AUTO_TEST_CASE(lambda_return_type)
 {
+    // Deduction
     CHECK_NO_THROW_SEMANTIC_ERROR(R"(
         func foo(a, p)
             if a < 0
@@ -220,6 +221,24 @@ BOOST_AUTO_TEST_CASE(lambda_return_type_deduction)
             42.foo do |i|
                 ret i * 2
             end.println
+        end
+    )");
+
+    // Return type
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            f := -> (a, b) : int in a + b
+            f(1, 2).println
+
+            g := -> (h) : int in h(1, 2)
+            g(f).println
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            f := -> (a, b) : float in a + b
+            f(1, 2).println
         end
     )");
 }

@@ -520,29 +520,42 @@ public:
         // So, at first bind the parameters to _a and if "in" is parsed correctly, then substitute _a to _b.
         // Finally _b is used to construct ast::node::function_definition.
         lambda_expr_oneline
-            = "->" >> -qi::eol >> (
+            = "->" >> -qi::eol >>
+            (
                 (
-                   ('(' >> -(parameter[phx::push_back(_a, _1)] % comma >> trailing_comma) >> ')' >> -qi::eol >> DACHS_KWD("in")[_b = _a])
-                | -(
-                      (parameter - "in")[phx::push_back(_a, _1)] % comma >> trailing_comma >> DACHS_KWD("in")[_b = _a]
-                   )
-                ) >> -qi::eol >> typed_expr
-            ) [
+                    '(' >> -(
+                        parameter[phx::push_back(_a, _1)] % comma >> trailing_comma
+                    ) >> ')' >> -(
+                        ':' > qualified_type[_c = _1]
+                    ) >> -qi::eol
+                    >> DACHS_KWD("in")[_b = _a]
+                ) | -(
+                    (parameter - "in")[phx::push_back(_a, _1)] % comma >> trailing_comma
+                    >> DACHS_KWD("in")[_b = _a]
+                )
+            ) >> -qi::eol
+            >> typed_expr[
                 _val = make_node_ptr<ast::node::function_definition>(
                     _b,
                     make_node_ptr<ast::node::statement_block>(
-                        make_node_ptr<ast::node::return_stmt>(_2)
-                    )
+                        make_node_ptr<ast::node::return_stmt>(_1)
+                    ),
+                    _c
                 )
             ];
 
         lambda_expr_do_end
             = "->" >> -qi::eol >> (
                 (
-                    ('(' >> -(parameter % comma >> trailing_comma) >> ')') | -((parameter - "do") % comma)
+                    (
+                        '(' >> -(parameter % comma >> trailing_comma) >> ')'
+                        >> -qi::omit[':' > qualified_type[_a = _1]]
+                    ) | -(
+                        (parameter - "do") % comma
+                    )
                 ) >> -qi::eol >> DACHS_KWD("do") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
             ) [
-                _val = make_node_ptr<ast::node::function_definition>(as_vector(_1), _2)
+                _val = make_node_ptr<ast::node::function_definition>(as_vector(_1), _2, _a)
             ];
 
         lambda_expr
@@ -1717,7 +1730,7 @@ private:
     rule<bool()> boolean_literal;
     rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
     rule<ast::node::initialize_stmt()> constant_definition;
-    rule<ast::node::function_definition()> do_block, lambda_expr_do_end, constructor, copier, converter;
+    rule<ast::node::function_definition()> do_block, constructor, copier, converter;
     rule<ast::node::statement_block()> do_stmt;
     rule<bool()> access_specifier;
     rule<ast::node::function_definition(), qi::locals<bool>> method_definition;
@@ -1759,9 +1772,17 @@ private:
         ast::node::function_definition(),
         qi::locals<
             std::vector<ast::node::parameter>,
-            std::vector<ast::node::parameter>
+            std::vector<ast::node::parameter>,
+            boost::optional<ast::node::any_type>
         >
     >  lambda_expr_oneline;
+
+    rule<
+        ast::node::function_definition(),
+        qi::locals<
+            boost::optional<ast::node::any_type>
+        >
+    > lambda_expr_do_end;
 
     rule<ast::node::any_type()>
           primary_type

@@ -1141,12 +1141,16 @@ struct function_definition final : public statement {
 
     // Note:
     // For lambda expression and do-end block
-    function_definition(decltype(params) const& p, node::statement_block const& b) noexcept
+    function_definition(
+            decltype(params) const& p,
+            node::statement_block const& b,
+            decltype(return_type) const& r = boost::none
+    ) noexcept
         : statement()
         , kind(symbol::func_kind::func)
         , name("")
         , params(p)
-        , return_type(boost::none)
+        , return_type(r)
         , body(b)
         , ensure_body(boost::none)
     {}

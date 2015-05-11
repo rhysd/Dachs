@@ -1185,6 +1185,26 @@ BOOST_AUTO_TEST_CASE(lambda_expr)
                 println("fuga")
             end().println
 
+            -> (a, b) : int in a + b
+            -> (a, b) : klass(int, float)
+            in
+                a + b
+            -> () : int in 42
+            -> () : in in 42
+
+            -> (a, b) : int do
+                ret a + b
+            end
+            -> (a, b) : klass(int, float)
+            do
+                ret a + b
+            end
+            -> () : int do
+                ret 42
+            end
+            -> () : do do
+                ret 42
+            end
         end
     )"));
 
