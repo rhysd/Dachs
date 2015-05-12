@@ -506,6 +506,17 @@ class symbol_analyzer {
         // Replace types of params with instantiated types
         assert(instantiated_func_def->params.size() == arg_types.size());
 
+        if (instantiated_func_scope->is_anonymous()) {
+            // Note:
+            // If the instantiated function is anonymous, it should also be defined in global scope.
+            // This is because function scope for lambda is defined in local scope ('unnamed_funcs' member variable).
+            // Function scopes in local scope are not target of overload resolution.  So, lambda function scopes are
+            // also defined in global scope at visiting ast::node::lambda_expr.
+            // (see 'void visit(ast::node::lambda_expr const&, Walker const&)')
+            // Instantiated functions from anonymous function templates should also be treated as the same.
+            global->define_function(instantiated_func_scope);
+        }
+
         helper::each(
                 [](auto &def_param, auto const& arg, auto &scope_param)
                 {
@@ -542,17 +553,6 @@ class symbol_analyzer {
 
         // Add instantiated function to function template node in AST
         func_template_def->instantiated.push_back(instantiated_func_def);
-
-        if (instantiated_func_scope->is_anonymous()) {
-            // Note:
-            // If the instantiated function is anonymous, it should also be defined in global scope.
-            // This is because function scope for lambda is defined in local scope ('unnamed_funcs' member variable).
-            // Function scopes in local scope are not target of overload resolution.  So, lambda function scopes are
-            // also defined in global scope at visiting ast::node::lambda_expr.
-            // (see 'void visit(ast::node::lambda_expr const&, Walker const&)')
-            // Instantiated functions from anonymous function templates should also be treated as the same.
-            global->define_function(instantiated_func_scope);
-        }
 
         return std::make_pair(instantiated_func_def, instantiated_func_scope);
     }

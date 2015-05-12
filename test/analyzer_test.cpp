@@ -241,6 +241,14 @@ BOOST_AUTO_TEST_CASE(lambda_return_type)
             f(1, 2).println
         end
     )");
+
+    // Compiler can compile below only when return type is specified (#68)
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            g := -> (h) : int in h(h)
+            g(g)
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(no_lambda_capture_found)

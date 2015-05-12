@@ -1,0 +1,21 @@
+func main
+    y := -> f in
+            let
+                g := -> h in f(-> a in h(h)(a))
+            in
+                g(g)
+
+    # Note:
+    # Return type of the lambda must be specified because
+    # compiler can't deduce it from returned expression.
+    fact := -> f in
+                -> (n) : int in
+                    if n == 0 then 1 else n * f(n-1)
+
+    fib := -> f in
+                -> (n) : int in
+                    if n <= 1 then 1 else f(n-1) + f(n-2)
+
+    y(fact)(10).println #=> 3628800
+    y(fib)(10).println  #=> 89
+end
