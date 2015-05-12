@@ -22,6 +22,7 @@
 #include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/gc_alloc_emitter.hpp"
+#include "dachs/codegen/llvmir/ir_builder_helper.hpp"
 #include "dachs/exception.hpp"
 
 namespace dachs {
@@ -33,6 +34,7 @@ class builtin_function_emitter {
     context &c;
     type_ir_emitter &type_emitter;
     detail::gc_alloc_emitter &gc_emitter;
+    builder::inst_emit_helper &inst_emitter;
 
     // Argument type name -> Function
     using func_table_type = std::unordered_map<std::string, llvm::Function *const>;
@@ -84,8 +86,18 @@ class builtin_function_emitter {
 
 public:
 
-    builtin_function_emitter(llvm::Module &m, decltype(c) &ctx, type_ir_emitter &te, detail::gc_alloc_emitter &ge) noexcept
-        : module(m), c(ctx), type_emitter(te), gc_emitter(ge)
+    builtin_function_emitter(
+            llvm::Module &m,
+            decltype(c) &ctx,
+            type_ir_emitter &te,
+            detail::gc_alloc_emitter &ge,
+            builder::inst_emit_helper &ie
+        ) noexcept
+        : module(m)
+        , c(ctx)
+        , type_emitter(te)
+        , gc_emitter(ge)
+        , inst_emitter(ie)
     {}
 
     template<class Table, class Type>
@@ -348,22 +360,7 @@ public:
         c.builder.SetInsertPoint(body);
         gc_emitter.emit_free(arg_value);
 
-        auto *unit_constant
-            = module.getGlobalVariable("unit", true /*Allow internal*/);
-
-        if (!unit_constant) {
-            unit_constant = new llvm::GlobalVariable(
-                        module,
-                        llvm::StructType::get(c.llvm_context, {}),
-                        true,
-                        llvm::GlobalValue::PrivateLinkage,
-                        llvm::ConstantStruct::getAnon(c.llvm_context, {}),
-                        "unit"
-                    );
-            unit_constant->setUnnamedAddr(true);
-        }
-
-        c.builder.CreateRet(unit_constant);
+        c.builder.CreateRet(inst_emitter.emit_unit_constant());
 
         c.builder.SetInsertPoint(saved_insert_point);
 

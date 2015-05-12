@@ -85,11 +85,11 @@ class llvm_ir_emitter {
     std::stack<llvm::BasicBlock *> loop_stack; // Loop stack for continue and break statements
     type_ir_emitter type_emitter;
     gc_alloc_emitter gc_emitter;
-    builtin_function_emitter builtin_func_emitter;
     tmp_member_ir_emitter member_emitter;
     std::unordered_map<scope::class_scope, llvm::Type *const> class_table;
     builder::allocation_helper alloc_helper;
     builder::inst_emit_helper inst_emitter;
+    builtin_function_emitter builtin_func_emitter;
     tmp_constructor_ir_emitter<llvm_ir_emitter> builtin_ctor_emitter;
 
     val lookup_var(symbol::var_symbol const& s) const
@@ -645,10 +645,10 @@ public:
         , file(f)
         , type_emitter(ctx.llvm_context, sc.lambda_captures)
         , gc_emitter(c, type_emitter, *module)
-        , builtin_func_emitter(m, ctx, type_emitter, gc_emitter)
         , member_emitter(ctx)
         , alloc_helper(ctx, type_emitter, gc_emitter, sc.lambda_captures, semantics_ctx, m)
-        , inst_emitter(ctx, type_emitter)
+        , inst_emitter(ctx, type_emitter, m)
+        , builtin_func_emitter(m, ctx, type_emitter, gc_emitter, inst_emitter)
         , builtin_ctor_emitter(ctx, type_emitter, gc_emitter, alloc_helper, module, *this)
     {}
 
@@ -727,22 +727,7 @@ public:
     val emit_tuple_constant(type::tuple_type const& t, std::vector<ast::node::any_expr> const& elem_exprs)
     {
         if (elem_exprs.empty()) {
-            auto *unit_constant
-                = module->getGlobalVariable("unit", true /*Allow internal*/);
-
-            if (!unit_constant) {
-                unit_constant = new llvm::GlobalVariable(
-                        *module,
-                        llvm::StructType::get(ctx.llvm_context, {}),
-                        true,
-                        llvm::GlobalValue::PrivateLinkage,
-                        llvm::ConstantStruct::getAnon(ctx.llvm_context, {}),
-                        "unit"
-                    );
-                unit_constant->setUnnamedAddr(true);
-            }
-
-            return unit_constant;
+            return inst_emitter.emit_unit_constant();
         }
 
         std::vector<val> elem_values;

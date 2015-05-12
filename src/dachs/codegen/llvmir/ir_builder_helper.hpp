@@ -173,13 +173,14 @@ public:
 class inst_emit_helper {
     context &ctx;
     type_ir_emitter &type_emitter;
+    llvm::Module &module;
 
     using probable_type = helper::probable<llvm::Value *>;
 
 public:
 
-    inst_emit_helper(context &c, type_ir_emitter &e)
-        : ctx(c), type_emitter(e)
+    inst_emit_helper(context &c, type_ir_emitter &e, llvm::Module &m) noexcept
+        : ctx(c), type_emitter(e), module(m)
     {}
 
     llvm::Value *emit_elem_value(llvm::Value *const v, type::type const& t)
@@ -264,6 +265,26 @@ public:
                 ),
                 t->pointee_type
             );
+    }
+
+    llvm::GlobalVariable *emit_unit_constant()
+    {
+        auto *unit_constant
+            = module.getGlobalVariable("const.unit", true /*Allow internal*/);
+
+        if (!unit_constant) {
+            unit_constant = new llvm::GlobalVariable(
+                    module,
+                    llvm::StructType::get(ctx.llvm_context, {}),
+                    true,
+                    llvm::GlobalValue::PrivateLinkage,
+                    llvm::ConstantStruct::getAnon(ctx.llvm_context, {}),
+                    "const.unit"
+                );
+            unit_constant->setUnnamedAddr(true);
+        }
+
+        return unit_constant;
     }
 };
 
