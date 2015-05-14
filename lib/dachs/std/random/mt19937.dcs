@@ -1,0 +1,124 @@
+class mt19937
+    mt : [uint]
+    mti : uint
+    n : uint
+    m : uint
+    matrix_a : uint
+    upper_mask : uint
+    lower_mask : uint
+
+    init(seeds : [uint])
+        @mt := new [uint]{624u, 0u}
+        @mti := 625u
+        @n := 624u
+        @m := 397u
+        @matrix_a := 0x9908b0dfu
+        @upper_mask := 0x80000000u
+        @lower_mask := 0x7fffffffu
+        @init_by_array(seeds)
+    end
+
+    init(seed : uint)
+        @mt := new [uint]{624u, 0u}
+        @mti := 625u
+        @n := 624u
+        @m := 397u
+        @matrix_a := 0x9908b0dfu
+        @upper_mask := 0x80000000u
+        @lower_mask := 0x7fffffffu
+        @init_by_array([seed])
+    end
+
+    func new_seed(seeds : [uint])
+        @init_by_array(seeds)
+    end
+
+  - func init_genrand(s)
+        @mt[0u] = s
+        @mti = 1u
+        for @mti < @n
+            @mt[@mti] = 1812433253u * (@mt[@mti-1u] ^ (@mt[@mti-1u] >> 30u)) + @mti
+            @mti += 1u
+        end
+    end
+
+  - func init_by_array(init_key) : ()
+        key_len := init_key.size
+        @init_genrand(19650218u)
+
+        var i := 1u
+        var j := 0u
+        var k := if @n > key_len then @n else key_len
+
+        for k > 0u
+            @mt[i] = @mt[i] ^ (@mt[i-1u] ^ (@mt[i-1u] >> 30u) * 1664525u) + init_key[j] + j
+            i += 1u
+            j += 1u
+
+            if i >= @n
+                @mt[0u] = @mt[@n-1u]
+                i = 1u
+            end
+
+            if j >= key_len
+                j = 0u
+            end
+
+            k -= 1u
+        end
+
+        k = @n - 1u
+
+        for k > 0u
+            @mt[i] = @mt[i] ^ (@mt[i-1u] ^ (@mt[i-1u] >> 30u) * 1566083941u) - i
+            i += 1u
+            if i >= @n
+                @mt[0u] = @mt[@n-1u]
+                i = 1u
+            end
+
+            k -= 1u
+        end
+
+        @mt[0u] = 0x80000000u
+    end
+
+    func gen
+        var y : uint
+
+        if @mti >= @n
+            mag01 := [0u, @matrix_a]
+
+            @init_genrand(5489u) if @mti == @n + 1u
+
+            var kk := 0u
+
+            for kk < @n - @m
+                y = (@mt[kk] & @upper_mask) | (@mt[kk+1u] & @lower_mask)
+                @mt[kk] = (@mt[kk+@m] ^ (y >> 1u)) ^ mag01[y % 2u]
+                kk += 1u
+            end
+
+            for kk < @n - 1u
+                y = (@mt[kk] & @upper_mask) | (@mt[kk+1u] & @lower_mask)
+                @mt[kk] = (@mt[kk+@m-@n] ^ (y >> 1u)) ^ mag01[y % 2u]
+                kk += 1u
+            end
+
+            y = (@mt[@n-1u] & @upper_mask) | (@mt[0u] & @lower_mask)
+            @mt[@n-1u] = (@mt[@m-1u] ^ (y >> 1u)) ^ mag01[y % 2u]
+            @mti = 0u
+        end
+
+        y = @mt[@mti]
+        @mti += 1u
+
+        y = y ^ (y >> 11u)
+        y = y ^ ((y << 7u) & 0x9d2c5680u)
+        y = y ^ ((y << 15u) & 0xefc60000u)
+        y = y ^ (y >> 18u)
+
+        ret y
+    end
+end
+

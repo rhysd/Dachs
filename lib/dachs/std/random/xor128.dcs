@@ -1,0 +1,41 @@
+class xor128
+    - x : uint
+    , y : uint
+    , z : uint
+    , w : uint
+
+    init(@x, @y, @z, @w)
+    end
+
+    init
+        @x := 123456789u
+        @y := 362436069u
+        @z := 521288629u
+        @w := 88675123u
+    end
+
+    init(seed)
+        @x := seed
+        @y := 362436069u
+        @z := 521288629u
+        @w := 88675123u
+    end
+
+    func new_seed(seeds)
+        @x = seeds[0u % seeds.size]
+        @y = seeds[1u % seeds.size]
+        @z = seeds[2u % seeds.size]
+        @w = seeds[3u % seeds.size]
+    end
+
+    func gen
+        t := @x ^ (@x << 11u)
+        w := @w
+        @x = @y
+        @y = @z
+        @z = @w
+        @w = (w ^ (w << 19u)) ^ (t ^ (t << 8u))
+        ret @w
+    end
+end
+
