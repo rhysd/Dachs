@@ -1,0 +1,27 @@
+# Rust example written in Dachs
+# http://www.rust-lang.org/
+
+func main
+    #{
+      A simple integer calculator:
+        `+` or `-` means add or subtract by 1
+        `*` or `/` means multiply or divide by 2
+    }#
+
+    program := "+ + * - /"
+    var accumulator := 0
+
+    for token in program.chars
+        case token
+        when '+' then accumulator += 1
+        when '-' then accumulator -= 1
+        when '*' then accumulator *= 2
+        when '/' then accumulator /= 2
+        else          # Ignore it
+        end
+    end
+
+    # Dachs currently has poor print function yet ;(
+    ["The problem \"", program, "\" calculates the value "].each(print)
+    println(accumulator)
+end
