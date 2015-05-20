@@ -1073,15 +1073,27 @@ public:
 
         func_type
             = (
-                // Note: No need to use DACHS_KWD() because '(' or ':' follows it
-                "func" >> -('(' >> -(-qi::eol >> qualified_type % comma >> trailing_comma) >> ')') >>
-                -qi::eol >> ':' >> -qi::eol >> qualified_type
+                // Note: No need to use DACHS_KWD() because '(' follows it
+                "func"_l >> '(' >> -(
+                    -qi::eol >> qualified_type % comma >> trailing_comma
+                ) >> ')'
+                >> -(
+                    -qi::eol >> ':' >> -qi::eol >> qualified_type
+                )
             ) [
                 make_and_assign_to_val<ast::node::func_type>(as_vector(_1), _2)
             ] | (
-                DACHS_KWD("proc") >> -('(' >> -(-qi::eol >> qualified_type % comma >> trailing_comma) >> ')')
+                "proc"_l >> '(' >> -(
+                    -qi::eol >> qualified_type % comma >> trailing_comma
+                ) >> ')'
             ) [
                 make_and_assign_to_val<ast::node::func_type>(as_vector(_1))
+            ] | (
+                // Note:
+                // Special case for callable types template 'func'
+                DACHS_KWD("func")
+            ) [
+                make_and_assign_to_val<ast::node::func_type>()
             ];
 
         typeof_type

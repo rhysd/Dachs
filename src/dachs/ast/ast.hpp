@@ -816,14 +816,20 @@ struct tuple_type final : public base {
 struct func_type final : public base {
     std::vector<node::any_type> arg_types;
     boost::optional<node::any_type> ret_type = boost::none;
+    bool parens_missing = false;
 
-    func_type(decltype(arg_types) const& arg_t
-            , node::any_type const& ret_t) noexcept
-        : base(), arg_types(arg_t), ret_type(ret_t)
+    func_type(decltype(arg_types) const& a
+            , decltype(ret_type) const& r) noexcept
+        : base(), arg_types(a), ret_type(r)
     {}
 
     explicit func_type(decltype(arg_types) const& arg_t) noexcept
         : base(), arg_types(arg_t)
+    {}
+
+    // Note: For callable types template
+    func_type() noexcept
+        : base(), arg_types(), parens_missing(true)
     {}
 
     std::string to_string() const noexcept override
