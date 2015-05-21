@@ -28,6 +28,7 @@ class node_to_type_translator
     scope::any_scope const& current_scope;
     boost::optional<Analyzer &> analyzer = boost::none;
     boost::optional<std::string> failed_name = boost::none;
+    bool allow_omit_return = false;
 
     template<class T>
     any_type apply_recursively(T const& t)
@@ -37,12 +38,12 @@ class node_to_type_translator
 
 public:
 
-    explicit node_to_type_translator(scope::any_scope const& c)
-        : current_scope(c)
+    explicit node_to_type_translator(scope::any_scope const& c, bool const allow = false)
+        : current_scope(c), allow_omit_return(allow)
     {}
 
-    node_to_type_translator(scope::any_scope const& c, Analyzer &a)
-        : current_scope(c), analyzer(a)
+    node_to_type_translator(scope::any_scope const& c, Analyzer &a, bool const allow = false)
+        : current_scope(c), analyzer(a), allow_omit_return(allow)
     {}
 
     boost::optional<std::string> const& failed()
@@ -139,6 +140,9 @@ public:
                     apply_recursively(*(t->ret_type))
                 )};
         } else {
+            if (!allow_omit_return) {
+                failed_name = "function type missing return type";
+            }
             return {make<func_type>(std::move(param_types))};
         }
     }
@@ -180,15 +184,21 @@ helper::probable<any_type> from_ast_impl(ast::node::any_type const& t, Visitor &
 } // namespace detail
 
 template<class Analyzer>
-helper::probable<any_type> from_ast(ast::node::any_type const& t, scope::any_scope const& current)
+helper::probable<any_type> from_ast(
+        ast::node::any_type const& t,
+        scope::any_scope const& current)
 {
     return detail::from_ast_impl(t, detail::node_to_type_translator<Analyzer>{current});
 }
 
 template<class Analyzer>
-helper::probable<any_type> from_ast(ast::node::any_type const& t, scope::any_scope const& current, Analyzer &a)
+helper::probable<any_type> from_ast(
+        ast::node::any_type const& t,
+        scope::any_scope const& current,
+        Analyzer &a,
+        bool const allow_omit_return = false)
 {
-    return detail::from_ast_impl(t, detail::node_to_type_translator<Analyzer>{current, a});
+    return detail::from_ast_impl(t, detail::node_to_type_translator<Analyzer>{current, a, allow_omit_return});
 }
 
 } // namespace type

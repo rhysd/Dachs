@@ -590,9 +590,9 @@ class symbol_analyzer {
         return func;
     }
 
-    type::type from_type_node(ast::node::any_type const& n) noexcept
+    type::type from_type_node(ast::node::any_type const& n, bool const allow_omit_return = false) noexcept
     {
-        return type::from_ast<decltype(*this)>(n, current_scope, *this).apply(
+        return type::from_ast<decltype(*this)>(n, current_scope, *this, allow_omit_return).apply(
                 [](auto const& success){ return success; },
                 [&, this](auto const& failure)
                 {
@@ -2117,12 +2117,14 @@ public:
     void visit(ast::node::cast_expr const& cast, Walker const& w)
     {
         w();
-        cast->type = from_type_node(cast->cast_type);
+        cast->type = from_type_node(cast->cast_type, true);
+
+        if (!cast->type) {
+            semantic_error(cast, "  Invalid conversion type");
+            return;
+        }
 
         if (!instantiate_param_types(cast->type, cast)) {
-            semantic_error(cast, boost::format(
-                    "  Failed to instantiate casted type '%1%'"
-                ) % cast->type.to_string());
             return;
         }
 
