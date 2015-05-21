@@ -3646,6 +3646,11 @@ BOOST_AUTO_TEST_CASE(function_conversion)
             bar as func(char, char)
             bar as func(char, char) : bool
             baz as func(int, X(int)) : int
+
+            (foo as func(int, int))(1, 2)
+            x := new X{42}
+            b := baz as func(int, X(int))
+            b(x.a, x)
         end
     )");
 
@@ -3686,6 +3691,28 @@ BOOST_AUTO_TEST_CASE(function_conversion)
 
         func main
             foo as func(int, char)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j)
+            ret i + j
+        end
+
+        func main
+            f := foo as func(int, int)
+            f(1, 2, 3)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j)
+            ret i + j
+        end
+
+        func main
+            f := foo as func(int, int)
+            f(1, 2.0)
         end
     )");
 }

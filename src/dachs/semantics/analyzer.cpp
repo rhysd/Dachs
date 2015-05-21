@@ -1918,6 +1918,51 @@ public:
             return;
         }
 
+        std::vector<type::type> arg_types;
+        arg_types.reserve(invocation->args.size() + 1); // +1 for do block
+        // Get type list of arguments
+        boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return type_of(e);});
+
+        for (auto const& arg_type : arg_types) {
+            if (!arg_type) {
+                return;
+            }
+        }
+
+        if (auto const non_generic_func = type::get<type::func_type>(child_type)) {
+            auto const& f = *non_generic_func;
+
+            if (invocation->args.size() != f->param_types.size()) {
+                semantic_error(
+                        invocation,
+                        boost::format(
+                            "  Wrong number of arguments: %1% for %2%"
+                        ) % invocation->args.size() % f->param_types.size()
+                    );
+                return;
+            }
+
+            for (auto const idx : helper::indices(arg_types)) {
+                if (arg_types[idx] != f->param_types[idx]) {
+                    semantic_error(
+                        invocation,
+                        boost::format(
+                            "  %1% argument in function call causes type mismatch: '%2%' for '%3%'\n"
+                            "  Note: the function type is '%4%'"
+                        ) % helper::to_ordinal(idx + 1u)
+                          % arg_types[idx].to_string()
+                          % f->param_types[idx].to_string()
+                          % f->to_string()
+                    );
+                    return;
+                }
+            }
+
+            assert(f->return_type);
+            invocation->type = *f->return_type;
+            return;
+        }
+
         auto const maybe_func_type = type::get<type::generic_func_type>(child_type);
         if (!maybe_func_type) {
             semantic_error(
@@ -1938,17 +1983,6 @@ public:
             return;
         }
         assert(!func_type->ref->expired());
-
-        std::vector<type::type> arg_types;
-        arg_types.reserve(invocation->args.size() + 1); // +1 for do block
-        // Get type list of arguments
-        boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return type_of(e);});
-
-        for (auto const& arg_type : arg_types) {
-            if (!arg_type) {
-                return;
-            }
-        }
 
         auto callee_scope = func_type->ref->lock();
         auto const error = visit_invocation(invocation, callee_scope->name, arg_types);
