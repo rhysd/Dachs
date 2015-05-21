@@ -131,13 +131,15 @@ public:
             param_types.push_back(apply_recursively(a));
         }
 
-        if (t->ret_type) {
+        if (t->parens_missing) {
+            throw not_implemented_error{__FILE__, __func__, __LINE__, "callable types template"};
+        } else if (t->ret_type) {
             return {make<func_type>(
                     std::move(param_types),
                     apply_recursively(*(t->ret_type))
                 )};
         } else {
-            return {make<func_type>(std::move(param_types), get_unit_type(), ast::symbol::func_kind::proc)};
+            return {make<func_type>(std::move(param_types))};
         }
     }
 

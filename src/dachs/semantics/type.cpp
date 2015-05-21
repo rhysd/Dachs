@@ -162,7 +162,12 @@ public:
             param_type_nodes.push_back(apply_recursively(p));
         }
 
-        return make<ast::node::func_type>(param_type_nodes, apply_recursively(t->return_type));
+        if (t->return_type) {
+            return make<ast::node::func_type>(param_type_nodes, apply_recursively(*t->return_type));
+        } else {
+            return make<ast::node::func_type>(param_type_nodes);
+        }
+
     }
 
     result_type operator()(generic_func_type const& t) const
@@ -223,6 +228,17 @@ struct instantiation_checker : boost::static_visitor<bool> {
             }
         }
         return false;
+    }
+
+    result_type visit(boost::optional<any_type> const& l, boost::optional<any_type> const& r) const noexcept
+    {
+        if (l && r) {
+            return visit(*l, *r);
+        } else if (!l && !r) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     result_type operator()(class_type const& l, class_type const& r) const noexcept
@@ -769,7 +785,17 @@ struct fuzzy_matcher : boost::static_visitor<bool> {
 
     bool operator()(func_type const& lhs, func_type const& rhs) const
     {
-        return apply_all(lhs->param_types, rhs->param_types) && apply(lhs->return_type, rhs->return_type);
+        auto const& lr = lhs->return_type;
+        auto const& rr = rhs->return_type;
+
+        if (lr && rr) {
+            return apply_all(lhs->param_types, rhs->param_types) && apply(*lr, *rr);
+        } else if (!lr && !rr) {
+            return apply_all(lhs->param_types, rhs->param_types);
+        } else {
+            // XXX: Should below be true in fuzzy match context?
+            return false;
+        }
     }
 
     bool operator()(array_type const& lhs, array_type const& rhs) const

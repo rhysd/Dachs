@@ -265,8 +265,10 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
 
     result_type operator()(type::func_type const& t)
     {
-        if (auto const err = visit(t->return_type)) {
-            return err;
+        if (t->return_type) {
+            if (auto const err = visit(*t->return_type)) {
+                return err;
+            }
         }
         return visit(t->param_types);
     }
@@ -2045,6 +2047,72 @@ public:
         typed->type = actual_type;
     }
 
+    void instantiate_generic_func(
+            ast::node::cast_expr const& node,
+            type::generic_func_type const& from,
+            type::func_type const& to)
+    {
+        if (to->is_callable_template) {
+            semantic_error(node, "  Callable type template 'func' can ONLY be specified in function parameter.");
+            return;
+        }
+
+        auto scope = from->ref->lock();
+
+        auto const saved_failed = failed;
+        auto const func_candidates =
+            with_current_scope(
+                    [&](auto const& s)
+                    {
+                        return s->resolve_func(scope->name, to->param_types);
+                    }
+                );
+
+        if (failed - saved_failed != 0u) {
+            semantic_error(
+                    node,
+                    boost::format(
+                        "  Error occured while converting generic type '%1%' to function type '%2%'"
+                    ) % from->to_string() % to->to_string()
+                );
+            return;
+        }
+
+        if (func_candidates.empty()) {
+            semantic_error(
+                    node,
+                    boost::format(
+                        "  No function or overload candidate is found for '%1%'"
+                    ) % scope->to_string()
+                );
+            return;
+        }
+
+        assert(func_candidates.size() == 1u);
+        auto func = std::move(*std::begin(func_candidates));
+
+        if (func->is_template()) {
+            auto def = func->get_ast_node();
+            std::tie(std::ignore, func) = instantiate_function_from_template(def, func, to->param_types);
+        }
+
+        if (to->return_type) {
+            if (*func->ret_type != *to->return_type) {
+                semantic_error(
+                        node,
+                        boost::format(
+                            "  Return type mismatch.\n"
+                            "  The actual return type of function is '%1%' but '%2%' is specified as function type"
+                        ) % func->ret_type->to_string()
+                          % to->return_type->to_string()
+                    );
+                return;
+            }
+        }
+
+        node->casted_func_scope = func;
+    }
+
     template<class Walker>
     void visit(ast::node::cast_expr const& cast, Walker const& w)
     {
@@ -2059,15 +2127,25 @@ public:
         }
 
         auto const child_type = type_of(cast->child);
-        if ((!cast->type.is_aggregate() && !child_type.is_aggregate())
-                || child_type == cast->type) {
-            return;
-        }
 
         if (cast->type.is_template()) {
             semantic_error(cast, boost::format(
                     "  Can not cast to template type '%1%'"
                 ) % cast->type.to_string());
+            return;
+        }
+
+        // Note:
+        // Generic function type to specific function type conversion
+        if (auto const& f = type::get<type::func_type>(cast->type)) {
+            if (auto const& g = type::get<type::generic_func_type>(child_type)) {
+                instantiate_generic_func(cast, *g, *f);
+                return;
+            }
+        }
+
+        if ((!cast->type.is_aggregate() && !child_type.is_aggregate())
+                || child_type == cast->type) {
             return;
         }
 

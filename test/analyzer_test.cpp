@@ -3619,4 +3619,75 @@ BOOST_AUTO_TEST_CASE(array)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(function_conversion)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo(a, b)
+            ret a + b
+        end
+
+        func bar(a, b)
+            ret true
+        end
+
+        class X
+            a
+        end
+
+        func baz(a, b : X)
+            ret a + b.a
+        end
+
+        func main
+            foo as func(int, int)
+            foo as func(int, int) : int
+            foo as func(char, char)
+            foo as func(char, char) : char
+            bar as func(char, char)
+            bar as func(char, char) : bool
+            baz as func(int, X(int)) : int
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j)
+            ret i + j
+        end
+
+        func main
+            foo as func(int)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j : int)
+            ret i + j
+        end
+
+        func main
+            foo as func(int, char)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j : int)
+            ret i + j
+        end
+
+        func main
+            foo as func(int, char)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j)
+            ret i + j
+        end
+
+        func main
+            foo as func(int, char)
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -194,11 +194,7 @@ public:
 
     auto copy(node::func_type const& ft) const
     {
-        if (ft->ret_type) {
-            return copy_node(ft, copy(ft->arg_types), copy(*ft->ret_type));
-        } else {
-            return copy_node(ft, copy(ft->arg_types));
-        }
+        return copy_node(ft, copy(ft->arg_types), copy(ft->ret_type), ft->parens_missing);
     }
 
     auto copy(node::qualified_type const& qt) const

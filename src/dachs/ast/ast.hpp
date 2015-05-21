@@ -646,6 +646,7 @@ struct cast_expr final : public expression {
     node::any_expr child;
     node::any_type cast_type;
     scope::weak_func_scope callee_cast_scope;
+    scope::weak_func_scope casted_func_scope;
 
     cast_expr(node::any_expr const& c,
               node::any_type const& t) noexcept
@@ -819,8 +820,10 @@ struct func_type final : public base {
     bool parens_missing = false;
 
     func_type(decltype(arg_types) const& a
-            , decltype(ret_type) const& r) noexcept
-        : base(), arg_types(a), ret_type(r)
+            , decltype(ret_type) const& r
+            , bool const p = false
+    ) noexcept
+        : base(), arg_types(a), ret_type(r), parens_missing(p)
     {}
 
     explicit func_type(decltype(arg_types) const& arg_t) noexcept

@@ -367,8 +367,6 @@ struct class_type final : public named_type {
 
     bool is_default_constructible() const noexcept override;
 
-    bool is_instantiated_from(type::class_type const&) const;
-
     boost::optional<type::pointer_type const&> get_array_underlying_type() const;
     boost::optional<type::pointer_type const&> get_string_underlying_type() const;
 };
@@ -419,23 +417,35 @@ struct tuple_type final : public basic_type {
 
 struct func_type final : public basic_type {
     std::vector<type::any_type> param_types;
-    type::any_type return_type;
-    ast::symbol::func_kind kind = ast::symbol::func_kind::func;
+    boost::optional<type::any_type> return_type;
+    bool is_callable_template = false;
 
     func_type() = default;
 
-    func_type(decltype(param_types) && p, type::any_type && r, decltype(kind) const k = ast::symbol::func_kind::func) noexcept
-        : param_types(std::forward<decltype(p)>(p)), return_type(std::forward<type::any_type>(r)), kind(k)
+    // Note: EMC++ Item41
+    explicit func_type(
+            decltype(param_types) p,
+            decltype(return_type) r = boost::none
+    ) noexcept
+        : param_types(std::move(p))
+        , return_type(std::move(r))
     {}
 
     std::string to_string() const noexcept override
     {
+        if (is_callable_template) {
+            return "func";
+        }
+
         return "func (" +
             join(param_types | transformed([](auto const& t){
                         return t.to_string();
                     }), ",")
-            + ") : "
-            + return_type.to_string();
+            + ")" + (
+                return_type
+                    ? " : " + return_type->to_string()
+                    : ""
+            );
     }
 
     bool operator==(func_type const& rhs) const noexcept
