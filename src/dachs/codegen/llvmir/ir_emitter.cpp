@@ -1226,14 +1226,27 @@ public:
         args.reserve(invocation->args.size());
         for (auto const& a : invocation->args) {
             args.push_back(load_if_ref(emit(a), a));
+            assert(args.back());
         }
 
         auto const child_type = type::type_of(invocation->child);
+
+        if (auto const func = type::get<type::func_type>(child_type)) {
+            return check(
+                    invocation,
+                    ctx.builder.CreateCall(
+                        load_if_ref(emit(invocation->child), child_type),
+                        args
+                    ),
+                    "invoking function type value"
+                );
+        }
+
         auto const generic = type::get<type::generic_func_type>(child_type);
         if (!generic) {
             // TODO:
             // Deal with func_type
-            error(invocation, boost::format("calls '%1%' type variable which is not callable") % child_type.to_string());
+            error(invocation, boost::format("calling '%1%' type variable which is not callable") % child_type.to_string());
         }
 
         assert(!invocation->callee_scope.expired());
@@ -2115,6 +2128,14 @@ public:
                 assert(child_val->getType()->isPointerTy());
                 return ctx.builder.CreatePtrToInt(child_val, ctx.builder.getInt64Ty());
             }
+        }
+
+        if (auto const casted_func = cast->casted_func_scope.lock()) {
+            return check(
+                    cast,
+                    module->getFunction(casted_func->to_string()),
+                    "invalid target function in cast to function type"
+                );
         }
 
         auto const cast_error

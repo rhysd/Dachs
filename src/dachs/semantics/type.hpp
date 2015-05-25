@@ -191,7 +191,8 @@ public:
 
     bool is_builtin() const noexcept
     {
-        return helper::variant::has<builtin_type>(value);
+        return helper::variant::has<builtin_type>(value)
+            || helper::variant::has<func_type>(value);
     }
 
     template<class String>

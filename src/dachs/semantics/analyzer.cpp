@@ -2082,12 +2082,12 @@ public:
     }
 
     void instantiate_generic_func(
-            ast::node::cast_expr const& node,
+            ast::node::cast_expr const& cast,
             type::generic_func_type const& from,
             type::func_type const& to)
     {
         if (to->is_callable_template) {
-            semantic_error(node, "  Callable type template 'func' can ONLY be specified in function parameter.");
+            semantic_error(cast, "  Callable type template 'func' can ONLY be specified in function parameter.");
             return;
         }
 
@@ -2104,7 +2104,7 @@ public:
 
         if (failed - saved_failed != 0u) {
             semantic_error(
-                    node,
+                    cast,
                     boost::format(
                         "  Error occured while converting generic type '%1%' to function type '%2%'"
                     ) % from->to_string() % to->to_string()
@@ -2114,7 +2114,7 @@ public:
 
         if (func_candidates.empty()) {
             semantic_error(
-                    node,
+                    cast,
                     boost::format(
                         "  No function or overload candidate is found for '%1%'"
                     ) % scope->to_string()
@@ -2130,10 +2130,12 @@ public:
             std::tie(std::ignore, func) = instantiate_function_from_template(def, func, to->param_types);
         }
 
+        assert(func->ret_type);
+
         if (to->return_type) {
             if (*func->ret_type != *to->return_type) {
                 semantic_error(
-                        node,
+                        cast,
                         boost::format(
                             "  Return type mismatch.\n"
                             "  The actual return type of function is '%1%' but '%2%' is specified as function type"
@@ -2142,9 +2144,11 @@ public:
                     );
                 return;
             }
+        } else {
+            to->return_type = func->ret_type;
         }
 
-        node->casted_func_scope = func;
+        cast->casted_func_scope = func;
     }
 
     template<class Walker>

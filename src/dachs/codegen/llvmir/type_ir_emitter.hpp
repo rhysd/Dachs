@@ -155,9 +155,21 @@ public:
         }
     }
 
-    llvm::Type *emit(type::func_type const&)
+    llvm::Type *emit(type::func_type const& f)
     {
-        throw not_implemented_error{__FILE__, __func__, __LINE__, "function type LLVM IR generation"};
+        assert(f->return_type);
+        auto *const ret_ty = emit(*f->return_type);
+
+        std::vector<llvm::Type *> arg_tys;
+        for (auto const& t : f->param_types) {
+            arg_tys.push_back(emit(t));
+        }
+
+        return llvm::FunctionType::get(
+                ret_ty,
+                arg_tys,
+                false
+            )->getPointerTo();
     }
 
     llvm::PointerType *emit(type::generic_func_type const& g)
@@ -213,6 +225,13 @@ public:
     {
         // Note:
         // No need to strip pointer type because builtin type is treated by value.
+        return emit(t);
+    }
+
+    llvm::Type *emit_alloc_type(type::func_type const& t)
+    {
+        // Note:
+        // No need to strip pointer type
         return emit(t);
     }
 
