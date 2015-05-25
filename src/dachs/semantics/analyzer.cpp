@@ -2093,6 +2093,11 @@ public:
 
         auto scope = from->ref->lock();
 
+        if (scope->is_anonymous()) {
+            semantic_error(cast, "  Lambda type cannot be converted to function type (TEMPORARY)");
+            return;
+        }
+
         auto const saved_failed = failed;
         auto const func_candidates =
             with_current_scope(

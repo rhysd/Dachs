@@ -2131,6 +2131,24 @@ public:
         }
 
         if (auto const casted_func = cast->casted_func_scope.lock()) {
+            if (casted_func->is_anonymous()) {
+                auto *const capture_ty = llvm::dyn_cast<llvm::StructType>(
+                        emit(cast->child)
+                            ->getType()
+                            ->getPointerElementType()
+                    );
+                assert(capture_ty);
+
+                if (capture_ty->getNumElements() != 0u) {
+                    error(
+                        cast,
+                        "incompatible lambda type to function type conversion"
+                    );
+                }
+
+                // TODO
+                assert(false);
+            }
             return check(
                     cast,
                     module->getFunction(casted_func->to_string()),
