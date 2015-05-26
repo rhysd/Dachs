@@ -2124,9 +2124,19 @@ public:
 
         assert(func_candidates.size() == 1u);
         auto func = std::move(*std::begin(func_candidates));
+        auto def = func->get_ast_node();
+
+        if (!def->is_public()) {
+            semantic_error(
+                    cast,
+                    boost::format(
+                        "  Private function '%1%' can't be converted to function type"
+                    ) % scope->to_string()
+                );
+            return;
+        }
 
         if (func->is_template()) {
-            auto def = func->get_ast_node();
             std::tie(std::ignore, func) = instantiate_function_from_template(def, func, to->param_types);
         }
 

@@ -3670,6 +3670,24 @@ BOOST_AUTO_TEST_CASE(function_conversion)
         end
     )");
 
+    // Overload
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo(i)
+            ret i
+        end
+
+        class X
+        end
+
+        func main
+            f := foo as func(int)
+            g := foo as func(char)
+            h := foo as func(X)
+
+            f(42); g('c'); h(new X)
+        end
+    )");
+
     CHECK_THROW_SEMANTIC_ERROR(R"(
         func foo(i, j)
             ret i + j
@@ -3769,6 +3787,42 @@ BOOST_AUTO_TEST_CASE(function_conversion)
             g = g as func(int)
             g = g as func(int): float
             g = f
+        end
+    )");
+
+    // Private functions
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+        - func foo(c : char)
+            end
+
+            func foo(i : int)
+            end
+        end
+
+        func foo(c : char)
+        end
+
+        func main
+            foo as func(X, int)
+            foo as func(char)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        - func foo(c : char)
+            end
+
+            func foo(i : int)
+            end
+        end
+
+        func foo(c : char)
+        end
+
+        func main
+            foo as func(X, char)
         end
     )");
 }
