@@ -2151,6 +2151,35 @@ public:
         cast->casted_func_scope = func;
     }
 
+    template<class Location>
+    bool check_func_type_compatibility(type::func_type const& specified, type::func_type const& actual, Location const& location)
+    {
+        // Note:
+        // Considering that user may omit return type of function type
+
+        if (specified->return_type && actual->return_type) {
+            if (*specified->return_type != *actual->return_type) {
+                semantic_error(location, boost::format(
+                            "  Incompatible return types of function types\n"
+                            "  Note: '%1%' v.s. '%2%'"
+                        ) % actual->return_type->to_string()
+                          % specified->return_type->to_string()
+                    );
+                return false;
+            }
+        }
+
+        if (actual->param_types != specified->param_types) {
+            semantic_error(location, boost::format(
+                        "  Incompatible parameter type(s) of function types\n"
+                        "  Note: '%1%' v.s. '%2%'"
+                    ) % actual->to_string() % specified->to_string());
+            return false;
+        }
+
+        return true;
+    }
+
     template<class Walker>
     void visit(ast::node::cast_expr const& cast, Walker const& w)
     {
@@ -2175,13 +2204,26 @@ public:
             return;
         }
 
-        // Note:
-        // Generic function type to specific function type conversion
         if (auto const& f = type::get<type::func_type>(cast->type)) {
             if (auto const& g = type::get<type::generic_func_type>(child_type)) {
+                // Note:
+                // Generic function type to specific function type conversion
                 instantiate_generic_func(cast, *g, *f);
-                return;
+            } else if (auto const& h = type::get<type::func_type>(child_type)) {
+                if (check_func_type_compatibility(*f, *h, cast)) {
+                    // Note:
+                    // Do not substitute the type before the cast to 'cast->type' because specified
+                    // type may omit its return type
+                    cast->type = child_type;
+                } else {
+                    semantic_error(cast, boost::format(
+                                "  Error occured while casting from function type to function type\n"
+                                "  Note: '%1%' to '%2%'"
+                            ) % (*f)->to_string() % (*h)->to_string()
+                        );
+                }
             }
+            return;
         }
 
         if ((!cast->type.is_aggregate() && !child_type.is_aggregate())

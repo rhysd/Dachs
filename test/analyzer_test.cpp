@@ -3654,6 +3654,22 @@ BOOST_AUTO_TEST_CASE(function_conversion)
         end
     )");
 
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo(i)
+        end
+
+        func bar(i : int)
+        end
+
+        func main
+            var f := bar as func(int)
+            b := f as func(int)
+            f = b
+            f2 := bar as func(int)
+            (f2 as func(int))(42)
+        end
+    )");
+
     CHECK_THROW_SEMANTIC_ERROR(R"(
         func foo(i, j)
             ret i + j
@@ -3713,6 +3729,46 @@ BOOST_AUTO_TEST_CASE(function_conversion)
         func main
             f := foo as func(int, int)
             f(1, 2.0)
+        end
+    )");
+
+    // Note:
+    // Funciton type to function type conversion (check)
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i)
+            ret i as float
+        end
+
+        func main
+            f := foo as func(int)
+            f as func(int): int
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i)
+            ret i as float
+        end
+
+        func main
+            f := foo as func(int)
+            f as func(char): float
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo(i)
+            ret i as float
+        end
+
+        func main
+            f := foo as func(int) : float
+            f as func(int)
+            var g := foo as func(int)
+            g = g as func(int)
+            g = g as func(int): float
+            g = f
         end
     )");
 }
