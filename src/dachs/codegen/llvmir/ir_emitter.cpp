@@ -2104,6 +2104,94 @@ public:
         helper.terminate_with_br(end_block, end_block);
     }
 
+    // Note:
+    // Create a function wrapping non-captured lambda function.
+    // It omits capture struct and forwards parameters to inner lambda function call
+    template<class Location>
+    llvm::Function *emit_non_capture_lambda_wrapped_func(scope::func_scope const& non_capture_lambda, Location const& location)
+    {
+        auto const lambda_name = non_capture_lambda->to_string();
+
+        {
+            auto *const already_made = module->getFunction(lambda_name + ".wrapped");
+            if (already_made) {
+                return already_made;
+            }
+        }
+
+        auto *const lambda_func_val = module->getFunction(lambda_name);
+        if (!lambda_func_val) {
+            error(location, "invalid lambda function");
+        }
+
+        // Note:
+        // In LLVM 3.6 or later, llvm::FunctionType has params() member function
+
+        auto *const lambda_func_ty = lambda_func_val->getFunctionType();
+
+        auto const num_params = lambda_func_ty->getNumParams();
+        assert(num_params > 0);
+
+        auto *const receiver_ty = llvm::dyn_cast<llvm::StructType>(lambda_func_ty->getParamType(0u)->getPointerElementType());
+        assert(receiver_ty);
+
+        if (receiver_ty->getNumElements() != 0u) {
+            error(
+                location,
+                "incompatible lambda type to function type conversion"
+            );
+        }
+
+        std::vector<llvm::Type *> param_tys;
+        for (auto i = 1u; i < num_params; ++i) {
+            param_tys.push_back(lambda_func_ty->getParamType(i));
+        }
+
+        // Note:
+        // Create a prototype of the wrapped function
+
+        auto *const wrapped_func_ty = llvm::FunctionType::get(
+                lambda_func_ty->getReturnType(),
+                param_tys,
+                false
+            );
+
+        auto *const wrapped_func_val = llvm::Function::Create(
+                wrapped_func_ty,
+                llvm::Function::InternalLinkage,
+                lambda_name + ".wrapped",
+                module
+            );
+
+        wrapped_func_val->addFnAttr(llvm::Attribute::NoUnwind);
+        wrapped_func_val->addFnAttr(llvm::Attribute::InlineHint);
+
+        std::vector<val> arg_vals = {inst_emitter.emit_unit_constant()};
+        for (auto src_itr = ++lambda_func_val->arg_begin(),
+                  dst_itr = wrapped_func_val->arg_begin();
+             src_itr != lambda_func_val->arg_end();
+             ++src_itr, ++dst_itr) {
+            dst_itr->setName(src_itr->getName());
+            arg_vals.push_back(dst_itr);
+        }
+
+        // Note:
+        // Create body of the wrapped function
+        auto const saved_insert_point = ctx.builder.GetInsertBlock();
+        auto const body = llvm::BasicBlock::Create(ctx.llvm_context, "entry", wrapped_func_val);
+        ctx.builder.SetInsertPoint(body);
+
+        ctx.builder.CreateRet(
+                ctx.builder.CreateCall(
+                    lambda_func_val,
+                    arg_vals
+                )
+            );
+
+        ctx.builder.SetInsertPoint(saved_insert_point);
+        return wrapped_func_val;
+    }
+
     val emit(ast::node::cast_expr const& cast)
     {
         auto const child_type = type::type_of(cast->child);
@@ -2132,23 +2220,9 @@ public:
 
         if (auto const casted_func = cast->casted_func_scope.lock()) {
             if (casted_func->is_anonymous()) {
-                auto *const capture_ty = llvm::dyn_cast<llvm::StructType>(
-                        emit(cast->child)
-                            ->getType()
-                            ->getPointerElementType()
-                    );
-                assert(capture_ty);
-
-                if (capture_ty->getNumElements() != 0u) {
-                    error(
-                        cast,
-                        "incompatible lambda type to function type conversion"
-                    );
-                }
-
-                // TODO
-                assert(false);
+                return emit_non_capture_lambda_wrapped_func(casted_func, cast);
             }
+
             return check(
                     cast,
                     module->getFunction(casted_func->to_string()),
