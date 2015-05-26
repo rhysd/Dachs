@@ -1641,6 +1641,34 @@ BOOST_AUTO_TEST_CASE(func_type)
         end
     )");
 
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class fizzbuzz
+            f, b
+
+            func exec(i)
+                case
+                when i % 15 == 0
+                    (self.f)(i).print;(self.b)(i).println
+                when i %  3 == 0
+                    (self.f)(i).println
+                when i %  5 == 0
+                    (self.b)(i).println
+                else
+                    println(i)
+                end
+            end
+        end
+
+        func main
+            fb := new fizzbuzz{(-> i in 'f') as func(int), (-> i in 'b') as func(int)}
+            var i := 0
+            for i < 20
+                i += 1
+                fb.exec(i)
+            end
+        end
+    )");
+
     // Captured lambda can't be casted to function type
     CHECK_THROW_CODEGEN_ERROR(R"(
         func main

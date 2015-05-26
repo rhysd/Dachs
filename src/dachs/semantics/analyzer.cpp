@@ -947,7 +947,7 @@ public:
                 func,
                 boost::format(
                     "  Can't deduce return type of function '%1%' from return statement\n"
-                    "  Note: return statement is here: line%2%, col%3%")
+                    "  Note: return statement is here: line:%2%, col:%3%")
                     % func->name
                     % gatherer.failed_return_stmts[0]->line
                     % gatherer.failed_return_stmts[0]->col
