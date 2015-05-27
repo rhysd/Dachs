@@ -1648,11 +1648,11 @@ BOOST_AUTO_TEST_CASE(func_type)
             func exec(i)
                 case
                 when i % 15 == 0
-                    (self.f)(i).print;(self.b)(i).println
+                    @f(i).print; @b(i).println
                 when i %  3 == 0
-                    (self.f)(i).println
+                    @f(i).println
                 when i %  5 == 0
-                    (self.b)(i).println
+                    @b(i).println
                 else
                     println(i)
                 end

@@ -3825,6 +3825,31 @@ BOOST_AUTO_TEST_CASE(function_conversion)
             foo as func(X, char)
         end
     )");
+
+    // Edge case: functional member variable
+    // On member function call @foo(), compiler looks up
+    // the member of class at first.
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+            f, g, h
+
+            func i
+            end
+
+            func foo
+                @f(); @g(); @h(); @i()
+            end
+        end
+
+        func blah
+        end
+
+        func main
+            x := new X{blah as func(), blah, -> 42}
+            x.foo
+        end
+    )");
+
 }
 
 BOOST_AUTO_TEST_SUITE_END()
