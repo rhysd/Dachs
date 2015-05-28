@@ -3829,7 +3829,7 @@ BOOST_AUTO_TEST_CASE(function_conversion)
     // Edge case: functional member variable
     // On member function call @foo(), compiler looks up
     // the member of class at first.
-    CHECK_THROW_SEMANTIC_ERROR(R"(
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
         class X
             f, g, h
 
@@ -3850,6 +3850,11 @@ BOOST_AUTO_TEST_CASE(function_conversion)
         end
     )");
 
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            main as func()
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -2122,9 +2122,16 @@ public:
             return;
         }
 
+        // TODO:
         assert(func_candidates.size() == 1u);
         auto func = std::move(*std::begin(func_candidates));
         auto def = func->get_ast_node();
+
+        if (func->is_main_func()) {
+            semantic_error(cast, "  Main function can't be converted to function type");
+            return;
+        }
+
 
         if (!def->is_public()) {
             semantic_error(
