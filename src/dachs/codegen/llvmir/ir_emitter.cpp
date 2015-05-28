@@ -256,7 +256,7 @@ class llvm_ir_emitter {
     void emit_program_entry_point(FuncValue *const main_func_value, bool const has_cmdline_arg, type::type const& ret_type)
     {
         auto *const entry_func_ty = llvm::FunctionType::get(
-                ctx.builder.getInt64Ty(),
+                ctx.builder.getInt32Ty(),
                 (llvm::Type *[2]){
                     ctx.builder.getInt32Ty(),
                     ctx.builder.getInt8PtrTy()->getPointerTo()
@@ -325,11 +325,15 @@ class llvm_ir_emitter {
         if (ret_type.is_unit()) {
             emit_inner_main_call();
             ctx.builder.CreateRet(
-                    ctx.builder.getInt64(0u)
+                    ctx.builder.getInt32(0u)
                 );
         } else {
             ctx.builder.CreateRet(
-                    emit_inner_main_call()
+                    ctx.builder.CreateIntCast(
+                        emit_inner_main_call(),
+                        ctx.builder.getInt32Ty(),
+                        true /*is_signed*/
+                    )
                 );
         }
     }
@@ -1073,10 +1077,9 @@ public:
         emit(func_def->body);
 
         if (ctx.builder.GetInsertBlock()->getTerminator()) {
-            return;
-        }
-
-        if (!func_def->ret_type
+            // Note:
+            // Already terminated. Do nothing.
+        } else if (!func_def->ret_type
                 || func_def->kind == ast::symbol::func_kind::proc
                 || *func_def->ret_type == type::get_unit_type()) {
             ctx.builder.CreateRet(
