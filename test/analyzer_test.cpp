@@ -3855,6 +3855,18 @@ BOOST_AUTO_TEST_CASE(function_conversion)
             main as func()
         end
     )");
+
+    // Ambiguous instantiation
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j : int)
+        end
+        func foo(i : int, j)
+        end
+
+        func main
+            foo as func(int, int)
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

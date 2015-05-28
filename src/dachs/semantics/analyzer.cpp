@@ -2122,8 +2122,16 @@ public:
             return;
         }
 
-        // TODO:
-        assert(func_candidates.size() == 1u);
+        assert(!func_candidates.empty());
+        if (func_candidates.size() > 1u) {
+            std::string errmsg = "  Function candidates for function type '" + to->to_string() + "' are ambiguous";
+            for (auto const& c : func_candidates) {
+                errmsg += "\n  Candidate: " + c->to_string();
+            }
+            semantic_error(cast, std::move(errmsg));
+            return;
+        }
+
         auto func = std::move(*std::begin(func_candidates));
         auto def = func->get_ast_node();
 
