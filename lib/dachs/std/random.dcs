@@ -1,4 +1,5 @@
 import std.random.mt19937
+import std.random.xor128
 
 class random
     generator
@@ -36,3 +37,53 @@ class random
     end
 end
 
+# Fisher-Yates shuffle
+func shuffle(var arr : array)
+
+    # RNG must be global variable
+    var g := new random{
+            new xor128{
+                __builtin_read_cycle_counter(),
+                362436069u,
+                521288629u,
+                88675123u
+            }
+        }
+    var i := arr.size as uint
+    swap := -> x, y in (y, x)
+
+    for i > 1u
+        j := i - 1u
+        k := g.gen % i # XXX
+        t := swap(arr[j], arr[k])
+        arr[j], arr[k] = t
+        i -= 1u
+    end
+
+    ret arr
+end
+
+func sample(arr : array)
+    # RNG must be global variable
+    var g := new random{
+            new xor128{
+                __builtin_read_cycle_counter(),
+                362436069u,
+                521288629u,
+                88675123u
+            }
+        }
+    ret arr[g.gen % (arr.size as uint)] # XXX
+end
+
+func sample(arr : array, num : uint)
+    var result := shuffle(arr)
+    var i := result.size as uint
+
+    for i > num
+        result.pop_back
+        i -= 1u
+    end
+
+    ret result
+end

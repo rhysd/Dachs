@@ -383,6 +383,11 @@ class array
         ret saved
     end
 
+    func pop_back
+        @delete_at(@size - 1u)
+        ret self
+    end
+
     func init
         ret @take(@size - 1u)
     end
