@@ -229,6 +229,13 @@ inline std::string to_ordinal(Int const i)
     }
 }
 
+template<class T, class Pred>
+inline T tap(T && v, Pred &&pred)
+{
+    std::forward<Pred>(pred)(std::forward<T>(v));
+    return v;
+}
+
 } // namespace helper
 }  // namespace dachs
 

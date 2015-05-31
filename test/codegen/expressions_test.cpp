@@ -1610,5 +1610,73 @@ BOOST_AUTO_TEST_CASE(cast)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(func_type)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(i : int)
+            println(i)
+        end
+
+        func foo2(i)
+            println(i * i)
+        end
+
+        func apply(f, i)
+        end
+
+        func main
+            var f := foo as func(int)
+            f = foo2 as func(int) : ()
+            f = (-> x in println(x)) as func(int)
+            f(42)
+            apply(f, 42)
+
+            var arr := new static_array(func(int) : ()){3u, f}
+            arr[0] = foo as func(int)
+            arr[1] = foo2 as func(int)
+            arr[2] = arr[0]
+            for fn in arr
+                fn(11)
+            end
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class fizzbuzz
+            f, b
+
+            func exec(i)
+                case
+                when i % 15 == 0
+                    @f(i).print; @b(i).println
+                when i %  3 == 0
+                    @f(i).println
+                when i %  5 == 0
+                    @b(i).println
+                else
+                    println(i)
+                end
+            end
+        end
+
+        func main
+            fb := new fizzbuzz{(-> i in 'f') as func(int), (-> i in 'b') as func(int)}
+            var i := 0
+            for i < 20
+                i += 1
+                fb.exec(i)
+            end
+        end
+    )");
+
+    // Captured lambda can't be casted to function type
+    CHECK_THROW_CODEGEN_ERROR(R"(
+        func main
+            i := 42
+            (-> x in i + x) as func(int)
+        end
+    )");
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

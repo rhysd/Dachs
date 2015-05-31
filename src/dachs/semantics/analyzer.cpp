@@ -265,8 +265,10 @@ struct class_template_instantiater : boost::static_visitor<boost::optional<std::
 
     result_type operator()(type::func_type const& t)
     {
-        if (auto const err = visit(t->return_type)) {
-            return err;
+        if (t->return_type) {
+            if (auto const err = visit(*t->return_type)) {
+                return err;
+            }
         }
         return visit(t->param_types);
     }
@@ -588,9 +590,9 @@ class symbol_analyzer {
         return func;
     }
 
-    type::type from_type_node(ast::node::any_type const& n) noexcept
+    type::type from_type_node(ast::node::any_type const& n, bool const allow_omit_return = false) noexcept
     {
-        return type::from_ast<decltype(*this)>(n, current_scope, *this).apply(
+        return type::from_ast<decltype(*this)>(n, current_scope, *this, allow_omit_return).apply(
                 [](auto const& success){ return success; },
                 [&, this](auto const& failure)
                 {
@@ -945,7 +947,7 @@ public:
                 func,
                 boost::format(
                     "  Can't deduce return type of function '%1%' from return statement\n"
-                    "  Note: return statement is here: line%2%, col%3%")
+                    "  Note: return statement is here: line:%2%, col:%3%")
                     % func->name
                     % gatherer.failed_return_stmts[0]->line
                     % gatherer.failed_return_stmts[0]->col
@@ -1916,6 +1918,51 @@ public:
             return;
         }
 
+        std::vector<type::type> arg_types;
+        arg_types.reserve(invocation->args.size() + 1); // +1 for do block
+        // Get type list of arguments
+        boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return type_of(e);});
+
+        for (auto const& arg_type : arg_types) {
+            if (!arg_type) {
+                return;
+            }
+        }
+
+        if (auto const non_generic_func = type::get<type::func_type>(child_type)) {
+            auto const& f = *non_generic_func;
+
+            if (invocation->args.size() != f->param_types.size()) {
+                semantic_error(
+                        invocation,
+                        boost::format(
+                            "  Wrong number of arguments: %1% for %2%"
+                        ) % invocation->args.size() % f->param_types.size()
+                    );
+                return;
+            }
+
+            for (auto const idx : helper::indices(arg_types)) {
+                if (arg_types[idx] != f->param_types[idx]) {
+                    semantic_error(
+                        invocation,
+                        boost::format(
+                            "  %1% argument in function call causes type mismatch: '%2%' for '%3%'\n"
+                            "  Note: the function type is '%4%'"
+                        ) % helper::to_ordinal(idx + 1u)
+                          % arg_types[idx].to_string()
+                          % f->param_types[idx].to_string()
+                          % f->to_string()
+                    );
+                    return;
+                }
+            }
+
+            assert(f->return_type);
+            invocation->type = *f->return_type;
+            return;
+        }
+
         auto const maybe_func_type = type::get<type::generic_func_type>(child_type);
         if (!maybe_func_type) {
             semantic_error(
@@ -1936,17 +1983,6 @@ public:
             return;
         }
         assert(!func_type->ref->expired());
-
-        std::vector<type::type> arg_types;
-        arg_types.reserve(invocation->args.size() + 1); // +1 for do block
-        // Get type list of arguments
-        boost::transform(invocation->args, std::back_inserter(arg_types), [](auto const& e){ return type_of(e);});
-
-        for (auto const& arg_type : arg_types) {
-            if (!arg_type) {
-                return;
-            }
-        }
 
         auto callee_scope = func_type->ref->lock();
         auto const error = visit_invocation(invocation, callee_scope->name, arg_types);
@@ -2045,29 +2081,178 @@ public:
         typed->type = actual_type;
     }
 
+    void instantiate_generic_func(
+            ast::node::cast_expr const& cast,
+            type::generic_func_type const& from,
+            type::func_type const& to)
+    {
+        if (to->is_callable_template) {
+            semantic_error(cast, "  Callable type template 'func' can ONLY be specified in function parameter.");
+            return;
+        }
+
+        auto scope = from->ref->lock();
+
+        auto const saved_failed = failed;
+        auto const func_candidates =
+            with_current_scope(
+                    [&](auto const& s)
+                    {
+                        return s->resolve_func(scope->name, to->param_types);
+                    }
+                );
+
+        if (failed - saved_failed != 0u) {
+            semantic_error(
+                    cast,
+                    boost::format(
+                        "  Error occured while converting generic type '%1%' to function type '%2%'"
+                    ) % from->to_string() % to->to_string()
+                );
+            return;
+        }
+
+        if (func_candidates.empty()) {
+            semantic_error(
+                    cast,
+                    boost::format(
+                        "  No function or overload candidate is found for '%1%'"
+                    ) % scope->to_string()
+                );
+            return;
+        }
+
+        assert(!func_candidates.empty());
+        if (func_candidates.size() > 1u) {
+            std::string errmsg = "  Function candidates for function type '" + to->to_string() + "' are ambiguous";
+            for (auto const& c : func_candidates) {
+                errmsg += "\n  Candidate: " + c->to_string();
+            }
+            semantic_error(cast, std::move(errmsg));
+            return;
+        }
+
+        auto func = std::move(*std::begin(func_candidates));
+        auto def = func->get_ast_node();
+
+        if (func->is_main_func()) {
+            semantic_error(cast, "  Main function can't be converted to function type");
+            return;
+        }
+
+
+        if (!def->is_public()) {
+            semantic_error(
+                    cast,
+                    boost::format(
+                        "  Private function '%1%' can't be converted to function type"
+                    ) % scope->to_string()
+                );
+            return;
+        }
+
+        if (func->is_template()) {
+            std::tie(std::ignore, func) = instantiate_function_from_template(def, func, to->param_types);
+        }
+
+        assert(func->ret_type);
+
+        if (to->return_type) {
+            if (*func->ret_type != *to->return_type) {
+                semantic_error(
+                        cast,
+                        boost::format(
+                            "  Return type mismatch.\n"
+                            "  The actual return type of function is '%1%' but '%2%' is specified as function type"
+                        ) % func->ret_type->to_string()
+                          % to->return_type->to_string()
+                    );
+                return;
+            }
+        } else {
+            to->return_type = func->ret_type;
+        }
+
+        cast->casted_func_scope = func;
+    }
+
+    template<class Location>
+    bool check_func_type_compatibility(type::func_type const& specified, type::func_type const& actual, Location const& location)
+    {
+        // Note:
+        // Considering that user may omit return type of function type
+
+        if (specified->return_type && actual->return_type) {
+            if (*specified->return_type != *actual->return_type) {
+                semantic_error(location, boost::format(
+                            "  Incompatible return types of function types\n"
+                            "  Note: '%1%' v.s. '%2%'"
+                        ) % actual->return_type->to_string()
+                          % specified->return_type->to_string()
+                    );
+                return false;
+            }
+        }
+
+        if (actual->param_types != specified->param_types) {
+            semantic_error(location, boost::format(
+                        "  Incompatible parameter type(s) of function types\n"
+                        "  Note: '%1%' v.s. '%2%'"
+                    ) % actual->to_string() % specified->to_string());
+            return false;
+        }
+
+        return true;
+    }
+
     template<class Walker>
     void visit(ast::node::cast_expr const& cast, Walker const& w)
     {
         w();
-        cast->type = from_type_node(cast->cast_type);
+        cast->type = from_type_node(cast->cast_type, true);
+
+        if (!cast->type) {
+            semantic_error(cast, "  Invalid conversion type");
+            return;
+        }
 
         if (!instantiate_param_types(cast->type, cast)) {
-            semantic_error(cast, boost::format(
-                    "  Failed to instantiate casted type '%1%'"
-                ) % cast->type.to_string());
             return;
         }
 
         auto const child_type = type_of(cast->child);
-        if ((!cast->type.is_aggregate() && !child_type.is_aggregate())
-                || child_type == cast->type) {
-            return;
-        }
 
         if (cast->type.is_template()) {
             semantic_error(cast, boost::format(
                     "  Can not cast to template type '%1%'"
                 ) % cast->type.to_string());
+            return;
+        }
+
+        if (auto const& f = type::get<type::func_type>(cast->type)) {
+            if (auto const& g = type::get<type::generic_func_type>(child_type)) {
+                // Note:
+                // Generic function type to specific function type conversion
+                instantiate_generic_func(cast, *g, *f);
+            } else if (auto const& h = type::get<type::func_type>(child_type)) {
+                if (check_func_type_compatibility(*f, *h, cast)) {
+                    // Note:
+                    // Do not substitute the type before the cast to 'cast->type' because specified
+                    // type may omit its return type
+                    cast->type = child_type;
+                } else {
+                    semantic_error(cast, boost::format(
+                                "  Error occured while casting from function type to function type\n"
+                                "  Note: '%1%' to '%2%'"
+                            ) % (*f)->to_string() % (*h)->to_string()
+                        );
+                }
+            }
+            return;
+        }
+
+        if ((!cast->type.is_aggregate() && !child_type.is_aggregate())
+                || child_type == cast->type) {
             return;
         }
 

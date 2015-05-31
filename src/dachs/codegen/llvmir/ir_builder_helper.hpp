@@ -640,6 +640,8 @@ public:
 
                 deep_copy_recursively(elem_from, elem_to, capture_type);
             }
+        } else if (type::is_a<type::func_type>(t)){
+            ctx.builder.CreateStore(from, to);
         } else {
             DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         }

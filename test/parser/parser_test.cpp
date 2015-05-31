@@ -691,8 +691,6 @@ BOOST_AUTO_TEST_CASE(type)
 
             expr : func() : int
             expr : proc()
-            expr : func : int
-            expr : proc
             expr : func(int, aaa) : int
             expr : func(
                     int,
@@ -725,7 +723,11 @@ BOOST_AUTO_TEST_CASE(type)
                            int,
                            aaa,
                        )
-            expr : [func() : int]
+            expr : func(
+                    int,
+                    aaa
+                    )
+            expr : [func()]
             expr : (func(int) : string, proc(int), [func() : int])
             expr : {func(char) : int => proc(string)}
 
@@ -746,6 +748,7 @@ BOOST_AUTO_TEST_CASE(type)
             expr : func() : int? # it returns maybe int
             expr : (proc())?
             expr : (func(int, aaa) : int)?
+            expr : func(int, aaa)
             expr : (proc(int, aaa))?
             expr : [(func() : int)?]
             expr : ((func(int) : string)?, (proc(int))?, [func() : int]?)
@@ -773,9 +776,17 @@ BOOST_AUTO_TEST_CASE(type)
         end
         )"));
 
+    // Special callable types template
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func foo(pred : func)
+        end
+
+        func main
+        end
+    )"));
+
     CHECK_PARSE_THROW("func main; expr : proc() : int end # one element tuple is not allowed");
     CHECK_PARSE_THROW("func main; expr : proc() : int end # must not have ret type");
-    CHECK_PARSE_THROW("func main; expr : func() end # must have ret type");
     CHECK_PARSE_THROW("func main; expr : T() end");
     CHECK_PARSE_THROW("func main; expr : [T](int) end");
     CHECK_PARSE_THROW("func main; expr : (T)(int) end");

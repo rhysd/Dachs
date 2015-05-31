@@ -3619,4 +3619,254 @@ BOOST_AUTO_TEST_CASE(array)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(function_conversion)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo(a, b)
+            ret a + b
+        end
+
+        func bar(a, b)
+            ret true
+        end
+
+        class X
+            a
+        end
+
+        func baz(a, b : X)
+            ret a + b.a
+        end
+
+        func main
+            foo as func(int, int)
+            foo as func(int, int) : int
+            foo as func(char, char)
+            foo as func(char, char) : char
+            bar as func(char, char)
+            bar as func(char, char) : bool
+            baz as func(int, X(int)) : int
+
+            (foo as func(int, int))(1, 2)
+            x := new X{42}
+            b := baz as func(int, X(int))
+            b(x.a, x)
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo(i)
+        end
+
+        func bar(i : int)
+        end
+
+        func main
+            var f := bar as func(int)
+            b := f as func(int)
+            f = b
+            f2 := bar as func(int)
+            (f2 as func(int))(42)
+        end
+    )");
+
+    // Overload
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo(i)
+            ret i
+        end
+
+        class X
+        end
+
+        func main
+            f := foo as func(int)
+            g := foo as func(char)
+            h := foo as func(X)
+
+            f(42); g('c'); h(new X)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j)
+            ret i + j
+        end
+
+        func main
+            foo as func(int)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j : int)
+            ret i + j
+        end
+
+        func main
+            foo as func(int, char)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j : int)
+            ret i + j
+        end
+
+        func main
+            foo as func(int, char)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j)
+            ret i + j
+        end
+
+        func main
+            foo as func(int, char)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j)
+            ret i + j
+        end
+
+        func main
+            f := foo as func(int, int)
+            f(1, 2, 3)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j)
+            ret i + j
+        end
+
+        func main
+            f := foo as func(int, int)
+            f(1, 2.0)
+        end
+    )");
+
+    // Note:
+    // Funciton type to function type conversion (check)
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i)
+            ret i as float
+        end
+
+        func main
+            f := foo as func(int)
+            f as func(int): int
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i)
+            ret i as float
+        end
+
+        func main
+            f := foo as func(int)
+            f as func(char): float
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo(i)
+            ret i as float
+        end
+
+        func main
+            f := foo as func(int) : float
+            f as func(int)
+            var g := foo as func(int)
+            g = g as func(int)
+            g = g as func(int): float
+            g = f
+        end
+    )");
+
+    // Private functions
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+        - func foo(c : char)
+            end
+
+            func foo(i : int)
+            end
+        end
+
+        func foo(c : char)
+        end
+
+        func main
+            foo as func(X, int)
+            foo as func(char)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        class X
+        - func foo(c : char)
+            end
+
+            func foo(i : int)
+            end
+        end
+
+        func foo(c : char)
+        end
+
+        func main
+            foo as func(X, char)
+        end
+    )");
+
+    // Edge case: functional member variable
+    // On member function call @foo(), compiler looks up
+    // the member of class at first.
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            f, g, h
+
+            func i
+            end
+
+            func foo
+                @f(); @g(); @h(); @i()
+            end
+        end
+
+        func blah
+        end
+
+        func main
+            x := new X{blah as func(), blah, -> 42}
+            x.foo
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            main as func()
+        end
+    )");
+
+    // Ambiguous instantiation
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(i, j : int)
+        end
+        func foo(i : int, j)
+        end
+
+        func main
+            foo as func(int, int)
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

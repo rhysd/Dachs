@@ -818,6 +818,52 @@ public:
                 );
     }
 
+    // Note:
+    // Replace '@foo()' with 'self.foo()'
+    // This is necessary because replacing '@foo' with 'self.foo' makes
+    // (self.foo)() from @foo().  So, replacing '@foo()' with 'self.foo()'
+    // should be done before the replacement of '@foo'.
+    void modify_member_func_invocation_ast(ast::node::func_invocation const& invocation, ast::node::var_ref const& child_var)
+    {
+        if (!child_var->is_instance_var()) {
+            return;
+        }
+
+        auto const member_name = child_var->name.substr(1u); // omit '@'
+
+        auto const self_var
+                = with_current_scope(
+                    [](auto const& s){ return s->resolve_var("self"); }
+                );
+
+        if (!self_var) {
+            return;
+        }
+
+        // Note:
+        // If the instance var access is really variable access, it should not be modified.
+        //
+        // class X
+        //   f : func() : ()
+        //
+        //   func foo
+        //     @f()
+        //   end
+        // end
+        //
+        // In above, @f should be member access and should not be modified to self.f().
+        // So, at first check the identifier refers function or variable, then modify it
+        // from @foo() to self.foo() only if it refers function.
+        if (auto const clazz = type::get<type::class_type>((*self_var)->type)) {
+            if ((*clazz)->ref.lock()->resolve_instance_var(member_name)) {
+                return;
+            }
+        }
+
+        child_var->name = member_name;
+        invocation->args.insert(std::begin(invocation->args), generate_self_ref(*invocation));
+    }
+
     template<class Walker>
     void visit(ast::node::func_invocation const& invocation, Walker const& w)
     {
@@ -826,12 +872,8 @@ public:
         // This is necessary because replacing '@foo' with 'self.foo' makes
         // (self.foo)() from @foo().  So, replacing '@foo()' with 'self.foo()'
         // should be done before the replacement of '@foo'.
-        if (auto const v = get_as<ast::node::var_ref>(invocation->child)) {
-            auto const& var = *v;
-            if (var->is_instance_var()) {
-                var->name = var->name.substr(1u); // omit '@'
-                invocation->args.insert(std::begin(invocation->args), generate_self_ref(*invocation));
-            }
+        if (auto const var = get_as<ast::node::var_ref>(invocation->child)) {
+            modify_member_func_invocation_ast(invocation, *var);
         }
 
         w();
