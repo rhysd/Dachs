@@ -707,4 +707,27 @@ BOOST_AUTO_TEST_CASE(main_func)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(do_not_degrade)
+{
+    // Issue #71
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+    class Y
+        a : int
+    end
+
+    class Z
+        b : Y
+
+        init
+            @b := new Y{42}
+        end
+    end
+
+    func main
+        var zs := new pointer(Z){53u}
+        zs[41u] = new Z
+    end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

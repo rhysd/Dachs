@@ -511,14 +511,57 @@ class llvm_ir_emitter {
                     ),
                     access->type
                 );
-            } else if (type::is_a<type::pointer_type>(child_type)) {
+            } else if (auto const ptr_type = type::get<type::pointer_type>(child_type)) {
                 assert(!index_val->getType()->isPointerTy());
-                emit_copy_to_lhs(
+
+                auto *const indexed_ptr_val =
                     emitter.ctx.builder.CreateInBoundsGEP(
                         emitter.load_if_ref(child_val, child_type),
                         index_val,
                         "ptr.idx"
-                    ),
+                    );
+
+                if (auto const pointee_class = type::get<type::class_type>((*ptr_type)->pointee_type)) {
+
+                    // Note:
+                    // This is a workaround for a problem of memory allocation of pointer type.
+                    // If the member is a pointer type value, compiler allocates the member memory becausee
+                    // pointer construction does 'shallow' memory allocation.
+                    // See issue #71 for more detail.
+                    //
+                    // Memory allocation for pointer
+                    //   [X*] : pointer(X){4u}
+                    //   |
+                    //   |   -------------------------------------------------
+                    //   |-->| sizeof(X) | sizeof(X) | sizeof(X) | sizeof(X) |
+                    //       -------------------------------------------------
+                    //          |
+                    //          | Memory for member pointer is NOT allocated at construction of pointer type
+                    //          V
+                    //         NULL
+
+                    auto const pointee_class_scope = (*pointee_class)->ref.lock();
+                    auto const& syms = pointee_class_scope->instance_var_symbols;
+
+                    for (auto const idx : indices(syms)) {
+                        auto const& t = syms[idx]->type;
+                        if (t.is_aggregate()) {
+                            auto *const instance_var_val
+                                = emitter.load_if_ref(
+                                    emitter.alloc_helper.create_alloca(t, false), t
+                                );
+                            auto *const member_access_val =
+                                emitter.ctx.builder.CreateConstInBoundsGEP2_32(indexed_ptr_val, 0u, idx);
+                            emitter.ctx.builder.CreateStore(
+                                    instance_var_val,
+                                    member_access_val
+                                );
+                        }
+                    }
+                }
+
+                emit_copy_to_lhs(
+                    indexed_ptr_val,
                     access->type
                 );
             } else if (!access->callee_scope.expired()) {
