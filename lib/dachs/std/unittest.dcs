@@ -1,0 +1,66 @@
+import std.unittest.assertion
+
+class test_case
+    id : uint
+    description : string
+    runner : func() : assertion
+    failures : [string]
+    num_tests : uint
+
+    init(@id, @description, @runner)
+        @failures := [] : [string]
+        @num_tests := 0u
+    end
+
+    func run
+        result := @runner()
+        @failures << result.failures
+        @num_tests += result.num_tests
+        ret result.success?
+    end
+end
+
+class unittest
+    title : string
+    test_cases : [test_case]
+    id : uint
+
+    init(@title)
+        @test_cases := [] : [test_case]
+        @id := 0u
+    end
+
+    func of(desc, runner)
+        @test_cases << new test_case{@id, desc, runner as func() : assertion}
+        @id += 1u
+    end
+
+    func run
+        for var t in @test_cases
+            t.run
+        end
+
+        num_tests := @test_cases.foldl(0u, -> acc, t in acc + t.num_tests)
+        num_failed := @test_cases.foldl(0u) do |acc, t|
+            unless t.failures.empty?
+                print("Test No.")
+                print(t.id)
+                print(": \"")
+                print(t.description)
+                println('"')
+                for f in t.failures
+                    print("  Failed: ")
+                    println(f)
+                end
+            end
+            ret acc + t.failures.size
+        end
+
+        print("\nTested: "); println(num_tests)
+        print("Passed: "); println(num_tests - num_failed)
+        print("Failed: "); println(num_failed)
+
+        ret num_failed as int
+    end
+end
+

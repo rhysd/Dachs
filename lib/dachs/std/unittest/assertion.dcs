@@ -1,0 +1,35 @@
+class assertion
+    failures : [string]
+    num_tests : uint
+
+    init
+        @failures := [] : [string]
+        @num_tests := 0u
+    end
+
+    func equals(lhs, rhs)
+        unless lhs == rhs
+            @failures << "equals: " + (lhs as string) + " != " + (rhs as string)
+        end
+        @num_tests += 1u
+    end
+
+    func ensure(value)
+        unless value
+            @failures << "ensure: " + (value as string)
+        end
+        @num_tests += 1u
+    end
+
+    func success?
+        ret @failures.empty?
+    end
+
+    func +(other)
+        var a := new assertion
+        a.failures = @failures + other.failures
+        a.num_tests = @num_tests + other.num_tests
+        ret a
+    end
+end
+
