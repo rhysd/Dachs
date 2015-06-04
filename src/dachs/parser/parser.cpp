@@ -974,14 +974,6 @@ public:
                 ]
             ;
 
-        if_expr
-            = (
-                DACHS_KWD(if_kind) >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
-                >> (typed_expr - DACHS_KWD("else")) >> -sep >> DACHS_KWD("else") >> -sep >> typed_expr
-            ) [
-                _val = make_node_ptr<ast::node::if_expr>(_1, _2, _3, _4)
-            ];
-
         typed_expr
             =
                 (if_expr | range_expr)[_val = _1]
@@ -1197,15 +1189,31 @@ public:
                 DACHS_KWD(if_kind) >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                 >> if_then_stmt_block >> -sep
                 >> *(
-                    qi::as<ast::node_type::if_stmt::elseif_type>()[
+                    qi::as<ast::node_type::if_expr::elseif_type>()[
                         DACHS_KWD("elseif") >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                         >> if_then_stmt_block >> -sep
                     ]
                 ) >> -(DACHS_KWD("else") >> -sep >> if_else_stmt_block >> -sep)
                 >> "end"
             ) [
-                _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4, _5)
+                _val = make_node_ptr<ast::node::if_expr>(_1, _2, _3, _4, _5)
             ];
+
+        if_expr
+            = (
+                DACHS_KWD(if_kind) >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
+                >> if_then_stmt_block >> -sep
+                >> *(
+                    qi::as<ast::node_type::if_expr::elseif_type>()[
+                        DACHS_KWD("elseif") >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
+                        >> if_then_stmt_block >> -sep
+                    ]
+                ) >> DACHS_KWD("else") >> -sep >> if_else_stmt_block >> -sep
+                >> "end"
+            ) [
+                _val = make_node_ptr<ast::node::if_expr>(_1, _2, _3, _4, _5, false/*is_toplevel*/)
+            ];
+
 
         return_stmt
             = (
@@ -1285,7 +1293,7 @@ public:
                   | assignment_stmt
                   | (typed_expr - DACHS_KWD(if_kind))
                 )
-                >> DACHS_KWD(if_kind) >> typed_expr
+                >> DACHS_KWD(if_kind) >> typed_expr >> !DACHS_KWD("then")
             ) [
                 _val = make_node_ptr<ast::node::postfix_if_stmt>(_1, _2, _3)
             ];
@@ -1518,9 +1526,9 @@ public:
                 , logical_and_expr
                 , logical_or_expr
                 , range_expr
-                , if_expr
                 , typed_expr
                 , if_stmt
+                , if_expr
                 , return_stmt
                 , case_stmt
                 , switch_stmt
@@ -1643,7 +1651,6 @@ public:
         logical_and_expr.name("logical and expression");
         logical_or_expr.name("logical or expression");
         range_expr.name("range expression");
-        if_expr.name("if expression");
         typed_expr.name("compound expression");
         primary_type.name("template type");
         nested_type.name("nested type");
@@ -1655,6 +1662,7 @@ public:
         qualified_type.name("qualified type");
         typeof_type.name("typeof type");
         if_stmt.name("if statement");
+        if_expr.name("if expression");
         return_stmt.name("return statement");
         case_stmt.name("case statement");
         switch_stmt.name("switch statement");
@@ -1719,7 +1727,6 @@ private:
         );
     DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE(object_construct);
-    DACHS_DEFINE_RULE(if_stmt);
     DACHS_DEFINE_RULE(return_stmt);
     DACHS_DEFINE_RULE(case_stmt);
     DACHS_DEFINE_RULE(switch_stmt);
@@ -1770,9 +1777,10 @@ private:
         , logical_and_expr
         , logical_or_expr
         , range_expr
-        , if_expr
         , typed_expr
         , var_ref_before_space
+        , if_expr
+        , if_stmt
     ;
 
     rule<ast::node::func_invocation()> begin_end_expr;

@@ -278,14 +278,6 @@ public:
                 + '\n' + visit(be->rhs, indent+lead, "   ");
     }
 
-    String visit(node::if_expr const& ie, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(ie, indent)
-                + '\n' + visit(ie->condition_expr, indent+lead, "|  ")
-                + '\n' + visit(ie->then_expr, indent+lead, "|  ")
-                + '\n' + visit(ie->else_expr, indent+lead, "   ");
-    }
-
     String visit(node::typed_expr const& te, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(te, indent)
@@ -302,17 +294,17 @@ public:
                + visit_nodes(as->rhs_exprs, indent+lead, true);
     }
 
-    String visit(node::if_stmt const& is, String const& indent, char const* const lead) const noexcept
+    String visit(node::if_expr const& ie, String const& indent, char const* const lead) const noexcept
     {
-        return prefix_of(is, indent)
-                + '\n' + visit(is->condition, indent+lead, "|  ")
-                + '\n' + visit(is->then_stmts, indent+lead, is->elseif_stmts_list.empty() && !is->maybe_else_stmts ? "   " : "|  ")
-                + visit_nodes_with_predicate(is->elseif_stmts_list,
+        return prefix_of(ie, indent)
+                + '\n' + visit(ie->condition, indent+lead, "|  ")
+                + '\n' + visit(ie->then_stmts, indent+lead, ie->elseif_stmts_list.empty() && !ie->maybe_else_stmts ? "   " : "|  ")
+                + visit_nodes_with_predicate(ie->elseif_stmts_list,
                         [this, indent, lead](auto const& cond_and_then_stmts, auto const l){
                             return visit(cond_and_then_stmts.first, indent+lead, "|  ")
                                 + '\n' + visit(cond_and_then_stmts.second, indent+lead, l);
-                        }, !is->maybe_else_stmts)
-                + (is->maybe_else_stmts ? '\n' + visit(*(is->maybe_else_stmts), indent+lead, "   ") : "");
+                        }, !ie->maybe_else_stmts)
+                + (ie->maybe_else_stmts ? '\n' + visit(*(ie->maybe_else_stmts), indent+lead, "   ") : "");
     }
 
     String visit(node::case_stmt const& cs, String const& indent, char const* const lead) const noexcept

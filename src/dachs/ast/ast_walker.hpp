@@ -197,15 +197,6 @@ public:
         ));
     }
 
-    void walk(node::if_expr &ie)
-    {
-        visitor.visit(ie, walker_for(
-            ie->condition_expr,
-            ie->then_expr,
-            ie->else_expr
-        ));
-    }
-
     void walk(node::typed_expr &te)
     {
         visitor.visit(te, walker_for(
@@ -237,13 +228,13 @@ public:
         ));
     }
 
-    void walk(node::if_stmt &is)
+    void walk(node::if_expr &ie)
     {
-        visitor.visit(is, walker_for(
-            is->condition,
-            is->then_stmts,
-            is->elseif_stmts_list,
-            is->maybe_else_stmts
+        visitor.visit(ie, walker_for(
+            ie->condition,
+            ie->then_stmts,
+            ie->elseif_stmts_list,
+            ie->maybe_else_stmts
         ));
     }
 

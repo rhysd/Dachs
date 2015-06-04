@@ -1700,45 +1700,6 @@ public:
         visit_unary_expr_call(unary, operand_type);
     }
 
-    template<class Walker>
-    void visit(ast::node::if_expr const& if_, Walker const& w)
-    {
-        w();
-
-        auto const condition_type = type_of(if_->condition_expr);
-        auto const then_type = type_of(if_->then_expr);
-        auto const else_type = type_of(if_->else_expr);
-
-        if (!condition_type || !then_type || !else_type) {
-            return;
-        }
-
-        if (condition_type != type::get_builtin_type("bool", type::no_opt)) {
-            semantic_error(
-                    if_,
-                    boost::format(
-                        "  Type of condition in if expression must be 'bool'\n"
-                        "  Note: Type of condition is '%1%'"
-                    ) % condition_type.to_string()
-                );
-            return;
-        }
-
-        if (then_type != else_type) {
-            semantic_error(
-                    if_,
-                    boost::format(
-                        "  Type mismatch between type of then clause and else clause\n"
-                        "  Note: Type of then clause is '%1%'\n"
-                        "  Note: Type of else clause is '%2%'"
-                    ) % then_type.to_string() % else_type.to_string()
-                );
-            return;
-        }
-
-        if_->type = then_type;
-    }
-
     boost::optional<std::string> check_member_func_visibility(scope::func_scope const& member_func) const
     {
         auto const f = with_current_scope([](auto const& s)
@@ -3333,9 +3294,96 @@ public:
         check_condition_expr(while_->condition);
     }
 
-    template<class Walker>
-    void visit(ast::node::if_stmt const& if_, Walker const& w)
+    boost::optional<type::type> analyze_evaluatable_block(ast::node::statement_block const& block)
     {
+        auto const error
+            = [&block, this]()
+            {
+                semantic_error(block, "  Expression's block must end with expression");
+                return boost::none;
+            };
+
+        if (block->value.empty()) {
+            return error();
+        }
+
+        auto const& last_stmt = block->value.back();
+        if (auto const last_expr = get_as<ast::node::any_expr>(last_stmt)) {
+            return type_of(*last_expr);
+        } else {
+            return error();
+        }
+    }
+
+    void visit_if_expr(ast::node::if_expr const& if_expr)
+    {
+        check_condition_expr(if_expr->condition);
+
+        auto const then_type = analyze_evaluatable_block(if_expr->then_stmts);
+        if (!then_type) {
+            semantic_error(
+                    if_expr->then_stmts,
+                    "  While analyzing 'then' block of 'if' expression"
+                );
+            return;
+        }
+
+        auto const& t = *then_type;
+
+        for (auto const& elseif : if_expr->elseif_stmts_list) {
+            check_condition_expr(elseif.first);
+            auto const elseif_type = analyze_evaluatable_block(elseif.second);
+            if (!elseif_type) {
+                semantic_error(elseif.second, "  While analyzing 'elseif' block of 'if' expression");
+                return;
+            }
+
+            if (t != *elseif_type) {
+                semantic_error(
+                        elseif.second,
+                        boost::format(
+                            "  All blocks of 'if' expression must have the same type\n"
+                            "  Note: Type of 'then' block is '%1%' but type of 'elseif' block is '%2%'"
+                        ) % t.to_string() % elseif_type->to_string()
+                    );
+            }
+        }
+
+        assert(if_expr->maybe_else_stmts);
+        auto const& else_stmts = *if_expr->maybe_else_stmts;
+
+        auto const else_type = analyze_evaluatable_block(else_stmts);
+
+        if (!else_type) {
+            semantic_error(else_stmts, "  While analyzing 'else' block of 'if' expression");
+            return;
+        }
+
+        if (t != *else_type) {
+            semantic_error(
+                    else_stmts,
+                    boost::format(
+                        "  All blocks of 'if' expression must have the same type\n"
+                        "  Note: Type of 'then' block is '%1%' but type of 'else' block is '%2%'"
+                    ) % t.to_string() % else_type->to_string()
+                );
+        }
+
+        if_expr->type = t;
+    }
+
+    template<class Walker>
+    void visit(ast::node::if_expr const& if_, Walker const& w)
+    {
+        if (!if_->is_toplevel) {
+            w();
+            visit_if_expr(if_);
+            return;
+        }
+
+        // Note: When the 'if' is at toplevel, compiler checks the 'if' as statement
+
+        if_->type = type::get_unit_type();
         w();
         check_condition_expr(if_->condition);
         for (auto const& elseif : if_->elseif_stmts_list) {

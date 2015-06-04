@@ -676,23 +676,6 @@ struct binary_expr final : public expression {
     }
 };
 
-struct if_expr final : public expression {
-    symbol::if_kind kind;
-    node::any_expr condition_expr, then_expr, else_expr;
-
-    if_expr(symbol::if_kind const kind,
-            node::any_expr const& condition,
-            node::any_expr const& then,
-            node::any_expr const& else_) noexcept
-        : expression(), kind(kind), condition_expr(condition), then_expr(then), else_expr(else_)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "IF_EXPR: " + symbol::to_string(kind);
-    }
-};
-
 struct typed_expr final : public expression {
     node::any_expr child_expr;
     node::any_type specified_type;
@@ -942,7 +925,7 @@ struct assignment_stmt final : public statement {
     }
 };
 
-struct if_stmt final : public statement {
+struct if_expr final : public expression {
     using elseif_type
         = std::pair<node::any_expr, node::statement_block>;
 
@@ -951,18 +934,28 @@ struct if_stmt final : public statement {
     node::statement_block then_stmts;
     std::vector<elseif_type> elseif_stmts_list;
     boost::optional<node::statement_block> maybe_else_stmts;
+    bool is_toplevel;
 
-    if_stmt(symbol::if_kind const kind,
+    if_expr(symbol::if_kind const kind,
             node::any_expr const& cond,
             node::statement_block const& then,
             decltype(elseif_stmts_list) const& elseifs,
-            decltype(maybe_else_stmts) const& maybe_else) noexcept
-        : statement(), kind(kind), condition(cond), then_stmts(then), elseif_stmts_list(elseifs), maybe_else_stmts(maybe_else)
+            decltype(maybe_else_stmts) const& maybe_else,
+            bool const toplevel = true)
+        : expression()
+        , kind(kind)
+        , condition(cond)
+        , then_stmts(then)
+        , elseif_stmts_list(elseifs)
+        , maybe_else_stmts(maybe_else)
+        , is_toplevel(toplevel)
     {}
 
     std::string to_string() const noexcept override
     {
-        return "IF_STMT: " + symbol::to_string(kind);
+        return "IF_EXPR: "
+            + symbol::to_string(kind)
+            + " (" + (is_toplevel ? "toplevel" : "non-toplevel") + ")";
     }
 };
 

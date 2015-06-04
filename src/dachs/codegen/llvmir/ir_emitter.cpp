@@ -18,6 +18,7 @@
 #include <boost/algorithm/cxx11/all_of.hpp>
 #include <boost/range/irange.hpp>
 #include <boost/range/adaptor/transformed.hpp>
+#include <boost/range/adaptor/sliced.hpp>
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Value.h>
@@ -66,6 +67,7 @@ using helper::variant::apply_lambda;
 using helper::variant::get_as;
 using helper::dump;
 using boost::adaptors::transformed;
+using boost::adaptors::sliced;
 using boost::algorithm::all_of;
 
 class llvm_ir_emitter {
@@ -1126,7 +1128,7 @@ public:
                 || func_def->kind == ast::symbol::func_kind::proc
                 || *func_def->ret_type == type::get_unit_type()) {
             ctx.builder.CreateRet(
-                emit_tuple_constant(type::get_unit_type(), {})
+                inst_emitter.emit_unit_constant()
             );
         } else {
             // Note:
@@ -1155,7 +1157,21 @@ public:
         }
     }
 
-    void emit(ast::node::if_stmt const& if_)
+    val emit_evaluatable_block(ast::node::statement_block const& block)
+    {
+        assert(!block->value.size().empty());
+
+        auto const last_expr = get_as<ast::node::any_expr>(block->value.back());
+        assert(last_expr);
+
+        for (auto const& stmt : block->value | sliced(0, block->value.size()-1)) {
+            emit(stmt);
+        }
+
+        return emit(*last_expr);
+    }
+
+    val emit(ast::node::if_expr const& if_)
     {
         auto helper = bb_helper(if_);
 
@@ -1163,13 +1179,22 @@ public:
         auto *else_block = helper.create_block_for_parent("if.else");
         auto *const end_block = helper.create_block("if.end");
 
+        std::vector<std::pair<val, llvm::BasicBlock *>> evaluated_blocks;
+
         // IR for if-then clause
         val cond_val = load_if_ref(emit(if_->condition), if_->condition);
         if (if_->kind == ast::symbol::if_kind::unless) {
-            cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_stmt_unless"), "unless statement");
+            cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_expr_unless"), "unless statement");
         }
         helper.create_cond_br(cond_val, then_block, else_block);
-        emit(if_->then_stmts);
+
+        if (!if_->is_toplevel) {
+            auto *const block_val = emit_evaluatable_block(if_->then_stmts);
+            evaluated_blocks.emplace_back(block_val, then_block);
+        } else {
+            emit(if_->then_stmts);
+        }
+
         helper.terminate_with_br(end_block, else_block);
 
         // IR for elseif clause
@@ -1178,17 +1203,47 @@ public:
             then_block = helper.create_block_for_parent("if.then");
             else_block = helper.create_block_for_parent("if.else");
             helper.create_cond_br(cond_val, then_block, else_block);
-            emit(elseif.second);
+
+            if (!if_->is_toplevel) {
+                auto *const block_val = emit_evaluatable_block(elseif.second);
+                evaluated_blocks.emplace_back(block_val, then_block);
+            } else {
+                emit(elseif.second);
+            }
+
             helper.terminate_with_br(end_block, else_block);
         }
 
         // IR for else clause
         if (if_->maybe_else_stmts) {
-            emit(*if_->maybe_else_stmts);
+            if (!if_->is_toplevel) {
+                auto *const block_val = emit_evaluatable_block(*if_->maybe_else_stmts);
+                evaluated_blocks.emplace_back(block_val, else_block);
+            } else {
+                emit(*if_->maybe_else_stmts);
+            }
         }
         helper.terminate_with_br(end_block);
 
         helper.append_block(end_block);
+
+        if (!if_->is_toplevel) {
+            assert(if_->elseif_stmts_list.size() + 2 == emit_evaluatable_block.size());
+
+            auto *const phi
+                = ctx.builder.CreatePHI(
+                        evaluated_blocks[0].first->getType(),
+                        if_->elseif_stmts_list.size() + 2 /*num of clauses*/,
+                        "expr.if.phi"
+                    );
+
+            for (auto const& block : evaluated_blocks) {
+                phi->addIncoming(block.first, block.second);
+            }
+            return phi;
+        } else {
+            return inst_emitter.emit_unit_constant();
+        }
     }
 
     void emit(ast::node::return_stmt const& return_)
@@ -1457,7 +1512,7 @@ public:
             // This is because a lambda object has already been emitted as a variable and lookup_var()
             // returns the corresponding llvm::Value.
             assert(llvm::dyn_cast<llvm::StructType>(type_emitter.emit_alloc_type(*g))->getNumElements() == 0u);
-            return emit_tuple_constant(type::get_unit_type(), {});
+            return inst_emitter.emit_unit_constant();
         } else {
             error(var, boost::format("Invalid variable reference '%1%'. Its type is '%2%'") % var->name % var->type.to_string());
         }
@@ -1507,7 +1562,7 @@ public:
             // Note:
             // If the capture map exists but no capture is found,
             // it is non-captured lambda.
-            return emit_tuple_constant(type::get_unit_type(), {});
+            return inst_emitter.emit_unit_constant();
         }
 
         val const elem_ptr = ctx.builder.CreateStructGEP(child_val, capture->offset, "capture." + ufcs->member_name);
@@ -2100,32 +2155,6 @@ public:
         helper.terminate_with_br(end_block);
 
         helper.append_block(end_block);
-    }
-
-    val emit(ast::node::if_expr const& if_)
-    {
-        auto helper = bb_helper(if_);
-
-        auto *const then_block = helper.create_block_for_parent("expr.if.then");
-        auto *const else_block = helper.create_block_for_parent("expr.if.else");
-        auto *const merge_block = helper.create_block_for_parent("expr.if.merge");
-
-        val cond_val = load_if_ref(emit(if_->condition_expr), if_->condition_expr);
-        if (if_->kind == ast::symbol::if_kind::unless) {
-            cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_expr_unless"), "unless expression");
-        }
-        helper.create_cond_br(cond_val, then_block, else_block);
-
-        auto *const then_val = load_if_ref(emit(if_->then_expr), if_->then_expr);
-        helper.terminate_with_br(merge_block, else_block);
-
-        auto *const else_val = load_if_ref(emit(if_->else_expr), if_->else_expr);
-        helper.terminate_with_br(merge_block, merge_block);
-
-        auto *const phi = ctx.builder.CreatePHI(type_emitter.emit(if_->type), 2, "expr.if.tmp");
-        phi->addIncoming(then_val, then_block);
-        phi->addIncoming(else_val, else_block);
-        return phi;
     }
 
     val emit(ast::node::typed_expr const& typed)

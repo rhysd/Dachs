@@ -1028,44 +1028,6 @@ BOOST_AUTO_TEST_CASE(assignment_expr)
         )"));
 }
 
-BOOST_AUTO_TEST_CASE(if_expr)
-{
-    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
-        func main
-            (if true then 42 else 24)
-            hoge(if true then 3.14 else 4.12)
-            (if true then
-                42
-            else
-                24)
-            (if true then 42
-             else 24)
-            (if if then if else if) # 'if' is a contextual keyword
-
-            # Corner cases
-            (if thenhoge then elsehoge else 42)
-            (ifhoge)
-
-            (unless true then 42 else 24)
-            hoge(unless true then 3.14 else 4.12)
-            (unless true then
-                42
-            else
-                24)
-            (unless true then 42
-             else 24)
-            (unless unless then unless else unless) # 'unless' is a contextual keyword
-
-            # Corner cases
-            (unlesshoge)
-            (unless thenhoge then elsehoge else 42)
-        end
-        )"));
-
-    // it is parsed as if statement and it will fail
-    CHECK_PARSE_THROW("func main if true then 42 else 24 end");
-}
-
 BOOST_AUTO_TEST_CASE(object_construct)
 {
     BOOST_CHECK_NO_THROW(p.check_syntax(R"(
@@ -1161,7 +1123,6 @@ BOOST_AUTO_TEST_CASE(lambda_expr)
                     println(error)
                 end
             )
-            -> x in if x < 0 then -x else x
 
             -> (a, b) do
                 p := a + b
@@ -1785,11 +1746,6 @@ BOOST_AUTO_TEST_CASE(let_stmt)
             let a := 42; b := 'a' in println(42)
 
             let
-                a := 42
-                b := 'a'
-            in if a == 4 then a else b
-
-            let
                 var a := 42
                 var b := 42
             in begin
@@ -1996,7 +1952,7 @@ BOOST_AUTO_TEST_CASE(do_block2)
                 blah
             }
 
-            foo bar {|i| if b then i else -i}
+            foo bar {|i| -> 42 }
 
             42.expect to_be {|i| i % 2 == 0}
             42.should_be even?
