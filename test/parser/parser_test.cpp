@@ -869,12 +869,10 @@ BOOST_AUTO_TEST_CASE(binary_expression)
             1 + 1
             1 - 1
 
-            1
-            +
+            1 +
             1
 
-            1
-            -
+            1 -
             1
 
             1 * 1
@@ -1000,6 +998,7 @@ BOOST_AUTO_TEST_CASE(binary_expression)
     CHECK_PARSE_THROW("func main 1 == end");
     CHECK_PARSE_THROW("func main 1 + end");
     CHECK_PARSE_THROW("func main true && end");
+    CHECK_PARSE_THROW("func main 1\n+\n1 end");
 }
 
 BOOST_AUTO_TEST_CASE(assignment_expr)

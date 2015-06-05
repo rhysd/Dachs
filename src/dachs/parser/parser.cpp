@@ -855,11 +855,16 @@ public:
                 ]
             );
 
+        // Note:
+        // Newline before + and - is not permitted because of unary + and - operators
+        // e.g. If permitted, below are parsed as 'foo - 12' wrongly.
+        //   foo
+        //   -12
         additive_expr
             = (
                 mult_expr[_val = _1] >>
                 *(
-                    -qi::eol >> (
+                    (
                         "+"_p
                       | "-"_p
                     ) >> -qi::eol >> mult_expr

@@ -4022,4 +4022,22 @@ BOOST_AUTO_TEST_CASE(non_toplevel_if)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(binary_operator)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            i := 42
+            i
+            + 12.0
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            i := 42
+            i
+            - 12.0
+        end
+    )");
+}
 BOOST_AUTO_TEST_SUITE_END()
