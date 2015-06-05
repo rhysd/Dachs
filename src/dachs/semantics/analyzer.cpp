@@ -3299,7 +3299,7 @@ public:
         auto const error
             = [&block, this]()
             {
-                semantic_error(block, "  Expression's block must end with expression");
+                semantic_error(block, "  Expression block must end with expression");
                 return boost::none;
             };
 
@@ -3319,11 +3319,15 @@ public:
     {
         check_condition_expr(if_expr->condition);
 
+        std::string const kind
+            = if_expr->kind == ast::symbol::if_kind::unless
+                ? "'unless'" : "'if'";
+
         auto const then_type = analyze_evaluatable_block(if_expr->then_stmts);
         if (!then_type) {
             semantic_error(
                     if_expr->then_stmts,
-                    "  While analyzing 'then' block of 'if' expression"
+                    "  While analyzing 'then' block of " + kind + " expression"
                 );
             return;
         }
@@ -3334,7 +3338,7 @@ public:
             check_condition_expr(elseif.first);
             auto const elseif_type = analyze_evaluatable_block(elseif.second);
             if (!elseif_type) {
-                semantic_error(elseif.second, "  While analyzing 'elseif' block of 'if' expression");
+                semantic_error(elseif.second, "  While analyzing 'elseif' block of " + kind + " expression");
                 return;
             }
 
@@ -3342,9 +3346,9 @@ public:
                 semantic_error(
                         elseif.second,
                         boost::format(
-                            "  All blocks of 'if' expression must have the same type\n"
-                            "  Note: Type of 'then' block is '%1%' but type of 'elseif' block is '%2%'"
-                        ) % t.to_string() % elseif_type->to_string()
+                            "  All blocks of %1% expression must have the same type\n"
+                            "  Note: Type of 'then' block is '%2%' but type of 'elseif' block is '%3%'"
+                        ) % kind % t.to_string() % elseif_type->to_string()
                     );
             }
         }
@@ -3355,7 +3359,7 @@ public:
         auto const else_type = analyze_evaluatable_block(else_stmts);
 
         if (!else_type) {
-            semantic_error(else_stmts, "  While analyzing 'else' block of 'if' expression");
+            semantic_error(else_stmts, "  While analyzing 'else' block of " + kind + " expression");
             return;
         }
 
@@ -3363,9 +3367,9 @@ public:
             semantic_error(
                     else_stmts,
                     boost::format(
-                        "  All blocks of 'if' expression must have the same type\n"
-                        "  Note: Type of 'then' block is '%1%' but type of 'else' block is '%2%'"
-                    ) % t.to_string() % else_type->to_string()
+                        "  All blocks of %1% expression must have the same type\n"
+                        "  Note: Type of 'then' block is '%2%' but type of 'else' block is '%3%'"
+                    ) % kind % t.to_string() % else_type->to_string()
                 );
         }
 

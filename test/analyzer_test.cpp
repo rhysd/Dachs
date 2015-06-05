@@ -3869,4 +3869,157 @@ BOOST_AUTO_TEST_CASE(function_conversion)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(toplevel_if)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            if true
+                println('a')
+            end
+
+            if true
+                println('b')
+            else
+                println('c')
+            end
+
+            unless false
+                println(42)
+            end
+
+            unless true
+            elseif 42 == 42
+            else
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            if 42
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            unless 42 then end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            if true
+            elseif 3.14
+            end
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(non_toplevel_if)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo_tmpl(x)
+            ret if x % 2 == 1 then
+                x * 2
+            else
+                x / 2
+            end
+        end
+
+        func main
+            i :=
+                if false
+                    ret 0
+                    42
+                else
+                    42 + 42
+                end
+
+            println(
+                unless false
+                    println('t')
+                    10
+                elseif true
+                    println('e')
+                    11
+                else
+                    println('f')
+                    (-10)
+                end
+            )
+
+            foo_tmpl(11).println
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (if 52
+                42
+             else
+                if false
+                    10
+                else
+                    11
+                end
+             end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (if 52 then 42 else 32 end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (unless false then i := 42 else 32 end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (if false then 42 else i := 10 end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (if false then 42 elseif false then i := 12 else 32 end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (if false then 3.14 else 'n' end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (unless false then 3.14 elseif false then 'a' else 3.14 end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (if false
+             else
+                'n'
+             end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (unless false
+                42
+             else
+             end)
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

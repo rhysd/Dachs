@@ -1478,7 +1478,7 @@ BOOST_AUTO_TEST_CASE(if_non_toplevel)
 {
     BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
-            (if true then 42 else 11 end)
+            (if true then 42 else 11 end) + 1
             (unless true then 42 else 11 end)
             (if true then 1 elseif false then 2 else 3 end)
 
@@ -1525,7 +1525,7 @@ BOOST_AUTO_TEST_CASE(if_non_toplevel)
                 end
             end)
 
-            println(
+            a :=
                 if if true then true else false end
                     if if true then true else false end
                         true
@@ -1535,13 +1535,28 @@ BOOST_AUTO_TEST_CASE(if_non_toplevel)
                 else
                     if if true then true else false end
                         true
+                    elseif if true then true else false end
+                        false
                     else
                         else
                     end
                 end
-            )
         end
     )"));
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (if true
+                42
+             end)
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            ret unless false then 42 end
+        end
+    )");
 }
 
 

@@ -647,6 +647,63 @@ BOOST_AUTO_TEST_CASE(if_expr)
              else 24 end)
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func abs(x)
+            ret if (x as int) < 0 then
+                -x
+            else
+                x
+            end
+        end
+
+        func foo(i)
+            ret if i < 10 then
+                ret 42
+                0
+            else
+                unless i > 10
+                    1
+                else
+                    ret 0
+                    -1
+                end
+            end
+        end
+
+        func main
+            abs(-1.0).println
+
+            i :=
+                if abs(30) > 0
+                    k, l := 42, 21
+                    if k < l
+                        k
+                    else
+                        l
+                    end
+                else
+                    k, l := 'a', 'b'
+                    if 'a' > (0 as char)
+                        k as int
+                    else
+                        l as int
+                    end
+                end
+
+            foo(9)
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            (if true
+                ret 0
+            else
+                ret 0
+            end)
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(typed_expr)
@@ -1678,6 +1735,5 @@ BOOST_AUTO_TEST_CASE(func_type)
         end
     )");
 }
-
 
 BOOST_AUTO_TEST_SUITE_END()
