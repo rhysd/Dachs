@@ -23,7 +23,7 @@ class range
     end
 
   - func lower?(x)
-        ret (if @exclude_end then x < @last else x <= @last)
+        ret (if @exclude_end then x < @last else x <= @last end)
     end
 
     func include?(x)

@@ -69,7 +69,7 @@ BOOST_AUTO_TEST_CASE(if_statement)
         end
 
         func dummy3
-            ret (if true then 42 else -42)
+            ret (if true then 42 else -42 end)
         end
 
         func main
@@ -453,13 +453,13 @@ BOOST_AUTO_TEST_CASE(postfix_if_statement)
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func foo(x)
             if x
-                ret if if x then !x else x
+                ret if if x then !x else x end
             end
         end
 
         func foo2(x)
             unless x
-                ret unless unless x then !x else x
+                ret unless unless x then !x else x end
             end
         end
 

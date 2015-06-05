@@ -1,5 +1,5 @@
 func abs(n)
-    ret (if n > 0.0 then n else -n)
+    ret if n > 0.0 then n else -n end
 end
 
 func sqrt'(p, z, x)

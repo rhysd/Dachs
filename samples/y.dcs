@@ -10,11 +10,11 @@ func main
     # compiler can't deduce it from returned expression.
     fact := -> f in
                 -> (n) : int in
-                    if n == 0 then 1 else n * f(n-1)
+                    if n == 0 then 1 else n * f(n-1) end
 
     fib := -> f in
                 -> (n) : int in
-                    if n <= 1 then 1 else f(n-1) + f(n-2)
+                    if n <= 1 then 1 else f(n-1) + f(n-2) end
 
     y(fact)(10).println #=> 3628800
     y(fib)(10).println  #=> 89

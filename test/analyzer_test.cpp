@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE(let)
         func main
             let
                 a := 42
-            in if true then 12 else 13
+            in if true then 12 else 13 end
         end
     )");
 }

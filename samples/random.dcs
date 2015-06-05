@@ -120,7 +120,7 @@ class Mt19937
 
         var i := 1u
         var j := 0u
-        var k := if @n > key_len then @n else key_len
+        var k := if @n > key_len then @n else key_len end
 
         for k > 0u
             @mt[i] = @mt[i] ^ (@mt[i-1u] ^ (@mt[i-1u] >> 30u) * 1664525u) + init_key[j] + j

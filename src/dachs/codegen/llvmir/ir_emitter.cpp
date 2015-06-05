@@ -1174,57 +1174,64 @@ public:
     val emit(ast::node::if_expr const& if_)
     {
         auto helper = bb_helper(if_);
-
-        auto *then_block = helper.create_block_for_parent("if.then");
-        auto *else_block = helper.create_block_for_parent("if.else");
-        auto *const end_block = helper.create_block("if.end");
-
+        std::string const prefix = if_->is_toplevel ? "if." : "expr.if.";
         std::vector<std::pair<val, llvm::BasicBlock *>> evaluated_blocks;
+
+        auto append_incoming_val
+            = [&, this](auto *const v)
+            {
+                evaluated_blocks.emplace_back(v, ctx.builder.GetInsertBlock());
+            };
 
         // IR for if-then clause
         val cond_val = load_if_ref(emit(if_->condition), if_->condition);
         if (if_->kind == ast::symbol::if_kind::unless) {
             cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_expr_unless"), "unless statement");
         }
+
+        auto *then_block = helper.create_block_for_parent(prefix + "then");
+        auto *else_block = helper.create_block(prefix + "else");
+
         helper.create_cond_br(cond_val, then_block, else_block);
 
+        auto *const end_block = helper.create_block(prefix + "end");
+
         if (!if_->is_toplevel) {
-            auto *const block_val = emit_evaluatable_block(if_->then_stmts);
-            evaluated_blocks.emplace_back(block_val, then_block);
+            append_incoming_val(emit_evaluatable_block(if_->then_stmts));
         } else {
             emit(if_->then_stmts);
         }
 
-        helper.terminate_with_br(end_block, else_block);
+        helper.terminate_with_br(end_block);
+        helper.append_block(else_block);
 
         // IR for elseif clause
         for (auto const& elseif : if_->elseif_stmts_list) {
             cond_val = emit(elseif.first);
-            then_block = helper.create_block_for_parent("if.then");
-            else_block = helper.create_block_for_parent("if.else");
+            then_block = helper.create_block_for_parent(prefix + "then");
+            else_block = helper.create_block(prefix + "else");
             helper.create_cond_br(cond_val, then_block, else_block);
 
             if (!if_->is_toplevel) {
-                auto *const block_val = emit_evaluatable_block(elseif.second);
-                evaluated_blocks.emplace_back(block_val, then_block);
+                append_incoming_val(emit_evaluatable_block(elseif.second));
             } else {
                 emit(elseif.second);
             }
 
-            helper.terminate_with_br(end_block, else_block);
+            helper.terminate_with_br(end_block);
+            helper.append_block(else_block);
         }
 
         // IR for else clause
         if (if_->maybe_else_stmts) {
             if (!if_->is_toplevel) {
-                auto *const block_val = emit_evaluatable_block(*if_->maybe_else_stmts);
-                evaluated_blocks.emplace_back(block_val, else_block);
+                append_incoming_val(emit_evaluatable_block(*if_->maybe_else_stmts));
             } else {
                 emit(*if_->maybe_else_stmts);
             }
         }
-        helper.terminate_with_br(end_block);
 
+        helper.terminate_with_br(end_block);
         helper.append_block(end_block);
 
         if (!if_->is_toplevel) {

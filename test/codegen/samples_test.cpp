@@ -57,7 +57,7 @@ BOOST_AUTO_TEST_CASE(some_samples)
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func abs(n : float) : float
-            ret (if n > 0.0 then n else -n)
+            ret if n > 0.0 then n else -n end
         end
 
         func sqrt(x : float) : float
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(some_samples)
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func abs(n)
-            ret (if n > 0.0 then n else -n)
+            ret if n > 0.0 then n else -n end
         end
 
         func sqrt'(p, z, x)
@@ -266,7 +266,7 @@ BOOST_AUTO_TEST_CASE(some_samples)
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func test(b : bool)
-            print(if b then '.' else 'F')
+            print(if b then '.' else 'F' end)
         end
 
         func test_not(b : bool)

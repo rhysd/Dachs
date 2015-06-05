@@ -1183,7 +1183,7 @@ BOOST_AUTO_TEST_CASE(lambda_expr)
     CHECK_PARSE_THROW(R"(
         # It can't contain statement
         func main
-            foo bar {|i| if b then c else d end}
+            foo bar {|i| j = i + 42}
         end
     )");
 
@@ -1472,6 +1472,76 @@ BOOST_AUTO_TEST_CASE(if_statement)
         )"));
 
     CHECK_PARSE_THROW("func main if aaa then bbb else ccc end");
+}
+
+BOOST_AUTO_TEST_CASE(if_non_toplevel)
+{
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func main
+            (if true then 42 else 11 end)
+            (unless true then 42 else 11 end)
+            (if true then 1 elseif false then 2 else 3 end)
+
+            foo(
+                if 11 == 11
+                    i := 11
+                    println(i)
+                    i + 11
+                else
+                    moudameda()
+                    0
+                end
+            )
+
+            ret (
+                unless 11 == 11
+                    i := 11
+                    println(i)
+                    i + 11
+                elseif 11 != 11
+                    println("elseif")
+                    i + 12
+                else
+                    moudameda()
+                    0
+                end
+            )
+
+            (if true then
+                if true then
+                    ret 52
+                    42
+                else
+                    33
+                end
+            else
+                unless foo()
+                    ret 10
+                    42
+                elseif bar.baz
+                    i + 10
+                else
+                    z + i
+                end
+            end)
+
+            println(
+                if if true then true else false end
+                    if if true then true else false end
+                        true
+                    else
+                        else
+                    end
+                else
+                    if if true then true else false end
+                        true
+                    else
+                        else
+                    end
+                end
+            )
+        end
+    )"));
 }
 
 
@@ -1962,7 +2032,7 @@ BOOST_AUTO_TEST_CASE(do_block2)
     CHECK_PARSE_THROW(R"(
         # It can't contain statement
         func main
-            foo bar {|i| if b then c else d end}
+            foo bar {|i| j := i * 2 }
         end
     )");
 

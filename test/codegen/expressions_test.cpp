@@ -618,16 +618,16 @@ BOOST_AUTO_TEST_CASE(if_expr)
         end
 
         func main
-            (if true then 42 else 24)
-            foo(if true then 3.14 else 4.12)
+            (if true then 42 else 24 end)
+            foo(if true then 3.14 else 4.12 end)
             (if true then
                 42
             else
-                24)
+                24 end)
             var if := true
             (if true then 42
-             else 24)
-            (if if then if else if) # 'if' is a contextual keyword
+             else 24 end)
+            (if if then if else if end) # 'if' is a contextual keyword
         end
     )");
 
@@ -636,15 +636,15 @@ BOOST_AUTO_TEST_CASE(if_expr)
         end
 
         func main
-            (unless true then 42 else 24)
-            foo(unless true then 3.14 else 4.12)
+            (unless true then 42 else 24 end)
+            foo(unless true then 3.14 else 4.12 end)
             (unless true then
                 42
             else
-                24)
+                24 end)
             var unless := true
             (unless true then 42
-             else 24)
+             else 24 end)
         end
     )");
 }
@@ -976,10 +976,11 @@ BOOST_AUTO_TEST_CASE(let_expr)
                 println(a)
             else
                 println(b)
+            end
 
             let
                 a, var b := 42, 'a'
-            in if a == 4 then a else (b as int)
+            in if a == 4 then a else (b as int) end
 
             let
                 var a := 42
