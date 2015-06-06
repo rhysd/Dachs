@@ -1197,7 +1197,10 @@ public:
         auto *const end_block = helper.create_block(prefix + "end");
 
         if (!if_->is_toplevel) {
-            append_incoming_val(emit_evaluatable_block(if_->then_stmts));
+            auto *const block_val = emit_evaluatable_block(if_->then_stmts);
+            if (!then_block->getTerminator()) {
+                append_incoming_val(block_val);
+            }
         } else {
             emit(if_->then_stmts);
         }
@@ -1213,7 +1216,10 @@ public:
             helper.create_cond_br(cond_val, then_block, else_block);
 
             if (!if_->is_toplevel) {
-                append_incoming_val(emit_evaluatable_block(elseif.second));
+                auto *const block_val = emit_evaluatable_block(elseif.second);
+                if (!else_block->getTerminator()) {
+                    append_incoming_val(block_val);
+                }
             } else {
                 emit(elseif.second);
             }
@@ -1225,7 +1231,10 @@ public:
         // IR for else clause
         if (if_->maybe_else_stmts) {
             if (!if_->is_toplevel) {
-                append_incoming_val(emit_evaluatable_block(*if_->maybe_else_stmts));
+                auto *const block_val = emit_evaluatable_block(*if_->maybe_else_stmts);
+                if (!else_block->getTerminator()) {
+                    append_incoming_val(block_val);
+                }
             } else {
                 emit(*if_->maybe_else_stmts);
             }
@@ -1237,17 +1246,21 @@ public:
         if (!if_->is_toplevel) {
             assert(if_->elseif_stmts_list.size() + 2 == emit_evaluatable_block.size());
 
-            auto *const phi
-                = ctx.builder.CreatePHI(
-                        evaluated_blocks[0].first->getType(),
-                        if_->elseif_stmts_list.size() + 2 /*num of clauses*/,
-                        "expr.if.phi"
-                    );
+            if (!evaluated_blocks.empty()) {
+                auto *const phi
+                    = ctx.builder.CreatePHI(
+                            evaluated_blocks[0].first->getType(),
+                            if_->elseif_stmts_list.size() + 2 /*num of clauses*/,
+                            "expr.if.phi"
+                        );
 
-            for (auto const& block : evaluated_blocks) {
-                phi->addIncoming(block.first, block.second);
+                for (auto const& block : evaluated_blocks) {
+                    phi->addIncoming(block.first, block.second);
+                }
+                return phi;
+            } else {
+                return llvm::UndefValue::get(type_emitter.emit(if_->type));
             }
-            return phi;
         } else {
             return inst_emitter.emit_unit_constant();
         }

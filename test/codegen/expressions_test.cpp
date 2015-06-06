@@ -704,6 +704,32 @@ BOOST_AUTO_TEST_CASE(if_expr)
             end)
         end
     )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+            ret unless x == 0 as typeof(x)
+                ret false
+                3.14
+            else
+                ret true
+                2.15
+            end
+        end
+
+        func main
+            foo(0.0).println
+            ret if true then
+                ret 0
+                'a'
+            elseif false
+                ret 2
+                'b'
+            else
+                ret 1
+                'c'
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(typed_expr)
