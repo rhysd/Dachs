@@ -197,6 +197,24 @@ public:
         ));
     }
 
+    void walk(node::block_expr &be)
+    {
+        visitor.visit(be, walker_for(
+            be->stmts,
+            be->last_expr
+        ));
+    }
+
+    void walk(node::if_expr &ie)
+    {
+        visitor.visit(ie, walker_for(
+            ie->condition,
+            ie->then_block,
+            ie->elseif_block_list,
+            ie->else_block
+        ));
+    }
+
     void walk(node::typed_expr &te)
     {
         visitor.visit(te, walker_for(
@@ -228,13 +246,13 @@ public:
         ));
     }
 
-    void walk(node::if_expr &ie)
+    void walk(node::if_stmt &is)
     {
-        visitor.visit(ie, walker_for(
-            ie->condition,
-            ie->then_stmts,
-            ie->elseif_stmts_list,
-            ie->maybe_else_stmts
+        visitor.visit(is, walker_for(
+            is->condition,
+            is->then_stmts,
+            is->elseif_stmts_list,
+            is->maybe_else_stmts
         ));
     }
 

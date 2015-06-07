@@ -676,6 +676,58 @@ struct binary_expr final : public expression {
     }
 };
 
+struct block_expr final : public expression {
+    using block_type
+        = std::vector<node::compound_stmt>;
+
+    block_type stmts;
+    node::any_expr last_expr;
+    scope::weak_local_scope scope;
+
+    template<class Expr>
+    block_expr(
+            block_type const& s,
+            Expr && e)
+        : expression()
+        , stmts(s)
+        , last_expr(std::forward<Expr>(e))
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "BLOCK_EXPR";
+    }
+};
+
+struct if_expr final : public expression {
+    using elseif_type
+        = std::pair<node::any_expr, node::block_expr>;
+
+    symbol::if_kind kind;
+    node::any_expr condition;
+    node::block_expr then_block;
+    std::vector<elseif_type> elseif_block_list;
+    node::block_expr else_block;
+
+    if_expr(symbol::if_kind const kind,
+            node::any_expr const& cond,
+            node::block_expr const& then,
+            decltype(elseif_block_list) const& elseifs,
+            node::block_expr const& else_)
+        : expression()
+        , kind(kind)
+        , condition(cond)
+        , then_block(then)
+        , elseif_block_list(elseifs)
+        , else_block(else_)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "IF_EXPR: " + symbol::to_string(kind);
+    }
+};
+
 struct typed_expr final : public expression {
     node::any_expr child_expr;
     node::any_type specified_type;
@@ -925,7 +977,7 @@ struct assignment_stmt final : public statement {
     }
 };
 
-struct if_expr final : public expression {
+struct if_stmt final : public statement {
     using elseif_type
         = std::pair<node::any_expr, node::statement_block>;
 
@@ -936,13 +988,13 @@ struct if_expr final : public expression {
     boost::optional<node::statement_block> maybe_else_stmts;
     bool is_toplevel;
 
-    if_expr(symbol::if_kind const kind,
+    if_stmt(symbol::if_kind const kind,
             node::any_expr const& cond,
             node::statement_block const& then,
             decltype(elseif_stmts_list) const& elseifs,
             decltype(maybe_else_stmts) const& maybe_else,
             bool const toplevel = true)
-        : expression()
+        : statement()
         , kind(kind)
         , condition(cond)
         , then_stmts(then)
@@ -953,9 +1005,7 @@ struct if_expr final : public expression {
 
     std::string to_string() const noexcept override
     {
-        return "IF_EXPR: "
-            + symbol::to_string(kind)
-            + " (" + (is_toplevel ? "toplevel" : "non-toplevel") + ")";
+        return "IF_STMT: " + symbol::to_string(kind);
     }
 };
 

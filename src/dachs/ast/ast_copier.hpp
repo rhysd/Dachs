@@ -152,6 +152,24 @@ public:
         return copy_node(be, copy(be->lhs), be->op, copy(be->rhs));
     }
 
+    auto copy(node::block_expr const& be) const
+    {
+        return copy_node(be, copy(be->stmts), copy(be->last_expr));
+    }
+
+    auto copy(node::if_expr const& ie) const
+    {
+        return copy_node(
+                ie,
+                ie->kind,
+                copy(ie->condition),
+                copy(ie->then_block),
+                copy(ie->elseif_block_list),
+                copy(ie->else_block)
+            );
+    }
+
+
     auto copy(node::typed_expr const& te) const
     {
         return copy_node(te, copy(te->child_expr), copy(te->specified_type));
@@ -217,16 +235,15 @@ public:
         return copy_node(sb, copy(sb->value));
     }
 
-    auto copy(node::if_expr const& ie) const
+    auto copy(node::if_stmt const& is) const
     {
         return copy_node(
-                ie,
-                ie->kind,
-                copy(ie->condition),
-                copy(ie->then_stmts),
-                copy(ie->elseif_stmts_list),
-                copy(ie->maybe_else_stmts),
-                ie->is_toplevel
+                is,
+                is->kind,
+                copy(is->condition),
+                copy(is->then_stmts),
+                copy(is->elseif_stmts_list),
+                copy(is->maybe_else_stmts)
             );
     }
 

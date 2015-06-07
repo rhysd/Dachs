@@ -1182,41 +1182,50 @@ public:
                 _val = make_node_ptr<ast::node::statement_block>(_1)
             ];
 
-        if_else_stmt_block
-            = (
-                -((compound_stmt - DACHS_KWD("end")) % sep)
-            ) [
-                _val = make_node_ptr<ast::node::statement_block>(_1)
-            ];
-
         if_stmt
             = (
                 DACHS_KWD(if_kind) >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                 >> if_then_stmt_block >> -sep
                 >> *(
-                    qi::as<ast::node_type::if_expr::elseif_type>()[
+                    qi::as<ast::node_type::if_stmt::elseif_type>()[
                         DACHS_KWD("elseif") >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                         >> if_then_stmt_block >> -sep
                     ]
-                ) >> -(DACHS_KWD("else") >> -sep >> if_else_stmt_block >> -sep)
+                ) >> -(DACHS_KWD("else") >> -sep >> stmt_block_before_end >> -sep)
                 >> "end"
             ) [
-                _val = make_node_ptr<ast::node::if_expr>(_1, _2, _3, _4, _5)
+                _val = make_node_ptr<ast::node::if_stmt>(_1, _2, _3, _4, _5)
+            ];
+
+        block_expr_before_end
+            = (
+                *((compound_stmt - (typed_expr >> DACHS_KWD("end"))) >> sep)
+                >> (typed_expr - DACHS_KWD("end"))
+            ) [
+                _val = make_node_ptr<ast::node::block_expr>(_1, _2)
+            ];
+
+        if_then_block_expr
+            = (
+                *((compound_stmt - (typed_expr >> - DACHS_KWD("end") - DACHS_KWD("elseif") - DACHS_KWD("else") - DACHS_KWD("then"))) >> sep)
+                >> (typed_expr - DACHS_KWD("end") - DACHS_KWD("elseif") - DACHS_KWD("else") - DACHS_KWD("then"))
+            ) [
+                _val = make_node_ptr<ast::node::block_expr>(_1, _2)
             ];
 
         if_expr
             = (
                 DACHS_KWD(if_kind) >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
-                >> if_then_stmt_block >> -sep
+                >> if_then_block_expr >> -sep
                 >> *(
                     qi::as<ast::node_type::if_expr::elseif_type>()[
                         DACHS_KWD("elseif") >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
-                        >> if_then_stmt_block >> -sep
+                        >> if_then_block_expr >> -sep
                     ]
-                ) >> DACHS_KWD("else") >> -sep >> if_else_stmt_block >> -sep
+                ) >> DACHS_KWD("else") >> -sep >> block_expr_before_end >> -sep
                 >> "end"
             ) [
-                _val = make_node_ptr<ast::node::if_expr>(_1, _2, _3, _4, _5, false/*is_toplevel*/)
+                _val = make_node_ptr<ast::node::if_expr>(_1, _2, _3, _4, _5)
             ];
 
 
@@ -1556,7 +1565,6 @@ public:
                 , do_block
                 , stmt_block_before_end
                 , if_then_stmt_block
-                , if_else_stmt_block
                 , case_when_stmt_block
                 , func_body_stmt_block
                 , lambda_expr_oneline
@@ -1564,6 +1572,7 @@ public:
                 , method_definition
                 , instance_variable_decl
                 , import
+                , if_then_block_expr
             );
 
             // TODO:
@@ -1692,7 +1701,6 @@ public:
         function_param_decls.name("parameter declarations of function");
         stmt_block_before_end.name("statements block before 'end'");
         if_then_stmt_block.name("'then' clause in if statement");
-        if_else_stmt_block.name("'else' clause in if statement");
         case_when_stmt_block.name("'when' clause in case statement");
         func_body_stmt_block.name("statements in body of function");
         called_function_name.name("name of called function");
@@ -1709,6 +1717,8 @@ public:
         class_name.name("name of class");
         access_specifier.name("access_specifier");
         import.name("import module");
+        block_expr_before_end.name("block expression before 'end'");
+        if_then_block_expr.name("'then' clause in if expression");
         // }}}
     }
 
@@ -1741,6 +1751,7 @@ private:
     DACHS_DEFINE_RULE(initialize_stmt);
     DACHS_DEFINE_RULE(assignment_stmt);
     DACHS_DEFINE_RULE(postfix_if_stmt);
+    DACHS_DEFINE_RULE(if_stmt);
     DACHS_DEFINE_RULE(compound_stmt);
     DACHS_DEFINE_RULE(function_definition);
     DACHS_DEFINE_RULE_WITH_LOCALS(class_definition, std::vector<ast::node::variable_decl>, std::vector<ast::node::function_definition>);
@@ -1785,7 +1796,6 @@ private:
         , typed_expr
         , var_ref_before_space
         , if_expr
-        , if_stmt
     ;
 
     rule<ast::node::func_invocation()> begin_end_expr;
@@ -1826,7 +1836,6 @@ private:
     rule<std::vector<ast::node::parameter>()> function_param_decls;
     rule<ast::node::statement_block()> stmt_block_before_end
                                      , if_then_stmt_block
-                                     , if_else_stmt_block
                                      , case_when_stmt_block
                                      , func_body_stmt_block
                                     ;
@@ -1842,6 +1851,9 @@ private:
                       , class_name
                     ;
     decltype(return_stmt) postfix_if_return_stmt;
+    rule<ast::node::block_expr()> block_expr_before_end
+                                , if_then_block_expr
+                            ;
 
 #undef DACHS_DEFINE_RULE
 #undef DACHS_DEFINE_RULE_WITH_LOCALS

@@ -455,6 +455,17 @@ public:
     }
 
     template<class Walker>
+    void visit(ast::node::block_expr const& block, Walker const& w)
+    {
+        auto new_local_scope = scope::make<scope::local_scope>(current_scope);
+        block->scope = new_local_scope;
+        if (auto const parent = get_as<scope::local_scope>(current_scope)) {
+            (*parent)->define_child(new_local_scope);
+        }
+        introduce_scope_and_walk(std::move(new_local_scope), w);
+    }
+
+    template<class Walker>
     void visit(ast::node::function_definition const& func_def, Walker const& w)
     {
         if (boost::algorithm::starts_with(func_def->name, "__builtin_")) {

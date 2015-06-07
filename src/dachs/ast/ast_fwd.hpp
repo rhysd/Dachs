@@ -103,8 +103,12 @@ struct func_invocation;
 struct object_construct;
 struct index_access;
 struct ufcs_invocation;
+struct cast_expr;
 struct unary_expr;
 struct binary_expr;
+struct block_expr;
+struct if_expr;
+struct typed_expr;
 struct primary_type;
 struct tuple_type;
 struct func_type;
@@ -113,12 +117,10 @@ struct dict_type;
 struct pointer_type;
 struct typeof_type;
 struct qualified_type;
-struct cast_expr;
-struct typed_expr;
 struct assignment_stmt;
 struct variable_decl;
 struct initialize_stmt;
-struct if_expr;
+struct if_stmt;
 struct case_stmt;
 struct return_stmt;
 struct switch_stmt;
@@ -174,9 +176,11 @@ DACHS_DEFINE_NODE_PTR(func_invocation);
 DACHS_DEFINE_NODE_PTR(object_construct);
 DACHS_DEFINE_NODE_PTR(index_access);
 DACHS_DEFINE_NODE_PTR(ufcs_invocation);
+DACHS_DEFINE_NODE_PTR(cast_expr);
 DACHS_DEFINE_NODE_PTR(unary_expr);
 DACHS_DEFINE_NODE_PTR(binary_expr);
-DACHS_DEFINE_NODE_PTR(cast_expr);
+DACHS_DEFINE_NODE_PTR(block_expr);
+DACHS_DEFINE_NODE_PTR(if_expr);
 DACHS_DEFINE_NODE_PTR(typed_expr);
 DACHS_DEFINE_NODE_PTR(primary_type);
 DACHS_DEFINE_NODE_PTR(tuple_type);
@@ -189,7 +193,7 @@ DACHS_DEFINE_NODE_PTR(qualified_type);
 DACHS_DEFINE_NODE_PTR(assignment_stmt);
 DACHS_DEFINE_NODE_PTR(variable_decl);
 DACHS_DEFINE_NODE_PTR(initialize_stmt);
-DACHS_DEFINE_NODE_PTR(if_expr);
+DACHS_DEFINE_NODE_PTR(if_stmt);
 DACHS_DEFINE_NODE_PTR(case_stmt);
 DACHS_DEFINE_NODE_PTR(switch_stmt);
 DACHS_DEFINE_NODE_PTR(return_stmt);
@@ -220,6 +224,7 @@ using any_expr =
                   , binary_expr
                   , cast_expr
                   , var_ref
+                  , block_expr
                   , if_expr
             >;
 
@@ -238,6 +243,7 @@ using compound_stmt =
     boost::variant<
           return_stmt
         , case_stmt
+        , if_stmt
         , switch_stmt
         , for_stmt
         , while_stmt
