@@ -1199,7 +1199,7 @@ public:
 
         block_expr_before_end
             = (
-                *((compound_stmt - (typed_expr >> DACHS_KWD("end"))) >> sep)
+                *((compound_stmt - ((typed_expr) >> -sep >> "end")) >> sep)
                 >> (typed_expr - DACHS_KWD("end"))
             ) [
                 _val = make_node_ptr<ast::node::block_expr>(_1, _2)
@@ -1207,8 +1207,8 @@ public:
 
         if_then_block_expr
             = (
-                *((compound_stmt - (typed_expr >> - DACHS_KWD("end") - DACHS_KWD("elseif") - DACHS_KWD("else") - DACHS_KWD("then"))) >> sep)
-                >> (typed_expr - DACHS_KWD("end") - DACHS_KWD("elseif") - DACHS_KWD("else") - DACHS_KWD("then"))
+                *((compound_stmt - (typed_expr >> -sep >> (DACHS_KWD("elseif"_l | "else")))) >> sep)
+                >> (typed_expr - DACHS_KWD("elseif") - DACHS_KWD("else"))
             ) [
                 _val = make_node_ptr<ast::node::block_expr>(_1, _2)
             ];

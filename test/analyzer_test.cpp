@@ -3916,7 +3916,7 @@ BOOST_AUTO_TEST_CASE(toplevel_if)
     )");
 }
 
-BOOST_AUTO_TEST_CASE(non_toplevel_if)
+BOOST_AUTO_TEST_CASE(if_expr)
 {
     CHECK_NO_THROW_SEMANTIC_ERROR(R"(
         func foo_tmpl(x)
@@ -3955,7 +3955,7 @@ BOOST_AUTO_TEST_CASE(non_toplevel_if)
 
     CHECK_NO_THROW_SEMANTIC_ERROR(R"(
         func main
-            (if 52
+            (if false
                 42
              else
                 if false
@@ -3975,24 +3975,6 @@ BOOST_AUTO_TEST_CASE(non_toplevel_if)
 
     CHECK_THROW_SEMANTIC_ERROR(R"(
         func main
-            (unless false then i := 42 else 32 end)
-        end
-    )");
-
-    CHECK_THROW_SEMANTIC_ERROR(R"(
-        func main
-            (if false then 42 else i := 10 end)
-        end
-    )");
-
-    CHECK_THROW_SEMANTIC_ERROR(R"(
-        func main
-            (if false then 42 elseif false then i := 12 else 32 end)
-        end
-    )");
-
-    CHECK_THROW_SEMANTIC_ERROR(R"(
-        func main
             (if false then 3.14 else 'n' end)
         end
     )");
@@ -4003,23 +3985,27 @@ BOOST_AUTO_TEST_CASE(non_toplevel_if)
         end
     )");
 
+    // Return type conflict between 'bool' and 'float'
     CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(x)
+            ret unless x == 0 as typeof(x) then
+                ret false
+                3.14
+            elseif false
+                ret false
+                3.14
+            else
+                ret true
+                2.15
+            end
+        end
+
         func main
-            (if false
-             else
-                'n'
-             end)
+            foo(0.0).println
         end
     )");
 
-    CHECK_THROW_SEMANTIC_ERROR(R"(
-        func main
-            (unless false
-                42
-             else
-             end)
-        end
-    )");
+
 }
 
 BOOST_AUTO_TEST_CASE(binary_operator)

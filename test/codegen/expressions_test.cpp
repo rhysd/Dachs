@@ -697,21 +697,26 @@ BOOST_AUTO_TEST_CASE(if_expr)
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func main
-            (if true
+            ret if true then
                 ret 0
+                0
+            elseif false
+                ret 0
+                0
             else
                 ret 0
-            end)
+                0
+            end
         end
     )");
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func foo(x)
-            ret unless x == 0 as typeof(x)
-                ret false
+            ret unless x == 0 as typeof(x) then
+                ret 1.0
                 3.14
             else
-                ret true
+                ret 2.0
                 2.15
             end
         end
@@ -719,13 +724,13 @@ BOOST_AUTO_TEST_CASE(if_expr)
         func main
             foo(0.0).println
             ret if true then
-                ret 0
+                ret 'p'
                 'a'
             elseif false
-                ret 2
+                ret 'q'
                 'b'
             else
-                ret 1
+                ret 'r'
                 'c'
             end
         end

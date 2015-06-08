@@ -1473,7 +1473,7 @@ BOOST_AUTO_TEST_CASE(if_statement)
     CHECK_PARSE_THROW("func main if aaa then bbb else ccc end");
 }
 
-BOOST_AUTO_TEST_CASE(if_non_toplevel)
+BOOST_AUTO_TEST_CASE(if_expr)
 {
     BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
@@ -1554,6 +1554,59 @@ BOOST_AUTO_TEST_CASE(if_non_toplevel)
     CHECK_PARSE_THROW(R"(
         func main
             ret unless false then 42 end
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (unless false then i := 42 else 32 end)
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (unless false then 42 else i := 32 end)
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (unless false
+                42
+            elseif false
+                a := 12
+            else
+                32
+            end)
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (unless false
+                42
+             else
+             end)
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (unless false
+             else
+                42
+             end)
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (unless false
+                32
+             elseif true
+             else
+                42
+             end)
         end
     )");
 }

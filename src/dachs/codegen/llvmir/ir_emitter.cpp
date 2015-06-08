@@ -1154,7 +1154,7 @@ public:
             }
             emit(stmt);
         }
-        return false;
+        return ctx.builder.GetInsertBlock()->getTerminator();
     }
 
     void emit(ast::node::statement_block const& block)
@@ -1164,7 +1164,10 @@ public:
 
     val emit(ast::node::block_expr const& block)
     {
-        emit_block(block->stmts);
+        bool const terminated = emit_block(block->stmts);
+        if (terminated) {
+            return nullptr;
+        }
         return emit(block->last_expr);
     }
 
@@ -1173,10 +1176,14 @@ public:
         auto helper = bb_helper(if_);
         std::vector<std::pair<val, llvm::BasicBlock *>> evaluated_blocks;
 
-        auto append_incoming_val
-            = [&, this](auto *const v)
+        auto const emit_block
+            = [&, this](auto const& block)
             {
-                evaluated_blocks.emplace_back(v, ctx.builder.GetInsertBlock());
+                auto *const block_val = emit(block);
+                if (block_val) {
+                    assert(!then_block->getTerminator());
+                    evaluated_blocks.emplace_back(block_val, ctx.builder.GetInsertBlock());
+                }
             };
 
         // IR for if-then clause
@@ -1187,17 +1194,11 @@ public:
 
         auto *then_block = helper.create_block_for_parent("if.expr.then");
         auto *else_block = helper.create_block("if.expr.else");
+        auto *const end_block = helper.create_block("if.expr.end");
 
         helper.create_cond_br(cond_val, then_block, else_block);
 
-        auto *const end_block = helper.create_block("if.expr.end");
-
-        {
-            auto *const block_val = emit(if_->then_block);
-            if (!then_block->getTerminator()) {
-                append_incoming_val(block_val);
-            }
-        }
+        emit_block(if_->then_block);
 
         helper.terminate_with_br(end_block);
         helper.append_block(else_block);
@@ -1209,22 +1210,14 @@ public:
             else_block = helper.create_block("elseif.expr.else");
             helper.create_cond_br(cond_val, then_block, else_block);
 
-            auto *const block_val = emit(elseif.second);
-            if (!else_block->getTerminator()) {
-                append_incoming_val(block_val);
-            }
+            emit_block(elseif.second);
 
             helper.terminate_with_br(end_block);
             helper.append_block(else_block);
         }
 
         // IR for else clause
-        {
-            auto *const block_val = emit(if_->else_block);
-            if (!else_block->getTerminator()) {
-                append_incoming_val(block_val);
-            }
-        }
+        emit_block(if_->else_block);
 
         helper.terminate_with_br(end_block);
         helper.append_block(end_block);

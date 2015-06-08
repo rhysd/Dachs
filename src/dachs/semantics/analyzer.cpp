@@ -62,8 +62,10 @@ struct return_types_gatherer {
     std::vector<ast::node::return_stmt> failed_return_stmts;
 
     template<class Walker>
-    void visit(ast::node::return_stmt const& ret, Walker const&)
+    void visit(ast::node::return_stmt const& ret, Walker const& w)
     {
+        w();
+
         if (!ret->ret_type) {
             failed_return_stmts.push_back(ret);
         } else {
@@ -971,13 +973,14 @@ public:
             }
 
             if (any_of(
-                        gatherer.result_types,
-                        [&](auto const& t){ return gatherer.result_types[0] != t; })) {
-                semantic_error(
-                        func,
-                        boost::format("  Mismatch among the result types of return statements in function '%1%'")
-                            % func->name
-                    );
+                    gatherer.result_types,
+                    [&](auto const& t){ return gatherer.result_types[0] != t; })
+            ) {
+                std::string msg = "  Mismatch among the result types of return statements in function '" + func->name + "'";
+                for (auto const& t : gatherer.result_types) {
+                    msg += "\n  Note: Return type candidate is '" + t.to_string() + "'";
+                }
+                semantic_error(func, msg);
                 return;
             }
 
