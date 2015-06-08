@@ -142,14 +142,14 @@ BOOST_AUTO_TEST_CASE(general_method)
         end
 
         func main
-            do
+            begin
                 a := new Foo{42}
                 a.non_template(42)
                 a.template(3.14)
                 a.template('a')
             end
 
-            do
+            begin
                 a := new FooTemplate{42}
                 a.non_template(42)
                 a.template(3.14)
@@ -652,13 +652,13 @@ BOOST_AUTO_TEST_CASE(do_not_degrade)
         end
 
         func main
-            do
+            begin
                 f := new Foo{42}
                 f.a.println
                 f.b.println
             end
 
-            do
+            begin
                 f := new Foo{3.14}
                 f.a.println
                 f.b.println

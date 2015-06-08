@@ -397,25 +397,30 @@ BOOST_AUTO_TEST_CASE(aggregates)
             a[1][0].println
         end
         func main
-            do
+            begin
                 var a := [1]
                 var t := ('a', a)
                 print_1_0(t)
+                c := 1
             end
 
-            do
+            begin
                 var a := [1]
                 t := ('a', a)
                 print_1_0(t)
+                var i := 10
+                for i > 0
+                    i -= 1
+                end
             end
 
-            do
+            begin
                 var t := (-1, -2)
                 var a := [t, t]
                 print_1_0(a)
             end
 
-            do
+            begin
                 var t := (-1, -2)
                 a := [t, t]
                 print_1_0(a)
@@ -1105,7 +1110,7 @@ BOOST_AUTO_TEST_CASE(let_expr)
             let
                 var a := 42
                 b := 'a'
-            in if a == 4
+            in if a == 4 then
                 println(a)
             else
                 println(b)
@@ -1123,6 +1128,7 @@ BOOST_AUTO_TEST_CASE(let_expr)
                     println(a)
                     a += 1
                 end
+                ()
             end
 
             foo().println
@@ -1134,41 +1140,88 @@ BOOST_AUTO_TEST_CASE(let_expr)
                 when 42
                     println("42")
                 end
+                ()
             end
 
-            let var a := 42 in begin a = 21 end
+            let var a := 42 in begin a = 21; a end
 
-            let var a := 42 in begin b := a end
+            let var a := 42 in begin b := a; b end
 
             let
                 var a := 42
                 var b := 42
-            begin
+            in begin
                 for a < 50
                     println(a)
                     a += 1
                 end
+                ()
             end
 
             let
                 a := 42
-            begin
+            in begin
                 case a
                 when 42
                     println("42")
                 end
+                ()
             end
 
             let
                 a := 42
-            begin
+            in begin
                 case a
                 when 42
                     ret "aaa"
                 when -42
                     ret "bbb"
                 end
+                ()
             end
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(begin_expr)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo
+            ret begin
+                ret 42
+                a := 42
+                a + 10
+            end
+        end
+
+        class X
+            a
+        end
+
+        func foo(x)
+            ret begin
+                ret x.a + 20
+                x.a = 42
+                x.a + 10
+            end
+        end
+
+        func main
+            a := begin
+                i := 10
+                var j := i + 1
+                i + j
+            end
+
+            println(
+                begin
+                    i,j := a + 10, a - 10
+                    i * 10
+                end
+            )
+
+            foo()
+            foo(new X{10})
         end
     )");
 }
@@ -1395,7 +1448,7 @@ BOOST_AUTO_TEST_CASE(compound_assignments)
             i, c, z += t
             i, c, z += f()
 
-            ret t[2]
+            t[2]
         end
     end
     )");
@@ -1473,20 +1526,20 @@ BOOST_AUTO_TEST_CASE(pointer)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func main
-            do
+            begin
                 var i := 42u
                 var p := new pointer(int){i}
                 p[3] = -30
                 p[3].println
             end
 
-            do
+            begin
                 var p := new pointer(int){42u}
                 p[3] = -30
                 p[3].println
             end
 
-            do
+            begin
                 var i := 0u
                 new pointer(int){i}
                 new pointer(int){0u}
@@ -1661,6 +1714,7 @@ BOOST_AUTO_TEST_CASE(pointer)
                         (0..3).each do |j|
                             r[j] = i * j
                         end
+                        ()
                     end
                 end
             end

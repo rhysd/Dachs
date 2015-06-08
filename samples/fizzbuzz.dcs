@@ -75,9 +75,8 @@ end
 func main
 
     # FizzBuzz #1
-    let
+    begin
         var i := 1
-    in begin
         for i <= 100
             fizzbuzz(i)
             i += 1

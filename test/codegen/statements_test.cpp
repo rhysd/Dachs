@@ -470,7 +470,7 @@ BOOST_AUTO_TEST_CASE(postfix_if_statement)
     )");
 }
 
-BOOST_AUTO_TEST_CASE(do_stmt)
+BOOST_AUTO_TEST_CASE(begin_end_stmt)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func p(a, b)
@@ -480,31 +480,31 @@ BOOST_AUTO_TEST_CASE(do_stmt)
         func main
             a := 42
 
-            do
+            begin
             end
 
-            do end
+            begin end
 
-            do
+            begin
                 a := 42
                 println(a)
             end
 
-            do
-                do
-                    do
+            begin
+                begin
+                    begin
                     end
                 end
             end
 
-            do
+            begin
                 a := 42
                 b := 42
                 a.p b
                 b.p a
             end
 
-            do
+            begin
                 ret 42 if true
 
                 if true

@@ -449,8 +449,6 @@ struct func_invocation final : public expression {
     bool is_monad_invocation = false;
     scope::weak_func_scope callee_scope;
     bool is_ufcs = false;
-    bool is_begin_end = false;
-    bool is_let = false;
 
     void set_do_block(node::function_definition const& def)
     {
@@ -502,20 +500,9 @@ struct func_invocation final : public expression {
     func_invocation(
             node::any_expr const& c,
             std::vector<node::any_expr> const& a,
-            bool const ufcs,
-            bool const begin_end,
-            bool const let
+            bool const ufcs
         ) noexcept
-        : expression(), child(c), args(a), is_ufcs(ufcs), is_begin_end(begin_end), is_let(let)
-    {}
-
-    // Note: For begin-end and let-in expression
-    func_invocation(
-            node::lambda_expr const& lambda,
-            bool const begin_end,
-            bool const let
-        ) noexcept
-        : expression(), child(lambda), args(), is_ufcs(false), is_begin_end(begin_end), is_let(let)
+        : expression(), child(c), args(a), is_ufcs(ufcs)
     {}
 
     std::string to_string() const noexcept override
@@ -690,6 +677,18 @@ struct block_expr final : public expression {
             Expr && e)
         : expression()
         , stmts(s)
+        , last_expr(std::forward<Expr>(e))
+    {}
+
+    template<class Block, class Expr>
+    block_expr(
+            Block && b,
+            Expr && e)
+        : expression()
+        , stmts(
+            std::begin(std::forward<Block>(b)),
+            std::end(std::forward<Block>(b))
+        )
         , last_expr(std::forward<Expr>(e))
     {}
 

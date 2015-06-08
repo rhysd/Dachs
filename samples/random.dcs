@@ -222,17 +222,17 @@ func main
         println("")
     end
 
-    do
+    begin
         r := new Random{new LCG{1}}
         "LCG".test r
     end
 
-    do
+    begin
         r := new Random{new Xor128{123456789u, 362436069u, 521288629u, 88675123u}}
         "Xor128".test r
     end
 
-    do
+    begin
         r := new Random{new Mt19937{[0x123u, 0x234u, 0x345u, 0x456u]}}
         "Mt19937".test r
     end

@@ -567,109 +567,19 @@ public:
 
         begin_end_expr
             = (
-                DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
-            ) [
-                _val = phx::bind(
-                        [](auto const& statements)
-                        {
-                            if (CheckOnly) {
-                                return ast::node::func_invocation{};
-                            }
-
-                            return ast::make<ast::node::func_invocation>(
-                                    ast::make<ast::node::lambda_expr>(
-                                        ast::make<ast::node::function_definition>(
-                                            std::vector<ast::node::parameter>{},
-                                            statements
-                                        )
-                                    ),
-                                    false, true // Note: Not let-in, but begin-end
-                                );
-                        }
-                        , _1
-                    )
-            ];
+                DACHS_KWD("begin") >> -qi::eol >> block_expr_before_end >> -sep >> "end"
+            );
 
         let_expr
             = (
                 DACHS_KWD("let") >> -qi::eol
                 >> (
                     initialize_stmt % sep
-                ) [
-                    _a = phx::bind(
-                        [](auto && inits)
-                        {
-                            if (CheckOnly) {
-                                return ast::node::statement_block{};
-                            }
-
-                            assert(!inits.empty());
-                            auto stmts = ast::make<ast::node::statement_block>();
-                            stmts->value.reserve(inits.size() + 1u);
-                            stmts->set_source_location(*inits[0]);
-
-                            for (auto && i : std::forward<decltype(inits)>(inits)) {
-                                stmts->value.emplace_back(std::forward<decltype(i)>(i));
-                            }
-
-                            return stmts;
-                        }, _1
-                    )
-                ] >> -qi::eol
-                >> (
-                    (
-                        DACHS_KWD("in") >> -qi::eol >> typed_expr
-                    ) [
-                        phx::bind(
-                            [](auto const& body, auto const& expr)
-                            {
-                                if (CheckOnly) {
-                                    return;
-                                }
-
-                                auto ret = ast::make<ast::node::return_stmt>(expr);
-                                ret->set_source_location(ast::node::location_of(expr));
-                                body->value.emplace_back(
-                                        std::move(ret)
-                                    );
-                            },
-                            _a, _1
-                        )
-                    ] | (
-                        DACHS_KWD("begin") >> -qi::eol >> stmt_block_before_end >> -sep >> "end"
-                    ) [
-                        phx::bind(
-                            [](auto const& body, auto && stmts)
-                            {
-                                if (CheckOnly) {
-                                    return;
-                                }
-
-                                std::move(std::begin(stmts->value), std::end(stmts->value), std::back_inserter(body->value));
-                            },
-                            _a, _1
-                        )
-                    ]
-                )
-            )[
-                _val = phx::bind(
-                        [](auto && body)
-                        {
-                            if (CheckOnly) {
-                                return ast::node::func_invocation{};
-                            }
-
-                            return ast::make<ast::node::func_invocation>(
-                                    ast::make<ast::node::lambda_expr>(
-                                        ast::make<ast::node::function_definition>(
-                                            std::vector<ast::node::parameter>{},
-                                            std::forward<decltype(body)>(body)
-                                        )
-                                    ),
-                                    false, true // Note: Not begin-end, but let-in
-                                );
-                        }, _a
-                    )
+                ) >> -qi::eol
+                >> DACHS_KWD("in") >> -qi::eol
+                >> typed_expr
+            ) [
+                _val = make_node_ptr<ast::node::block_expr>(_1, _2)
             ];
 
         primary_expr
@@ -1312,9 +1222,9 @@ public:
                 _val = make_node_ptr<ast::node::postfix_if_stmt>(_1, _2, _3)
             ];
 
-        do_stmt
+        begin_stmt
             = (
-                DACHS_KWD("do")
+                DACHS_KWD("begin")
                 >> -qi::eol >> stmt_block_before_end >> -sep
                 >> DACHS_KWD("end")
             );
@@ -1326,7 +1236,7 @@ public:
                 | switch_stmt
                 | for_stmt
                 | while_stmt
-                | do_stmt
+                | begin_stmt
                 | initialize_stmt
                 | postfix_if_stmt
                 | return_stmt
@@ -1540,6 +1450,8 @@ public:
                 , logical_and_expr
                 , logical_or_expr
                 , range_expr
+                , let_expr
+                , begin_end_expr
                 , typed_expr
                 , if_stmt
                 , if_expr
@@ -1554,7 +1466,7 @@ public:
                 , assignment_stmt
                 , postfix_if_return_stmt
                 , postfix_if_stmt
-                , do_stmt
+                , begin_stmt
                 , function_definition
                 , constructor
                 , copier
@@ -1577,31 +1489,6 @@ public:
 
             // TODO:
             // I want to say good-bye to below boiler plates...
-
-            // Note:
-            // begin_end_expr and let_expr generates multiple nodes.
-            // Source location should be set to all generated nodes.
-            detail::set_position_getter_on_success(
-                    phx::bind(
-                        [code_begin](auto const& invocation, Iterator const before, Iterator const after)
-                        {
-                            detail::set_location_impl(invocation, before, after, code_begin);
-
-                            if (invocation->is_begin_end || invocation->is_let) {
-                                auto const lambda
-                                    = get_as<ast::node::lambda_expr>(invocation->child);
-                                assert(lambda);
-                                (*lambda)->set_source_location(*invocation);
-                                (*lambda)->def->set_source_location(*invocation);
-                            }
-                        },
-                        _val,
-                        _1,
-                        _3
-                    ),
-                    let_expr,
-                    begin_end_expr
-                );
         } // if (!CheckOnly) {
 
         qi::on_error<qi::fail>(
@@ -1686,7 +1573,7 @@ public:
         variable_decl_without_init.name("variable declaration without initialization");
         initialize_stmt.name("initialize statement");
         assignment_stmt.name("assignment statement");
-        do_stmt.name("do statement");
+        begin_stmt.name("begin...end statement");
         compound_stmt.name("compound statement");
         function_definition.name("function definition");
         constructor.name("constructor");
@@ -1766,7 +1653,7 @@ private:
     rule<ast::node::variable_decl()> constant_decl, variable_decl_without_init;
     rule<ast::node::initialize_stmt()> constant_definition;
     rule<ast::node::function_definition()> do_block, constructor, copier, converter;
-    rule<ast::node::statement_block()> do_stmt;
+    rule<ast::node::statement_block()> begin_stmt;
     rule<bool()> access_specifier;
     rule<ast::node::function_definition(), qi::locals<bool>> method_definition;
     rule<std::vector<ast::node::variable_decl>(), qi::locals<bool>> instance_variable_decls;
@@ -1798,8 +1685,7 @@ private:
         , if_expr
     ;
 
-    rule<ast::node::func_invocation()> begin_end_expr;
-    rule<ast::node::func_invocation(), qi::locals<ast::node::statement_block>> let_expr;
+    rule<ast::node::block_expr()> begin_end_expr, let_expr;
 
     rule<ast::node::any_expr(), qi::locals<std::vector<ast::node::any_expr>>> tuple_literal;
     rule<ast::node::any_expr(), qi::locals<std::string>> symbol_literal;

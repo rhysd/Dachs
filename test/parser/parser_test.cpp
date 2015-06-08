@@ -1895,6 +1895,7 @@ BOOST_AUTO_TEST_CASE(let_stmt)
                     println(a)
                     a += 1
                 end
+                ()
             end
 
             let
@@ -1904,50 +1905,78 @@ BOOST_AUTO_TEST_CASE(let_stmt)
                 if true
                     println(42)
                 end
-                ret 99
+                99
             end
 
             let
                 a := 42
                 b := 42
-            begin
+            in begin
                 if true
                     println(42)
                 end
-                ret 99
+                99
             end
 
             result :=
                 let
                     var a := 42
                     var b := 42
-                begin
+                in begin
                     for a < 50
                         println(a)
                         a += 1
                     end
-                    ret a
+                    a
                 end
         end
-        )"));
+    )"));
 }
 
-BOOST_AUTO_TEST_CASE(do_stmt)
+BOOST_AUTO_TEST_CASE(begin_end)
 {
+    // Statement
     BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
-            do
+            begin
             end
 
-            do
+            begin
                 println(42)
             end
 
-            do println(42) end
-            do println(42); end
-            do println(42); println(42) end
+            begin
+                begin
+                    begin
+                        begin
+                        end
+                    end
+                end
+            end
 
-            do
+            begin
+                var i := 1
+                for i < 10
+                    i += 1
+                end
+            end
+        end
+    )"));
+
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func main
+            begin
+            end
+
+            begin
+                println(42)
+            end
+
+            begin println(42) end
+            begin println(42); end
+            begin println(42); println(42) end
+
+            begin
                 ret 42 if true
 
                 if true
@@ -1961,6 +1990,56 @@ BOOST_AUTO_TEST_CASE(do_stmt)
             end
         end
         )"));
+
+    // Expression
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func main
+            a :=
+                begin
+                    i, j := 1, 2
+                    k := i + j
+                    i + j + k
+                end
+
+            println(
+                begin
+                    i, j := 1, 2
+                    begin
+                        k, l := 3, 4
+                        begin
+                            println('!')
+                            i + j + k + l
+                        end
+                    end
+                end
+            )
+
+            ret begin
+                i, j := 1, 2
+
+                if i + j == 3
+                    3 * 2
+                else
+                    3 / 2
+                end
+            end
+        end
+    )"));
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := begin
+            end
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := begin
+                b := 42
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(do_block)

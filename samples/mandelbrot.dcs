@@ -28,21 +28,19 @@ func mandel_converge(real, imag)
 end
 
 func mandel'(xmin, xmax, xstep, ymin, ymax, ystep)
-    let
-        var y := ymin
-    in begin
-        for y < ymax
-            let
-                var x := xmin
-            in begin
-                for x < xmax
-                    print_density(mandel_converge(x, y))
-                    x += xstep
-                end
+    var y := ymin
+    for y < ymax
+        let
+            var x := xmin
+        in begin
+            for x < xmax
+                print_density(mandel_converge(x, y))
+                x += xstep
             end
-            println("")
-            y += ystep
+            ()
         end
+        println("")
+        y += ystep
     end
 end
 

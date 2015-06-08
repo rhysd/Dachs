@@ -119,7 +119,7 @@ public:
 
     auto copy(node::func_invocation const& fc) const
     {
-        return copy_node(fc, copy(fc->child), copy(fc->args), fc->is_ufcs, fc->is_begin_end, fc->is_let);
+        return copy_node(fc, copy(fc->child), copy(fc->args), fc->is_ufcs);
     }
 
     auto copy(node::object_construct const& oc) const

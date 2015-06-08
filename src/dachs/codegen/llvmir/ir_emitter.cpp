@@ -1181,7 +1181,7 @@ public:
             {
                 auto *const block_val = emit(block);
                 if (block_val) {
-                    assert(!then_block->getTerminator());
+                    assert(!ctx.builder.GetInsertBlock()->getTerminator());
                     evaluated_blocks.emplace_back(block_val, ctx.builder.GetInsertBlock());
                 }
             };
