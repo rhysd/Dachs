@@ -1023,6 +1023,11 @@ BOOST_AUTO_TEST_CASE(assignment_expr)
             (t : (int, char, bool))[0] = -42
             (t : (int, char, bool))[1] = 'b'
             (t : (int, char, bool))[2] = false
+
+            aaa =
+                42
+            aaa, bbb =
+                (ppp, qqq())
         end
         )"));
 }

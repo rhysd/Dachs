@@ -1130,7 +1130,7 @@ public:
 
         assignment_stmt
             = (
-                typed_expr % comma >> assign_operator >> typed_expr % comma
+                typed_expr % comma >> assign_operator >> -qi::eol >> typed_expr % comma
             ) [
                 _val = make_node_ptr<ast::node::assignment_stmt>(_1, _2, _3)
             ];

@@ -735,6 +735,51 @@ BOOST_AUTO_TEST_CASE(if_expr)
             end
         end
     )");
+
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        func main
+            var p := new pointer(X(int)){2u}
+
+            p[0u] =
+                if false
+                    new X{42}
+                else
+                    i := 42
+                    if false
+                        new X{i}
+                    else
+                        new X{i - 31}
+                    end
+                end
+
+            p[1u] = new X{
+                    if true
+                        if false
+                            12
+                        else
+                            43
+                        end
+                    else
+                        -1
+                    end
+                }
+
+            i := 31
+
+            (
+                if i % 2 == 0
+                    p[0u]
+                else
+                    p[1u]
+                end
+            ).a.println
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(typed_expr)
