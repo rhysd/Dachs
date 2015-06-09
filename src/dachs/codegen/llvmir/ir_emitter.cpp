@@ -63,6 +63,8 @@ namespace llvmir {
 
 namespace detail {
 
+struct emit_skipper {};
+
 using helper::variant::apply_lambda;
 using helper::variant::get_as;
 using helper::dump;
@@ -150,7 +152,7 @@ class llvm_ir_emitter {
     }
 
     template<class Node>
-    auto bb_helper(std::shared_ptr<Node> const& node) noexcept
+    auto bb_helper(std::shared_ptr<Node> const& node) const noexcept
         -> builder::block_branch_helper<Node>
     {
         return {node, ctx};
@@ -1079,7 +1081,11 @@ public:
                 // no more statement should be emitted.
                 return true;
             }
-            emit(stmt);
+            try {
+                emit(stmt);
+            }
+            catch (emit_skipper)
+            {}
         }
         return ctx.builder.GetInsertBlock()->getTerminator();
     }
@@ -1093,7 +1099,7 @@ public:
     {
         bool const terminated = emit_block(block->stmts);
         if (terminated) {
-            return ctx.builder.CreateUnreachable();
+            throw emit_skipper{};
         }
         return emit(block->last_expr);
     }
@@ -1106,10 +1112,13 @@ public:
         auto const emit_block
             = [&, this](auto const& block)
             {
-                auto *const block_val = emit(block);
-                if (!llvm::isa<llvm::UnreachableInst>(block_val)) {
+                try {
+                    auto *const block_val = emit(block);
                     assert(!ctx.builder.GetInsertBlock()->getTerminator());
                     evaluated_blocks.emplace_back(block_val, ctx.builder.GetInsertBlock());
+                }
+                catch(emit_skipper) {
+                    // Do nothing
                 }
             };
 
@@ -1162,8 +1171,7 @@ public:
             }
             return phi;
         } else {
-            // Note: Unreachable should be returned?
-            return llvm::UndefValue::get(type_emitter.emit(if_->type));
+            throw emit_skipper{};
         }
     }
 

@@ -4004,8 +4004,6 @@ BOOST_AUTO_TEST_CASE(if_expr)
             foo(0.0).println
         end
     )");
-
-
 }
 
 BOOST_AUTO_TEST_CASE(binary_operator)
@@ -4026,4 +4024,21 @@ BOOST_AUTO_TEST_CASE(binary_operator)
         end
     )");
 }
+
+BOOST_AUTO_TEST_CASE(begin_expr)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo
+            ret begin
+                ret 1.0
+                100
+            end
+        end
+
+        func main
+            foo()
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

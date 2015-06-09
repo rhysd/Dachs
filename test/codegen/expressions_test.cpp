@@ -704,9 +704,11 @@ BOOST_AUTO_TEST_CASE(if_expr)
         func main
             ret if true then
                 ret 0
+                a := 10
                 0
             elseif false
                 ret 0
+                println('f') if true
                 0
             else
                 ret 0
