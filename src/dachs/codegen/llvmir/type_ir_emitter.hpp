@@ -14,6 +14,7 @@
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/scope.hpp"
 #include "dachs/semantics/semantics_context.hpp"
+#include "dachs/codegen/llvmir/ir_utility.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/exception.hpp"
 #include "dachs/fatal.hpp"
@@ -28,21 +29,6 @@ class type_ir_emitter {
     llvm::LLVMContext &context;
     semantics::lambda_captures_type const& lambda_captures;
     std::unordered_map<scope::class_scope, llvm::PointerType *const> class_table;
-
-    template<class String>
-    void error(String const& msg)
-    {
-        throw code_generation_error{"LLVM IR generator", msg};
-    }
-
-    template<class T, class String>
-    T check(T v, String const& msg)
-    {
-        if (!v) {
-            throw code_generation_error{"LLVM IR generator", msg};
-        }
-        return v;
-    }
 
 public:
     type_ir_emitter(llvm::LLVMContext &c, decltype(lambda_captures) const& lc)

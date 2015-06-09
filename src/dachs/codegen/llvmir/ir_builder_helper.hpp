@@ -13,6 +13,7 @@
 #include "dachs/fatal.hpp"
 #include "dachs/semantics/type.hpp"
 #include "dachs/semantics/semantics_context.hpp"
+#include "dachs/codegen/llvmir/ir_utility.hpp"
 #include "dachs/codegen/llvmir/context.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/gc_alloc_emitter.hpp"
@@ -39,23 +40,16 @@ class block_branch_helper {
     parent_ptr_type const parent;
 
     template<class String>
+    [[noreturn]]
     void error(String const& msg) const
     {
-        // TODO:
-        // Dump builder's debug information and context's information
-        throw code_generation_error{
-                "LLVM IR generator",
-                (boost::format("In line:%1%:col:%2%, %3%") % node->line % node->col % msg).str()
-            };
+        llvmir::error(node, msg);
     }
 
     template<class T, class String>
     T check(T const v, String const& feature) const
     {
-        if (!v) {
-            error(std::string{"Failed to create "} + feature);
-        }
-        return v;
+        return llvmir::check(node, v, feature);
     }
 
 public:

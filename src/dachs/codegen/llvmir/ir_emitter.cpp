@@ -39,6 +39,7 @@
 #include "dachs/helper/each.hpp"
 #include "dachs/helper/util.hpp"
 #include "dachs/helper/llvm.hpp"
+#include "dachs/codegen/llvmir/ir_utility.hpp"
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/gc_alloc_emitter.hpp"
@@ -146,80 +147,6 @@ class llvm_ir_emitter {
             }
         } popper{loop_stack, loop_value};
         return popper;
-    }
-
-    template<class Node>
-    [[noreturn]]
-    void error(std::shared_ptr<Node> const& n, boost::format const& msg) const
-    {
-        error(n, msg.str());
-    }
-
-    [[noreturn]]
-    void error(ast::location_type const& l, boost::format const& msg) const
-    {
-        error(l, msg.str());
-    }
-
-    template<class Node, class String>
-    [[noreturn]]
-    void error(std::shared_ptr<Node> const& n, String const& msg) const
-    {
-        // TODO:
-        // Dump builder's debug information and context's information
-        throw code_generation_error{
-                "LLVM IR generator",
-                (boost::format(" in line:%1%, col:%2%\n  %3%\n") % n->line % n->col % msg).str()
-            };
-    }
-
-    template<class String>
-    [[noreturn]]
-    void error(ast::location_type const& l, String const& msg) const
-    {
-        // TODO:
-        // Dump builder's debug information and context's information
-        throw code_generation_error{
-                "LLVM IR generator",
-                (
-                 boost::format(" in line:%1%, col:%2%\n  %3%\n")
-                    % std::get<ast::location::location_index::line>(l)
-                    % std::get<ast::location::location_index::col>(l)
-                    % msg
-                ).str()
-            };
-    }
-
-    template<class Node, class T>
-    T check(Node const& n, T const v, boost::format const& fmt) const
-    {
-        return check(n, v, fmt.str());
-    }
-
-    template<class Node, class T, class String>
-    T check(Node const& n, T const v, String const& feature_name) const
-    {
-        if (!v) {
-            error(n, std::string{"Failed to emit "} + feature_name);
-        }
-        return v;
-    }
-
-    template<class Node, class String, class Value>
-    void check_all(Node const& n, String const& feature, Value const v) const
-    {
-        if (!v) {
-            error(n, std::string{"Failed to emit "} + feature);
-        }
-    }
-
-    template<class Node, class String, class Value, class... Values>
-    void check_all(Node const& n, String const& feature, Value const v, Values const... vs) const
-    {
-        if (!v) {
-            error(n, std::string{"Failed to emit "} + feature);
-        }
-        check_all(n, feature, vs...);
     }
 
     template<class Node>
@@ -491,7 +418,7 @@ class llvm_ir_emitter {
             if (type::is_a<type::tuple_type>(child_type)) {
                 auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
                 if (!constant_index) {
-                    emitter.error(access, "Index is not a constant.");
+                    error(access, "Index is not a constant.");
                 }
                 emit_copy_to_lhs(
                         emitter.ctx.builder.CreateStructGEP(
@@ -568,7 +495,7 @@ class llvm_ir_emitter {
                 auto const callee = access->callee_scope.lock();
                 assert(callee->name == "[]=");
 
-                emitter.check(
+                check(
                     access,
                     emitter.ctx.builder.CreateCall3(
                         emitter.emit_non_builtin_callee(access, callee),
@@ -580,7 +507,7 @@ class llvm_ir_emitter {
                 );
             } else {
                 // Note: An exception is thrown
-                emitter.error(access, "Invalid assignment to indexed access");
+                error(access, "Invalid assignment to indexed access");
             }
         }
 
@@ -1166,7 +1093,7 @@ public:
     {
         bool const terminated = emit_block(block->stmts);
         if (terminated) {
-            return nullptr;
+            return ctx.builder.CreateUnreachable();
         }
         return emit(block->last_expr);
     }
@@ -1180,7 +1107,7 @@ public:
             = [&, this](auto const& block)
             {
                 auto *const block_val = emit(block);
-                if (block_val) {
+                if (!llvm::isa<llvm::UnreachableInst>(block_val)) {
                     assert(!ctx.builder.GetInsertBlock()->getTerminator());
                     evaluated_blocks.emplace_back(block_val, ctx.builder.GetInsertBlock());
                 }

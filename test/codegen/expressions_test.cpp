@@ -1198,7 +1198,7 @@ BOOST_AUTO_TEST_CASE(begin_expr)
             a
         end
 
-        func foo(x)
+        func foo(var x)
             ret begin
                 ret x.a + 20
                 x.a = 42
