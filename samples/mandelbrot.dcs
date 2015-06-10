@@ -1,13 +1,9 @@
-func print_density(d)
-    case
-    when d > 8.0
-        print(' ')
-    when d > 4.0
-        print('.')
-    when d > 2.0
-        print('*')
-    else
-        print('+')
+func to_density_char(d)
+    ret case
+    when d > 8.0 then ' '
+    when d > 4.0 then '.'
+    when d > 2.0 then '*'
+    else              '+'
     end
 end
 
@@ -34,7 +30,7 @@ func mandel'(xmin, xmax, xstep, ymin, ymax, ystep)
             var x := xmin
         in begin
             for x < xmax
-                print_density(mandel_converge(x, y))
+                mandel_converge(x, y).to_density_char.print
                 x += xstep
             end
             ()

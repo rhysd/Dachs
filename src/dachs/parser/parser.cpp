@@ -1101,7 +1101,7 @@ public:
                 DACHS_KWD(if_kind) >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                 >> if_then_stmt_block >> -sep
                 >> *(
-                    qi::as<ast::node_type::if_stmt::elseif_type>()[
+                    qi::as<ast::node_type::if_stmt::clause_type>()[
                         DACHS_KWD("elseif") >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                         >> if_then_stmt_block >> -sep
                     ]
@@ -1132,7 +1132,7 @@ public:
                 DACHS_KWD(if_kind) >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                 >> if_then_block_expr >> -sep
                 >> *(
-                    qi::as<ast::node_type::if_expr::elseif_type>()[
+                    qi::as<ast::node_type::if_expr::block_type>()[
                         DACHS_KWD("elseif") >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                         >> if_then_block_expr >> -sep
                     ]

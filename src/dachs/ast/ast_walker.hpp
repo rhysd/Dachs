@@ -208,9 +208,7 @@ public:
     void walk(node::if_expr &ie)
     {
         visitor.visit(ie, walker_for(
-            ie->condition,
-            ie->then_block,
-            ie->elseif_block_list,
+            ie->block_list,
             ie->else_block
         ));
     }
@@ -257,10 +255,8 @@ public:
     void walk(node::if_stmt &is)
     {
         visitor.visit(is, walker_for(
-            is->condition,
-            is->then_stmts,
-            is->elseif_stmts_list,
-            is->maybe_else_stmts
+            is->clauses,
+            is->maybe_else_clause
         ));
     }
 

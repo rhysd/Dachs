@@ -1,13 +1,9 @@
 func to_density_char(d)
-    case
-    when d > 8.0
-        ret ' '
-    when d > 4.0
-        ret '.'
-    when d > 2.0
-        ret '*'
-    else
-        ret '+'
+    ret case
+    when d > 8.0 then ' '
+    when d > 4.0 then '.'
+    when d > 2.0 then '*'
+    else              '+'
     end
 end
 

@@ -17,35 +17,16 @@ end
 
 
 
-# FizzBuzz #1
 func fizzbuzz(n)
     case
-    when n % 15 == 0 then println("fizzbuzz")
-    when n % 3 == 0  then println("fizz")
-    when n % 5 == 0  then println("buzz")
-    else                  println(n)
+    when n % 15 == 0 then "fizzbuzz".println
+    when n % 3 == 0  then "fizz".println
+    when n % 5 == 0  then "buzz".println
+    else                  n.println
     end
 end
 
 
-
-# FizzBuzz #2
-func print_fb(i)
-    case
-    when i % 15 == 0
-        "fizzbuzz".println
-    when i %  3 == 0
-        "fizz".println
-    when i %  5 == 0
-        "buzz".println
-    else
-        i.println
-    end
-end
-
-
-
-# FizzBuzz #3
 
 #{
   UFCS is implemented.
@@ -55,7 +36,7 @@ end
   do-end block is passed to the last argument of callee as lambda object.
   Here, 'block' variable is captured into do-end block.
 }#
-func fizzbuzz'(n, p)
+func fizzbuzz(n, p)
     1.step_to n do |i|
         case
         when i % 15 == 0
@@ -84,10 +65,10 @@ func main
     end
 
     # FizzBuzz #2
-    1.step_to 100, print_fb
+    1.step_to 100, fizzbuzz
 
     # FizzBuzz #3
-    fizzbuzz' 100 do |i|
+    fizzbuzz 100 do |i|
         println(i)
     end
 end

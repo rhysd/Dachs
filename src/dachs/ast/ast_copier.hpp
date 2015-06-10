@@ -162,9 +162,7 @@ public:
         return copy_node(
                 ie,
                 ie->kind,
-                copy(ie->condition),
-                copy(ie->then_block),
-                copy(ie->elseif_block_list),
+                copy(ie->block_list),
                 copy(ie->else_block)
             );
     }
@@ -248,10 +246,8 @@ public:
         return copy_node(
                 is,
                 is->kind,
-                copy(is->condition),
-                copy(is->then_stmts),
-                copy(is->elseif_stmts_list),
-                copy(is->maybe_else_stmts)
+                copy(is->clauses),
+                copy(is->maybe_else_clause)
             );
     }
 

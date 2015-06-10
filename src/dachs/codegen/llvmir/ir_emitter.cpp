@@ -1120,31 +1120,29 @@ public:
                 catch(emit_skipper) {}
             };
 
-        // IR for if-then clause
-        val cond_val = load_if_ref(emit(if_->condition), if_->condition);
-        if (if_->kind == ast::symbol::if_kind::unless) {
-            cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if.expr.unless"), "unless statement");
-        }
-
-        auto *then_block = helper.create_block_for_parent("if.expr.then");
-        auto *else_block = helper.create_block("if.expr.else");
+        llvm::BasicBlock *else_block = nullptr;
         auto *const end_block = helper.create_block("if.expr.end");
+        bool is_first_elem = true;
 
-        helper.create_cond_br(cond_val, then_block, else_block);
+        for (auto const& block : if_->block_list) {
+            val cond_val = load_if_ref(emit(block.first), block.first);
 
-        emit_inner_block(if_->then_block);
+            if (is_first_elem) {
+                if (if_->kind == ast::symbol::if_kind::unless) {
+                    cond_val = check(
+                            if_,
+                            ctx.builder.CreateNot(cond_val, "if.expr.unless"),
+                            "unless statement"
+                        );
+                }
+                is_first_elem = false;
+            }
 
-        helper.terminate_with_br(end_block);
-        helper.append_block(else_block);
-
-        // IR for elseif clause
-        for (auto const& elseif : if_->elseif_block_list) {
-            cond_val = load_if_ref(emit(elseif.first), elseif.first);
-            then_block = helper.create_block_for_parent("elseif.expr.then");
-            else_block = helper.create_block("elseif.expr.else");
+            auto *const then_block = helper.create_block_for_parent("if.expr.then");
+            else_block = helper.create_block("if.expr.else");
             helper.create_cond_br(cond_val, then_block, else_block);
 
-            emit_inner_block(elseif.second);
+            emit_inner_block(block.second);
 
             helper.terminate_with_br(end_block);
             helper.append_block(else_block);
@@ -1189,13 +1187,12 @@ public:
                 catch(emit_skipper) {}
             };
 
-        llvm::BasicBlock *when_block = nullptr;
         llvm::BasicBlock *else_block = nullptr;
-        auto *const end_block = helper.create_block("if.expr.end");
+        auto *const end_block = helper.create_block("case.expr.end");
 
         for (auto const& when : case_->when_blocks) {
             val const cond_val = load_if_ref(emit(when.first), when.first);
-            when_block = helper.create_block_for_parent("case.expr.when");
+            auto *const when_block = helper.create_block_for_parent("case.expr.when");
             else_block = helper.create_block("case.expr.else");
             helper.create_cond_br(cond_val, when_block, else_block);
 
@@ -1229,40 +1226,37 @@ public:
     void emit(ast::node::if_stmt const& if_)
     {
         auto helper = bb_helper(if_);
-
-        // IR for if-then clause
-        val cond_val = load_if_ref(emit(if_->condition), if_->condition);
-        if (if_->kind == ast::symbol::if_kind::unless) {
-            cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if.stmt.unless"), "unless statement");
-        }
-
-        auto *then_block = helper.create_block_for_parent("if.stmt.then");
-        auto *else_block = helper.create_block("if.stmt.else");
-
-        helper.create_cond_br(cond_val, then_block, else_block);
-
+        llvm::BasicBlock *else_block = nullptr;
         auto *const end_block = helper.create_block("if.stmt.end");
-        emit(if_->then_stmts);
+        bool is_first_elem = true;
 
-        helper.terminate_with_br(end_block);
-        helper.append_block(else_block);
+        for (auto const& clause : if_->clauses) {
+            val cond_val = load_if_ref(emit(clause.first), clause.first);
 
-        // IR for elseif clause
-        for (auto const& elseif : if_->elseif_stmts_list) {
-            cond_val = load_if_ref(emit(elseif.first), elseif.first);
-            then_block = helper.create_block_for_parent("elseif.stmt.then");
-            else_block = helper.create_block("elseif.stmt.else");
+            if (is_first_elem) {
+                if (if_->kind == ast::symbol::if_kind::unless) {
+                    cond_val = check(
+                            if_,
+                            ctx.builder.CreateNot(cond_val, "if.stmt.unless"),
+                            "unless statement"
+                        );
+                }
+                is_first_elem = false;
+            }
+
+            auto *const then_block = helper.create_block_for_parent("if.stmt.then");
+            else_block = helper.create_block("if.stmt.else");
             helper.create_cond_br(cond_val, then_block, else_block);
 
-            emit(elseif.second);
+            emit(clause.second);
 
             helper.terminate_with_br(end_block);
             helper.append_block(else_block);
         }
 
         // IR for else clause
-        if (if_->maybe_else_stmts) {
-            emit(*if_->maybe_else_stmts);
+        if (if_->maybe_else_clause) {
+            emit(*if_->maybe_else_clause);
         }
 
         helper.terminate_with_br(end_block);

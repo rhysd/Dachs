@@ -699,25 +699,32 @@ struct block_expr final : public expression {
 };
 
 struct if_expr final : public expression {
-    using elseif_type
+    using block_type
         = std::pair<node::any_expr, node::block_expr>;
 
     symbol::if_kind kind;
-    node::any_expr condition;
-    node::block_expr then_block;
-    std::vector<elseif_type> elseif_block_list;
+    std::vector<block_type> block_list;
     node::block_expr else_block;
 
     if_expr(symbol::if_kind const kind,
             node::any_expr const& cond,
             node::block_expr const& then,
-            decltype(elseif_block_list) const& elseifs,
+            decltype(block_list) const& elseifs,
             node::block_expr const& else_)
         : expression()
         , kind(kind)
-        , condition(cond)
-        , then_block(then)
-        , elseif_block_list(elseifs)
+        , block_list(elseifs)
+        , else_block(else_)
+    {
+        block_list.emplace(std::begin(block_list), cond, then);
+    }
+
+    if_expr(symbol::if_kind const kind,
+            decltype(block_list) const& blocks,
+            node::block_expr const& else_)
+        : expression()
+        , kind(kind)
+        , block_list(blocks)
         , else_block(else_)
     {}
 
@@ -999,29 +1006,33 @@ struct assignment_stmt final : public statement {
 };
 
 struct if_stmt final : public statement {
-    using elseif_type
+    using clause_type
         = std::pair<node::any_expr, node::statement_block>;
 
     symbol::if_kind kind;
-    node::any_expr condition;
-    node::statement_block then_stmts;
-    std::vector<elseif_type> elseif_stmts_list;
-    boost::optional<node::statement_block> maybe_else_stmts;
-    bool is_toplevel;
+    std::vector<clause_type> clauses;
+    boost::optional<node::statement_block> maybe_else_clause;
 
     if_stmt(symbol::if_kind const kind,
             node::any_expr const& cond,
             node::statement_block const& then,
-            decltype(elseif_stmts_list) const& elseifs,
-            decltype(maybe_else_stmts) const& maybe_else,
-            bool const toplevel = true)
+            decltype(clauses) const& cls,
+            decltype(maybe_else_clause) const& maybe_else)
         : statement()
         , kind(kind)
-        , condition(cond)
-        , then_stmts(then)
-        , elseif_stmts_list(elseifs)
-        , maybe_else_stmts(maybe_else)
-        , is_toplevel(toplevel)
+        , clauses(cls)
+        , maybe_else_clause(maybe_else)
+    {
+        clauses.emplace(std::begin(clauses), cond, then);
+    }
+
+    if_stmt(symbol::if_kind const kind,
+            decltype(clauses) const& cls,
+            decltype(maybe_else_clause) const& maybe_else)
+        : statement()
+        , kind(kind)
+        , clauses(cls)
+        , maybe_else_clause(maybe_else)
     {}
 
     std::string to_string() const noexcept override

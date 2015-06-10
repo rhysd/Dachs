@@ -3306,43 +3306,44 @@ public:
     template<class Walker>
     void visit(ast::node::if_expr const& if_, Walker const& w)
     {
+        assert(!if_->block_list.empty());
+
         w();
-        check_condition_expr(if_->condition);
 
         std::string const kind
             = if_->kind == ast::symbol::if_kind::unless
                 ? "'unless'" : "'if'";
 
-        auto const then_type = if_->then_block->type;
-        if (!then_type) {
+        auto const& type = if_->block_list.front().second->type;
+        if (!type) {
             return;
         }
 
-        for (auto const& elseif : if_->elseif_block_list) {
-            check_condition_expr(elseif.first);
-            if (then_type != elseif.second->type) {
+        for (auto const& block : if_->block_list) {
+            check_condition_expr(block.first);
+            if (type != block.second->type) {
                 semantic_error(
-                        elseif.second,
+                        block.second,
                         boost::format(
                             "  All blocks of %1% expression must have the same type\n"
-                            "  Note: Type of 'then' block is '%2%' but type of 'elseif' block is '%3%'"
-                        ) % kind % then_type.to_string() % elseif.second->type.to_string()
+                            "  Note: Type of 'then' block is '%2%' but type of 'then' block is '%3%'"
+                        ) % kind % type.to_string() % block.second->type.to_string()
                     );
             }
         }
 
-        if (then_type != if_->else_block->type) {
+        if (type != if_->else_block->type) {
             semantic_error(
                     if_->else_block,
                     boost::format(
                         "  All blocks of %1% expression must have the same type\n"
                         "  Note: Type of 'then' block is '%2%' but type of 'else' block is '%3%'"
-                    ) % kind % then_type.to_string() % if_->else_block->type.to_string()
+                    ) % kind % type.to_string() % if_->else_block->type.to_string()
                 );
             return;
         }
 
-        if_->type = then_type;
+        if_->type = type;
     }
 
     template<class Walker>
@@ -3384,10 +3385,10 @@ public:
     template<class Walker>
     void visit(ast::node::if_stmt const& if_, Walker const& w)
     {
+        assert(!if_->clauses.empty());
         w();
-        check_condition_expr(if_->condition);
-        for (auto const& elseif : if_->elseif_stmts_list) {
-            check_condition_expr(elseif.first);
+        for (auto const& clause : if_->clauses) {
+            check_condition_expr(clause.first);
         }
     }
 
