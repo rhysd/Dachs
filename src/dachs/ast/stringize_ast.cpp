@@ -296,17 +296,6 @@ public:
                 + '\n' + visit(ie->else_block, indent+lead, "   ");
     }
 
-    String visit(node::case_expr const& ce, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(ce, indent)
-                + visit_nodes_with_predicate(ce->when_blocks,
-                        [this, indent, lead](auto const& block, auto const l){
-                            return visit(block.first, indent+lead, "|  ")
-                                + '\n' + visit(block.second, indent+lead, l);
-                        }, false)
-                + '\n' + visit(ce->else_block, indent+lead, "   ");
-    }
-
     String visit(node::typed_expr const& te, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(te, indent)
@@ -332,17 +321,6 @@ public:
                                 + '\n' + visit(cond_and_then_stmts.second, indent+lead, l);
                         }, !is->maybe_else_clause)
                 + (is->maybe_else_clause ? '\n' + visit(*(is->maybe_else_clause), indent+lead, "   ") : "");
-    }
-
-    String visit(node::case_stmt const& cs, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(cs, indent)
-                + visit_nodes_with_predicate(cs->when_stmts_list,
-                        [this, indent, lead](auto const& cond_and_when_stmts, auto const l){
-                            return visit(cond_and_when_stmts.first, indent+lead, "|  ")
-                                + '\n' + visit(cond_and_when_stmts.second, indent+lead, l);
-                        }, !cs->maybe_else_stmts)
-                + (cs->maybe_else_stmts ? visit(*(cs->maybe_else_stmts), indent+lead, "   ") : "");
     }
 
     String visit(node::switch_stmt const& ss, String const& indent, char const* const lead) const noexcept

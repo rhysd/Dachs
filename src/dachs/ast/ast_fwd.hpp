@@ -31,6 +31,7 @@ namespace symbol {
 enum class if_kind {
     if_,
     unless,
+    case_,
 };
 
 enum class qualifier {
@@ -108,7 +109,6 @@ struct unary_expr;
 struct binary_expr;
 struct block_expr;
 struct if_expr;
-struct case_expr;
 struct typed_expr;
 struct primary_type;
 struct tuple_type;
@@ -122,7 +122,6 @@ struct assignment_stmt;
 struct variable_decl;
 struct initialize_stmt;
 struct if_stmt;
-struct case_stmt;
 struct return_stmt;
 struct switch_stmt;
 struct for_stmt;
@@ -182,7 +181,6 @@ DACHS_DEFINE_NODE_PTR(unary_expr);
 DACHS_DEFINE_NODE_PTR(binary_expr);
 DACHS_DEFINE_NODE_PTR(block_expr);
 DACHS_DEFINE_NODE_PTR(if_expr);
-DACHS_DEFINE_NODE_PTR(case_expr);
 DACHS_DEFINE_NODE_PTR(typed_expr);
 DACHS_DEFINE_NODE_PTR(primary_type);
 DACHS_DEFINE_NODE_PTR(tuple_type);
@@ -196,7 +194,6 @@ DACHS_DEFINE_NODE_PTR(assignment_stmt);
 DACHS_DEFINE_NODE_PTR(variable_decl);
 DACHS_DEFINE_NODE_PTR(initialize_stmt);
 DACHS_DEFINE_NODE_PTR(if_stmt);
-DACHS_DEFINE_NODE_PTR(case_stmt);
 DACHS_DEFINE_NODE_PTR(switch_stmt);
 DACHS_DEFINE_NODE_PTR(return_stmt);
 DACHS_DEFINE_NODE_PTR(for_stmt);
@@ -228,7 +225,6 @@ using any_expr =
                   , var_ref
                   , block_expr
                   , if_expr
-                  , case_expr
             >;
 
 using any_type =
@@ -245,7 +241,6 @@ using any_type =
 using compound_stmt =
     boost::variant<
           return_stmt
-        , case_stmt
         , if_stmt
         , switch_stmt
         , for_stmt

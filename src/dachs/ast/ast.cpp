@@ -16,11 +16,12 @@ namespace dachs {
 namespace ast {
 namespace symbol {
 
-std::string to_string(if_kind const o)
+std::string to_string(if_kind const k)
 {
-    switch(o) {
-    case if_kind::if_: return "if";
+    switch(k) {
+    case if_kind::if_:    return "if";
     case if_kind::unless: return "unless";
+    case if_kind::case_:  return "case";
     default:
         DACHS_RAISE_INTERNAL_COMPILATION_ERROR
         return "unknown";

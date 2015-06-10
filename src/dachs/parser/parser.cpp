@@ -1154,7 +1154,7 @@ public:
             = (
                 "case" >> sep
                 >> +(
-                    qi::as<ast::node_type::case_expr::when_type>()[
+                    qi::as<ast::node_type::if_expr::block_type>()[
                         DACHS_KWD("when") >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                         >> case_when_block_expr >> -sep
                     ]
@@ -1162,7 +1162,7 @@ public:
                     DACHS_KWD("else") >> -sep >> block_expr_before_end >> -sep
                 ) >> "end"
             ) [
-                _val = make_node_ptr<ast::node::case_expr>(_1, _2)
+                _val = make_node_ptr<ast::node::if_expr>(ast::symbol::if_kind::case_, _1, _2)
             ];
 
         return_stmt
@@ -1183,7 +1183,7 @@ public:
             = (
                 "case" >> sep
                 >> +(
-                    qi::as<ast::node_type::case_stmt::when_type>()[
+                    qi::as<ast::node_type::if_stmt::clause_type>()[
                         DACHS_KWD("when") >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
                         >> case_when_stmt_block
                     ]
@@ -1191,7 +1191,7 @@ public:
                     DACHS_KWD("else") >> -sep >> stmt_block_before_end >> -sep
                 ) >> "end"
             ) [
-                _val = make_node_ptr<ast::node::case_stmt>(_1, _2)
+                _val = make_node_ptr<ast::node::if_stmt>(ast::symbol::if_kind::case_, _1, _2)
             ];
 
         switch_stmt
@@ -1661,7 +1661,6 @@ private:
     DACHS_DEFINE_RULE(parameter);
     DACHS_DEFINE_RULE(object_construct);
     DACHS_DEFINE_RULE(return_stmt);
-    DACHS_DEFINE_RULE(case_stmt);
     DACHS_DEFINE_RULE(switch_stmt);
     DACHS_DEFINE_RULE(for_stmt);
     DACHS_DEFINE_RULE(while_stmt);
@@ -1689,6 +1688,7 @@ private:
     rule<ast::node::function_definition(), qi::locals<bool>> method_definition;
     rule<std::vector<ast::node::variable_decl>(), qi::locals<bool>> instance_variable_decls;
     rule<ast::node::variable_decl(bool)> instance_variable_decl;
+    rule<ast::node::if_stmt()> case_stmt;
 
     rule<ast::node::any_expr()>
           primary_literal

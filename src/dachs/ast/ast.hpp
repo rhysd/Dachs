@@ -734,28 +734,6 @@ struct if_expr final : public expression {
     }
 };
 
-struct case_expr final : public expression {
-    using when_type
-        = std::pair<node::any_expr, node::block_expr>;
-
-    std::vector<when_type> when_blocks;
-    node::block_expr else_block;
-
-    template<class WhenBlocks, class ElseBlock>
-    case_expr(WhenBlocks && whens,
-              ElseBlock && else_)
-        : expression()
-        , when_blocks(std::forward<WhenBlocks>(whens))
-        , else_block(std::forward<ElseBlock>(else_))
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "CASE_EXPR";
-    }
-};
-
-
 struct typed_expr final : public expression {
     node::any_expr child_expr;
     node::any_type specified_type;
@@ -1056,24 +1034,6 @@ struct return_stmt final : public statement {
     std::string to_string() const noexcept override
     {
         return "RETURN_STMT";
-    }
-};
-
-struct case_stmt final : public statement {
-    using when_type
-        = std::pair<node::any_expr, node::statement_block>;
-
-    std::vector<when_type> when_stmts_list;
-    boost::optional<node::statement_block> maybe_else_stmts;
-
-    case_stmt(decltype(when_stmts_list) const& whens,
-              decltype(maybe_else_stmts) const& elses) noexcept
-        : statement(), when_stmts_list(whens), maybe_else_stmts(elses)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "CASE_STMT";
     }
 };
 

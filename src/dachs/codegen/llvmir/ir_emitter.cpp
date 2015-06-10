@@ -1108,6 +1108,7 @@ public:
     {
         auto helper = bb_helper(if_);
         std::vector<std::pair<val, llvm::BasicBlock *>> evaluated_blocks;
+        auto const prefix = ast::symbol::to_string(if_->kind) + ".expr.";
 
         auto const emit_inner_block
             = [&, this](auto const& block)
@@ -1121,7 +1122,7 @@ public:
             };
 
         llvm::BasicBlock *else_block = nullptr;
-        auto *const end_block = helper.create_block("if.expr.end");
+        auto *const end_block = helper.create_block(prefix + "end");
         bool is_first_elem = true;
 
         for (auto const& block : if_->block_list) {
@@ -1131,15 +1132,15 @@ public:
                 if (if_->kind == ast::symbol::if_kind::unless) {
                     cond_val = check(
                             if_,
-                            ctx.builder.CreateNot(cond_val, "if.expr.unless"),
+                            ctx.builder.CreateNot(cond_val, prefix + "inv"),
                             "unless statement"
                         );
                 }
                 is_first_elem = false;
             }
 
-            auto *const then_block = helper.create_block_for_parent("if.expr.then");
-            else_block = helper.create_block("if.expr.else");
+            auto *const then_block = helper.create_block_for_parent(prefix + "then");
+            else_block = helper.create_block(prefix + "else");
             helper.create_cond_br(cond_val, then_block, else_block);
 
             emit_inner_block(block.second);
@@ -1159,59 +1160,7 @@ public:
                 = ctx.builder.CreatePHI(
                         evaluated_blocks[0].first->getType(),
                         evaluated_blocks.size(),
-                        "if.expr.phi"
-                    );
-
-            for (auto const& block : evaluated_blocks) {
-                phi->addIncoming(block.first, block.second);
-            }
-            return phi;
-        } else {
-            throw emit_skipper{};
-        }
-    }
-
-    val emit(ast::node::case_expr const& case_)
-    {
-        auto helper = bb_helper(case_);
-        std::vector<std::pair<val, llvm::BasicBlock *>> evaluated_blocks;
-
-        auto const emit_inner_block
-            = [&, this](auto const& block)
-            {
-                try {
-                    auto *const block_val = emit(block);
-                    assert(!ctx.builder.GetInsertBlock()->getTerminator());
-                    evaluated_blocks.emplace_back(block_val, ctx.builder.GetInsertBlock());
-                }
-                catch(emit_skipper) {}
-            };
-
-        llvm::BasicBlock *else_block = nullptr;
-        auto *const end_block = helper.create_block("case.expr.end");
-
-        for (auto const& when : case_->when_blocks) {
-            val const cond_val = load_if_ref(emit(when.first), when.first);
-            auto *const when_block = helper.create_block_for_parent("case.expr.when");
-            else_block = helper.create_block("case.expr.else");
-            helper.create_cond_br(cond_val, when_block, else_block);
-
-            emit_inner_block(when.second);
-
-            helper.terminate_with_br(end_block);
-            helper.append_block(else_block);
-        }
-
-        emit_inner_block(case_->else_block);
-        helper.terminate_with_br(end_block);
-        helper.append_block(end_block);
-
-        if (!evaluated_blocks.empty()) {
-            auto *const phi
-                = ctx.builder.CreatePHI(
-                        evaluated_blocks[0].first->getType(),
-                        evaluated_blocks.size(),
-                        "case.expr.phi"
+                        prefix + "phi"
                     );
 
             for (auto const& block : evaluated_blocks) {
@@ -1227,7 +1176,8 @@ public:
     {
         auto helper = bb_helper(if_);
         llvm::BasicBlock *else_block = nullptr;
-        auto *const end_block = helper.create_block("if.stmt.end");
+        auto const prefix = ast::symbol::to_string(if_->kind) + ".stmt.";
+        auto *const end_block = helper.create_block(prefix + "end");
         bool is_first_elem = true;
 
         for (auto const& clause : if_->clauses) {
@@ -1237,15 +1187,15 @@ public:
                 if (if_->kind == ast::symbol::if_kind::unless) {
                     cond_val = check(
                             if_,
-                            ctx.builder.CreateNot(cond_val, "if.stmt.unless"),
+                            ctx.builder.CreateNot(cond_val, prefix + "inv"),
                             "unless statement"
                         );
                 }
                 is_first_elem = false;
             }
 
-            auto *const then_block = helper.create_block_for_parent("if.stmt.then");
-            else_block = helper.create_block("if.stmt.else");
+            auto *const then_block = helper.create_block_for_parent(prefix + "then");
+            else_block = helper.create_block(prefix + "else");
             helper.create_cond_br(cond_val, then_block, else_block);
 
             emit(clause.second);
@@ -2070,30 +2020,6 @@ public:
             }
             , assign->assignees, assign->rhs_exprs
         );
-    }
-
-    void emit(ast::node::case_stmt const& case_)
-    {
-        auto helper = bb_helper(case_);
-        auto *const end_block = helper.create_block("case.end");
-
-        llvm::BasicBlock *else_block;
-        for (auto const& when_stmts : case_->when_stmts_list) {
-            auto *const cond_val = load_if_ref(emit(when_stmts.first), when_stmts.first);
-            auto *const when_block = helper.create_block_for_parent("case.when");
-            else_block = helper.create_block_for_parent("case.else");
-
-            helper.create_cond_br(cond_val, when_block, else_block);
-            emit(when_stmts.second);
-            helper.terminate_with_br(end_block, else_block);
-        }
-
-        if (case_->maybe_else_stmts) {
-            emit(*case_->maybe_else_stmts);
-        }
-        helper.terminate_with_br(end_block);
-
-        helper.append_block(end_block);
     }
 
     /*

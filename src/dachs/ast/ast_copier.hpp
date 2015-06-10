@@ -167,15 +167,6 @@ public:
             );
     }
 
-    auto copy(node::case_expr const& ce) const
-    {
-        return copy_node(
-                ce,
-                copy(ce->when_blocks),
-                copy(ce->else_block)
-            );
-    }
-
     auto copy(node::typed_expr const& te) const
     {
         return copy_node(te, copy(te->child_expr), copy(te->specified_type));
@@ -254,11 +245,6 @@ public:
     auto copy(node::return_stmt const& rs) const
     {
         return copy_node(rs, copy(rs->ret_exprs));
-    }
-
-    auto copy(node::case_stmt const& cs) const
-    {
-        return copy_node(cs, copy(cs->when_stmts_list), copy(cs->maybe_else_stmts));
     }
 
     auto copy(node::switch_stmt const& ss) const
