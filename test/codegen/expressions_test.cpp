@@ -789,6 +789,95 @@ BOOST_AUTO_TEST_CASE(if_expr)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(case_expr)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+        end
+
+        func abs(i)
+            ret case
+                when i < 0
+                    -i
+                else
+                    i
+                end
+        end
+
+        func main
+            foo(case
+                when true
+                    3.14
+                when false
+                    1.14
+                else
+                    2.14
+                end
+            )
+
+            abs(-10).println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            a := 0
+
+            ret case
+                when a > 0
+                    ret 0
+                    b := 10
+                    a + b
+                when a < 0
+                    ret 0
+                    b := 11.0
+                    a + (b as int)
+                else
+                    0
+                end
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        func abs(var x)
+            ret case
+                when x.a < 0
+                    x.a = -x.a
+                    x
+                else
+                    x
+                end
+        end
+
+        func main
+            print('X')
+            abs(new X{-10}).a.println
+
+            var p := new pointer(X(int)){2u}
+            p[0u] = new X{11}
+            p[1u] = new X{-100}
+
+            i := 11
+
+            x := case
+            when p[0u].a % 2 == 0
+                p[0u]
+            when p[1u].a % 2 == 0
+                p[1u]
+            else
+                new X{0}
+            end
+
+            print('X')
+            x.abs.a.println
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(typed_expr)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(

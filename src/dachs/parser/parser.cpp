@@ -891,7 +891,11 @@ public:
 
         typed_expr
             =
-                (if_expr | range_expr)[_val = _1]
+                (
+                    if_expr
+                  | case_expr
+                  | range_expr
+                )[_val = _1]
                 >> -(
                     -qi::eol >> ':' >> -qi::eol >> qualified_type
                 )[
@@ -1138,6 +1142,28 @@ public:
                 _val = make_node_ptr<ast::node::if_expr>(_1, _2, _3, _4, _5)
             ];
 
+        case_when_block_expr
+            = (
+                *((compound_stmt - (typed_expr >> -sep >> (DACHS_KWD("when"_l | "else")))) >> sep)
+                >> (typed_expr - DACHS_KWD("when") - DACHS_KWD("else"))
+            ) [
+                _val = make_node_ptr<ast::node::block_expr>(_1, _2)
+            ];
+
+        case_expr
+            = (
+                "case" >> sep
+                >> +(
+                    qi::as<ast::node_type::case_expr::when_type>()[
+                        DACHS_KWD("when") >> (typed_expr - DACHS_KWD("then")) >> (DACHS_KWD("then") || sep)
+                        >> case_when_block_expr >> -sep
+                    ]
+                ) >> (
+                    DACHS_KWD("else") >> -sep >> block_expr_before_end >> -sep
+                ) >> "end"
+            ) [
+                _val = make_node_ptr<ast::node::case_expr>(_1, _2)
+            ];
 
         return_stmt
             = (
@@ -1455,6 +1481,7 @@ public:
                 , typed_expr
                 , if_stmt
                 , if_expr
+                , case_expr
                 , return_stmt
                 , case_stmt
                 , switch_stmt
@@ -1484,7 +1511,9 @@ public:
                 , method_definition
                 , instance_variable_decl
                 , import
+                , block_expr_before_end
                 , if_then_block_expr
+                , case_when_block_expr
             );
 
             // TODO:
@@ -1564,6 +1593,7 @@ public:
         typeof_type.name("typeof type");
         if_stmt.name("if statement");
         if_expr.name("if expression");
+        case_expr.name("case expression");
         return_stmt.name("return statement");
         case_stmt.name("case statement");
         switch_stmt.name("switch statement");
@@ -1606,6 +1636,7 @@ public:
         import.name("import module");
         block_expr_before_end.name("block expression before 'end'");
         if_then_block_expr.name("'then' clause in if expression");
+        case_when_block_expr.name("'when' clause in case expression");
         // }}}
     }
 
@@ -1683,6 +1714,7 @@ private:
         , typed_expr
         , var_ref_before_space
         , if_expr
+        , case_expr
     ;
 
     rule<ast::node::block_expr()> begin_end_expr, let_expr;
@@ -1739,6 +1771,7 @@ private:
     decltype(return_stmt) postfix_if_return_stmt;
     rule<ast::node::block_expr()> block_expr_before_end
                                 , if_then_block_expr
+                                , case_when_block_expr
                             ;
 
 #undef DACHS_DEFINE_RULE

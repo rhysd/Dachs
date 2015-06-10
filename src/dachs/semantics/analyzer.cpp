@@ -3328,7 +3328,6 @@ public:
                             "  Note: Type of 'then' block is '%2%' but type of 'elseif' block is '%3%'"
                         ) % kind % then_type.to_string() % elseif.second->type.to_string()
                     );
-                return;
             }
         }
 
@@ -3344,6 +3343,42 @@ public:
         }
 
         if_->type = then_type;
+    }
+
+    template<class Walker>
+    void visit(ast::node::case_expr const& case_, Walker const& w)
+    {
+        assert(!case_->when_blocks.empty());
+
+        w();
+
+        auto const& type = case_->when_blocks.front().second->type;
+
+        for (auto const& when : case_->when_blocks) {
+            check_condition_expr(when.first);
+            if (type != when.second->type) {
+                semantic_error(
+                        when.second,
+                        boost::format(
+                            "  All blocks of 'case' expression must have the same type\n"
+                            "  Note: Type of first 'when' block is '%1%' but type of succeeding 'when' block is '%2%'"
+                        ) % type.to_string() % when.second->type.to_string()
+                    );
+            }
+        }
+
+        if (type != case_->else_block->type) {
+            semantic_error(
+                    case_->else_block,
+                    boost::format(
+                        "  All blocks of 'case' expression must have the same type\n"
+                        "  Note: Type of first 'when' block is '%1%' but type of 'else' block is '%2%'"
+                    ) % type.to_string() % case_->else_block->type.to_string()
+                );
+            return;
+        }
+
+        case_->type = type;
     }
 
     template<class Walker>

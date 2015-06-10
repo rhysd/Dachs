@@ -727,6 +727,28 @@ struct if_expr final : public expression {
     }
 };
 
+struct case_expr final : public expression {
+    using when_type
+        = std::pair<node::any_expr, node::block_expr>;
+
+    std::vector<when_type> when_blocks;
+    node::block_expr else_block;
+
+    template<class WhenBlocks, class ElseBlock>
+    case_expr(WhenBlocks && whens,
+              ElseBlock && else_)
+        : expression()
+        , when_blocks(std::forward<WhenBlocks>(whens))
+        , else_block(std::forward<ElseBlock>(else_))
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "CASE_EXPR";
+    }
+};
+
+
 struct typed_expr final : public expression {
     node::any_expr child_expr;
     node::any_type specified_type;

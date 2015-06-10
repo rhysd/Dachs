@@ -108,6 +108,7 @@ struct unary_expr;
 struct binary_expr;
 struct block_expr;
 struct if_expr;
+struct case_expr;
 struct typed_expr;
 struct primary_type;
 struct tuple_type;
@@ -181,6 +182,7 @@ DACHS_DEFINE_NODE_PTR(unary_expr);
 DACHS_DEFINE_NODE_PTR(binary_expr);
 DACHS_DEFINE_NODE_PTR(block_expr);
 DACHS_DEFINE_NODE_PTR(if_expr);
+DACHS_DEFINE_NODE_PTR(case_expr);
 DACHS_DEFINE_NODE_PTR(typed_expr);
 DACHS_DEFINE_NODE_PTR(primary_type);
 DACHS_DEFINE_NODE_PTR(tuple_type);
@@ -226,6 +228,7 @@ using any_expr =
                   , var_ref
                   , block_expr
                   , if_expr
+                  , case_expr
             >;
 
 using any_type =

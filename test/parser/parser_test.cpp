@@ -1616,6 +1616,105 @@ BOOST_AUTO_TEST_CASE(if_expr)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(case_expr)
+{
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func main
+            a := case
+                when true
+                    hoge
+                when false
+                    hoge
+                else
+                    bar
+                end
+
+            println(case
+                when a == 1
+                    a := 42
+                    expr
+                else
+                    b := 10
+                    ret 10
+                    expr
+                end
+            )
+
+            a := case
+                when true then
+                    hoge
+                when false then
+                    hoge
+                else
+                    bar
+                end
+
+            println(case
+                when a == 1
+                    a := 42
+                    expr
+                else
+                    b := 10
+                    ret 10
+                    expr
+                end
+            )
+
+            (case; when foo then a:= 42; expr when bar then b := 21; b else -1 end)
+        end
+        )"));
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := case
+                when true
+                    42
+                end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := case
+                when
+                    a := 10
+                else
+                    bbb
+                end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := case
+                when
+                    aaa
+                else
+                    ret 10
+                end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (case
+            when foo
+            else
+                42
+            end)
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (case
+            when foo
+                42
+            else
+            end)
+        end
+        )");
+}
 
 BOOST_AUTO_TEST_CASE(switch_statement)
 {

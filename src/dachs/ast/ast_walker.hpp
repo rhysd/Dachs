@@ -215,6 +215,14 @@ public:
         ));
     }
 
+    void walk(node::case_expr &ce)
+    {
+        visitor.visit(ce, walker_for(
+            ce->when_blocks,
+            ce->else_block
+        ));
+    }
+
     void walk(node::typed_expr &te)
     {
         visitor.visit(te, walker_for(

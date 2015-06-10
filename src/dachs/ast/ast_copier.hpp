@@ -169,6 +169,14 @@ public:
             );
     }
 
+    auto copy(node::case_expr const& ce) const
+    {
+        return copy_node(
+                ce,
+                copy(ce->when_blocks),
+                copy(ce->else_block)
+            );
+    }
 
     auto copy(node::typed_expr const& te) const
     {

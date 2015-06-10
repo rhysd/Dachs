@@ -281,7 +281,7 @@ public:
     String visit(node::block_expr const& be, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(be, indent)
-            + '\n' + visit_nodes(be->stmts, indent+lead, false)
+            + visit_nodes(be->stmts, indent+lead, false)
             + '\n' + visit(be->last_expr, indent+lead, "   ");
     }
 
@@ -290,12 +290,23 @@ public:
         return prefix_of(ie, indent)
                 + '\n' + visit(ie->condition, indent+lead, "|  ")
                 + '\n' + visit(ie->then_block, indent+lead, "|  ")
-                + '\n' + visit_nodes_with_predicate(ie->elseif_block_list,
+                + visit_nodes_with_predicate(ie->elseif_block_list,
                         [this, indent, lead](auto const& block, auto const l){
                             return visit(block.first, indent+lead, "|  ")
                                 + '\n' + visit(block.second, indent+lead, l);
                         }, false)
                 + '\n' + visit(ie->else_block, indent+lead, "   ");
+    }
+
+    String visit(node::case_expr const& ce, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(ce, indent)
+                + visit_nodes_with_predicate(ce->when_blocks,
+                        [this, indent, lead](auto const& block, auto const l){
+                            return visit(block.first, indent+lead, "|  ")
+                                + '\n' + visit(block.second, indent+lead, l);
+                        }, false)
+                + '\n' + visit(ce->else_block, indent+lead, "   ");
     }
 
     String visit(node::typed_expr const& te, String const& indent, char const* const lead) const noexcept

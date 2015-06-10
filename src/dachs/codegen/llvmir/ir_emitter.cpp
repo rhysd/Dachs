@@ -1109,7 +1109,7 @@ public:
         auto helper = bb_helper(if_);
         std::vector<std::pair<val, llvm::BasicBlock *>> evaluated_blocks;
 
-        auto const emit_block
+        auto const emit_inner_block
             = [&, this](auto const& block)
             {
                 try {
@@ -1117,9 +1117,7 @@ public:
                     assert(!ctx.builder.GetInsertBlock()->getTerminator());
                     evaluated_blocks.emplace_back(block_val, ctx.builder.GetInsertBlock());
                 }
-                catch(emit_skipper) {
-                    // Do nothing
-                }
+                catch(emit_skipper) {}
             };
 
         // IR for if-then clause
@@ -1134,7 +1132,7 @@ public:
 
         helper.create_cond_br(cond_val, then_block, else_block);
 
-        emit_block(if_->then_block);
+        emit_inner_block(if_->then_block);
 
         helper.terminate_with_br(end_block);
         helper.append_block(else_block);
@@ -1146,14 +1144,14 @@ public:
             else_block = helper.create_block("elseif.expr.else");
             helper.create_cond_br(cond_val, then_block, else_block);
 
-            emit_block(elseif.second);
+            emit_inner_block(elseif.second);
 
             helper.terminate_with_br(end_block);
             helper.append_block(else_block);
         }
 
         // IR for else clause
-        emit_block(if_->else_block);
+        emit_inner_block(if_->else_block);
 
         helper.terminate_with_br(end_block);
         helper.append_block(end_block);
@@ -1163,7 +1161,60 @@ public:
                 = ctx.builder.CreatePHI(
                         evaluated_blocks[0].first->getType(),
                         evaluated_blocks.size(),
-                        "expr.if.phi"
+                        "if.expr.phi"
+                    );
+
+            for (auto const& block : evaluated_blocks) {
+                phi->addIncoming(block.first, block.second);
+            }
+            return phi;
+        } else {
+            throw emit_skipper{};
+        }
+    }
+
+    val emit(ast::node::case_expr const& case_)
+    {
+        auto helper = bb_helper(case_);
+        std::vector<std::pair<val, llvm::BasicBlock *>> evaluated_blocks;
+
+        auto const emit_inner_block
+            = [&, this](auto const& block)
+            {
+                try {
+                    auto *const block_val = emit(block);
+                    assert(!ctx.builder.GetInsertBlock()->getTerminator());
+                    evaluated_blocks.emplace_back(block_val, ctx.builder.GetInsertBlock());
+                }
+                catch(emit_skipper) {}
+            };
+
+        llvm::BasicBlock *when_block = nullptr;
+        llvm::BasicBlock *else_block = nullptr;
+        auto *const end_block = helper.create_block("if.expr.end");
+
+        for (auto const& when : case_->when_blocks) {
+            val const cond_val = load_if_ref(emit(when.first), when.first);
+            when_block = helper.create_block_for_parent("case.expr.when");
+            else_block = helper.create_block("case.expr.else");
+            helper.create_cond_br(cond_val, when_block, else_block);
+
+            emit_inner_block(when.second);
+
+            helper.terminate_with_br(end_block);
+            helper.append_block(else_block);
+        }
+
+        emit_inner_block(case_->else_block);
+        helper.terminate_with_br(end_block);
+        helper.append_block(end_block);
+
+        if (!evaluated_blocks.empty()) {
+            auto *const phi
+                = ctx.builder.CreatePHI(
+                        evaluated_blocks[0].first->getType(),
+                        evaluated_blocks.size(),
+                        "case.expr.phi"
                     );
 
             for (auto const& block : evaluated_blocks) {

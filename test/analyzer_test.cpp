@@ -3950,6 +3950,8 @@ BOOST_AUTO_TEST_CASE(if_expr)
             )
 
             foo_tmpl(11).println
+
+            (if false then 3.14 else 2.1 end) : float
         end
     )");
 
@@ -4002,6 +4004,102 @@ BOOST_AUTO_TEST_CASE(if_expr)
 
         func main
             foo(0.0).println
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(case_expr)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo_tmpl(x)
+            ret case
+                when x % 2 == 1
+                    x * 2
+                when x % 2 == 0
+                    x / 2
+                else
+                    0
+                end
+        end
+
+        func main
+            i := case
+                when true
+                    a := 42
+                    case
+                    when true
+                        a
+                    else
+                        10
+                    end
+                when false
+                    a := 10
+                    a
+                else
+                    ret 0
+                    -1
+                end
+
+            foo_tmpl(i).println
+
+            (
+                case
+                when true
+                    'a'
+                else
+                    'b'
+                end
+            ) : char
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (case
+             when 52
+                 42
+             else
+                 0
+             end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (case
+             when false
+                 42
+             else
+                'a'
+             end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (case
+             when false
+                42
+             else
+                'a'
+             end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func abs(x)
+            ret case
+                when x < 0
+                    ret -x as float
+                    -x
+                else
+                    ret x as float
+                    x
+                end
+        end
+
+        func main
+            abs(11).println
         end
     )");
 }
