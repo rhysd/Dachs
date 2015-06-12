@@ -656,8 +656,6 @@ BOOST_AUTO_TEST_CASE(type)
                        int
                    ]
             expr : {int => string}
-            expr
-                : {int => string}
             expr :
                 {int => string}
             expr : {
@@ -695,20 +693,17 @@ BOOST_AUTO_TEST_CASE(type)
             expr : func(
                     int,
                     aaa
-                    )
-                     :
+                    ) :
                        int
             expr : func(
                       int
                     , aaa
-                    )
-                     :
+                    ) :
                        int
             expr : func(
                     int,
                     aaa,
-                    )
-                     :
+                    ) :
                        int
             expr : proc(int, aaa)
             expr : proc(
@@ -1252,8 +1247,6 @@ BOOST_AUTO_TEST_CASE(variable_decl)
             var a : char
             , var b : int,
             var c : string
-            var b
-                : int
             var b :
                 int
 
@@ -2623,6 +2616,15 @@ BOOST_AUTO_TEST_CASE(do_not_degrade)
     BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             :foo.println
+        end
+    )"));
+
+    // :foo was parsed as ':' of typed expression
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func main
+            if true
+                :poyo.println
+            end
         end
     )"));
 }

@@ -898,7 +898,7 @@ public:
                   | range_expr
                 )[_val = _1]
                 >> -(
-                    -qi::eol >> ':' >> -qi::eol >> qualified_type
+                    ':' >> -qi::eol >> qualified_type
                 )[
                     _val = make_node_ptr<ast::node::typed_expr>(_val, _1)
                 ]
