@@ -1716,6 +1716,108 @@ BOOST_AUTO_TEST_CASE(case_expr)
         )");
 }
 
+BOOST_AUTO_TEST_CASE(switch_expr)
+{
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func main
+            a := case 42 + 11
+                when true
+                    hoge
+                when false
+                    hoge
+                when 42, 'b'
+                    hoge
+                else
+                    bar
+                end
+
+            println(case foo
+                when a
+                    a := 42
+                    expr
+                else
+                    b := 10
+                    ret 10
+                    expr
+                end
+            )
+
+            a := case 'a'
+                when a, b then
+                    hoge
+                when 42 then
+                    hoge
+                else
+                    bar
+                end
+
+            println(case foo.bar
+                when a
+                    a := 42
+                    expr
+                else
+                    b := 10
+                    ret 10
+                    expr
+                end
+            )
+
+            (case 12; when 1, 2 then a:= 42; expr when bar, baz then b := 21; b else -1 end)
+        end
+        )"));
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := case foo
+                when true
+                    42
+                end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := case foo
+                when true
+                    a := 10
+                else
+                    bbb
+                end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := case foo
+                when true
+                    aaa
+                else
+                    ret 10
+                end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (case bar
+            when foo
+            else
+                42
+            end)
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (case bar
+            when foo
+                42
+            else
+            end)
+        end
+        )");
+}
+
 BOOST_AUTO_TEST_CASE(switch_statement)
 {
     BOOST_CHECK_NO_THROW(p.check_syntax(R"(

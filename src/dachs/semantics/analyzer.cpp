@@ -3339,10 +3339,96 @@ public:
                         "  Note: Type of first block is '%2%' but type of 'else' block is '%3%'"
                     ) % kind % type.to_string() % if_->else_block->type.to_string()
                 );
-            return;
         }
 
         if_->type = type;
+    }
+
+    template<class Conditions>
+    auto visit_switch_when_condition(type::type const& switcher_type, Conditions const& cond_exprs)
+    {
+        std::vector<scope::weak_func_scope> callees;
+        callees.reserve(cond_exprs.size());
+
+        for (auto const& expr : cond_exprs) {
+            auto const t = type_of(expr);
+
+            if (switcher_type.is_builtin() && t.is_builtin()) {
+                callees.emplace_back();
+                auto const ret_type = visit_builtin_binary_expr(ast::node::location_of(expr), "==", switcher_type, t);
+                assert(!ret_type || ret_type.is_builtin("bool"));
+                continue;
+            }
+
+            auto const resolved = resolve_func_call("==", std::vector<type::type>{switcher_type, t});
+            if (auto const error = resolved.get_error()) {
+                auto const location = ast::node::location_of(expr);
+                semantic_error(location, *error);
+                semantic_error(location, "  While analyzing condition of 'when' clause");
+                continue;
+            }
+
+            auto const callee = resolved.get_unsafe();
+
+            if (!callee->ret_type || !callee->ret_type->is_builtin("bool")) {
+                auto const s = callee->ret_type ? callee->ret_type->to_string() : "UNKNOWN";
+                auto const def = callee->get_ast_node();
+                semantic_error(
+                        ast::node::location_of(expr),
+                        boost::format(
+                            "  Compare operator '==' must returns 'bool' but actually returns '%1%' in condition of 'when' clause\n"
+                            "  Note: '%2%' is used, which is defined in line:%3%, col:%4%"
+                            ) % s % callee->to_string() % def->line % def->col
+                    );
+                continue;
+            }
+
+            callees.emplace_back(callee);
+        }
+
+        return callees;
+    }
+
+    template<class Walker>
+    void visit(ast::node::switch_expr const& switch_, Walker const& w)
+    {
+        assert(!switch_->when_blocks.empty());
+
+        w();
+
+        auto const switcher_type = type_of(switch_->target_expr);
+        auto const& type = switch_->when_blocks.front().second->type;
+        if (!type) {
+            return;
+        }
+
+        for (auto const& when : switch_->when_blocks) {
+            if (type != when.second->type) {
+                semantic_error(
+                        when.second,
+                        boost::format(
+                            "  All blocks of 'case' expression must have the same type\n"
+                            "  Note: Type of first block is '%1%' but type of 'then' block is '%2%'"
+                        ) % type.to_string() % when.second->type.to_string()
+                    );
+            }
+
+            switch_->when_callee_scopes.push_back(
+                    visit_switch_when_condition(switcher_type, when.first)
+                );
+        }
+
+        if (type != switch_->else_block->type) {
+            semantic_error(
+                    switch_->else_block,
+                    boost::format(
+                        "  All blocks of 'case' expression must have the same type\n"
+                        "  Note: Type of first block is '%1%' but type of 'else' block is '%2%'"
+                    ) % type.to_string() % switch_->else_block->type.to_string()
+                );
+        }
+
+        switch_->type = type;
     }
 
     template<class Walker>
@@ -3369,44 +3455,9 @@ public:
 
         auto const switcher_type = type_of(switch_->target_expr);
         for (auto const& when : switch_->when_stmts_list) {
-            switch_->when_callee_scopes.emplace_back();
-            auto &callees = switch_->when_callee_scopes.back();
-
-            for (auto const& cond : when.first) {
-                auto const t = type_of(cond);
-
-                if (switcher_type.is_builtin() && t.is_builtin()) {
-                    callees.emplace_back();
-                    auto const ret_type = visit_builtin_binary_expr(ast::node::location_of(cond), "==", switcher_type, t);
-                    assert(!ret_type || ret_type.is_builtin("bool"));
-                    continue;
-                }
-
-                auto const resolved = resolve_func_call("==", std::vector<type::type>{switcher_type, t});
-                if (auto const error = resolved.get_error()) {
-                    auto const location = ast::node::location_of(cond);
-                    semantic_error(location, *error);
-                    semantic_error(location, "  In 'when' clause of case-when statement");
-                    continue;
-                }
-
-                auto const callee = resolved.get_unsafe();
-
-                if (!callee->ret_type || !callee->ret_type->is_builtin("bool")) {
-                    auto const s = callee->ret_type ? callee->ret_type->to_string() : "UNKNOWN";
-                    auto const def = callee->get_ast_node();
-                    semantic_error(
-                            ast::node::location_of(cond),
-                            boost::format(
-                                "  Compare operator '==' must returns 'bool' but actually returns '%1%' in 'when' clause\n"
-                                "  Note: '%2%' is used, which is defined in line:%3%, col:%4%"
-                                ) % s % callee->to_string() % def->line % def->col
-                        );
-                    continue;
-                }
-
-                callees.emplace_back(callee);
-            }
+            switch_->when_callee_scopes.push_back(
+                    visit_switch_when_condition(switcher_type, when.first)
+                );
         }
 
         assert(switch_->when_stmts_list.size() == switch_->when_callee_scopes.size());

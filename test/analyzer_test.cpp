@@ -4104,6 +4104,112 @@ BOOST_AUTO_TEST_CASE(case_expr)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(switch_expr)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo_tmpl(x)
+            ret case x % 2
+                when 1, 2, 3
+                    x * 2
+                when 0
+                    x / 2
+                else
+                    0
+                end
+        end
+
+        func main
+            b := true
+            i := case b
+                when true
+                    a := 42
+                    case
+                    when true
+                        a
+                    else
+                        10
+                    end
+                when false
+                    a := 10
+                    a
+                else
+                    ret 0
+                    -1
+                end
+
+            foo_tmpl(i).println
+
+            (
+                case b
+                when true, false
+                    'a'
+                else
+                    'b'
+                end
+            ) : char
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            x := 43
+
+            y := case x % 2
+            when 1, 2, 3
+                'a'
+            when 0
+                true
+            else
+                'a'
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            x := 43
+
+            y := case x % 2
+            when 1, 2, 3
+                'a'
+            when 0
+                'b'
+            else
+                0
+            end
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+        end
+
+        func ==(x : X, y : int)
+            ret false
+        end
+
+        func ==(x : X, y : char)
+            ret true
+        end
+
+        func main
+            x := new X{42}
+
+            (
+                case x
+                when 42
+                    0
+                when 'a'
+                    x.a as int
+                else
+                    -1
+                end
+            ).println
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(binary_operator)
 {
     CHECK_NO_THROW_SEMANTIC_ERROR(R"(

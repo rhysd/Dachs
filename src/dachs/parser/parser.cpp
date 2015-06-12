@@ -894,6 +894,7 @@ public:
                 (
                     if_expr
                   | case_expr
+                  | switch_expr
                   | range_expr
                 )[_val = _1]
                 >> -(
@@ -1163,6 +1164,21 @@ public:
                 ) >> "end"
             ) [
                 _val = make_node_ptr<ast::node::if_expr>(ast::symbol::if_kind::case_, _1, _2)
+            ];
+
+        switch_expr
+            = (
+                "case" >> typed_expr >> sep
+                >> +(
+                    qi::as<ast::node_type::switch_expr::when_type>()[
+                        DACHS_KWD("when") >> (typed_expr - DACHS_KWD("then")) % comma >> (DACHS_KWD("then") || sep)
+                        >> case_when_block_expr >> -sep
+                    ]
+                )
+                >> DACHS_KWD("else") >> -sep >> block_expr_before_end >> -sep
+                >> "end"
+            ) [
+                _val = make_node_ptr<ast::node::switch_expr>(_1, _2, _3)
             ];
 
         return_stmt
@@ -1482,6 +1498,7 @@ public:
                 , if_stmt
                 , if_expr
                 , case_expr
+                , switch_expr
                 , return_stmt
                 , case_stmt
                 , switch_stmt
@@ -1594,6 +1611,7 @@ public:
         if_stmt.name("if statement");
         if_expr.name("if expression");
         case_expr.name("case expression");
+        switch_expr.name("switch expression");
         return_stmt.name("return statement");
         case_stmt.name("case statement");
         switch_stmt.name("switch statement");
@@ -1715,6 +1733,7 @@ private:
         , var_ref_before_space
         , if_expr
         , case_expr
+        , switch_expr
     ;
 
     rule<ast::node::block_expr()> begin_end_expr, let_expr;

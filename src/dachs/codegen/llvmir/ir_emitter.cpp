@@ -1172,6 +1172,89 @@ public:
         }
     }
 
+    val emit(ast::node::switch_expr const& switch_)
+    {
+        auto helper = bb_helper(switch_);
+        auto *const end_block = helper.create_block("sw.expr.end");
+
+        auto *const target_val = load_if_ref(emit(switch_->target_expr), switch_->target_expr);
+        auto const target_type = type::type_of(switch_->target_expr);
+
+        std::vector<std::pair<val, llvm::BasicBlock *>> evaluated_blocks;
+        auto const emit_inner_block
+            = [&, this](auto const& block)
+            {
+                try {
+                    auto *const block_val = emit(block);
+                    assert(!ctx.builder.GetInsertBlock()->getTerminator());
+                    evaluated_blocks.emplace_back(block_val, ctx.builder.GetInsertBlock());
+                }
+                catch(emit_skipper) {}
+            };
+
+        llvm::BasicBlock *else_block = nullptr;
+        helper::each(
+            [&, this](auto const& when, auto const& callees) {
+                assert(when.first.size() > 0);
+                auto *const then_block = helper.create_block("sw.expr.then");
+                else_block = helper.create_block("sw.expr.else");
+
+                // Note:
+                // Should I use logical or instruction to chain the condition?
+                //    case a; when p, q, r ... -> if a == p || a == q || a == r ...
+
+                helper::each(
+                    [&, this](auto const& cmp_expr, auto const& callee) {
+                        auto const cmp_type = type::type_of(cmp_expr);
+                        auto *const compared_val
+                            = emit_binary_expr(
+                                    ast::node::location_of(cmp_expr),
+                                    "==",
+                                    target_type,
+                                    cmp_type,
+                                    target_val,
+                                    load_if_ref(emit(cmp_expr), cmp_type),
+                                    callee
+                                );
+
+                        auto *const next_cond_block = helper.create_block("sw.expr.cond.next");
+
+                        helper.create_cond_br(compared_val, then_block, next_cond_block, nullptr);
+                        helper.append_block(next_cond_block);
+                    }
+                    , when.first, callees
+                );
+                helper.create_br(else_block, nullptr);
+
+                helper.append_block(then_block);
+                emit_inner_block(when.second);
+                helper.terminate_with_br(end_block);
+                helper.append_block(else_block);
+            }
+            , switch_->when_blocks, switch_->when_callee_scopes
+        );
+
+        emit_inner_block(switch_->else_block);
+        helper.terminate_with_br(end_block);
+        helper.append_block(end_block);
+
+        if (!evaluated_blocks.empty()) {
+            auto *const phi
+                = ctx.builder.CreatePHI(
+                        evaluated_blocks[0].first->getType(),
+                        evaluated_blocks.size(),
+                        "sw.expr.phi"
+                    );
+
+            for (auto const& block : evaluated_blocks) {
+                phi->addIncoming(block.first, block.second);
+            }
+            return phi;
+        } else {
+            throw emit_skipper{};
+        }
+    }
+
     void emit(ast::node::if_stmt const& if_)
     {
         auto helper = bb_helper(if_);
@@ -2044,7 +2127,7 @@ public:
     void emit(ast::node::switch_stmt const& switch_)
     {
         auto helper = bb_helper(switch_);
-        auto *const end_block = helper.create_block("switch.end");
+        auto *const end_block = helper.create_block("sw.stmt.end");
 
         auto *const target_val = load_if_ref(emit(switch_->target_expr), switch_->target_expr);
         auto const target_type = type::type_of(switch_->target_expr);
@@ -2054,13 +2137,17 @@ public:
         helper::each(
             [&, this](auto const& when_stmt, auto const& callees) {
                 assert(when_stmt.first.size() > 0);
-                auto *const then_block = helper.create_block("switch.then");
-                else_block = helper.create_block("switch.else");
+                auto *const then_block = helper.create_block("sw.stmt.then");
+                else_block = helper.create_block("sw.stmt.else");
+
+                // Note:
+                // Should I use logical or instruction to chain the condition?
+                //    case a; when p, q, r ... -> if a == p || a == q || a == r ...
 
                 // Emit condition IRs
                 helper::each(
                     [&, this](auto const& cmp_expr, auto const& callee) {
-                        auto *const next_cond_block = helper.create_block("switch.cond.next");
+                        auto *const next_cond_block = helper.create_block("sw.stmt.cond.next");
                         auto const cmp_type = type::type_of(cmp_expr);
 
                         auto *const compared_val

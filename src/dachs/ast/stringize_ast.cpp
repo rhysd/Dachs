@@ -296,6 +296,27 @@ public:
                 + '\n' + visit(ie->else_block, indent+lead, "   ");
     }
 
+    String visit(node::switch_expr const& se, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(se, indent)
+                + '\n' + visit(se->target_expr, indent+lead, "|  ")
+                + visit_nodes_with_predicate(se->when_blocks,
+                        [this, &indent, lead](auto const& cond_and_when_block, auto const l)
+                        {
+                            // XXX: Workaround!
+                            return boost::algorithm::join(
+                                    cond_and_when_block.first | transformed(
+                                            [this, &indent, lead](auto const& cond)
+                                            {
+                                                return visit(cond, indent+lead, "|  ");
+                                            }
+                                        ),
+                                    "\n"
+                                ) + '\n' + visit(cond_and_when_block.second, indent+lead, l);
+                        }, false)
+                + visit(se->else_block, indent+lead, "   ");
+    }
+
     String visit(node::typed_expr const& te, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(te, indent)

@@ -213,6 +213,15 @@ public:
         ));
     }
 
+    void walk(node::switch_expr &se)
+    {
+        visitor.visit(se, walker_for(
+            se->target_expr,
+            se->when_blocks,
+            se->else_block
+        ));
+    }
+
     void walk(node::typed_expr &te)
     {
         visitor.visit(te, walker_for(

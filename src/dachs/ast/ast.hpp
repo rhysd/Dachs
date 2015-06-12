@@ -734,6 +734,33 @@ struct if_expr final : public expression {
     }
 };
 
+struct switch_expr final : public expression {
+    using when_type
+        = std::pair<
+            std::vector<node::any_expr>,
+            node::block_expr
+        >;
+
+    node::any_expr target_expr;
+    std::vector<when_type> when_blocks;
+    node::block_expr else_block;
+    std::vector<std::vector<scope::weak_func_scope>> when_callee_scopes;
+
+    switch_expr(node::any_expr const& target,
+                decltype(when_blocks) const& whens, 
+                node::block_expr const& else_)
+        : expression()
+        , target_expr(target)
+        , when_blocks(whens)
+        , else_block(else_)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "SWITCH_EXPR";
+    }
+};
+
 struct typed_expr final : public expression {
     node::any_expr child_expr;
     node::any_type specified_type;

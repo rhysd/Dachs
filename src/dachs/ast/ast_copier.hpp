@@ -167,6 +167,11 @@ public:
             );
     }
 
+    auto copy(node::switch_expr const& se) const
+    {
+        return copy_node(se, copy(se->target_expr), copy(se->when_blocks), copy(se->else_block));
+    }
+
     auto copy(node::typed_expr const& te) const
     {
         return copy_node(te, copy(te->child_expr), copy(te->specified_type));
