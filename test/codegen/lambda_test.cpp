@@ -288,7 +288,7 @@ BOOST_AUTO_TEST_CASE(do_block_with_captures)
 
         func main
             # func_invocation, function template
-            do
+            begin
                 a := 42
                 var b:= 21
 
@@ -308,7 +308,7 @@ BOOST_AUTO_TEST_CASE(do_block_with_captures)
             end
 
             # func_invocation, function template
-            do
+            begin
                 a := 42
                 var b:= 21
 
@@ -344,7 +344,7 @@ BOOST_AUTO_TEST_CASE(do_block_with_captures)
             end
 
             # ufcs_invocation, function template
-            do
+            begin
                 a := 42
                 var b:= 21
 
@@ -362,7 +362,7 @@ BOOST_AUTO_TEST_CASE(do_block_with_captures)
             end
 
             # ufcs_invocation, non function template
-            do
+            begin
                 a := 42
                 var b:= 21
 

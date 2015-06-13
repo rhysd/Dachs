@@ -120,7 +120,7 @@ class Mt19937
 
         var i := 1u
         var j := 0u
-        var k := if @n > key_len then @n else key_len
+        var k := if @n > key_len then @n else key_len end
 
         for k > 0u
             @mt[i] = @mt[i] ^ (@mt[i-1u] ^ (@mt[i-1u] >> 30u) * 1664525u) + init_key[j] + j
@@ -222,17 +222,17 @@ func main
         println("")
     end
 
-    do
+    begin
         r := new Random{new LCG{1}}
         "LCG".test r
     end
 
-    do
+    begin
         r := new Random{new Xor128{123456789u, 362436069u, 521288629u, 88675123u}}
         "Xor128".test r
     end
 
-    do
+    begin
         r := new Random{new Mt19937{[0x123u, 0x234u, 0x345u, 0x456u]}}
         "Mt19937".test r
     end

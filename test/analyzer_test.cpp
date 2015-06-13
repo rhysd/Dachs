@@ -187,16 +187,16 @@ BOOST_AUTO_TEST_CASE(let)
         func main
             let
                 a := 42
-            in if true then 12 else 13
+            in if true then 12 else 13 end
         end
     )");
 }
 
-BOOST_AUTO_TEST_CASE(do_)
+BOOST_AUTO_TEST_CASE(begin_stmt)
 {
     CHECK_THROW_SEMANTIC_ERROR(R"(
         func main
-            do
+            begin
                 a := 42
                 println(a)
             end
@@ -2109,14 +2109,14 @@ BOOST_AUTO_TEST_CASE(typed_expression)
         func main
             let
                 x := new X{24}
-            begin
+            in begin
                 x : X(int)
                 x : X
             end
 
             let
                 y := new Y{new X{42}, new X{3.14}}
-            begin
+            in begin
                 y : Y(X(int), X(float))
                 y : Y(X, X(float))
                 y : Y(X(int), X)
@@ -2126,7 +2126,7 @@ BOOST_AUTO_TEST_CASE(typed_expression)
 
             let
                 x := new X{new X{new X{42}}}
-            begin
+            in begin
                 x : X(X(X(int)))
                 x : X(X(X))
                 x : X(X)
@@ -3865,6 +3865,382 @@ BOOST_AUTO_TEST_CASE(function_conversion)
 
         func main
             foo as func(int, int)
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(toplevel_if)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            if true
+                println('a')
+            end
+
+            if true
+                println('b')
+            else
+                println('c')
+            end
+
+            unless false
+                println(42)
+            end
+
+            unless true
+            elseif 42 == 42
+            else
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            if 42
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            unless 42 then end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            if true
+            elseif 3.14
+            end
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(if_expr)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo_tmpl(x)
+            ret if x % 2 == 1 then
+                x * 2
+            else
+                x / 2
+            end
+        end
+
+        func main
+            i :=
+                if false
+                    ret 0
+                    42
+                else
+                    42 + 42
+                end
+
+            println(
+                unless false
+                    println('t')
+                    10
+                elseif true
+                    println('e')
+                    11
+                else
+                    println('f')
+                    (-10)
+                end
+            )
+
+            foo_tmpl(11).println
+
+            (if false then 3.14 else 2.1 end) : float
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (if false
+                42
+             else
+                if false
+                    10
+                else
+                    11
+                end
+             end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (if 52 then 42 else 32 end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (if false then 3.14 else 'n' end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (unless false then 3.14 elseif false then 'a' else 3.14 end)
+        end
+    )");
+
+    // Return type conflict between 'bool' and 'float'
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo(x)
+            ret unless x == 0 as typeof(x) then
+                ret false
+                3.14
+            elseif false
+                ret false
+                3.14
+            else
+                ret true
+                2.15
+            end
+        end
+
+        func main
+            foo(0.0).println
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(case_expr)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo_tmpl(x)
+            ret case
+                when x % 2 == 1
+                    x * 2
+                when x % 2 == 0
+                    x / 2
+                else
+                    0
+                end
+        end
+
+        func main
+            i := case
+                when true
+                    a := 42
+                    case
+                    when true
+                        a
+                    else
+                        10
+                    end
+                when false
+                    a := 10
+                    a
+                else
+                    ret 0
+                    -1
+                end
+
+            foo_tmpl(i).println
+
+            (
+                case
+                when true
+                    'a'
+                else
+                    'b'
+                end
+            ) : char
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (case
+             when 52
+                 42
+             else
+                 0
+             end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (case
+             when false
+                 42
+             else
+                'a'
+             end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            (case
+             when false
+                42
+             else
+                'a'
+             end)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func abs(x)
+            ret case
+                when x < 0
+                    ret -x as float
+                    -x
+                else
+                    ret x as float
+                    x
+                end
+        end
+
+        func main
+            abs(11).println
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(switch_expr)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo_tmpl(x)
+            ret case x % 2
+                when 1, 2, 3
+                    x * 2
+                when 0
+                    x / 2
+                else
+                    0
+                end
+        end
+
+        func main
+            b := true
+            i := case b
+                when true
+                    a := 42
+                    case
+                    when true
+                        a
+                    else
+                        10
+                    end
+                when false
+                    a := 10
+                    a
+                else
+                    ret 0
+                    -1
+                end
+
+            foo_tmpl(i).println
+
+            (
+                case b
+                when true, false
+                    'a'
+                else
+                    'b'
+                end
+            ) : char
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            x := 43
+
+            y := case x % 2
+            when 1, 2, 3
+                'a'
+            when 0
+                true
+            else
+                'a'
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            x := 43
+
+            y := case x % 2
+            when 1, 2, 3
+                'a'
+            when 0
+                'b'
+            else
+                0
+            end
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        class X
+            a
+        end
+
+        func ==(x : X, y : int)
+            ret false
+        end
+
+        func ==(x : X, y : char)
+            ret true
+        end
+
+        func main
+            x := new X{42}
+
+            (
+                case x
+                when 42
+                    0
+                when 'a'
+                    x.a as int
+                else
+                    -1
+                end
+            ).println
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(binary_operator)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            i := 42
+            i
+            + 12.0
+        end
+    )");
+
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            i := 42
+            i
+            - 12.0
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(begin_expr)
+{
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func foo
+            ret begin
+                ret 1.0
+                100
+            end
+        end
+
+        func main
+            foo()
         end
     )");
 }

@@ -119,7 +119,7 @@ public:
 
     auto copy(node::func_invocation const& fc) const
     {
-        return copy_node(fc, copy(fc->child), copy(fc->args), fc->is_ufcs, fc->is_begin_end, fc->is_let);
+        return copy_node(fc, copy(fc->child), copy(fc->args), fc->is_ufcs);
     }
 
     auto copy(node::object_construct const& oc) const
@@ -152,9 +152,24 @@ public:
         return copy_node(be, copy(be->lhs), be->op, copy(be->rhs));
     }
 
+    auto copy(node::block_expr const& be) const
+    {
+        return copy_node(be, copy(be->stmts), copy(be->last_expr));
+    }
+
     auto copy(node::if_expr const& ie) const
     {
-        return copy_node(ie, ie->kind, copy(ie->condition_expr), copy(ie->then_expr), copy(ie->else_expr));
+        return copy_node(
+                ie,
+                ie->kind,
+                copy(ie->block_list),
+                copy(ie->else_block)
+            );
+    }
+
+    auto copy(node::switch_expr const& se) const
+    {
+        return copy_node(se, copy(se->target_expr), copy(se->when_blocks), copy(se->else_block));
     }
 
     auto copy(node::typed_expr const& te) const
@@ -224,17 +239,17 @@ public:
 
     auto copy(node::if_stmt const& is) const
     {
-        return copy_node(is, is->kind, copy(is->condition), copy(is->then_stmts), copy(is->elseif_stmts_list), copy(is->maybe_else_stmts));
+        return copy_node(
+                is,
+                is->kind,
+                copy(is->clauses),
+                copy(is->maybe_else_clause)
+            );
     }
 
     auto copy(node::return_stmt const& rs) const
     {
         return copy_node(rs, copy(rs->ret_exprs));
-    }
-
-    auto copy(node::case_stmt const& cs) const
-    {
-        return copy_node(cs, copy(cs->when_stmts_list), copy(cs->maybe_else_stmts));
     }
 
     auto copy(node::switch_stmt const& ss) const

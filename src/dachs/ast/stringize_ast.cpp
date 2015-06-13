@@ -278,12 +278,43 @@ public:
                 + '\n' + visit(be->rhs, indent+lead, "   ");
     }
 
+    String visit(node::block_expr const& be, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(be, indent)
+            + visit_nodes(be->stmts, indent+lead, false)
+            + '\n' + visit(be->last_expr, indent+lead, "   ");
+    }
+
     String visit(node::if_expr const& ie, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(ie, indent)
-                + '\n' + visit(ie->condition_expr, indent+lead, "|  ")
-                + '\n' + visit(ie->then_expr, indent+lead, "|  ")
-                + '\n' + visit(ie->else_expr, indent+lead, "   ");
+                + visit_nodes_with_predicate(ie->block_list,
+                        [this, indent, lead](auto const& block, auto const l){
+                            return visit(block.first, indent+lead, "|  ")
+                                + '\n' + visit(block.second, indent+lead, l);
+                        }, false)
+                + '\n' + visit(ie->else_block, indent+lead, "   ");
+    }
+
+    String visit(node::switch_expr const& se, String const& indent, char const* const lead) const noexcept
+    {
+        return prefix_of(se, indent)
+                + '\n' + visit(se->target_expr, indent+lead, "|  ")
+                + visit_nodes_with_predicate(se->when_blocks,
+                        [this, &indent, lead](auto const& cond_and_when_block, auto const l)
+                        {
+                            // XXX: Workaround!
+                            return boost::algorithm::join(
+                                    cond_and_when_block.first | transformed(
+                                            [this, &indent, lead](auto const& cond)
+                                            {
+                                                return visit(cond, indent+lead, "|  ");
+                                            }
+                                        ),
+                                    "\n"
+                                ) + '\n' + visit(cond_and_when_block.second, indent+lead, l);
+                        }, false)
+                + visit(se->else_block, indent+lead, "   ");
     }
 
     String visit(node::typed_expr const& te, String const& indent, char const* const lead) const noexcept
@@ -305,25 +336,12 @@ public:
     String visit(node::if_stmt const& is, String const& indent, char const* const lead) const noexcept
     {
         return prefix_of(is, indent)
-                + '\n' + visit(is->condition, indent+lead, "|  ")
-                + '\n' + visit(is->then_stmts, indent+lead, is->elseif_stmts_list.empty() && !is->maybe_else_stmts ? "   " : "|  ")
-                + visit_nodes_with_predicate(is->elseif_stmts_list,
+                + visit_nodes_with_predicate(is->clauses,
                         [this, indent, lead](auto const& cond_and_then_stmts, auto const l){
                             return visit(cond_and_then_stmts.first, indent+lead, "|  ")
                                 + '\n' + visit(cond_and_then_stmts.second, indent+lead, l);
-                        }, !is->maybe_else_stmts)
-                + (is->maybe_else_stmts ? '\n' + visit(*(is->maybe_else_stmts), indent+lead, "   ") : "");
-    }
-
-    String visit(node::case_stmt const& cs, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(cs, indent)
-                + visit_nodes_with_predicate(cs->when_stmts_list,
-                        [this, indent, lead](auto const& cond_and_when_stmts, auto const l){
-                            return visit(cond_and_when_stmts.first, indent+lead, "|  ")
-                                + '\n' + visit(cond_and_when_stmts.second, indent+lead, l);
-                        }, !cs->maybe_else_stmts)
-                + (cs->maybe_else_stmts ? visit(*(cs->maybe_else_stmts), indent+lead, "   ") : "");
+                        }, !is->maybe_else_clause)
+                + (is->maybe_else_clause ? '\n' + visit(*(is->maybe_else_clause), indent+lead, "   ") : "");
     }
 
     String visit(node::switch_stmt const& ss, String const& indent, char const* const lead) const noexcept

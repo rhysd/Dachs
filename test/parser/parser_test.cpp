@@ -656,8 +656,6 @@ BOOST_AUTO_TEST_CASE(type)
                        int
                    ]
             expr : {int => string}
-            expr
-                : {int => string}
             expr :
                 {int => string}
             expr : {
@@ -695,20 +693,17 @@ BOOST_AUTO_TEST_CASE(type)
             expr : func(
                     int,
                     aaa
-                    )
-                     :
+                    ) :
                        int
             expr : func(
                       int
                     , aaa
-                    )
-                     :
+                    ) :
                        int
             expr : func(
                     int,
                     aaa,
-                    )
-                     :
+                    ) :
                        int
             expr : proc(int, aaa)
             expr : proc(
@@ -869,12 +864,10 @@ BOOST_AUTO_TEST_CASE(binary_expression)
             1 + 1
             1 - 1
 
-            1
-            +
+            1 +
             1
 
-            1
-            -
+            1 -
             1
 
             1 * 1
@@ -1000,6 +993,7 @@ BOOST_AUTO_TEST_CASE(binary_expression)
     CHECK_PARSE_THROW("func main 1 == end");
     CHECK_PARSE_THROW("func main 1 + end");
     CHECK_PARSE_THROW("func main true && end");
+    CHECK_PARSE_THROW("func main 1\n+\n1 end");
 }
 
 BOOST_AUTO_TEST_CASE(assignment_expr)
@@ -1024,46 +1018,13 @@ BOOST_AUTO_TEST_CASE(assignment_expr)
             (t : (int, char, bool))[0] = -42
             (t : (int, char, bool))[1] = 'b'
             (t : (int, char, bool))[2] = false
+
+            aaa =
+                42
+            aaa, bbb =
+                (ppp, qqq())
         end
         )"));
-}
-
-BOOST_AUTO_TEST_CASE(if_expr)
-{
-    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
-        func main
-            (if true then 42 else 24)
-            hoge(if true then 3.14 else 4.12)
-            (if true then
-                42
-            else
-                24)
-            (if true then 42
-             else 24)
-            (if if then if else if) # 'if' is a contextual keyword
-
-            # Corner cases
-            (if thenhoge then elsehoge else 42)
-            (ifhoge)
-
-            (unless true then 42 else 24)
-            hoge(unless true then 3.14 else 4.12)
-            (unless true then
-                42
-            else
-                24)
-            (unless true then 42
-             else 24)
-            (unless unless then unless else unless) # 'unless' is a contextual keyword
-
-            # Corner cases
-            (unlesshoge)
-            (unless thenhoge then elsehoge else 42)
-        end
-        )"));
-
-    // it is parsed as if statement and it will fail
-    CHECK_PARSE_THROW("func main if true then 42 else 24 end");
 }
 
 BOOST_AUTO_TEST_CASE(object_construct)
@@ -1161,7 +1122,6 @@ BOOST_AUTO_TEST_CASE(lambda_expr)
                     println(error)
                 end
             )
-            -> x in if x < 0 then -x else x
 
             -> (a, b) do
                 p := a + b
@@ -1222,7 +1182,7 @@ BOOST_AUTO_TEST_CASE(lambda_expr)
     CHECK_PARSE_THROW(R"(
         # It can't contain statement
         func main
-            foo bar {|i| if b then c else d end}
+            foo bar {|i| j = i + 42}
         end
     )");
 
@@ -1287,8 +1247,6 @@ BOOST_AUTO_TEST_CASE(variable_decl)
             var a : char
             , var b : int,
             var c : string
-            var b
-                : int
             var b :
                 int
 
@@ -1513,6 +1471,345 @@ BOOST_AUTO_TEST_CASE(if_statement)
     CHECK_PARSE_THROW("func main if aaa then bbb else ccc end");
 }
 
+BOOST_AUTO_TEST_CASE(if_expr)
+{
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func main
+            (if true then 42 else 11 end) + 1
+            (unless true then 42 else 11 end)
+            (if true then 1 elseif false then 2 else 3 end)
+
+            foo(
+                if 11 == 11
+                    i := 11
+                    println(i)
+                    i + 11
+                else
+                    moudameda()
+                    0
+                end
+            )
+
+            ret (
+                unless 11 == 11
+                    i := 11
+                    println(i)
+                    i + 11
+                elseif 11 != 11
+                    println("elseif")
+                    i + 12
+                else
+                    moudameda()
+                    0
+                end
+            )
+
+            (if true then
+                if true then
+                    ret 52
+                    42
+                else
+                    33
+                end
+            else
+                unless foo()
+                    ret 10
+                    42
+                elseif bar.baz
+                    i + 10
+                else
+                    z + i
+                end
+            end)
+
+            a :=
+                if if true then true else false end
+                    if if true then true else false end
+                        true
+                    else
+                        else
+                    end
+                else
+                    if if true then true else false end
+                        true
+                    elseif if true then true else false end
+                        false
+                    else
+                        else
+                    end
+                end
+        end
+    )"));
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (if true
+                42
+             end)
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            ret unless false then 42 end
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (unless false then i := 42 else 32 end)
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (unless false then 42 else i := 32 end)
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (unless false
+                42
+            elseif false
+                a := 12
+            else
+                32
+            end)
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (unless false
+                42
+             else
+             end)
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (unless false
+             else
+                42
+             end)
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (unless false
+                32
+             elseif true
+             else
+                42
+             end)
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(case_expr)
+{
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func main
+            a := case
+                when true
+                    hoge
+                when false
+                    hoge
+                else
+                    bar
+                end
+
+            println(case
+                when a == 1
+                    a := 42
+                    expr
+                else
+                    b := 10
+                    ret 10
+                    expr
+                end
+            )
+
+            a := case
+                when true then
+                    hoge
+                when false then
+                    hoge
+                else
+                    bar
+                end
+
+            println(case
+                when a == 1
+                    a := 42
+                    expr
+                else
+                    b := 10
+                    ret 10
+                    expr
+                end
+            )
+
+            (case; when foo then a:= 42; expr when bar then b := 21; b else -1 end)
+        end
+        )"));
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := case
+                when true
+                    42
+                end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := case
+                when
+                    a := 10
+                else
+                    bbb
+                end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := case
+                when
+                    aaa
+                else
+                    ret 10
+                end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (case
+            when foo
+            else
+                42
+            end)
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (case
+            when foo
+                42
+            else
+            end)
+        end
+        )");
+}
+
+BOOST_AUTO_TEST_CASE(switch_expr)
+{
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func main
+            a := case 42 + 11
+                when true
+                    hoge
+                when false
+                    hoge
+                when 42, 'b'
+                    hoge
+                else
+                    bar
+                end
+
+            println(case foo
+                when a
+                    a := 42
+                    expr
+                else
+                    b := 10
+                    ret 10
+                    expr
+                end
+            )
+
+            a := case 'a'
+                when a, b then
+                    hoge
+                when 42 then
+                    hoge
+                else
+                    bar
+                end
+
+            println(case foo.bar
+                when a
+                    a := 42
+                    expr
+                else
+                    b := 10
+                    ret 10
+                    expr
+                end
+            )
+
+            (case 12; when 1, 2 then a:= 42; expr when bar, baz then b := 21; b else -1 end)
+        end
+        )"));
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := case foo
+                when true
+                    42
+                end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := case foo
+                when true
+                    a := 10
+                else
+                    bbb
+                end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := case foo
+                when true
+                    aaa
+                else
+                    ret 10
+                end
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (case bar
+            when foo
+            else
+                42
+            end)
+        end
+        )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            (case bar
+            when foo
+                42
+            else
+            end)
+        end
+        )");
+}
 
 BOOST_AUTO_TEST_CASE(switch_statement)
 {
@@ -1785,11 +2082,6 @@ BOOST_AUTO_TEST_CASE(let_stmt)
             let a := 42; b := 'a' in println(42)
 
             let
-                a := 42
-                b := 'a'
-            in if a == 4 then a else b
-
-            let
                 var a := 42
                 var b := 42
             in begin
@@ -1797,6 +2089,7 @@ BOOST_AUTO_TEST_CASE(let_stmt)
                     println(a)
                     a += 1
                 end
+                ()
             end
 
             let
@@ -1806,50 +2099,78 @@ BOOST_AUTO_TEST_CASE(let_stmt)
                 if true
                     println(42)
                 end
-                ret 99
+                99
             end
 
             let
                 a := 42
                 b := 42
-            begin
+            in begin
                 if true
                     println(42)
                 end
-                ret 99
+                99
             end
 
             result :=
                 let
                     var a := 42
                     var b := 42
-                begin
+                in begin
                     for a < 50
                         println(a)
                         a += 1
                     end
-                    ret a
+                    a
                 end
         end
-        )"));
+    )"));
 }
 
-BOOST_AUTO_TEST_CASE(do_stmt)
+BOOST_AUTO_TEST_CASE(begin_end)
 {
+    // Statement
     BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
-            do
+            begin
             end
 
-            do
+            begin
                 println(42)
             end
 
-            do println(42) end
-            do println(42); end
-            do println(42); println(42) end
+            begin
+                begin
+                    begin
+                        begin
+                        end
+                    end
+                end
+            end
 
-            do
+            begin
+                var i := 1
+                for i < 10
+                    i += 1
+                end
+            end
+        end
+    )"));
+
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func main
+            begin
+            end
+
+            begin
+                println(42)
+            end
+
+            begin println(42) end
+            begin println(42); end
+            begin println(42); println(42) end
+
+            begin
                 ret 42 if true
 
                 if true
@@ -1863,6 +2184,56 @@ BOOST_AUTO_TEST_CASE(do_stmt)
             end
         end
         )"));
+
+    // Expression
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func main
+            a :=
+                begin
+                    i, j := 1, 2
+                    k := i + j
+                    i + j + k
+                end
+
+            println(
+                begin
+                    i, j := 1, 2
+                    begin
+                        k, l := 3, 4
+                        begin
+                            println('!')
+                            i + j + k + l
+                        end
+                    end
+                end
+            )
+
+            ret begin
+                i, j := 1, 2
+
+                if i + j == 3
+                    3 * 2
+                else
+                    3 / 2
+                end
+            end
+        end
+    )"));
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := begin
+            end
+        end
+    )");
+
+    CHECK_PARSE_THROW(R"(
+        func main
+            a := begin
+                b := 42
+            end
+        end
+    )");
 }
 
 BOOST_AUTO_TEST_CASE(do_block)
@@ -1996,7 +2367,7 @@ BOOST_AUTO_TEST_CASE(do_block2)
                 blah
             }
 
-            foo bar {|i| if b then i else -i}
+            foo bar {|i| -> 42 }
 
             42.expect to_be {|i| i % 2 == 0}
             42.should_be even?
@@ -2006,7 +2377,7 @@ BOOST_AUTO_TEST_CASE(do_block2)
     CHECK_PARSE_THROW(R"(
         # It can't contain statement
         func main
-            foo bar {|i| if b then c else d end}
+            foo bar {|i| j := i * 2 }
         end
     )");
 
@@ -2245,6 +2616,15 @@ BOOST_AUTO_TEST_CASE(do_not_degrade)
     BOOST_CHECK_NO_THROW(p.check_syntax(R"(
         func main
             :foo.println
+        end
+    )"));
+
+    // :foo was parsed as ':' of typed expression
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func main
+            if true
+                :poyo.println
+            end
         end
     )"));
 }

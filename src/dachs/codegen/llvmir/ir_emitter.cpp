@@ -39,6 +39,7 @@
 #include "dachs/helper/each.hpp"
 #include "dachs/helper/util.hpp"
 #include "dachs/helper/llvm.hpp"
+#include "dachs/codegen/llvmir/ir_utility.hpp"
 #include "dachs/codegen/llvmir/ir_emitter.hpp"
 #include "dachs/codegen/llvmir/type_ir_emitter.hpp"
 #include "dachs/codegen/llvmir/gc_alloc_emitter.hpp"
@@ -61,6 +62,8 @@ namespace codegen {
 namespace llvmir {
 
 namespace detail {
+
+struct emit_skipper {};
 
 using helper::variant::apply_lambda;
 using helper::variant::get_as;
@@ -149,81 +152,7 @@ class llvm_ir_emitter {
     }
 
     template<class Node>
-    [[noreturn]]
-    void error(std::shared_ptr<Node> const& n, boost::format const& msg) const
-    {
-        error(n, msg.str());
-    }
-
-    [[noreturn]]
-    void error(ast::location_type const& l, boost::format const& msg) const
-    {
-        error(l, msg.str());
-    }
-
-    template<class Node, class String>
-    [[noreturn]]
-    void error(std::shared_ptr<Node> const& n, String const& msg) const
-    {
-        // TODO:
-        // Dump builder's debug information and context's information
-        throw code_generation_error{
-                "LLVM IR generator",
-                (boost::format(" in line:%1%, col:%2%\n  %3%\n") % n->line % n->col % msg).str()
-            };
-    }
-
-    template<class String>
-    [[noreturn]]
-    void error(ast::location_type const& l, String const& msg) const
-    {
-        // TODO:
-        // Dump builder's debug information and context's information
-        throw code_generation_error{
-                "LLVM IR generator",
-                (
-                 boost::format(" in line:%1%, col:%2%\n  %3%\n")
-                    % std::get<ast::location::location_index::line>(l)
-                    % std::get<ast::location::location_index::col>(l)
-                    % msg
-                ).str()
-            };
-    }
-
-    template<class Node, class T>
-    T check(Node const& n, T const v, boost::format const& fmt) const
-    {
-        return check(n, v, fmt.str());
-    }
-
-    template<class Node, class T, class String>
-    T check(Node const& n, T const v, String const& feature_name) const
-    {
-        if (!v) {
-            error(n, std::string{"Failed to emit "} + feature_name);
-        }
-        return v;
-    }
-
-    template<class Node, class String, class Value>
-    void check_all(Node const& n, String const& feature, Value const v) const
-    {
-        if (!v) {
-            error(n, std::string{"Failed to emit "} + feature);
-        }
-    }
-
-    template<class Node, class String, class Value, class... Values>
-    void check_all(Node const& n, String const& feature, Value const v, Values const... vs) const
-    {
-        if (!v) {
-            error(n, std::string{"Failed to emit "} + feature);
-        }
-        check_all(n, feature, vs...);
-    }
-
-    template<class Node>
-    auto bb_helper(std::shared_ptr<Node> const& node) noexcept
+    auto bb_helper(std::shared_ptr<Node> const& node) const noexcept
         -> builder::block_branch_helper<Node>
     {
         return {node, ctx};
@@ -491,7 +420,7 @@ class llvm_ir_emitter {
             if (type::is_a<type::tuple_type>(child_type)) {
                 auto const constant_index = llvm::dyn_cast<llvm::ConstantInt>(index_val);
                 if (!constant_index) {
-                    emitter.error(access, "Index is not a constant.");
+                    error(access, "Index is not a constant.");
                 }
                 emit_copy_to_lhs(
                         emitter.ctx.builder.CreateStructGEP(
@@ -568,7 +497,7 @@ class llvm_ir_emitter {
                 auto const callee = access->callee_scope.lock();
                 assert(callee->name == "[]=");
 
-                emitter.check(
+                check(
                     access,
                     emitter.ctx.builder.CreateCall3(
                         emitter.emit_non_builtin_callee(access, callee),
@@ -580,7 +509,7 @@ class llvm_ir_emitter {
                 );
             } else {
                 // Note: An exception is thrown
-                emitter.error(access, "Invalid assignment to indexed access");
+                error(access, "Invalid assignment to indexed access");
             }
         }
 
@@ -1126,7 +1055,7 @@ public:
                 || func_def->kind == ast::symbol::func_kind::proc
                 || *func_def->ret_type == type::get_unit_type()) {
             ctx.builder.CreateRet(
-                emit_tuple_constant(type::get_unit_type(), {})
+                inst_emitter.emit_unit_constant()
             );
         } else {
             // Note:
@@ -1141,53 +1070,229 @@ public:
         }
     }
 
-    void emit(ast::node::statement_block const& block)
+    template<class Statements>
+    bool /* returns if terminated or not */
+    emit_block(Statements const& stmts)
     {
-        // Basic block is already emitd on visiting function_definition and for_stmt
-        for (auto const& stmt : block->value) {
+        for (auto const& stmt : stmts) {
             if (ctx.builder.GetInsertBlock()->getTerminator()) {
                 // Note:
                 // If current basic block is already terminated,
                 // no more statement should be emitted.
-                return;
+                return true;
             }
-            emit(stmt);
+            try {
+                emit(stmt);
+            }
+            catch (emit_skipper)
+            {}
+        }
+        return ctx.builder.GetInsertBlock()->getTerminator();
+    }
+
+    void emit(ast::node::statement_block const& block)
+    {
+        emit_block(block->value);
+    }
+
+    val emit(ast::node::block_expr const& block)
+    {
+        bool const terminated = emit_block(block->stmts);
+        if (terminated) {
+            throw emit_skipper{};
+        }
+        return emit(block->last_expr);
+    }
+
+    val emit(ast::node::if_expr const& if_)
+    {
+        auto helper = bb_helper(if_);
+        std::vector<std::pair<val, llvm::BasicBlock *>> evaluated_blocks;
+        auto const prefix = ast::symbol::to_string(if_->kind) + ".expr.";
+
+        auto const emit_inner_block
+            = [&, this](auto const& block)
+            {
+                try {
+                    auto *const block_val = emit(block);
+                    assert(!ctx.builder.GetInsertBlock()->getTerminator());
+                    evaluated_blocks.emplace_back(block_val, ctx.builder.GetInsertBlock());
+                }
+                catch(emit_skipper) {}
+            };
+
+        llvm::BasicBlock *else_block = nullptr;
+        auto *const end_block = helper.create_block(prefix + "end");
+        bool is_first_elem = true;
+
+        for (auto const& block : if_->block_list) {
+            val cond_val = load_if_ref(emit(block.first), block.first);
+
+            if (is_first_elem) {
+                if (if_->kind == ast::symbol::if_kind::unless) {
+                    cond_val = check(
+                            if_,
+                            ctx.builder.CreateNot(cond_val, prefix + "inv"),
+                            "unless statement"
+                        );
+                }
+                is_first_elem = false;
+            }
+
+            auto *const then_block = helper.create_block_for_parent(prefix + "then");
+            else_block = helper.create_block(prefix + "else");
+            helper.create_cond_br(cond_val, then_block, else_block);
+
+            emit_inner_block(block.second);
+
+            helper.terminate_with_br(end_block);
+            helper.append_block(else_block);
+        }
+
+        // IR for else clause
+        emit_inner_block(if_->else_block);
+
+        helper.terminate_with_br(end_block);
+        helper.append_block(end_block);
+
+        if (!evaluated_blocks.empty()) {
+            auto *const phi
+                = ctx.builder.CreatePHI(
+                        evaluated_blocks[0].first->getType(),
+                        evaluated_blocks.size(),
+                        prefix + "phi"
+                    );
+
+            for (auto const& block : evaluated_blocks) {
+                phi->addIncoming(block.first, block.second);
+            }
+            return phi;
+        } else {
+            throw emit_skipper{};
+        }
+    }
+
+    val emit(ast::node::switch_expr const& switch_)
+    {
+        auto helper = bb_helper(switch_);
+        auto *const end_block = helper.create_block("sw.expr.end");
+
+        auto *const target_val = load_if_ref(emit(switch_->target_expr), switch_->target_expr);
+        auto const target_type = type::type_of(switch_->target_expr);
+
+        std::vector<std::pair<val, llvm::BasicBlock *>> evaluated_blocks;
+        auto const emit_inner_block
+            = [&, this](auto const& block)
+            {
+                try {
+                    auto *const block_val = emit(block);
+                    assert(!ctx.builder.GetInsertBlock()->getTerminator());
+                    evaluated_blocks.emplace_back(block_val, ctx.builder.GetInsertBlock());
+                }
+                catch(emit_skipper) {}
+            };
+
+        llvm::BasicBlock *else_block = nullptr;
+        helper::each(
+            [&, this](auto const& when, auto const& callees) {
+                assert(when.first.size() > 0);
+                auto *const then_block = helper.create_block("sw.expr.then");
+                else_block = helper.create_block("sw.expr.else");
+
+                // Note:
+                // Should I use logical or instruction to chain the condition?
+                //    case a; when p, q, r ... -> if a == p || a == q || a == r ...
+
+                helper::each(
+                    [&, this](auto const& cmp_expr, auto const& callee) {
+                        auto const cmp_type = type::type_of(cmp_expr);
+                        auto *const compared_val
+                            = emit_binary_expr(
+                                    ast::node::location_of(cmp_expr),
+                                    "==",
+                                    target_type,
+                                    cmp_type,
+                                    target_val,
+                                    load_if_ref(emit(cmp_expr), cmp_type),
+                                    callee
+                                );
+
+                        auto *const next_cond_block = helper.create_block("sw.expr.cond.next");
+
+                        helper.create_cond_br(compared_val, then_block, next_cond_block, nullptr);
+                        helper.append_block(next_cond_block);
+                    }
+                    , when.first, callees
+                );
+                helper.create_br(else_block, nullptr);
+
+                helper.append_block(then_block);
+                emit_inner_block(when.second);
+                helper.terminate_with_br(end_block);
+                helper.append_block(else_block);
+            }
+            , switch_->when_blocks, switch_->when_callee_scopes
+        );
+
+        emit_inner_block(switch_->else_block);
+        helper.terminate_with_br(end_block);
+        helper.append_block(end_block);
+
+        if (!evaluated_blocks.empty()) {
+            auto *const phi
+                = ctx.builder.CreatePHI(
+                        evaluated_blocks[0].first->getType(),
+                        evaluated_blocks.size(),
+                        "sw.expr.phi"
+                    );
+
+            for (auto const& block : evaluated_blocks) {
+                phi->addIncoming(block.first, block.second);
+            }
+            return phi;
+        } else {
+            throw emit_skipper{};
         }
     }
 
     void emit(ast::node::if_stmt const& if_)
     {
         auto helper = bb_helper(if_);
+        llvm::BasicBlock *else_block = nullptr;
+        auto const prefix = ast::symbol::to_string(if_->kind) + ".stmt.";
+        auto *const end_block = helper.create_block(prefix + "end");
+        bool is_first_elem = true;
 
-        auto *then_block = helper.create_block_for_parent("if.then");
-        auto *else_block = helper.create_block_for_parent("if.else");
-        auto *const end_block = helper.create_block("if.end");
+        for (auto const& clause : if_->clauses) {
+            val cond_val = load_if_ref(emit(clause.first), clause.first);
 
-        // IR for if-then clause
-        val cond_val = load_if_ref(emit(if_->condition), if_->condition);
-        if (if_->kind == ast::symbol::if_kind::unless) {
-            cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_stmt_unless"), "unless statement");
-        }
-        helper.create_cond_br(cond_val, then_block, else_block);
-        emit(if_->then_stmts);
-        helper.terminate_with_br(end_block, else_block);
+            if (is_first_elem) {
+                if (if_->kind == ast::symbol::if_kind::unless) {
+                    cond_val = check(
+                            if_,
+                            ctx.builder.CreateNot(cond_val, prefix + "inv"),
+                            "unless statement"
+                        );
+                }
+                is_first_elem = false;
+            }
 
-        // IR for elseif clause
-        for (auto const& elseif : if_->elseif_stmts_list) {
-            cond_val = emit(elseif.first);
-            then_block = helper.create_block_for_parent("if.then");
-            else_block = helper.create_block_for_parent("if.else");
+            auto *const then_block = helper.create_block_for_parent(prefix + "then");
+            else_block = helper.create_block(prefix + "else");
             helper.create_cond_br(cond_val, then_block, else_block);
-            emit(elseif.second);
-            helper.terminate_with_br(end_block, else_block);
+
+            emit(clause.second);
+
+            helper.terminate_with_br(end_block);
+            helper.append_block(else_block);
         }
 
         // IR for else clause
-        if (if_->maybe_else_stmts) {
-            emit(*if_->maybe_else_stmts);
+        if (if_->maybe_else_clause) {
+            emit(*if_->maybe_else_clause);
         }
-        helper.terminate_with_br(end_block);
 
+        helper.terminate_with_br(end_block);
         helper.append_block(end_block);
     }
 
@@ -1457,7 +1562,7 @@ public:
             // This is because a lambda object has already been emitted as a variable and lookup_var()
             // returns the corresponding llvm::Value.
             assert(llvm::dyn_cast<llvm::StructType>(type_emitter.emit_alloc_type(*g))->getNumElements() == 0u);
-            return emit_tuple_constant(type::get_unit_type(), {});
+            return inst_emitter.emit_unit_constant();
         } else {
             error(var, boost::format("Invalid variable reference '%1%'. Its type is '%2%'") % var->name % var->type.to_string());
         }
@@ -1507,7 +1612,7 @@ public:
             // Note:
             // If the capture map exists but no capture is found,
             // it is non-captured lambda.
-            return emit_tuple_constant(type::get_unit_type(), {});
+            return inst_emitter.emit_unit_constant();
         }
 
         val const elem_ptr = ctx.builder.CreateStructGEP(child_val, capture->offset, "capture." + ufcs->member_name);
@@ -2000,30 +2105,6 @@ public:
         );
     }
 
-    void emit(ast::node::case_stmt const& case_)
-    {
-        auto helper = bb_helper(case_);
-        auto *const end_block = helper.create_block("case.end");
-
-        llvm::BasicBlock *else_block;
-        for (auto const& when_stmts : case_->when_stmts_list) {
-            auto *const cond_val = load_if_ref(emit(when_stmts.first), when_stmts.first);
-            auto *const when_block = helper.create_block_for_parent("case.when");
-            else_block = helper.create_block_for_parent("case.else");
-
-            helper.create_cond_br(cond_val, when_block, else_block);
-            emit(when_stmts.second);
-            helper.terminate_with_br(end_block, else_block);
-        }
-
-        if (case_->maybe_else_stmts) {
-            emit(*case_->maybe_else_stmts);
-        }
-        helper.terminate_with_br(end_block);
-
-        helper.append_block(end_block);
-    }
-
     /*
      * - statement
      *   case v
@@ -2046,7 +2127,7 @@ public:
     void emit(ast::node::switch_stmt const& switch_)
     {
         auto helper = bb_helper(switch_);
-        auto *const end_block = helper.create_block("switch.end");
+        auto *const end_block = helper.create_block("sw.stmt.end");
 
         auto *const target_val = load_if_ref(emit(switch_->target_expr), switch_->target_expr);
         auto const target_type = type::type_of(switch_->target_expr);
@@ -2056,13 +2137,17 @@ public:
         helper::each(
             [&, this](auto const& when_stmt, auto const& callees) {
                 assert(when_stmt.first.size() > 0);
-                auto *const then_block = helper.create_block("switch.then");
-                else_block = helper.create_block("switch.else");
+                auto *const then_block = helper.create_block("sw.stmt.then");
+                else_block = helper.create_block("sw.stmt.else");
+
+                // Note:
+                // Should I use logical or instruction to chain the condition?
+                //    case a; when p, q, r ... -> if a == p || a == q || a == r ...
 
                 // Emit condition IRs
                 helper::each(
                     [&, this](auto const& cmp_expr, auto const& callee) {
-                        auto *const next_cond_block = helper.create_block("switch.cond.next");
+                        auto *const next_cond_block = helper.create_block("sw.stmt.cond.next");
                         auto const cmp_type = type::type_of(cmp_expr);
 
                         auto *const compared_val
@@ -2100,32 +2185,6 @@ public:
         helper.terminate_with_br(end_block);
 
         helper.append_block(end_block);
-    }
-
-    val emit(ast::node::if_expr const& if_)
-    {
-        auto helper = bb_helper(if_);
-
-        auto *const then_block = helper.create_block_for_parent("expr.if.then");
-        auto *const else_block = helper.create_block_for_parent("expr.if.else");
-        auto *const merge_block = helper.create_block_for_parent("expr.if.merge");
-
-        val cond_val = load_if_ref(emit(if_->condition_expr), if_->condition_expr);
-        if (if_->kind == ast::symbol::if_kind::unless) {
-            cond_val = check(if_, ctx.builder.CreateNot(cond_val, "if_expr_unless"), "unless expression");
-        }
-        helper.create_cond_br(cond_val, then_block, else_block);
-
-        auto *const then_val = load_if_ref(emit(if_->then_expr), if_->then_expr);
-        helper.terminate_with_br(merge_block, else_block);
-
-        auto *const else_val = load_if_ref(emit(if_->else_expr), if_->else_expr);
-        helper.terminate_with_br(merge_block, merge_block);
-
-        auto *const phi = ctx.builder.CreatePHI(type_emitter.emit(if_->type), 2, "expr.if.tmp");
-        phi->addIncoming(then_val, then_block);
-        phi->addIncoming(else_val, else_block);
-        return phi;
     }
 
     val emit(ast::node::typed_expr const& typed)

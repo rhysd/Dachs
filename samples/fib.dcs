@@ -8,10 +8,10 @@ func fib(n)
 end
 
 func fib'(n)
-    if n <= 1
-        ret 1
+    ret if n <= 1 then
+        1
     else
-        ret fib(n-1) + fib(n-2)
+        fib(n-1) + fib(n-2)
     end
 end
 

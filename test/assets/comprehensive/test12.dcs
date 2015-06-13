@@ -1,17 +1,17 @@
 func should(lhs, rhs)
-    (if rhs(lhs) then '.' else 'F').print
+    if rhs(lhs) then print('.') else print('F') end
 end
 
 func should(lhs, filter, rhs)
-    (if filter(rhs(lhs)) then '.' else 'F').print
+    if filter(rhs(lhs)) then print('.') else print('F') end
 end
 
 func should_not(lhs, rhs)
-    (unless rhs(lhs) then '.' else 'F').print
+    unless rhs(lhs) then print('.') else print('F') end
 end
 
 func should_not(lhs, filter, rhs)
-    (unless filter(rhs(lhs)) then '.' else 'F').print
+    unless filter(rhs(lhs)) then print('.') else print('F') end
 end
 
 func not(x)

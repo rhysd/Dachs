@@ -62,8 +62,10 @@ struct return_types_gatherer {
     std::vector<ast::node::return_stmt> failed_return_stmts;
 
     template<class Walker>
-    void visit(ast::node::return_stmt const& ret, Walker const&)
+    void visit(ast::node::return_stmt const& ret, Walker const& w)
     {
+        w();
+
         if (!ret->ret_type) {
             failed_return_stmts.push_back(ret);
         } else {
@@ -870,12 +872,19 @@ public:
         return true;
     }
 
-    // Push and pop current scope {{{
     template<class Walker>
     void visit(ast::node::statement_block const& block, Walker const& w)
     {
         assert(!block->scope.expired());
         introduce_scope_and_walk(block->scope.lock(), w);
+    }
+
+    template<class Walker>
+    void visit(ast::node::block_expr const& block, Walker const& w)
+    {
+        assert(!block->scope.expired());
+        introduce_scope_and_walk(block->scope.lock(), w);
+        block->type = type_of(block->last_expr);
     }
 
     template<class Walker>
@@ -964,13 +973,14 @@ public:
             }
 
             if (any_of(
-                        gatherer.result_types,
-                        [&](auto const& t){ return gatherer.result_types[0] != t; })) {
-                semantic_error(
-                        func,
-                        boost::format("  Mismatch among the result types of return statements in function '%1%'")
-                            % func->name
-                    );
+                    gatherer.result_types,
+                    [&](auto const& t){ return gatherer.result_types[0] != t; })
+            ) {
+                std::string msg = "  Mismatch among the result types of return statements in function '" + func->name + "'";
+                for (auto const& t : gatherer.result_types) {
+                    msg += "\n  Note: Return type candidate is '" + t.to_string() + "'";
+                }
+                semantic_error(func, msg);
                 return;
             }
 
@@ -1049,7 +1059,6 @@ public:
         const_member_func_checker const_checker{scope, func_};
         scope->is_const_ = const_checker.check_const();
     }
-    // }}}
 
     template<class Walker>
     void visit(ast::node::variable_decl const& decl, Walker const& w)
@@ -1698,45 +1707,6 @@ public:
         }
 
         visit_unary_expr_call(unary, operand_type);
-    }
-
-    template<class Walker>
-    void visit(ast::node::if_expr const& if_, Walker const& w)
-    {
-        w();
-
-        auto const condition_type = type_of(if_->condition_expr);
-        auto const then_type = type_of(if_->then_expr);
-        auto const else_type = type_of(if_->else_expr);
-
-        if (!condition_type || !then_type || !else_type) {
-            return;
-        }
-
-        if (condition_type != type::get_builtin_type("bool", type::no_opt)) {
-            semantic_error(
-                    if_,
-                    boost::format(
-                        "  Type of condition in if expression must be 'bool'\n"
-                        "  Note: Type of condition is '%1%'"
-                    ) % condition_type.to_string()
-                );
-            return;
-        }
-
-        if (then_type != else_type) {
-            semantic_error(
-                    if_,
-                    boost::format(
-                        "  Type mismatch between type of then clause and else clause\n"
-                        "  Note: Type of then clause is '%1%'\n"
-                        "  Note: Type of else clause is '%2%'"
-                    ) % then_type.to_string() % else_type.to_string()
-                );
-            return;
-        }
-
-        if_->type = then_type;
     }
 
     boost::optional<std::string> check_member_func_visibility(scope::func_scope const& member_func) const
@@ -3334,12 +3304,140 @@ public:
     }
 
     template<class Walker>
+    void visit(ast::node::if_expr const& if_, Walker const& w)
+    {
+        assert(!if_->block_list.empty());
+
+        w();
+
+        std::string const kind
+            = ast::symbol::to_string(if_->kind);
+
+        auto const& type = if_->block_list.front().second->type;
+        if (!type) {
+            return;
+        }
+
+        for (auto const& block : if_->block_list) {
+            check_condition_expr(block.first);
+            if (type != block.second->type) {
+                semantic_error(
+                        block.second,
+                        boost::format(
+                            "  All blocks of '%1%' expression must have the same type\n"
+                            "  Note: Type of first block is '%2%' but type of 'then' block is '%3%'"
+                        ) % kind % type.to_string() % block.second->type.to_string()
+                    );
+            }
+        }
+
+        if (type != if_->else_block->type) {
+            semantic_error(
+                    if_->else_block,
+                    boost::format(
+                        "  All blocks of '%1%' expression must have the same type\n"
+                        "  Note: Type of first block is '%2%' but type of 'else' block is '%3%'"
+                    ) % kind % type.to_string() % if_->else_block->type.to_string()
+                );
+        }
+
+        if_->type = type;
+    }
+
+    template<class Conditions>
+    auto visit_switch_when_condition(type::type const& switcher_type, Conditions const& cond_exprs)
+    {
+        std::vector<scope::weak_func_scope> callees;
+        callees.reserve(cond_exprs.size());
+
+        for (auto const& expr : cond_exprs) {
+            auto const t = type_of(expr);
+
+            if (switcher_type.is_builtin() && t.is_builtin()) {
+                callees.emplace_back();
+                auto const ret_type = visit_builtin_binary_expr(ast::node::location_of(expr), "==", switcher_type, t);
+                assert(!ret_type || ret_type.is_builtin("bool"));
+                continue;
+            }
+
+            auto const resolved = resolve_func_call("==", std::vector<type::type>{switcher_type, t});
+            if (auto const error = resolved.get_error()) {
+                auto const location = ast::node::location_of(expr);
+                semantic_error(location, *error);
+                semantic_error(location, "  While analyzing condition of 'when' clause");
+                continue;
+            }
+
+            auto const callee = resolved.get_unsafe();
+
+            if (!callee->ret_type || !callee->ret_type->is_builtin("bool")) {
+                auto const s = callee->ret_type ? callee->ret_type->to_string() : "UNKNOWN";
+                auto const def = callee->get_ast_node();
+                semantic_error(
+                        ast::node::location_of(expr),
+                        boost::format(
+                            "  Compare operator '==' must returns 'bool' but actually returns '%1%' in condition of 'when' clause\n"
+                            "  Note: '%2%' is used, which is defined in line:%3%, col:%4%"
+                            ) % s % callee->to_string() % def->line % def->col
+                    );
+                continue;
+            }
+
+            callees.emplace_back(callee);
+        }
+
+        return callees;
+    }
+
+    template<class Walker>
+    void visit(ast::node::switch_expr const& switch_, Walker const& w)
+    {
+        assert(!switch_->when_blocks.empty());
+
+        w();
+
+        auto const switcher_type = type_of(switch_->target_expr);
+        auto const& type = switch_->when_blocks.front().second->type;
+        if (!type) {
+            return;
+        }
+
+        for (auto const& when : switch_->when_blocks) {
+            if (type != when.second->type) {
+                semantic_error(
+                        when.second,
+                        boost::format(
+                            "  All blocks of 'case' expression must have the same type\n"
+                            "  Note: Type of first block is '%1%' but type of 'then' block is '%2%'"
+                        ) % type.to_string() % when.second->type.to_string()
+                    );
+            }
+
+            switch_->when_callee_scopes.push_back(
+                    visit_switch_when_condition(switcher_type, when.first)
+                );
+        }
+
+        if (type != switch_->else_block->type) {
+            semantic_error(
+                    switch_->else_block,
+                    boost::format(
+                        "  All blocks of 'case' expression must have the same type\n"
+                        "  Note: Type of first block is '%1%' but type of 'else' block is '%2%'"
+                    ) % type.to_string() % switch_->else_block->type.to_string()
+                );
+        }
+
+        switch_->type = type;
+    }
+
+    template<class Walker>
     void visit(ast::node::if_stmt const& if_, Walker const& w)
     {
+        assert(!if_->clauses.empty());
         w();
-        check_condition_expr(if_->condition);
-        for (auto const& elseif : if_->elseif_stmts_list) {
-            check_condition_expr(elseif.first);
+        for (auto const& clause : if_->clauses) {
+            check_condition_expr(clause.first);
         }
     }
 
@@ -3351,59 +3449,15 @@ public:
     }
 
     template<class Walker>
-    void visit(ast::node::case_stmt const& case_, Walker const& w)
-    {
-        w();
-        for (auto const& when : case_->when_stmts_list) {
-            check_condition_expr(when.first);
-        }
-    }
-
-    template<class Walker>
     void visit(ast::node::switch_stmt const& switch_, Walker const& w)
     {
         w();
 
         auto const switcher_type = type_of(switch_->target_expr);
         for (auto const& when : switch_->when_stmts_list) {
-            switch_->when_callee_scopes.emplace_back();
-            auto &callees = switch_->when_callee_scopes.back();
-
-            for (auto const& cond : when.first) {
-                auto const t = type_of(cond);
-
-                if (switcher_type.is_builtin() && t.is_builtin()) {
-                    callees.emplace_back();
-                    auto const ret_type = visit_builtin_binary_expr(ast::node::location_of(cond), "==", switcher_type, t);
-                    assert(!ret_type || ret_type.is_builtin("bool"));
-                    continue;
-                }
-
-                auto const resolved = resolve_func_call("==", std::vector<type::type>{switcher_type, t});
-                if (auto const error = resolved.get_error()) {
-                    auto const location = ast::node::location_of(cond);
-                    semantic_error(location, *error);
-                    semantic_error(location, "  In 'when' clause of case-when statement");
-                    continue;
-                }
-
-                auto const callee = resolved.get_unsafe();
-
-                if (!callee->ret_type || !callee->ret_type->is_builtin("bool")) {
-                    auto const s = callee->ret_type ? callee->ret_type->to_string() : "UNKNOWN";
-                    auto const def = callee->get_ast_node();
-                    semantic_error(
-                            ast::node::location_of(cond),
-                            boost::format(
-                                "  Compare operator '==' must returns 'bool' but actually returns '%1%' in 'when' clause\n"
-                                "  Note: '%2%' is used, which is defined in line:%3%, col:%4%"
-                                ) % s % callee->to_string() % def->line % def->col
-                        );
-                    continue;
-                }
-
-                callees.emplace_back(callee);
-            }
+            switch_->when_callee_scopes.push_back(
+                    visit_switch_when_condition(switcher_type, when.first)
+                );
         }
 
         assert(switch_->when_stmts_list.size() == switch_->when_callee_scopes.size());

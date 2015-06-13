@@ -17,7 +17,8 @@ func main
     ;;
     ;;;
 
-    print(if true then 1 else 2)
+    if true then 1 else 2 end
+    print()
 
     for a, var b, e : int, var f : bool in any_expression # This is comment
         a

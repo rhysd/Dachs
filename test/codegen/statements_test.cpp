@@ -69,7 +69,7 @@ BOOST_AUTO_TEST_CASE(if_statement)
         end
 
         func dummy3
-            ret (if true then 42 else -42)
+            ret (if true then 42 else -42 end)
         end
 
         func main
@@ -453,13 +453,13 @@ BOOST_AUTO_TEST_CASE(postfix_if_statement)
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func foo(x)
             if x
-                ret if if x then !x else x
+                ret if if x then !x else x end
             end
         end
 
         func foo2(x)
             unless x
-                ret unless unless x then !x else x
+                ret unless unless x then !x else x end
             end
         end
 
@@ -470,7 +470,7 @@ BOOST_AUTO_TEST_CASE(postfix_if_statement)
     )");
 }
 
-BOOST_AUTO_TEST_CASE(do_stmt)
+BOOST_AUTO_TEST_CASE(begin_end_stmt)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func p(a, b)
@@ -480,31 +480,31 @@ BOOST_AUTO_TEST_CASE(do_stmt)
         func main
             a := 42
 
-            do
+            begin
             end
 
-            do end
+            begin end
 
-            do
+            begin
                 a := 42
                 println(a)
             end
 
-            do
-                do
-                    do
+            begin
+                begin
+                    begin
                     end
                 end
             end
 
-            do
+            begin
                 a := 42
                 b := 42
                 a.p b
                 b.p a
             end
 
-            do
+            begin
                 ret 42 if true
 
                 if true

@@ -57,7 +57,7 @@ BOOST_AUTO_TEST_CASE(some_samples)
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func abs(n : float) : float
-            ret (if n > 0.0 then n else -n)
+            ret if n > 0.0 then n else -n end
         end
 
         func sqrt(x : float) : float
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(some_samples)
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func abs(n)
-            ret (if n > 0.0 then n else -n)
+            ret if n > 0.0 then n else -n end
         end
 
         func sqrt'(p, z, x)
@@ -211,7 +211,7 @@ BOOST_AUTO_TEST_CASE(some_samples)
                     for e in a
                         s += e
                     end
-                    ret s
+                    s
                 end
 
             sum2 :=
@@ -220,42 +220,44 @@ BOOST_AUTO_TEST_CASE(some_samples)
                     for e in a
                         s += e
                     end
-                    ret s
+                    s
                 end
 
             sum3 :=
                 let
                     var s := 0
-                begin
+                in begin
                     for e in a
                         s += e
                     end
-                    ret s
+                    s
                 end
 
             sum4 :=
                 let
                     var s := 0
-                begin
+                in begin
                     for e in a
                         s += e
                     end
-                    ret s
+                    s
                 end
 
             let
                 var s := 1
-            begin
+                var result : int
+            in begin
                 case s
                 when 0
-                    ret sum
+                    result = sum
                 when 1
-                    ret sum2
+                    result = sum2
                 when 2
-                    ret sum3
+                    result = sum3
                 when 3
-                    ret sum4
+                    result = sum4
                 end
+                result
             end.println
 
             println(sum == sum2)
@@ -266,7 +268,7 @@ BOOST_AUTO_TEST_CASE(some_samples)
 
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func test(b : bool)
-            print(if b then '.' else 'F')
+            print(if b then '.' else 'F' end)
         end
 
         func test_not(b : bool)

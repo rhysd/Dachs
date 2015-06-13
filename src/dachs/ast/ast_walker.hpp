@@ -197,12 +197,28 @@ public:
         ));
     }
 
+    void walk(node::block_expr &be)
+    {
+        visitor.visit(be, walker_for(
+            be->stmts,
+            be->last_expr
+        ));
+    }
+
     void walk(node::if_expr &ie)
     {
         visitor.visit(ie, walker_for(
-            ie->condition_expr,
-            ie->then_expr,
-            ie->else_expr
+            ie->block_list,
+            ie->else_block
+        ));
+    }
+
+    void walk(node::switch_expr &se)
+    {
+        visitor.visit(se, walker_for(
+            se->target_expr,
+            se->when_blocks,
+            se->else_block
         ));
     }
 
@@ -240,10 +256,8 @@ public:
     void walk(node::if_stmt &is)
     {
         visitor.visit(is, walker_for(
-            is->condition,
-            is->then_stmts,
-            is->elseif_stmts_list,
-            is->maybe_else_stmts
+            is->clauses,
+            is->maybe_else_clause
         ));
     }
 
@@ -251,14 +265,6 @@ public:
     {
         visitor.visit(rs, walker_for(
             rs->ret_exprs
-        ));
-    }
-
-    void walk(node::case_stmt &cs)
-    {
-        visitor.visit(cs, walker_for(
-            cs->when_stmts_list,
-            cs->maybe_else_stmts
         ));
     }
 

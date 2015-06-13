@@ -397,25 +397,30 @@ BOOST_AUTO_TEST_CASE(aggregates)
             a[1][0].println
         end
         func main
-            do
+            begin
                 var a := [1]
                 var t := ('a', a)
                 print_1_0(t)
+                c := 1
             end
 
-            do
+            begin
                 var a := [1]
                 t := ('a', a)
                 print_1_0(t)
+                var i := 10
+                for i > 0
+                    i -= 1
+                end
             end
 
-            do
+            begin
                 var t := (-1, -2)
                 var a := [t, t]
                 print_1_0(a)
             end
 
-            do
+            begin
                 var t := (-1, -2)
                 a := [t, t]
                 print_1_0(a)
@@ -618,16 +623,16 @@ BOOST_AUTO_TEST_CASE(if_expr)
         end
 
         func main
-            (if true then 42 else 24)
-            foo(if true then 3.14 else 4.12)
+            (if true then 42 else 24 end)
+            foo(if true then 3.14 else 4.12 end)
             (if true then
                 42
             else
-                24)
+                24 end)
             var if := true
             (if true then 42
-             else 24)
-            (if if then if else if) # 'if' is a contextual keyword
+             else 24 end)
+            (if if then if else if end) # 'if' is a contextual keyword
         end
     )");
 
@@ -636,15 +641,331 @@ BOOST_AUTO_TEST_CASE(if_expr)
         end
 
         func main
-            (unless true then 42 else 24)
-            foo(unless true then 3.14 else 4.12)
+            (unless true then 42 else 24 end)
+            foo(unless true then 3.14 else 4.12 end)
             (unless true then
                 42
             else
-                24)
+                24 end)
             var unless := true
             (unless true then 42
-             else 24)
+             else 24 end)
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func abs(x)
+            ret if (x as int) < 0 then
+                -x
+            else
+                x
+            end
+        end
+
+        func foo(i)
+            ret if i < 10 then
+                ret 42
+                0
+            else
+                unless i > 10
+                    1
+                else
+                    ret 0
+                    -1
+                end
+            end
+        end
+
+        func main
+            abs(-1.0).println
+
+            i :=
+                if abs(30) > 0
+                    k, l := 42, 21
+                    if k < l
+                        k
+                    else
+                        l
+                    end
+                else
+                    k, l := 'a', 'b'
+                    if 'a' > (0 as char)
+                        k as int
+                    else
+                        l as int
+                    end
+                end
+
+            foo(9)
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            ret if true then
+                ret 0
+                a := 10
+                0
+            elseif false
+                ret 0
+                println('f') if true
+                0
+            else
+                ret 0
+                0
+            end
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+            ret unless x == 0 as typeof(x) then
+                ret 1.0
+                3.14
+            else
+                ret 2.0
+                2.15
+            end
+        end
+
+        func main
+            foo(0.0).println
+            ret if true then
+                ret 'p'
+                'a'
+            elseif false
+                ret 'q'
+                'b'
+            else
+                ret 'r'
+                'c'
+            end
+        end
+    )");
+
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        func main
+            var p := new pointer(X(int)){2u}
+
+            p[0u] =
+                if false
+                    new X{42}
+                else
+                    i := 42
+                    if false
+                        new X{i}
+                    else
+                        new X{i - 31}
+                    end
+                end
+
+            p[1u] = new X{
+                    if true
+                        if false
+                            12
+                        else
+                            43
+                        end
+                    else
+                        -1
+                    end
+                }
+
+            i := 31
+
+            (
+                if i % 2 == 0
+                    p[0u]
+                else
+                    p[1u]
+                end
+            ).a.println
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(case_expr)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+        end
+
+        func abs(i)
+            ret case
+                when i < 0
+                    -i
+                else
+                    i
+                end
+        end
+
+        func main
+            foo(case
+                when true
+                    3.14
+                when false
+                    1.14
+                else
+                    2.14
+                end
+            )
+
+            abs(-10).println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            a := 0
+
+            ret case
+                when a > 0
+                    ret 0
+                    b := 10
+                    a + b
+                when a < 0
+                    ret 0
+                    b := 11.0
+                    a + (b as int)
+                else
+                    0
+                end
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        func abs(var x)
+            ret case
+                when x.a < 0
+                    x.a = -x.a
+                    x
+                else
+                    x
+                end
+        end
+
+        func main
+            print('X')
+            abs(new X{-10}).a.println
+
+            var p := new pointer(X(int)){2u}
+            p[0u] = new X{11}
+            p[1u] = new X{-100}
+
+            i := 11
+
+            x := case
+            when p[0u].a % 2 == 0
+                p[0u]
+            when p[1u].a % 2 == 0
+                p[1u]
+            else
+                new X{0}
+            end
+
+            print('X')
+            x.abs.a.println
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(switch_expr)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(x)
+            ret x
+        end
+
+        func abs(i)
+            ret case i % 2
+                when 0, 1
+                    -i
+                else
+                    i
+                end
+        end
+
+        func main
+            b := true
+
+            i := foo(case b
+                when true
+                    3.14
+                when false
+                    1.14
+                else
+                    2.14
+                end
+            ) as int
+
+            abs(i).println
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            a := 0
+
+            ret case a
+                when 0, 1, 2
+                    ret 0
+                    b := 10
+                    a + b
+                when 3, 4, 5
+                    ret 0
+                    b := 11.0
+                    a + (b as int)
+                else
+                    0
+                end
+        end
+    )");
+
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        class X
+            a
+        end
+
+        func abs(var x)
+            ret case x.a % 2
+                when 0
+                    x.a = -x.a
+                    x
+                else
+                    x
+                end
+        end
+
+        func main
+            print('X')
+            abs(new X{-10}).a.println
+
+            var p := new pointer(X(int)){2u}
+            p[0u] = new X{11}
+            p[1u] = new X{-100}
+
+            i := 11
+
+            x := case p[0u].a % 2
+                when 0
+                    p[0u]
+                when 1, 2
+                    p[1u]
+                else
+                    new X{0}
+                end
+
+            print('X')
+            x.abs.a.println
         end
     )");
 }
@@ -972,14 +1293,15 @@ BOOST_AUTO_TEST_CASE(let_expr)
             let
                 var a := 42
                 b := 'a'
-            in if a == 4
+            in if a == 4 then
                 println(a)
             else
                 println(b)
+            end
 
             let
                 a, var b := 42, 'a'
-            in if a == 4 then a else (b as int)
+            in if a == 4 then a else (b as int) end
 
             let
                 var a := 42
@@ -989,6 +1311,7 @@ BOOST_AUTO_TEST_CASE(let_expr)
                     println(a)
                     a += 1
                 end
+                ()
             end
 
             foo().println
@@ -1000,41 +1323,88 @@ BOOST_AUTO_TEST_CASE(let_expr)
                 when 42
                     println("42")
                 end
+                ()
             end
 
-            let var a := 42 in begin a = 21 end
+            let var a := 42 in begin a = 21; a end
 
-            let var a := 42 in begin b := a end
+            let var a := 42 in begin b := a; b end
 
             let
                 var a := 42
                 var b := 42
-            begin
+            in begin
                 for a < 50
                     println(a)
                     a += 1
                 end
+                ()
             end
 
             let
                 a := 42
-            begin
+            in begin
                 case a
                 when 42
                     println("42")
                 end
+                ()
             end
 
             let
                 a := 42
-            begin
+            in begin
                 case a
                 when 42
                     ret "aaa"
                 when -42
                     ret "bbb"
                 end
+                ()
             end
+        end
+    )");
+}
+
+BOOST_AUTO_TEST_CASE(begin_expr)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo
+            ret begin
+                ret 42
+                a := 42
+                a + 10
+            end
+        end
+
+        class X
+            a
+        end
+
+        func foo(var x)
+            ret begin
+                ret x.a + 20
+                x.a = 42
+                x.a + 10
+            end
+        end
+
+        func main
+            a := begin
+                i := 10
+                var j := i + 1
+                i + j
+            end
+
+            println(
+                begin
+                    i,j := a + 10, a - 10
+                    i * 10
+                end
+            )
+
+            foo()
+            foo(new X{10})
         end
     )");
 }
@@ -1261,7 +1631,7 @@ BOOST_AUTO_TEST_CASE(compound_assignments)
             i, c, z += t
             i, c, z += f()
 
-            ret t[2]
+            t[2]
         end
     end
     )");
@@ -1339,20 +1709,20 @@ BOOST_AUTO_TEST_CASE(pointer)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
         func main
-            do
+            begin
                 var i := 42u
                 var p := new pointer(int){i}
                 p[3] = -30
                 p[3].println
             end
 
-            do
+            begin
                 var p := new pointer(int){42u}
                 p[3] = -30
                 p[3].println
             end
 
-            do
+            begin
                 var i := 0u
                 new pointer(int){i}
                 new pointer(int){0u}
@@ -1527,6 +1897,7 @@ BOOST_AUTO_TEST_CASE(pointer)
                         (0..3).each do |j|
                             r[j] = i * j
                         end
+                        ()
                     end
                 end
             end
@@ -1677,6 +2048,5 @@ BOOST_AUTO_TEST_CASE(func_type)
         end
     )");
 }
-
 
 BOOST_AUTO_TEST_SUITE_END()

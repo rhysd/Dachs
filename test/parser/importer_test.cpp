@@ -1,4 +1,4 @@
-#define BOOST_TEST_MODULE ParserTest
+#define BOOST_TEST_MODULE ImporterTest
 #define BOOST_DYN_LINK
 #define BOOST_TEST_MAIN
 

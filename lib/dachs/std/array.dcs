@@ -225,7 +225,7 @@ class array
 
         if @capacity == 0u
             c := new_size * 2u
-            ret (if c > 3u then c else 3u)
+            ret if c > 3u then c else 3u end
         end
 
         var c := @capacity
@@ -282,7 +282,7 @@ class array
         for i < @size && predicate(i)
             i += 1u
         end
-        ret @take(if i == 0u then 0u else i - 1u)
+        ret @take(if i == 0u then 0u else i - 1u end)
     end
 
     func drop(count : uint)
@@ -301,7 +301,7 @@ class array
         for i < @size && predicate(i)
             i += 1u
         end
-        ret @drop(if i == 0u then 0u else i - 1u)
+        ret @drop(if i == 0u then 0u else i - 1u end)
     end
 
     func tail
@@ -346,7 +346,7 @@ class array
     end
 
     func zip_with(rhs : array, predicate)
-        s := if @size < (rhs.size) then @size else rhs.size
+        s := if @size < (rhs.size) then @size else (rhs.size) end
 
         var ptr := new pointer(typeof(predicate(@buf[0], rhs[0]))){s}
 
@@ -526,7 +526,7 @@ end
 
 func join(arr : [string], sep : string)
     s := arr.foldl(1u){|acc, s| acc + s.size } +
-        (unless arr.empty?() then sep.size * (arr.size - 1u) else 0u)
+        (unless arr.empty?() then sep.size * (arr.size - 1u) else 0u end)
 
     var ptr := new pointer(char){s}
     var pos := 0u

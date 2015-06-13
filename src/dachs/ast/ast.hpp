@@ -449,8 +449,6 @@ struct func_invocation final : public expression {
     bool is_monad_invocation = false;
     scope::weak_func_scope callee_scope;
     bool is_ufcs = false;
-    bool is_begin_end = false;
-    bool is_let = false;
 
     void set_do_block(node::function_definition const& def)
     {
@@ -502,20 +500,9 @@ struct func_invocation final : public expression {
     func_invocation(
             node::any_expr const& c,
             std::vector<node::any_expr> const& a,
-            bool const ufcs,
-            bool const begin_end,
-            bool const let
+            bool const ufcs
         ) noexcept
-        : expression(), child(c), args(a), is_ufcs(ufcs), is_begin_end(begin_end), is_let(let)
-    {}
-
-    // Note: For begin-end and let-in expression
-    func_invocation(
-            node::lambda_expr const& lambda,
-            bool const begin_end,
-            bool const let
-        ) noexcept
-        : expression(), child(lambda), args(), is_ufcs(false), is_begin_end(begin_end), is_let(let)
+        : expression(), child(c), args(a), is_ufcs(ufcs)
     {}
 
     std::string to_string() const noexcept override
@@ -676,20 +663,101 @@ struct binary_expr final : public expression {
     }
 };
 
+struct block_expr final : public expression {
+    using block_type
+        = std::vector<node::compound_stmt>;
+
+    block_type stmts;
+    node::any_expr last_expr;
+    scope::weak_local_scope scope;
+
+    template<class Expr>
+    block_expr(
+            block_type const& s,
+            Expr && e)
+        : expression()
+        , stmts(s)
+        , last_expr(std::forward<Expr>(e))
+    {}
+
+    template<class Block, class Expr>
+    block_expr(
+            Block && b,
+            Expr && e)
+        : expression()
+        , stmts(
+            std::begin(std::forward<Block>(b)),
+            std::end(std::forward<Block>(b))
+        )
+        , last_expr(std::forward<Expr>(e))
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "BLOCK_EXPR";
+    }
+};
+
 struct if_expr final : public expression {
+    using block_type
+        = std::pair<node::any_expr, node::block_expr>;
+
     symbol::if_kind kind;
-    node::any_expr condition_expr, then_expr, else_expr;
+    std::vector<block_type> block_list;
+    node::block_expr else_block;
 
     if_expr(symbol::if_kind const kind,
-            node::any_expr const& condition,
-            node::any_expr const& then,
-            node::any_expr const& else_) noexcept
-        : expression(), kind(kind), condition_expr(condition), then_expr(then), else_expr(else_)
+            node::any_expr const& cond,
+            node::block_expr const& then,
+            decltype(block_list) const& elseifs,
+            node::block_expr const& else_)
+        : expression()
+        , kind(kind)
+        , block_list(elseifs)
+        , else_block(else_)
+    {
+        block_list.emplace(std::begin(block_list), cond, then);
+    }
+
+    if_expr(symbol::if_kind const kind,
+            decltype(block_list) const& blocks,
+            node::block_expr const& else_)
+        : expression()
+        , kind(kind)
+        , block_list(blocks)
+        , else_block(else_)
     {}
 
     std::string to_string() const noexcept override
     {
         return "IF_EXPR: " + symbol::to_string(kind);
+    }
+};
+
+struct switch_expr final : public expression {
+    using when_type
+        = std::pair<
+            std::vector<node::any_expr>,
+            node::block_expr
+        >;
+
+    node::any_expr target_expr;
+    std::vector<when_type> when_blocks;
+    node::block_expr else_block;
+    std::vector<std::vector<scope::weak_func_scope>> when_callee_scopes;
+
+    switch_expr(node::any_expr const& target,
+                decltype(when_blocks) const& whens, 
+                node::block_expr const& else_)
+        : expression()
+        , target_expr(target)
+        , when_blocks(whens)
+        , else_block(else_)
+    {}
+
+    std::string to_string() const noexcept override
+    {
+        return "SWITCH_EXPR";
     }
 };
 
@@ -943,21 +1011,33 @@ struct assignment_stmt final : public statement {
 };
 
 struct if_stmt final : public statement {
-    using elseif_type
+    using clause_type
         = std::pair<node::any_expr, node::statement_block>;
 
     symbol::if_kind kind;
-    node::any_expr condition;
-    node::statement_block then_stmts;
-    std::vector<elseif_type> elseif_stmts_list;
-    boost::optional<node::statement_block> maybe_else_stmts;
+    std::vector<clause_type> clauses;
+    boost::optional<node::statement_block> maybe_else_clause;
 
     if_stmt(symbol::if_kind const kind,
             node::any_expr const& cond,
             node::statement_block const& then,
-            decltype(elseif_stmts_list) const& elseifs,
-            decltype(maybe_else_stmts) const& maybe_else) noexcept
-        : statement(), kind(kind), condition(cond), then_stmts(then), elseif_stmts_list(elseifs), maybe_else_stmts(maybe_else)
+            decltype(clauses) const& cls,
+            decltype(maybe_else_clause) const& maybe_else)
+        : statement()
+        , kind(kind)
+        , clauses(cls)
+        , maybe_else_clause(maybe_else)
+    {
+        clauses.emplace(std::begin(clauses), cond, then);
+    }
+
+    if_stmt(symbol::if_kind const kind,
+            decltype(clauses) const& cls,
+            decltype(maybe_else_clause) const& maybe_else)
+        : statement()
+        , kind(kind)
+        , clauses(cls)
+        , maybe_else_clause(maybe_else)
     {}
 
     std::string to_string() const noexcept override
@@ -981,24 +1061,6 @@ struct return_stmt final : public statement {
     std::string to_string() const noexcept override
     {
         return "RETURN_STMT";
-    }
-};
-
-struct case_stmt final : public statement {
-    using when_type
-        = std::pair<node::any_expr, node::statement_block>;
-
-    std::vector<when_type> when_stmts_list;
-    boost::optional<node::statement_block> maybe_else_stmts;
-
-    case_stmt(decltype(when_stmts_list) const& whens,
-              decltype(maybe_else_stmts) const& elses) noexcept
-        : statement(), when_stmts_list(whens), maybe_else_stmts(elses)
-    {}
-
-    std::string to_string() const noexcept override
-    {
-        return "CASE_STMT";
     }
 };
 
