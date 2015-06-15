@@ -81,6 +81,10 @@ struct return_types_gatherer {
 };
 
 // Note:
+// I must consider about 'no return' type to check the unreachable blocks.
+// For example, return type of fatal() is 'no return'.
+//
+// Note:
 // I think it can't be merged to return_types_gatherer because it doesn't need to check
 // unterminated blocks when the return type is unit and the return type is known after
 // return_types_gatherer visits.
@@ -116,13 +120,11 @@ struct unterminated_block_checker {
             }
         }
 
-        if (if_->maybe_else_clause) {
-            if (!check_terminated(*if_->maybe_else_clause)) {
-                return false;
-            }
+        if (!if_->maybe_else_clause) {
+            return false;
         }
 
-        return true;
+        return check_terminated(*if_->maybe_else_clause);
     }
 
     bool check_terminated(ast::node::switch_stmt const& switch_)
@@ -133,18 +135,11 @@ struct unterminated_block_checker {
             }
         }
 
-        if (switch_->maybe_else_stmts) {
-            if (!check_terminated(*switch_->maybe_else_stmts)) {
-                return false;
-            }
+        if (!switch_->maybe_else_stmts) {
+            return false;
         }
 
-        return true;
-    }
-
-    bool check_terminated(ast::node::for_stmt const& for_)
-    {
-        return check_terminated(for_->body_stmts);
+        return check_terminated(*switch_->maybe_else_stmts);
     }
 
     bool check_terminated(ast::node::while_stmt const& while_)

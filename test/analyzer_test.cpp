@@ -4263,4 +4263,202 @@ BOOST_AUTO_TEST_CASE(begin_expr)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(unterminated_block_check)
+{
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func foo
+            ret 42
+            println('a')
+        end
+
+        func foo2
+            ret if false
+            println('a')
+        end
+
+        func foo3 : ()
+            var c := 'a'
+            if false
+                ret
+            else
+                c = 'b'
+            end
+            println(c)
+        end
+
+        func foo4(x)
+            ret x
+            println('a')
+        end
+
+        func foo5(x)
+            ret x
+            println('a')
+        end
+
+        func foo6(x)
+            if x
+                ret 12
+            elseif !x
+                ret 6
+            else
+                ret 0
+            end
+
+            println('a')
+        end
+
+        func foo7(x)
+            case x
+            when 0
+                ret 1
+            when 1
+                ret 2
+            else
+                ret 3
+            end
+            println('a')
+        end
+
+        # Edge case
+        func foo8
+            for true
+                ret 10
+            end
+            println('a')
+        end
+
+        func foo9(x)
+            begin
+                b := true
+                ret x || b
+            end
+            println('a')
+        end
+
+        func main
+            foo()
+            foo2()
+            foo3()
+            foo4(0)
+            foo5(0)
+            foo5(())
+            foo6(true)
+            foo7(1)
+            foo8()
+            foo9(false)
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            if false
+                ret 42
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            ret 42 if false
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            for false
+                ret 0
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            for e in ([] : [int])
+                ret 0
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            if false
+                ret 0
+            else
+                i := 42
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            if false
+                ret 0
+            elseif true
+            else
+                ret 1
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            case true
+            when true
+                ret 0
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            case true
+            when true
+                ret 0
+            else
+            end
+        end
+    )");
+
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            if true
+                case true
+                when true
+                    ret 0
+                else
+                    for false
+                        ret 0
+                    end
+                end
+            else
+                ret 0
+            end
+        end
+    )");
+
+    // Edge case
+    CHECK_NO_THROW_SEMANTIC_ERROR(R"(
+        func main
+            for true
+                ret 0
+            end
+        end
+    )");
+
+    // Return statement in block expressions are not considered.
+    // (Should I consider the termination in block expressions?)
+    CHECK_THROW_SEMANTIC_ERROR(R"(
+        func main
+            a := begin
+                b := 10
+                c := 12
+                ret 0
+                b + c
+            end
+            println('a')
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
