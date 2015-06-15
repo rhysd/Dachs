@@ -142,8 +142,27 @@ struct unterminated_block_checker {
         return check_terminated(*switch_->maybe_else_stmts);
     }
 
+    // Note:
+    // Body of for statement is not checked because loop of body
+    // may not be executed.
+    // But body of 'for true; end' loop is considered as special case.
     bool check_terminated(ast::node::while_stmt const& while_)
     {
+        auto const lit = get_as<ast::node::primary_literal>(while_->condition);
+        if (!lit) {
+            return false;
+        }
+
+        auto const val = get_as<bool>((*lit)->value);
+        if (!val || !*val) {
+            return false;
+        }
+
+        // Note:
+        // I must consider about 'break' statement when it is added.
+
+        // Note:
+        // When 'for true; end' loop
         return check_terminated(while_->body_stmts);
     }
 
