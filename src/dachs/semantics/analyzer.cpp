@@ -80,6 +80,93 @@ struct return_types_gatherer {
     }
 };
 
+// Note:
+// I think it can't be merged to return_types_gatherer because it doesn't need to check
+// unterminated blocks when the return type is unit and the return type is known after
+// return_types_gatherer visits.
+struct unterminated_block_checker {
+    ast::location_type last_unterminated_location;
+
+    unterminated_block_checker(ast::node::statement_block const& start)
+        : last_unterminated_location(ast::node::location_of(start))
+    {}
+
+    template<class... Nodes>
+    bool check_terminated(boost::variant<Nodes...> const& node)
+    {
+        return apply_lambda([this](auto const& n){ return check_terminated(n); }, node);
+    }
+
+    bool check_terminated(ast::node::statement_block const& block)
+    {
+        for (auto const& stmt : block->value) {
+            if (check_terminated(stmt)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool check_terminated(ast::node::if_stmt const& if_)
+    {
+        for (auto const& clause : if_->clauses) {
+            if (!check_terminated(clause.second)) {
+                return false;
+            }
+        }
+
+        if (if_->maybe_else_clause) {
+            if (!check_terminated(*if_->maybe_else_clause)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool check_terminated(ast::node::switch_stmt const& switch_)
+    {
+        for (auto const& stmts : switch_->when_stmts_list) {
+            if (!check_terminated(stmts.second)) {
+                return false;
+            }
+        }
+
+        if (switch_->maybe_else_stmts) {
+            if (!check_terminated(*switch_->maybe_else_stmts)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool check_terminated(ast::node::for_stmt const& for_)
+    {
+        return check_terminated(for_->body_stmts);
+    }
+
+    bool check_terminated(ast::node::while_stmt const& while_)
+    {
+        return check_terminated(while_->body_stmts);
+    }
+
+    // Note:
+    // If the last statement is 'ret', it's OK
+    bool check_terminated(ast::node::return_stmt const&)
+    {
+        return true;
+    }
+
+    template<class T>
+    bool check_terminated(T const& node)
+    {
+        last_unterminated_location = ast::node::location_of(node);
+        return false;
+    }
+};
+
 struct weak_ptr_locker : public boost::static_visitor<scope::any_scope> {
     template<class WeakScope>
     scope::any_scope operator()(WeakScope const& w) const
@@ -887,6 +974,129 @@ public:
         block->type = type_of(block->last_expr);
     }
 
+    bool /*success?*/ check_unterminated_block(ast::node::function_definition const& func)
+    {
+        assert(func->ret_type);
+        auto const& ret_type = *func->ret_type;
+
+        if (ret_type == type::get_unit_type()) {
+            // Note:
+            // If return type is (), blocks doesn't need to be terminated because compiler returns unit implicitly.
+            return true;
+        }
+
+        unterminated_block_checker checker{func->body};
+        if (checker.check_terminated(func->body)) {
+            // Note: Success
+            return true;
+        } else {
+            semantic_error(
+                    checker.last_unterminated_location,
+                    "  Unterminated block is found.  Value of '" + ret_type.to_string() + "' must be returned from the block"
+                );
+
+            return false;
+        }
+    }
+
+    bool /*success?*/ deduce_return_type(ast::node::function_definition const& func, scope::func_scope const& scope)
+    {
+        return_types_gatherer gatherer;
+        {
+            auto func_ = func; // to remove const
+            ast::make_walker(gatherer).walk(func_);
+        }
+
+        if (!gatherer.failed_return_stmts.empty()) {
+            semantic_error(
+                func,
+                boost::format(
+                    "  Can't deduce return type of function '%1%' from return statement\n"
+                    "  Note: return statement is here: line:%2%, col:%3%")
+                    % func->name
+                    % gatherer.failed_return_stmts[0]->line
+                    % gatherer.failed_return_stmts[0]->col
+            );
+            return false;
+        }
+
+        if (!gatherer.result_types.empty()) {
+            if (func->kind == ast::symbol::func_kind::proc) {
+                if (gatherer.result_types.size() != 1 || gatherer.result_types[0] != type::get_unit_type()) {
+                    semantic_error(func, boost::format("  proc '%1%' can't return any value") % func->name);
+                    return false;
+                }
+            }
+
+            if (any_of(
+                    gatherer.result_types,
+                    [&](auto const& t){ return gatherer.result_types[0] != t; })
+            ) {
+                std::string msg = "  Mismatch among the result types of return statements in function '" + func->name + "'";
+                for (auto const& t : gatherer.result_types) {
+                    msg += "\n  Note: Return type candidate is '" + t.to_string() + "'";
+                }
+                semantic_error(func, msg);
+                return false;
+            }
+
+            auto const& deduced_type = gatherer.result_types[0];
+
+            if (func->ret_type) {
+                auto const& ret = *func->ret_type;
+
+                if (ret.is_template()){
+                    if (!deduced_type.is_instantiated_from(ret)) {
+                        semantic_error(
+                                func,
+                                boost::format(
+                                    "  Return template type of function '%1%' can't instantiate deduced type '%3%'\n"
+                                    "  Note: Specified template is '%2%'\n"
+                                    "  Note: Deduced type is '%3%'"
+                                ) % func->name
+                                % ret.to_string()
+                                % deduced_type.to_string()
+                            );
+                        return false;
+                    }
+                } else if (ret != deduced_type) {
+                    semantic_error(
+                            func,
+                            boost::format(
+                                "  Return type of function '%1%' mismatch\n"
+                                "  Note: Specified type is '%2%'\n"
+                                "  Note: Deduced type is '%3%'"
+                            ) % func->name
+                              % ret.to_string()
+                              % deduced_type.to_string()
+                        );
+                    return false;
+                }
+            }
+
+            func->ret_type = deduced_type;
+            scope->ret_type = func->ret_type;
+        } else {
+            if (func->ret_type && *func->ret_type != type::get_unit_type()) {
+                semantic_error(
+                        func,
+                        boost::format(
+                            "  Return type of function '%1%' mismatch\n"
+                            "  Note: Specified type is '%2%'\n"
+                            "  Note: Deduced type is '%3%'"
+                        ) % func->name
+                          % func->ret_type->to_string()
+                          % type::get_unit_type()->to_string()
+                    );
+                return false;
+            }
+            func->ret_type = type::get_unit_type();
+            scope->ret_type = *func->ret_type;
+        }
+
+        return true;
+    }
+
     template<class Walker>
     void visit(ast::node::function_definition const& func, Walker const& w)
     {
@@ -945,96 +1155,12 @@ public:
 
         introduce_scope_and_walk(scope, w);
 
-        // Deduce return type
-
-        return_types_gatherer gatherer;
-        auto func_ = func; // to remove const
-        ast::make_walker(gatherer).walk(func_);
-
-        if (!gatherer.failed_return_stmts.empty()) {
-            semantic_error(
-                func,
-                boost::format(
-                    "  Can't deduce return type of function '%1%' from return statement\n"
-                    "  Note: return statement is here: line:%2%, col:%3%")
-                    % func->name
-                    % gatherer.failed_return_stmts[0]->line
-                    % gatherer.failed_return_stmts[0]->col
-            );
+        if (!deduce_return_type(func, scope)) {
             return;
         }
 
-        if (!gatherer.result_types.empty()) {
-            if (func->kind == ast::symbol::func_kind::proc) {
-                if (gatherer.result_types.size() != 1 || gatherer.result_types[0] != type::get_unit_type()) {
-                    semantic_error(func, boost::format("  proc '%1%' can't return any value") % func->name);
-                    return;
-                }
-            }
-
-            if (any_of(
-                    gatherer.result_types,
-                    [&](auto const& t){ return gatherer.result_types[0] != t; })
-            ) {
-                std::string msg = "  Mismatch among the result types of return statements in function '" + func->name + "'";
-                for (auto const& t : gatherer.result_types) {
-                    msg += "\n  Note: Return type candidate is '" + t.to_string() + "'";
-                }
-                semantic_error(func, msg);
-                return;
-            }
-
-            auto const& deduced_type = gatherer.result_types[0];
-
-            if (func->ret_type) {
-                auto const& ret = *func->ret_type;
-
-                if (ret.is_template()){
-                    if (!deduced_type.is_instantiated_from(ret)) {
-                        semantic_error(
-                                func,
-                                boost::format(
-                                    "  Return template type of function '%1%' can't instantiate deduced type '%3%'\n"
-                                    "  Note: Specified template is '%2%'\n"
-                                    "  Note: Deduced type is '%3%'"
-                                ) % func->name
-                                % ret.to_string()
-                                % deduced_type.to_string()
-                            );
-                        return;
-                    }
-                } else if (ret != deduced_type) {
-                    semantic_error(
-                            func,
-                            boost::format(
-                                "  Return type of function '%1%' mismatch\n"
-                                "  Note: Specified type is '%2%'\n"
-                                "  Note: Deduced type is '%3%'"
-                            ) % func->name
-                              % ret.to_string()
-                              % deduced_type.to_string()
-                        );
-                    return;
-                }
-            }
-
-            func->ret_type = deduced_type;
-            scope->ret_type = func->ret_type;
-        } else {
-            if (func->ret_type && *func->ret_type != type::get_unit_type()) {
-                semantic_error(
-                        func,
-                        boost::format(
-                            "  Return type of function '%1%' mismatch\n"
-                            "  Note: Specified type is '%2%'\n"
-                            "  Note: Deduced type is '%3%'"
-                        ) % func->name
-                          % func->ret_type->to_string()
-                          % type::get_unit_type()->to_string()
-                    );
-            }
-            func->ret_type = type::get_unit_type();
-            scope->ret_type = *func->ret_type;
+        if (!check_unterminated_block(func)) {
+            return;
         }
 
         if (is_query_function && *func->ret_type != type::get_builtin_type("bool", type::no_opt)) {
@@ -1056,8 +1182,11 @@ public:
             }
         }
 
-        const_member_func_checker const_checker{scope, func_};
-        scope->is_const_ = const_checker.check_const();
+        {
+            auto func_ = func; // Note: Remove const by copy
+            const_member_func_checker const_checker{scope, func_};
+            scope->is_const_ = const_checker.check_const();
+        }
     }
 
     template<class Walker>

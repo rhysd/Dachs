@@ -3952,6 +3952,7 @@ BOOST_AUTO_TEST_CASE(if_expr)
             foo_tmpl(11).println
 
             (if false then 3.14 else 2.1 end) : float
+            ret (if false then 3.14 else 2.1 end) as int
         end
     )");
 
@@ -4050,6 +4051,14 @@ BOOST_AUTO_TEST_CASE(case_expr)
                     'b'
                 end
             ) : char
+
+            ret (case
+                when true
+                    'a'
+                else
+                    'b'
+                end
+            ) as int
         end
     )");
 
@@ -4147,6 +4156,15 @@ BOOST_AUTO_TEST_CASE(switch_expr)
                     'b'
                 end
             ) : char
+
+            ret (
+                case b
+                when true, false
+                    'a'
+                else
+                    'b'
+                end
+            ) as int
         end
     )");
 

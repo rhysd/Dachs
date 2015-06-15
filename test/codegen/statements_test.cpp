@@ -505,7 +505,7 @@ BOOST_AUTO_TEST_CASE(begin_end_stmt)
             end
 
             begin
-                ret 42 if true
+                ret if true
 
                 if true
                     println(42)

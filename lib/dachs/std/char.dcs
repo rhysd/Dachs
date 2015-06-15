@@ -93,5 +93,6 @@ func to_radix(i) : char
         ret (n - 10) as char + 'a'
     else
         fatal("invalid radix")
+        ret 0 as char
     end
 end

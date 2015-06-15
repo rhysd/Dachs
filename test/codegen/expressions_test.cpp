@@ -1351,16 +1351,18 @@ BOOST_AUTO_TEST_CASE(let_expr)
                 ()
             end
 
-            let
+            ret let
                 a := 42
             in begin
+                b := 42
                 case a
                 when 42
-                    ret "aaa"
+                    1
                 when -42
-                    ret "bbb"
+                    2
+                else
+                    b
                 end
-                ()
             end
         end
     )");
