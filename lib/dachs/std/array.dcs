@@ -522,6 +522,33 @@ class array
             l -= 1u
         end
     end
+
+    func find_index_by(pred)
+        var i := 0u
+        for i < @size
+            ret true, i if pred(@buf[i])
+            i += 1u
+        end
+        ret false, 0u
+    end
+
+    func index_of(val)
+        ret self.find_index_by{|v| v == val}
+    end
+
+    func find_by(pred)
+        found, idx := @find_index_by(pred)
+        ret if found then
+            (true, @buf[idx])
+        else
+            (false, @buf[0])
+        end
+    end
+
+    func find(val)
+        ret self.find_by{|v| v == val}
+    end
+
 end
 
 func join(arr : [string], sep : string)

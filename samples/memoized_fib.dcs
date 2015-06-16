@@ -1,35 +1,32 @@
 class MemoizedFib
-  - buf : [uint]
+  - memo : [(uint, uint)]
 
-    init(@buf)
+    init(@memo)
     end
 
     init
-        @buf := new [uint]{1000u, 0u}
+        @memo := [] : [(uint, uint)]
+        @memo.reserve(100u)
+    end
+
+  - func index_of_memo(n)
+        ret @memo.find_index_by{|v| v[0] == n }
     end
 
     func calc(n)
         ret 1u if n <= 1u
 
-        if @buf[n] == 0u
-            @buf[n] = @calc(n-1u) + @calc(n-2u)
-        end
+        found, idx := @index_of_memo(n)
 
-        ret @buf[n]
+        ret @memo[idx][1] if found
+
+        v := @calc(n-1u) + @calc(n-2u)
+        @memo << (n, v)
+        ret v
     end
 
     func reset
-        @buf.fill(0u)
-    end
-
-    func dump_memo
-        var i := 0u
-        for i < @buf.size
-            i.print
-            " -> ".print
-            @buf[i].println
-            i += 1u
-        end
+        @memo.clear
     end
 end
 
