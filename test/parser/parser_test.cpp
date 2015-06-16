@@ -2327,6 +2327,12 @@ BOOST_AUTO_TEST_CASE(do_block2)
                 blah
             }
 
+            foo(bar) { blah := 42; blah * 2 }
+            foo(bar) {
+                blah := 42
+                blah * 2
+            }
+
             foo(bar) {|i| blah }
             foo(42) {|i|
                 blah
@@ -2371,6 +2377,15 @@ BOOST_AUTO_TEST_CASE(do_block2)
 
             42.expect to_be {|i| i % 2 == 0}
             42.should_be even?
+
+            poyo.foo bar {
+                blah := 42
+                if blah % 2 == 0
+                    blah * 3
+                else
+                    blah / 3
+                end
+            }
         end
     )"));
 

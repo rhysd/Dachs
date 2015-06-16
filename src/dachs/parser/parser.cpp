@@ -598,6 +598,25 @@ public:
                 | '(' >> -qi::eol >> typed_expr >> -qi::eol >> ')'
             );
 
+        oneline_lambda_stmt_block
+            = (
+                *((compound_stmt - ((typed_expr) >> -sep >> '}')) >> sep)
+                >> typed_expr
+            ) [
+                _val = phx::bind(
+                        [](auto && stmts, auto const& expr)
+                        {
+                            auto block = ast::make<ast::node::statement_block>(
+                                        std::forward<decltype(stmts)>(stmts)
+                                    );
+                            auto ret = ast::make<ast::node::return_stmt>(expr);
+                            ret->set_source_location(ast::node::location_of(expr));
+                            block->value.emplace_back(std::move(ret));
+                            return block;
+                        }, _1, _2
+                    )
+            ];
+
         do_block
             = (
                 DACHS_KWD("do"_l) >> -(
@@ -606,14 +625,10 @@ public:
             ) [
                 make_and_assign_to_val<ast::node::function_definition>(as_vector(_1), _2)
             ] | (
-                '{' >> -('|' >> (parameter % comma) >> '|') >> -qi::eol >> typed_expr >> -qi::eol >> '}'
+                '{' >> -('|' >> (parameter % comma) >> '|') >> -qi::eol
+                >> oneline_lambda_stmt_block >> -sep >> '}'
             ) [
-                make_and_assign_to_val<ast::node::function_definition>(
-                        as_vector(_1),
-                        make_node_ptr<ast::node::statement_block>(
-                            make_node_ptr<ast::node::return_stmt>(_2)
-                        )
-                    )
+                make_and_assign_to_val<ast::node::function_definition>(as_vector(_1), _2)
             ];
 
         var_ref_before_space
@@ -1114,8 +1129,8 @@ public:
 
         block_expr_before_end
             = (
-                *((compound_stmt - ((typed_expr) >> -sep >> "end")) >> sep)
-                >> (typed_expr - DACHS_KWD("end"))
+                *((compound_stmt - (typed_expr >> -sep >> "end")) >> sep)
+                >> typed_expr
             ) [
                 _val = make_node_ptr<ast::node::block_expr>(_1, _2)
             ];
@@ -1531,6 +1546,7 @@ public:
                 , block_expr_before_end
                 , if_then_block_expr
                 , case_when_block_expr
+                , oneline_lambda_stmt_block
             );
 
             // TODO:
@@ -1655,6 +1671,7 @@ public:
         block_expr_before_end.name("block expression before 'end'");
         if_then_block_expr.name("'then' clause in if expression");
         case_when_block_expr.name("'when' clause in case expression");
+        oneline_lambda_stmt_block.name("statements block before 'end'");
         // }}}
     }
 
@@ -1775,6 +1792,7 @@ private:
                                      , if_then_stmt_block
                                      , case_when_stmt_block
                                      , func_body_stmt_block
+                                     , oneline_lambda_stmt_block
                                     ;
     rule<std::string()> called_function_name
                       , function_name

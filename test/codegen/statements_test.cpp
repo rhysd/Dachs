@@ -707,6 +707,27 @@ BOOST_AUTO_TEST_CASE(main_func)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(do_block)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func foo(a, b, block)
+            ret a + b + block()
+        end
+
+        func main
+            poyo, bar := 1, 2
+            poyo.foo bar {
+                blah := 42
+                if blah % 2 == 0
+                    blah * 3
+                else
+                    blah / 3
+                end
+            }
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(do_not_degrade)
 {
     // Issue #71
