@@ -783,65 +783,42 @@ public:
             elem_values.push_back(emit(e));
         }
 
-        auto *const array_ty = llvm::ArrayType::get(type_emitter.emit_alloc_type(elem_type), elem_exprs.size());
+        // TODO:
+        // Now, static arrays are allocated with type [ElemType x N]* (e.g. [int x N]* for static_array(int)).
+        // However, I must consider the structure of array.  Because arrays are allocated directly as [T x N], all elements are
+        // allocated once and they can't be separated.  This means that when extracting a element from the array, compiler must
+        // copy the element instead of copying the pointer to the element.  And GC can't destroy the whole array until all elements
+        // are expired.
+        // So, the allocation of static array should be [ElemType* x N]*.
 
-        if (all_of(elem_values, [](auto const v) -> bool { return llvm::isa<llvm::Constant>(v); })) {
-            std::vector<llvm::Constant *> elem_consts;
-            for (auto const v : elem_values) {
-                auto *const constant = llvm::dyn_cast<llvm::Constant>(v);
-                assert(constant);
-                elem_consts.push_back(constant);
-            }
+        auto *const allocated = gc_emitter.emit_malloc(elem_type, elem_exprs.size(), "arrlit");
 
-            auto const constant = new llvm::GlobalVariable(
-                        *module,
-                        array_ty,
-                        true /*constant*/,
-                        llvm::GlobalValue::PrivateLinkage,
-                        llvm::ConstantArray::get(array_ty, elem_consts)
+        for (auto const idx : helper::indices(elem_exprs)) {
+            auto *const elem_value = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);
+
+            if (auto const copier = semantics_ctx.copier_of(elem_type)) {
+                val const copied = emit_copier_call(
+                        ast::node::location_of(elem_exprs[idx]),
+                        elem_values[idx],
+                        *copier
                     );
-            constant->setUnnamedAddr(true);
 
-            return ctx.builder.CreateConstInBoundsGEP2_32(constant, 0u, 0u, "array_lit");
-        } else {
-            // TODO:
-            // Now, static arrays are allocated with type [ElemType x N]* (e.g. [int x N]* for static_array(int)).
-            // However, I must consider the structure of array.  Because arrays are allocated directly as [T x N], all elements are
-            // allocated once and they can't be separated.  This means that when extracting a element from the array, compiler must
-            // copy the element instead of copying the pointer to the element.  And GC can't destroy the whole array until all elements
-            // are expired.
-            // So, the allocation of static array should be [ElemType* x N]*.
-
-            auto *const allocated = gc_emitter.emit_malloc(elem_type, elem_exprs.size(), "arrlit");
-
-            for (auto const idx : helper::indices(elem_exprs)) {
-                auto *const elem_value = ctx.builder.CreateConstInBoundsGEP1_32(allocated, idx);
-
-                if (auto const copier = semantics_ctx.copier_of(elem_type)) {
-                    val const copied = emit_copier_call(
-                            ast::node::location_of(elem_exprs[idx]),
-                            elem_values[idx],
-                            *copier
-                        );
-
-                    // Note:
-                    // Copy an element of array because of array structure (see above TODO).
-                    ctx.builder.CreateStore(ctx.builder.CreateLoad(copied), elem_value);
-                } else {
-                    alloc_helper.create_deep_copy(
-                            load_if_ref(elem_values[idx], elem_type),
-                            load_aggregate_elem(
-                                elem_value,
-                                elem_type
-                            ),
+                // Note:
+                // Copy an element of array because of array structure (see above TODO).
+                ctx.builder.CreateStore(ctx.builder.CreateLoad(copied), elem_value);
+            } else {
+                alloc_helper.create_deep_copy(
+                        load_if_ref(elem_values[idx], elem_type),
+                        load_aggregate_elem(
+                            elem_value,
                             elem_type
-                        );
-                }
+                        ),
+                        elem_type
+                    );
             }
-
-            return allocated;
         }
 
+        return allocated;
     }
 
     val emit(ast::node::tuple_literal const& tuple)
