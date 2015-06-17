@@ -87,9 +87,7 @@ class string
     func include?(ch : char)
         var i := 0u
         for i < @size
-            if @data[i] == ch
-                ret true
-            end
+            ret true if @data[i] == ch
             i += 1u
         end
 
@@ -324,16 +322,12 @@ class string
     end
 
     func count(chr : char)
-        ret self.count_by do |c|
-            ret c == chr
-        end
+        ret self.count_by {|c| c == chr }
     end
 
     func each_line(predicate)
         @split()
-        self.split.each do |l|
-            predicate(l)
-        end
+        self.split.each {|l| predicate(l) }
     end
 
     func reverse

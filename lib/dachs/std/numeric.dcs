@@ -8,6 +8,14 @@ func succ(i : uint)
     ret i + 1u
 end
 
+func even?(i : int)
+    ret i % 2 == 0
+end
+
+func even?(i : uint)
+    ret i % 2u == 0u
+end
+
 func odd?(i : int)
     ret i % 2 == 1
 end
@@ -24,16 +32,17 @@ func zero?(i : uint)
     ret i == 0u
 end
 
-func times(i : int, pred)
-    var c := 0
+func times(i : uint, pred)
+    var c := 0u
     for c < i
         pred()
-        c += 1
+        c += 1u
     end
 end
 
-func times(i : uint, pred)
-    times(i as int, pred)
+func times(i : int, pred)
+    fatal("negative number for times()") if i < 0
+    times(i as uint, pred)
 end
 
 func upto(var i : int, to : int, step : int, predicate)
@@ -48,10 +57,10 @@ func upto(var i : int, to : int, predicate)
 end
 
 func abs(i)
-    if i < (0 as typeof(i))
-        ret -i
+    ret if i < (0 as typeof(i)) then
+        -i
     else
-        ret i
+        i
     end
 end
 

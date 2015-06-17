@@ -139,9 +139,7 @@ class array
     func include?(elem)
         var i := 0u
         for i < @size
-            if @buf[i] == elem
-                ret true
-            end
+            ret true if @buf[i] == elem
             i += 1u
         end
 

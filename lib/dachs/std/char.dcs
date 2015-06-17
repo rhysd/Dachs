@@ -46,13 +46,19 @@ func space?(c : char)
 end
 
 func to_upper(c : char)
-    ret c unless c.lower?
-    ret (c - 'a') + 'A'
+    ret if c.lower? then
+        (c - 'a') + 'A'
+    else
+        c
+    end
 end
 
 func to_lower(c : char)
-    ret c unless c.upper?
-    ret (c - 'A') + 'a'
+    ret if c.upper? then
+        (c - 'A') + 'a'
+    else
+        c
+    end
 end
 
 cast (c : char) : string
@@ -86,13 +92,13 @@ end
 
 func to_radix(i) : char
     n := i as int
-    case
+    ret case
     when 0 <= n && n < 10
-        ret n as char + '0'
+        n as char + '0'
     when 10 <= n && n < 36
-        ret (n - 10) as char + 'a'
+        (n - 10) as char + 'a'
     else
         fatal("invalid radix")
-        ret 0 as char
+        '\0'
     end
 end
