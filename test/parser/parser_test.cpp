@@ -2642,7 +2642,22 @@ BOOST_AUTO_TEST_CASE(do_not_degrade)
             end
         end
     )"));
-}
 
+    // Edge case which is caused from removing '(' ')' on UFCS invocation
+    // 'then' was treated as a argument.
+    BOOST_CHECK_NO_THROW(p.check_syntax(R"(
+        func foo(i)
+            ret if i.even? then
+                'a'
+            else
+                'b'
+            end
+        end
+
+        func main
+            foo(42).println
+        end
+    )"));
+}
 
 BOOST_AUTO_TEST_SUITE_END()

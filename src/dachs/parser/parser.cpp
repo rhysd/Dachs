@@ -667,7 +667,7 @@ public:
 
                     // primary.name ...
                     | (
-                        -qi::eol >> '.' >> -qi::eol >> var_ref_before_space >> !('+'_l | '-') >> (typed_expr - "do") % comma
+                        -qi::eol >> '.' >> -qi::eol >> var_ref_before_space >> !('+'_l | '-') >> (typed_expr - "do" - "then" - "else" - "end") % comma
                     ) [
                         make_and_assign_to_val<ast::node::func_invocation>(_1, _val, _2)
                     ]
