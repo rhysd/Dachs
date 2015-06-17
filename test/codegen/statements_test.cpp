@@ -723,7 +723,7 @@ BOOST_AUTO_TEST_CASE(do_block)
                 else
                     blah / 3
                 end
-            }
+            }.println
         end
     )");
 }

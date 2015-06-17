@@ -195,6 +195,12 @@ public:
     }
 
     template<class Walker>
+    void visit(ast::node::block_expr const& b, Walker const& w)
+    {
+        with_scope(b->scope, w);
+    }
+
+    template<class Walker>
     void visit(ast::node::lambda_expr const& lambda, Walker const&)
     {
         // Note:

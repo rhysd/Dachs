@@ -1182,6 +1182,18 @@ BOOST_AUTO_TEST_CASE(lambda)
             f(10).println
         end
     )");
+
+    // Block expression bug
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            (-> i in
+                begin
+                    j := 42
+                    println(i + j)
+                end)(10)
+        end
+    )");
+
 }
 
 BOOST_AUTO_TEST_CASE(address_of)

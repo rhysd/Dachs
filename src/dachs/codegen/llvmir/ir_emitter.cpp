@@ -131,6 +131,14 @@ class llvm_ir_emitter {
         return var_table.emplace(std::forward<Symbol>(sym), v).second;
     }
 
+    void dump_tables() const
+    {
+        helper::colorizer c;
+        helper::dump_table(var_table, "Variable", c);
+        helper::dump_table(func_table, "Function", c);
+        helper::dump_table(class_table, "Class", c);
+    }
+
     auto push_loop(llvm::BasicBlock *loop_value)
     {
         loop_stack.push(loop_value);

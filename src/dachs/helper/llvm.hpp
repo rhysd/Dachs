@@ -7,6 +7,8 @@
 #include <llvm/IR/Value.h>
 #include <llvm/IR/DerivedTypes.h>
 
+#include "dachs/helper/colorizer.hpp"
+
 namespace dachs {
 namespace helper {
 
@@ -37,6 +39,20 @@ T inspect(T const v)
     v->dump();
     return v;
 }
+
+template<class Table>
+Table const& dump_table(Table const& table, std::string const& name = "", colorizer const c = helper::colorizer{})
+{
+    std::cerr << c.cyan("# " + name + " table ") << "(size: " << table.size() << ')' << std::endl;
+    for (auto const& entry : table) {
+        std::cerr << "  " << c.yellow(entry.first->to_string()) << " -> " << std::flush;
+        entry.second->dump();
+        std::cerr << std::endl;
+    }
+    std::cerr << std::endl;
+
+    return table;
+};
 
 } // namespace helper
 } // namespace dachs
