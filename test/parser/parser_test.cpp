@@ -1024,7 +1024,7 @@ BOOST_AUTO_TEST_CASE(assignment_expr)
             aaa, bbb =
                 (ppp, qqq())
         end
-        )"));
+    )"));
 }
 
 BOOST_AUTO_TEST_CASE(object_construct)
@@ -1068,7 +1068,7 @@ BOOST_AUTO_TEST_CASE(object_construct)
 
             new X{}{ 42 }
         end
-        )"));
+    )"));
 }
 
 BOOST_AUTO_TEST_CASE(lambda_expr)

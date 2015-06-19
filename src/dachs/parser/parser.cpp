@@ -485,7 +485,11 @@ public:
                 _val = phx::bind(
                     [](auto && type, auto && args, auto && maybe_do)
                     {
-                        auto construct = ast::make<ast::node::object_construct>(
+                        if (CheckOnly) {
+                            return ast::node::object_construct{nullptr};
+                        }
+
+                        auto const construct = ast::make<ast::node::object_construct>(
                                     type,
                                     std::forward<decltype(args)>(args),
                                     std::forward<decltype(maybe_do)>(maybe_do)
@@ -612,9 +616,14 @@ public:
                 _val = phx::bind(
                         [](auto && stmts, auto const& expr)
                         {
+                            if (CheckOnly) {
+                                return ast::node::statement_block{nullptr};
+                            }
+
                             auto block = ast::make<ast::node::statement_block>(
                                         std::forward<decltype(stmts)>(stmts)
                                     );
+
                             auto ret = ast::make<ast::node::return_stmt>(expr);
                             ret->location = ast::node::location_of(expr);
                             block->value.emplace_back(std::move(ret));
@@ -638,9 +647,9 @@ public:
             ];
 
         var_ref_before_space
-            =
+            = (
                 var_ref >> qi::no_skip[&' '_l] >> !DACHS_KWD("as")
-            ;
+            );
 
         // primary.name(...) [do-end]
         // primary.name ... do-end
@@ -1042,10 +1051,12 @@ public:
             );
 
         qualified_type
-            =
-                compound_type[_val = _1] >>
-                -qualifier[_val = make_node_ptr<ast::node::qualified_type>(_1, _val)]
-            ;
+            = (
+                compound_type[_val = _1]
+                >> -qualifier[
+                    _val = make_node_ptr<ast::node::qualified_type>(_1, _val)
+                ]
+            );
 
         assign_operator
             =
@@ -1089,7 +1100,6 @@ public:
             ) [
                 _val = make_node_ptr<ast::node::variable_decl>(true, _1, _2)
             ];
-
 
         initialize_stmt
             = (
@@ -1387,14 +1397,14 @@ public:
                 phx::bind(
                     [](auto const& node, bool const is_public)
                     {
-                        if (!node) {
+                        if (CheckOnly || !node) {
                             return;
                         }
 
                         node->accessibility = is_public;
                     }
-                  , _val
-                  , _a
+                    , _val
+                    , _a
                 )
             ];
 

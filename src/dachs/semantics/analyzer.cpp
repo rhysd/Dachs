@@ -519,14 +519,14 @@ class symbol_analyzer {
     }
 
     template<class Node, class Message>
-    void semantic_error(Node const& n, Message const& msg) noexcept
+    void semantic_error(Node const& n, Message const& msg)
     {
         output_semantic_error(n, msg);
         failed++;
     }
 
     template<class Message>
-        void semantic_error(std::size_t const l, std::size_t const c, Message const& msg) noexcept
+        void semantic_error(std::size_t const l, std::size_t const c, Message const& msg)
     {
         output_semantic_error(l, c, msg);
         failed++;
@@ -693,7 +693,7 @@ class symbol_analyzer {
         return func;
     }
 
-    type::type from_type_node(ast::node::any_type const& n, bool const allow_omit_return = false) noexcept
+    type::type from_type_node(ast::node::any_type const& n, bool const allow_omit_return = false)
     {
         return type::from_ast<decltype(*this)>(n, current_scope, *this, allow_omit_return).apply(
                 [](auto const& success){ return success; },
@@ -740,17 +740,17 @@ class symbol_analyzer {
     }
 
 
-    bool already_visited(ast::node::function_definition const& f) const noexcept
+    bool already_visited(ast::node::function_definition const& f) const
     {
         return already_visited_functions.find(f) != std::end(already_visited_functions);
     }
 
-    bool already_visited(ast::node::class_definition const& c) const noexcept
+    bool already_visited(ast::node::class_definition const& c) const
     {
         return already_visited_classes.find(c) != std::end(already_visited_classes);
     }
 
-    bool already_visited_ctor(ast::node::function_definition const& ctor) const noexcept
+    bool already_visited_ctor(ast::node::function_definition const& ctor) const
     {
         return already_visited_ctors.find(ctor) != std::end(already_visited_ctors);
     }
@@ -2193,7 +2193,7 @@ public:
         typed->type = actual_type;
     }
 
-    void instantiate_generic_func(
+    void instantiate_func_on_cast(
             ast::node::cast_expr const& cast,
             type::generic_func_type const& from,
             type::func_type const& to)
@@ -2252,7 +2252,6 @@ public:
             return;
         }
 
-
         if (!def->is_public()) {
             semantic_error(
                     cast,
@@ -2263,8 +2262,20 @@ public:
             return;
         }
 
-        if (func->is_template()) {
-            std::tie(std::ignore, func) = instantiate_function_from_template(def, func, to->param_types);
+        {
+            auto const saved_failed = failed;
+            if (func->is_template()) {
+                std::tie(std::ignore, func) = instantiate_function_from_template(def, func, to->param_types);
+            }
+            if (failed - saved_failed != 0u) {
+                semantic_error(
+                        cast,
+                        boost::format(
+                            "  Error occured while converting generic type '%1%' to function type '%2%'"
+                        ) % from->to_string() % to->to_string()
+                    );
+                return;
+            }
         }
 
         assert(func->ret_type);
@@ -2345,7 +2356,7 @@ public:
             if (auto const& g = type::get<type::generic_func_type>(child_type)) {
                 // Note:
                 // Generic function type to specific function type conversion
-                instantiate_generic_func(cast, *g, *f);
+                instantiate_func_on_cast(cast, *g, *f);
             } else if (auto const& h = type::get<type::func_type>(child_type)) {
                 if (check_func_type_compatibility(*f, *h, cast)) {
                     // Note:
