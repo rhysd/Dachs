@@ -38,8 +38,8 @@ void basic_scope::warn_or_check_shadowing_var_recursively(maybe_var_t const& may
         assert(the_node);
         if (prev_node) {
             output_warning(the_node, boost::format(
-                            "  Shadowing variable '%1%'. It shadows a variable at line:%2%, col:%3%"
-                        ) % new_var->name % prev_node->line % prev_node->col
+                            "  Shadowing variable '%1%'. It shadows a variable at %2%"
+                        ) % new_var->name % prev_node->location.to_string()
                     );
         } else {
             output_warning(the_node, boost::format(

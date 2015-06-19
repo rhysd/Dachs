@@ -103,9 +103,9 @@ namespace detail {
     void set_location_impl(std::shared_ptr<T> const& node, Iter const before, Iter const after, Iter const code_begin)
     {
         auto const d = std::distance(before.base(), after.base());
-        node->line = spirit::get_line(before);
-        node->col = spirit::get_column(code_begin, before);
-        node->length = d < 0 ? 0 : d;
+        node->location.line = spirit::get_line(before);
+        node->location.col = spirit::get_column(code_begin, before);
+        node->location.length = d < 0 ? 0 : d;
     }
 
     template<class CodeIter>
@@ -610,7 +610,7 @@ public:
                                         std::forward<decltype(stmts)>(stmts)
                                     );
                             auto ret = ast::make<ast::node::return_stmt>(expr);
-                            ret->set_source_location(ast::node::location_of(expr));
+                            ret->location = ast::node::location_of(expr);
                             block->value.emplace_back(std::move(ret));
                             return block;
                         }, _1, _2

@@ -58,13 +58,14 @@ class forward_symbol_analyzer {
         failed++;
     }
 
-    std::string get_lambda_name(ast::node::lambda_expr const& l) const noexcept
+    std::string get_lambda_name(ast::node::lambda_expr const& lambda) const noexcept
     {
+        auto const& l = lambda->location;
         return "lambda."
-            + std::to_string(l->line)
-            + '.' + std::to_string(l->col)
-            + '.' + std::to_string(l->length)
-            + '.' + helper::hex_string_of_ptr(l->def.get());
+            + std::to_string(l.line)
+            + '.' + std::to_string(l.col)
+            + '.' + std::to_string(l.length)
+            + '.' + helper::hex_string_of_ptr(lambda->def.get());
     }
 
     template<class Predicate>
@@ -90,8 +91,8 @@ class forward_symbol_analyzer {
                             rhs_def,
                             boost::format(
                                 "  In %1%, '%2%' is redefined.\n"
-                                "  Note: Previous definition is at line:%3%, col:%4%"
-                            ) % situation % (*right)->to_string() % lhs_def->line % lhs_def->col
+                                "  Note: Previous definition is at %3%"
+                            ) % situation % (*right)->to_string() % lhs_def->location.to_string()
                         );
                     failed++;
                 }
@@ -113,8 +114,8 @@ class forward_symbol_analyzer {
                             *right,
                             boost::format(
                                 "  Class '%1%' is redefined.\n"
-                                "  Note: Previous definition is at line:%2%, col:%3%"
-                            ) % (*right)->name % (*left)->line % (*left)->col
+                                "  Note: Previous definition is at %2%"
+                            ) % (*right)->name % (*left)->location.to_string()
                         );
                     failed++;
                 }
@@ -235,11 +236,10 @@ class forward_symbol_analyzer {
                         boost::format(
                             "  Cast function is redefined.\n"
                             "  Note: Cast from '%1%' to '%2%'.\n"
-                            "  Note: Previous definition is at line:%3%, col:%4%"
+                            "  Note: Previous definition is at %3%"
                         ) % r->params[0]->type.to_string()
                           % r->ret_type->to_string()
-                          % ldef->line
-                          % ldef->col
+                          % ldef->location.to_string()
                     );
                     ++failed;
                 }
@@ -488,7 +488,7 @@ public:
         func_def->scope = new_func;
 
         if (func_def->kind == ast::symbol::func_kind::proc && func_def->return_type) {
-            semantic_error(func_def, boost::format("  Procedure '%1%' can't have return type") % func_def->name);
+            semantic_error(func_def, "  Procedure '" + func_def->name + "' can't have return type");
             return;
         }
 
@@ -786,7 +786,7 @@ public:
     template<class Walker>
     void visit(ast::node::return_stmt const& ret, Walker const& w)
     {
-        if ((ret->line == 0u) && (ret->col == 0u)) {
+        if (ret->location.empty()) {
             assert(ret->ret_exprs.size() > 0u);
             apply_lambda([&ret](auto const& child){ ret->set_source_location(*child); }, ret->ret_exprs[0]);
         }
@@ -901,10 +901,10 @@ public:
 
         for (unsigned int const i : helper::indices(num_elems)) {
             auto index_constant = ast::make<ast::node::primary_literal>(i);
-            index_constant->set_source_location(location);
+            index_constant->location = location;
 
             auto access = ast::make<ast::node::index_access>(tuple_expr, std::move(index_constant));
-            access->set_source_location(location);
+            access->location = location;
             expanded.emplace_back(std::move(access));
         }
 
@@ -922,7 +922,7 @@ public:
         auto location = ast::node::location_of(rhs);
         auto copied_lhs = ast::copy_ast(lhs);
         auto const bin = ast::make<ast::node::binary_expr>(std::move(copied_lhs), op, std::move(rhs));
-        bin->set_source_location(std::move(location));
+        bin->location = std::move(location);
         return bin;
     }
 

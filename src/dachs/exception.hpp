@@ -6,6 +6,7 @@
 #include <boost/format.hpp>
 
 #include "dachs/helper/colorizer.hpp"
+#include "dachs/ast/ast_fwd.hpp"
 
 namespace dachs {
 
@@ -21,12 +22,11 @@ public:
         : std::runtime_error(
                 (
                     boost::format(
-                            c.red("Error") + " in line:%1%, col:%2%\n" +
-                            c.bold("  %3% is not implemented yet.\n") +
+                            c.red("Error") + " in %1%\n" +
+                            c.bold("  %2% is not implemented yet.\n") +
                             "  Note: You can contribute to Dachs with implementing this feature. "
-                            "Clone https://github.com/rhysd/Dachs and see %4%, %5%(), line:%6%"
-                        ) % node->line
-                          % node->col
+                            "Clone https://github.com/rhysd/Dachs and see %3%, %4%(), line:%5%"
+                        ) % node->location.to_string()
                           % what_feature
                           % file
                           % func
@@ -58,15 +58,20 @@ public:
 };
 
 struct parse_error final : public std::runtime_error {
-    std::size_t line, col;
+    ast::location_type location;
+
+    explicit parse_error(ast::location_type const& loc)
+        : std::runtime_error("Parse error generated at " + loc.to_string())
+        , location(loc)
+    {}
 
     parse_error(std::size_t const line, std::size_t const col) noexcept
-        : std::runtime_error((boost::format("Parse error generated at line:%1%, col:%2%") % line % col).str()), line(line), col(col)
-    {}
-
-    explicit parse_error(std::pair<std::size_t, std::size_t> const& pos) noexcept
-        : std::runtime_error((boost::format("Parse error generated at line:%1%, col:%2%") % pos.first % pos.second).str()), line(pos.first), col(pos.second)
-    {}
+        : std::runtime_error((boost::format("Parse error generated at line:%1%, col:%2%") % line % col).str())
+        , location()
+    {
+        location.line = line;
+        location.col = col;
+    }
 };
 
 struct semantic_check_error final : public std::runtime_error {

@@ -94,10 +94,7 @@ public:
             if (!a.walk_recursively_with(a.global, func_def)) {
                 a.semantic_error(
                         node,
-                        boost::format(
-                            "  Failed to analyze copier defined at line:%1%, col:%2%"
-                            ) % func_def->line
-                              % func_def->col
+                        "  Failed to analyze copier defined at " + func_def->location.to_string()
                     );
                 return false;
             }

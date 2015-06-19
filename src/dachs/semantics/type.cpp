@@ -81,14 +81,8 @@ class type_to_node_translator
     Ptr make(Args &&... args) const
     {
         auto const node = ast::make<Ptr>(std::forward<Args>(args)...);
-        set_location(node);
+        node->location = location;
         return node;
-    }
-
-    template<class Node>
-    void set_location(Node &n) const noexcept
-    {
-        n->set_source_location(location);
     }
 
     template<class T>
@@ -547,7 +541,7 @@ std::string template_type::to_string() const noexcept
 {
     auto const node = ast_node.get_shared();
     if (node) {
-        return "<template:" + std::to_string(node->line) + ":" + std::to_string(node->col) + ">";
+        return "<template:" + node->location.to_string() + '>';
     } else {
         return "<template:UNKNOWN>";
     }

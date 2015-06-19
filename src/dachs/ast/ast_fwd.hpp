@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <tuple>
 #include <cassert>
+#include <string>
 
 #include <boost/variant/variant.hpp>
 #include <boost/optional.hpp>
@@ -14,17 +15,25 @@
 namespace dachs {
 namespace ast {
 
-namespace location {
+struct location_type {
+    std::size_t line = 0, col = 0, length = 0;
 
-enum location_index {
-    line = 0,
-    col = 1,
-    length = 2,
+    std::string to_string(bool const include_length = false) const
+    {
+        if (include_length) {
+            return "line:" + std::to_string(line)
+                + ", col:" + std::to_string(col)
+                + ", len:" + std::to_string(length);
+        } else {
+            return "line:" + std::to_string(line) + ", col:" + std::to_string(col);
+        }
+    }
+
+    bool empty() const noexcept
+    {
+        return line == 0 && col == 0 && length == 0;
+    }
 };
-
-} // namespace location
-
-using location_type = std::tuple<std::size_t, std::size_t, std::size_t>;
 
 namespace symbol {
 
@@ -55,27 +64,19 @@ std::size_t generate_id() noexcept;
 
 struct base {
     base() noexcept
-        : id(generate_id())
+        : location()
+        , id(generate_id())
     {}
 
     void set_source_location(location_type const& l) noexcept
     {
-        line = std::get<location::line>(l);
-        col = std::get<location::col>(l);
-        length = std::get<location::length>(l);
+        location = l;
     }
 
     template<class Node>
     void set_source_location(Node const& n) noexcept
     {
-        line = n.line;
-        col = n.col;
-        length = n.length;
-    }
-
-    auto source_location() const noexcept
-    {
-        return std::make_tuple(line, col, length);
+        location = n.location;
     }
 
     virtual ~base() noexcept
@@ -83,7 +84,7 @@ struct base {
 
     virtual std::string to_string() const noexcept = 0;
 
-    std::size_t line = 0, col = 0, length = 0;
+    location_type location;
     std::size_t id;
 };
 

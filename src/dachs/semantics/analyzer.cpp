@@ -1026,10 +1026,9 @@ public:
                 func,
                 boost::format(
                     "  Can't deduce return type of function '%1%' from return statement\n"
-                    "  Note: return statement is here: line:%2%, col:%3%")
+                    "  Note: return statement is here: %2%")
                     % func->name
-                    % gatherer.failed_return_stmts[0]->line
-                    % gatherer.failed_return_stmts[0]->col
+                    % gatherer.failed_return_stmts[0]->location.to_string()
             );
             return false;
         }
@@ -1929,8 +1928,8 @@ public:
             // enclosing scope of function scope is always global scope
             if (!walk_recursively_with(global, func_def)) {
                 return helper::oops_fmt(
-                        "  Failed to analyze function '%1%' defined at line:%2%, col:%3%"
-                     , func->to_string(), func_def->line, func_def->col
+                        "  Failed to analyze function '%1%' defined at %2%"
+                     , func->to_string(), func_def->location.to_string()
                 );
             }
         }
@@ -2006,7 +2005,7 @@ public:
         // foo.bar(...)
 
         auto const instance_var_access = ast::make<ast::node::ufcs_invocation>(invocation->args[0], name);
-        instance_var_access->set_source_location(*invocation);
+        instance_var_access->location = invocation->location;
         instance_var_access->type = (*instance_var)->type;
 
         invocation->args.erase(std::begin(invocation->args));
@@ -2635,8 +2634,8 @@ public:
                                     boost::format(
                                         "  Instance variable '%1%' is initialized twice or more times.\n"
                                         "  Note: Instance variable can only be initialized once.\n"
-                                        "  Note: First initialization is at line:%2%, col:%3%."
-                                    ) % decl->name % (*dup)->line % (*dup)->col
+                                        "  Note: First initialization is at %2%."
+                                    ) % decl->name % (*dup)->location.to_string()
                                 );
                             fail = true;
                         } else if (decl->symbol.expired()
@@ -2658,8 +2657,8 @@ public:
                     boost::format(
                         "  Failed to instantiate class template '%1%'\n"
                         "  Type of instance variable '%2%' can't be determined\n"
-                        "  Note: Used constructor is at line:%3%, col:%4%"
-                    ) % clazz->to_string() % i.first % ctor_def->line % ctor_def->col
+                        "  Note: Used constructor is at %3%"
+                    ) % clazz->to_string() % i.first % ctor_def->location.to_string()
                 );
             fail = true;
         }
@@ -2667,13 +2666,13 @@ public:
         auto const generate_default_initialize_ast
             = [&, this](auto const& name, auto const& type) -> ast::node::initialize_stmt
             {
-                auto construct = generate_default_construct_ast(type, ctor_def->source_location());
+                auto construct = generate_default_construct_ast(type, ctor_def->location);
                 if (!construct) {
                     return nullptr;
                 }
 
                 auto const decl = ast::make<ast::node::variable_decl>(false, name, boost::none);
-                decl->set_source_location(*construct);
+                decl->location = construct->location;
                 {
                     auto const new_var = symbol::make<symbol::var_symbol>(decl, decl->name, !decl->is_var);
                     decl->symbol = new_var;
@@ -2686,7 +2685,7 @@ public:
                             construct
                         );
                 assert(init);
-                init->set_source_location(*construct);
+                init->location = construct->location;
 
                 if (!resolve_deep_copy(construct->type, decl)) {
                     return nullptr;
@@ -2968,8 +2967,8 @@ public:
         // in the body of constructor.
         if (!already_visited(ctor_def)) {
             if (!walk_recursively_with(enclosing_scope_of(ctor), ctor_def)) {
-                return helper::oops_fmt("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%"
-                        , ctor->to_string(), ctor_def->line, ctor_def->col
+                return helper::oops_fmt("  Failed to analyze constructor '%1%' defined at %2%"
+                        , ctor->to_string(), ctor_def->location.to_string()
                 );
             }
         }
@@ -2995,8 +2994,8 @@ public:
             // because the ctor is a template.  But initialize statements in the ctor
             // is necessary to determine the class instantiation.  So visit it here.
             if (!walk_ctor_body_to_infer_class_template(scope->instance_var_symbols, ctor, ctor_def->body)) {
-                return helper::oops_fmt("  Failed to analyze constructor '%1%' defined at line:%2%, col:%3%"
-                        , ctor->to_string(), ctor_def->line, ctor_def->col
+                return helper::oops_fmt("  Failed to analyze constructor '%1%' defined at %2%"
+                        , ctor->to_string(), ctor_def->location.to_string()
                 );
             }
             already_visited_ctors.insert(ctor_def);
@@ -3520,8 +3519,8 @@ public:
                         ast::node::location_of(expr),
                         boost::format(
                             "  Compare operator '==' must returns 'bool' but actually returns '%1%' in condition of 'when' clause\n"
-                            "  Note: '%2%' is used, which is defined in line:%3%, col:%4%"
-                            ) % s % callee->to_string() % def->line % def->col
+                            "  Note: '%2%' is used, which is defined in %3%"
+                            ) % s % callee->to_string() % def->location.to_string()
                     );
                 continue;
             }
@@ -3637,7 +3636,7 @@ public:
                                 % v->name % t.to_string()
                         );
                 } else if (auto const clazz = type::get<type::class_type>(t)) {
-                    auto default_construct = generate_default_construct_ast(*clazz, v->source_location());
+                    auto default_construct = generate_default_construct_ast(*clazz, v->location);
                     if (default_construct) {
                         init->maybe_rhs_exprs = std::vector<ast::node::any_expr>{
                                 default_construct

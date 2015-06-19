@@ -22,12 +22,7 @@ inline void error(ast::location_type const& l, String const& msg)
     // Dump builder's debug information and context's information
     throw code_generation_error{
             "LLVM IR generator",
-            (
-                boost::format(" in line:%1%, col:%2%\n  %3%\n")
-                % std::get<ast::location::location_index::line>(l)
-                % std::get<ast::location::location_index::col>(l)
-                % msg
-            ).str()
+            " in " + l.to_string() + "\n  " + msg + '\n'
         };
 }
 
@@ -44,7 +39,7 @@ inline void error(std::shared_ptr<Node> const& n, String const& msg)
 {
     throw code_generation_error{
             "LLVM IR generator",
-            (boost::format(" in line:%1%, col:%2%\n  %3%\n") % n->line % n->col % msg).str()
+            " in " + n->location.to_string() + "\n  " + msg + '\n'
         };
 }
 
