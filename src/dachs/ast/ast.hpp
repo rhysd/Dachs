@@ -202,23 +202,12 @@
 namespace dachs {
 namespace ast {
 
-namespace detail {
-
-inline void dump_location(location_type const& l) noexcept
-{
-    std::cout << "line:" << std::get<0>(l) << ", "
-              << "col:" << std::get<1>(l) << ", "
-              << "len:" << std::get<2>(l) << std::endl;
-}
-
-} // namespace detail
-
 namespace node {
 
 template<class Node>
-inline location_type location_of(std::shared_ptr<Node> const& node) noexcept
+inline location_type const& location_of(std::shared_ptr<Node> const& node) noexcept
 {
-    return node->source_location();
+    return node->location;
 }
 
 template<class... Nodes>
@@ -226,27 +215,6 @@ inline location_type location_of(boost::variant<Nodes...> const& node) noexcept
 {
     return helper::variant::apply_lambda(
                 [](auto const& n){ return location_of(n); }
-                , node
-            );
-}
-
-template<class NodeTo, class NodeFrom>
-inline void set_location(std::shared_ptr<NodeTo> const& to, std::shared_ptr<NodeFrom> const& from) noexcept
-{
-    to->set_source_location(*from);
-}
-
-template<class Node>
-inline void set_location(std::shared_ptr<Node> const& to, location_type const& from) noexcept
-{
-    to->set_source_location(from);
-}
-
-template<class... Nodes, class Location>
-inline void set_location(boost::variant<Nodes...> const& node, Location const& from) noexcept
-{
-    return helper::variant::apply_lambda(
-                [&from](auto const& n){ return set_location(n, from); }
                 , node
             );
 }
@@ -600,7 +568,7 @@ struct ufcs_invocation final : public expression {
         ) noexcept
         : ufcs_invocation(c, member_name)
     {
-        set_source_location(node::location_of(c));
+        location = node::location_of(c);
     }
 
     bool is_instance_var_access() const noexcept
@@ -1006,7 +974,7 @@ struct assignment_stmt final : public statement {
 
     std::string to_string() const noexcept override
     {
-        return "ASSIGNMENT_STMT";
+        return "ASSIGNMENT_STMT: " + op;
     }
 };
 

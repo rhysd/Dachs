@@ -21,22 +21,22 @@ namespace detail {
 using std::size_t;
 
 template<class T>
-auto location_of(T const& node) noexcept
+auto const& location_of(T const& node) noexcept
 {
-    return node.source_location();
+    return node.location;
 }
 
 template<class T>
-auto location_of(std::shared_ptr<T> const& node) noexcept
+auto const& location_of(std::shared_ptr<T> const& node) noexcept
 {
-    return node->source_location();
+    return node->location;
 }
 
 template<class SourceNode, class Node = SourceNode, class... Args>
 inline Node copy_node(SourceNode const& node, Args &&... args)
 {
     auto copied = make<Node>(std::forward<Args>(args)...);
-    copied->set_source_location(location_of(node));
+    copied->location = location_of(node);
     return copied;
 }
 

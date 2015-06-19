@@ -39,14 +39,15 @@ class importer_impl final {
     void error(Node const& node, fs::path const& file, Message const& msg)
     {
         std::cerr << c.red("Error") << " while importing " << file << '\n'
-                  << "At line:" << node->line << ", col:" << node->col << ". " << msg << std::endl;
-        throw parse_error{node->line, node->col};
+                  << "At " << node->location << ". " << msg << std::endl;
+        throw parse_error{node->location};
     }
 
     template<class Message>
     void report(ast::node::import const& i, Message const& msg)
     {
-        std::cerr << c.red("Error") << " while importing '" << i->path << "' at line:" << i->line << ", col:" << i->col << '\n'
+        std::cerr << c.red("Error") << " while importing '" << i->path << "' at "
+                  << i->location << '\n'
                   << msg << std::endl;
     }
 
@@ -55,7 +56,7 @@ class importer_impl final {
     void error(ast::node::import const& i, Message const& msg)
     {
         report(i, msg);
-        throw parse_error{i->line, i->col};
+        throw parse_error{i->location};
     }
 
     ast::node::inu const& merge(ast::node::inu const& lhs, ast::node::inu &&rhs)

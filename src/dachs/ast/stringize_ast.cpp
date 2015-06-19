@@ -78,7 +78,7 @@ class ast_stringizer {
     {
         return c.yellow(indent+"|\n"+indent+"|--", false)
             + c.green(p->to_string(), false)
-            + c.gray((boost::format(" (line:%1%, col:%2%, len:%3%)") % p->line % p->col % p->length).str());
+            + c.gray(" (" + p->location.to_string(false) + ")");
     }
 
     template<class... Args>
@@ -328,9 +328,7 @@ public:
     {
         return prefix_of(as, indent)
                + visit_nodes(as->assignees, indent+lead, false)
-               + '\n' + c.yellow(indent+lead+"|\n"+indent+lead+"|--")
-               + c.green("ASSIGN_OPERATOR: ") + as->op
-               + visit_nodes(as->rhs_exprs, indent+lead, true);
+               + '\n' + visit_nodes(as->rhs_exprs, indent+lead, true);
     }
 
     String visit(node::if_stmt const& is, String const& indent, char const* const lead) const noexcept

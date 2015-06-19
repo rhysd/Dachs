@@ -5,26 +5,62 @@
 #include <type_traits>
 #include <tuple>
 #include <cassert>
+#include <string>
+#include <iostream>
 
 #include <boost/variant/variant.hpp>
 #include <boost/optional.hpp>
+#include <boost/filesystem/path.hpp>
 
 #include "dachs/helper/make.hpp"
 
 namespace dachs {
 namespace ast {
 
-namespace location {
+using path_type = std::shared_ptr<boost::filesystem::path>;
 
-enum location_index {
-    line = 0,
-    col = 1,
-    length = 2,
+struct location_type {
+    std::size_t line = 0, col = 0, length = 0;
+    path_type path = nullptr;
+
+    std::string to_string(bool const include_path = true) const
+    {
+        if (include_path) {
+            return "line:" + std::to_string(line)
+                + ", col:" + std::to_string(col)
+                + ", len:" + std::to_string(length)
+                + ", " + get_path().native();
+        } else {
+            return "line:" + std::to_string(line)
+                + ", col:" + std::to_string(col)
+                + ", len:" + std::to_string(length);
+        }
+    }
+
+    std::ostream &output_to(std::ostream &out, bool const include_path = true) const
+    {
+        out << "line:" << line << ", col:" << col;
+        if (include_path) {
+            out << ", " << get_path();
+        }
+        return out;
+    }
+
+    boost::filesystem::path get_path() const
+    {
+        return path ? *path : boost::filesystem::path{};
+    }
+
+    bool empty() const noexcept
+    {
+        return line == 0 && col == 0 && length == 0 && !path;
+    }
 };
 
-} // namespace location
-
-using location_type = std::tuple<std::size_t, std::size_t, std::size_t>;
+inline std::ostream &operator<<(std::ostream &o, location_type const& location)
+{
+    return location.output_to(o);
+}
 
 namespace symbol {
 
@@ -55,27 +91,19 @@ std::size_t generate_id() noexcept;
 
 struct base {
     base() noexcept
-        : id(generate_id())
+        : location()
+        , id(generate_id())
     {}
 
     void set_source_location(location_type const& l) noexcept
     {
-        line = std::get<location::line>(l);
-        col = std::get<location::col>(l);
-        length = std::get<location::length>(l);
+        location = l;
     }
 
     template<class Node>
     void set_source_location(Node const& n) noexcept
     {
-        line = n.line;
-        col = n.col;
-        length = n.length;
-    }
-
-    auto source_location() const noexcept
-    {
-        return std::make_tuple(line, col, length);
+        location = n.location;
     }
 
     virtual ~base() noexcept
@@ -83,7 +111,7 @@ struct base {
 
     virtual std::string to_string() const noexcept = 0;
 
-    std::size_t line = 0, col = 0, length = 0;
+    location_type location;
     std::size_t id;
 };
 
