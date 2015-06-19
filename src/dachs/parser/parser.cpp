@@ -22,6 +22,7 @@
 #include <boost/spirit/include/phoenix_stl.hpp>
 #include <boost/spirit/include/phoenix_bind.hpp>
 #include <boost/fusion/include/std_pair.hpp>
+#include <boost/filesystem.hpp>
 
 #include "dachs/ast/ast.hpp"
 #include "dachs/parser/parser.hpp"
@@ -36,6 +37,7 @@ namespace dachs {
 namespace syntax {
 
 // Import names {{{
+namespace fs = boost::filesystem;
 namespace qi = boost::spirit::qi;
 namespace spirit = boost::spirit;
 namespace phx = boost::phoenix;
@@ -100,26 +102,29 @@ namespace detail {
     }
 
     template<class T, class Iter>
-    void set_location_impl(std::shared_ptr<T> const& node, Iter const before, Iter const after, Iter const code_begin)
+    void set_location_impl(std::shared_ptr<T> const& node, Iter const before, Iter const after, Iter const code_begin, ast::path_type const& file_path)
     {
         auto const d = std::distance(before.base(), after.base());
         node->location.line = spirit::get_line(before);
         node->location.col = spirit::get_column(code_begin, before);
         node->location.length = d < 0 ? 0 : d;
+        node->location.path = file_path;
     }
 
     template<class CodeIter>
     struct position_getter {
         CodeIter const code_begin;
+        ast::path_type const& file_path;
 
-        explicit position_getter(CodeIter const begin) noexcept
+        explicit position_getter(CodeIter const begin, ast::path_type const& p) noexcept
             : code_begin{begin}
+            , file_path(p)
         {}
 
         template<class T, class Iter>
         void operator()(std::shared_ptr<T> const& node_ptr, Iter const before, Iter const after) const noexcept
         {
-            set_location_impl(node_ptr, before, after, code_begin);
+            set_location_impl(node_ptr, before, after, code_begin, file_path);
         }
 
         template<class Iter, class... Args>
@@ -197,6 +202,7 @@ class dachs_grammar final
     using rule = qi::rule<Iterator, Value, comment_skipper<Iterator>, Extra...>;
 
     helper::colorizer c;
+    ast::path_type file_path;
 
     template<class NodeType, class... Holders>
     auto make_node_ptr(Holders &&... holders)
@@ -223,8 +229,8 @@ public:
 
     implicit_import<CheckOnly> implicit_import_installer;
 
-    dachs_grammar(Iterator const code_begin) noexcept
-        : dachs_grammar::base_type(inu)
+    dachs_grammar(Iterator const code_begin, ast::path_type p) noexcept
+        : dachs_grammar::base_type(inu), file_path(std::move(p))
     {
 
         // XXX:
@@ -1470,7 +1476,7 @@ public:
                 // _2   : end of string to parse
                 // _3   : position after parsing
                 phx::bind(
-                    detail::position_getter<Iterator>{code_begin}
+                    detail::position_getter<Iterator>{code_begin, file_path}
                     , _val, _1, _3)
 
                 , inu
@@ -1848,13 +1854,13 @@ private:
 };
 
 template<bool CheckOnly>
-static inline ast::node::inu parse_impl(std::string const& code)
+static inline ast::node::inu parse_impl(std::string const& code, ast::path_type && path)
 {
     auto itr = detail::line_pos_iterator(std::begin(code));
     using iterator_type = decltype(itr);
     auto const begin = itr;
     auto const end = detail::line_pos_iterator(std::end(code));
-    dachs_grammar<iterator_type, false> dachs_parser{begin};
+    dachs_grammar<iterator_type, CheckOnly> dachs_parser{begin, std::move(path)};
     comment_skipper<iterator_type> skipper;
     ast::node::inu root;
 
@@ -1869,12 +1875,16 @@ static inline ast::node::inu parse_impl(std::string const& code)
 
 ast::ast parser::parse(std::string const& code, std::string const& file_name) const
 {
-    return {parse_impl<false>(code), file_name};
+    fs::path file_path{file_name};
+    if (!file_path.has_root_directory()) {
+        file_path = fs::current_path() / file_path;
+    }
+    return {parse_impl<false>(code, std::make_shared<fs::path>(std::move(file_path))), file_name};
 }
 
 void parser::check_syntax(std::string const& code) const
 {
-    parse_impl<true>(code);
+    parse_impl<true>(code, nullptr);
 }
 
 } // namespace syntax

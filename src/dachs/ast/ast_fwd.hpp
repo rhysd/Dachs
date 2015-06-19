@@ -10,34 +10,50 @@
 
 #include <boost/variant/variant.hpp>
 #include <boost/optional.hpp>
+#include <boost/filesystem/path.hpp>
 
 #include "dachs/helper/make.hpp"
 
 namespace dachs {
 namespace ast {
 
+using path_type = std::shared_ptr<boost::filesystem::path>;
+
 struct location_type {
     std::size_t line = 0, col = 0, length = 0;
+    path_type path = nullptr;
 
-    std::string to_string(bool const include_length = false) const
+    std::string to_string(bool const include_path = true) const
     {
-        if (include_length) {
+        if (include_path) {
+            return "line:" + std::to_string(line)
+                + ", col:" + std::to_string(col)
+                + ", len:" + std::to_string(length)
+                + ", " + get_path().native();
+        } else {
             return "line:" + std::to_string(line)
                 + ", col:" + std::to_string(col)
                 + ", len:" + std::to_string(length);
-        } else {
-            return "line:" + std::to_string(line) + ", col:" + std::to_string(col);
         }
     }
 
-    std::ostream &output_to(std::ostream &out) const
+    std::ostream &output_to(std::ostream &out, bool const include_path = true) const
     {
-        return out << "line:" << line << ", col:" << col;
+        out << "line:" << line << ", col:" << col;
+        if (include_path) {
+            out << ", " << get_path();
+        }
+        return out;
+    }
+
+    boost::filesystem::path get_path() const
+    {
+        return path ? *path : boost::filesystem::path{};
     }
 
     bool empty() const noexcept
     {
-        return line == 0 && col == 0 && length == 0;
+        return line == 0 && col == 0 && length == 0 && !path;
     }
 };
 
