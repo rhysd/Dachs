@@ -25,7 +25,7 @@ template<class Message>
 inline void output_semantic_error(ast::location_type const& location, Message const& msg, std::ostream &ost = std::cerr)
 {
     helper::colorizer c;
-    ost << c.red("Error") << " in " << location.to_string() << '\n' << c.bold(msg) << "\n\n";
+    ost << c.red("Error") << " in " << location << '\n' << c.bold(msg) << "\n\n";
 }
 
 template<class Node, class Message>
@@ -38,7 +38,7 @@ inline void output_semantic_error(std::shared_ptr<Node> const& node, Message con
 template<class Node1, class Node2>
 void print_duplication_error(Node1 const& node1, Node2 const& node2, std::string const& name) noexcept
 {
-    output_semantic_error(node1, boost::format("  Symbol '%1%' is redefined.\n  Previous definition is at %2%") % name % node2->location.to_string());
+    output_semantic_error(node1, boost::format("  Symbol '%1%' is redefined.\n  Previous definition is at %2%") % name % node2->location);
 }
 
 } // namespace semantics

@@ -6,6 +6,7 @@
 #include <tuple>
 #include <cassert>
 #include <string>
+#include <iostream>
 
 #include <boost/variant/variant.hpp>
 #include <boost/optional.hpp>
@@ -29,11 +30,21 @@ struct location_type {
         }
     }
 
+    std::ostream &output_to(std::ostream &out) const
+    {
+        return out << "line:" << line << ", col:" << col;
+    }
+
     bool empty() const noexcept
     {
         return line == 0 && col == 0 && length == 0;
     }
 };
+
+inline std::ostream &operator<<(std::ostream &o, location_type const& location)
+{
+    return location.output_to(o);
+}
 
 namespace symbol {
 

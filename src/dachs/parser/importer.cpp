@@ -39,7 +39,7 @@ class importer_impl final {
     void error(Node const& node, fs::path const& file, Message const& msg)
     {
         std::cerr << c.red("Error") << " while importing " << file << '\n'
-                  << "At " << node->location.to_string() << ". " << msg << std::endl;
+                  << "At " << node->location << ". " << msg << std::endl;
         throw parse_error{node->location};
     }
 
@@ -47,7 +47,7 @@ class importer_impl final {
     void report(ast::node::import const& i, Message const& msg)
     {
         std::cerr << c.red("Error") << " while importing '" << i->path << "' at "
-                  << i->location.to_string() << '\n'
+                  << i->location << '\n'
                   << msg << std::endl;
     }
 

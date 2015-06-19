@@ -31,7 +31,7 @@ auto output_warning(std::shared_ptr<Node> const& node, Message const& msg, std::
     -> typename std::enable_if<ast::traits::is_node<Node>::value>::type
 {
     helper::colorizer c;
-    ost << c.yellow("Warning") << " at " << node->location.to_string() << '\n' << c.bold(msg) << "\n\n";
+    ost << c.yellow("Warning") << " at " << node->location << '\n' << c.bold(msg) << "\n\n";
 }
 
 } // namespace dachs

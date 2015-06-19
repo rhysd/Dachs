@@ -26,7 +26,7 @@ public:
                             c.bold("  %2% is not implemented yet.\n") +
                             "  Note: You can contribute to Dachs with implementing this feature. "
                             "Clone https://github.com/rhysd/Dachs and see %3%, %4%(), line:%5%"
-                        ) % node->location.to_string()
+                        ) % node->location
                           % what_feature
                           % file
                           % func

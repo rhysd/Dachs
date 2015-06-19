@@ -92,7 +92,7 @@ class forward_symbol_analyzer {
                             boost::format(
                                 "  In %1%, '%2%' is redefined.\n"
                                 "  Note: Previous definition is at %3%"
-                            ) % situation % (*right)->to_string() % lhs_def->location.to_string()
+                            ) % situation % (*right)->to_string() % lhs_def->location
                         );
                     failed++;
                 }
@@ -115,7 +115,7 @@ class forward_symbol_analyzer {
                             boost::format(
                                 "  Class '%1%' is redefined.\n"
                                 "  Note: Previous definition is at %2%"
-                            ) % (*right)->name % (*left)->location.to_string()
+                            ) % (*right)->name % (*left)->location
                         );
                     failed++;
                 }
@@ -239,7 +239,7 @@ class forward_symbol_analyzer {
                             "  Note: Previous definition is at %3%"
                         ) % r->params[0]->type.to_string()
                           % r->ret_type->to_string()
-                          % ldef->location.to_string()
+                          % ldef->location
                     );
                     ++failed;
                 }

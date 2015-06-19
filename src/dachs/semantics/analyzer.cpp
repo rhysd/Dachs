@@ -1028,7 +1028,7 @@ public:
                     "  Can't deduce return type of function '%1%' from return statement\n"
                     "  Note: return statement is here: %2%")
                     % func->name
-                    % gatherer.failed_return_stmts[0]->location.to_string()
+                    % gatherer.failed_return_stmts[0]->location
             );
             return false;
         }
@@ -1929,7 +1929,7 @@ public:
             if (!walk_recursively_with(global, func_def)) {
                 return helper::oops_fmt(
                         "  Failed to analyze function '%1%' defined at %2%"
-                     , func->to_string(), func_def->location.to_string()
+                     , func->to_string(), func_def->location
                 );
             }
         }
@@ -2635,7 +2635,7 @@ public:
                                         "  Instance variable '%1%' is initialized twice or more times.\n"
                                         "  Note: Instance variable can only be initialized once.\n"
                                         "  Note: First initialization is at %2%."
-                                    ) % decl->name % (*dup)->location.to_string()
+                                    ) % decl->name % (*dup)->location
                                 );
                             fail = true;
                         } else if (decl->symbol.expired()
@@ -2658,7 +2658,7 @@ public:
                         "  Failed to instantiate class template '%1%'\n"
                         "  Type of instance variable '%2%' can't be determined\n"
                         "  Note: Used constructor is at %3%"
-                    ) % clazz->to_string() % i.first % ctor_def->location.to_string()
+                    ) % clazz->to_string() % i.first % ctor_def->location
                 );
             fail = true;
         }
@@ -2968,7 +2968,7 @@ public:
         if (!already_visited(ctor_def)) {
             if (!walk_recursively_with(enclosing_scope_of(ctor), ctor_def)) {
                 return helper::oops_fmt("  Failed to analyze constructor '%1%' defined at %2%"
-                        , ctor->to_string(), ctor_def->location.to_string()
+                        , ctor->to_string(), ctor_def->location
                 );
             }
         }
@@ -2995,7 +2995,7 @@ public:
             // is necessary to determine the class instantiation.  So visit it here.
             if (!walk_ctor_body_to_infer_class_template(scope->instance_var_symbols, ctor, ctor_def->body)) {
                 return helper::oops_fmt("  Failed to analyze constructor '%1%' defined at %2%"
-                        , ctor->to_string(), ctor_def->location.to_string()
+                        , ctor->to_string(), ctor_def->location
                 );
             }
             already_visited_ctors.insert(ctor_def);
@@ -3520,7 +3520,7 @@ public:
                         boost::format(
                             "  Compare operator '==' must returns 'bool' but actually returns '%1%' in condition of 'when' clause\n"
                             "  Note: '%2%' is used, which is defined in %3%"
-                            ) % s % callee->to_string() % def->location.to_string()
+                            ) % s % callee->to_string() % def->location
                     );
                 continue;
             }

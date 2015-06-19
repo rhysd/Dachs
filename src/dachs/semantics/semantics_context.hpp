@@ -94,7 +94,7 @@ struct semantics_context {
         for (auto const& cs : lambda_captures) {
             out << "  " << cs.first->to_string() << std::endl;
             for (auto const& c : cs.second.get<semantics::tags::offset>()) {
-                out << "    " << c.refered_symbol->name << ':' << c.introduced->location.to_string() << " -> " << c.introduced->member_name << std::endl;
+                out << "    " << c.refered_symbol->name << ':' << c.introduced->location << " -> " << c.introduced->member_name << std::endl;
             }
         }
     }
