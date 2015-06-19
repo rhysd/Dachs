@@ -547,6 +547,59 @@ class array
         ret self.find_by{|v| v == val}
     end
 
+    func max_by(pred)
+        var max := @buf[0];
+        var i := 1u
+        for i < @size
+            if pred(max, @buf[i])
+                max = @buf[i]
+            end
+            i += 1u
+        end
+
+        ret max
+    end
+
+    func max
+        ret self.max_by {|l, r| l < r }
+    end
+
+    func min_by(pred)
+        var min := @buf[0];
+        var i := 1u
+        for i < @size
+            if pred(@buf[i], min)
+                min = @buf[i]
+            end
+            i += 1u
+        end
+
+        ret min
+    end
+
+    func min
+        ret self.min_by {|l, r| l < r }
+    end
+
+    func minmax_by(pred)
+        var min, var max := @buf[0], @buf[0]
+        var i := 1u
+        for i < @size
+            if pred(max, @buf[i])
+                max = @buf[i]
+            end
+            if pred(@buf[i], min)
+                min = @buf[i]
+            end
+            i += 1u
+        end
+
+        ret min, max
+    end
+
+    func minmax
+        ret self.minmax_by {|l, r| l < r }
+    end
 end
 
 func join(arr : [string], sep : string)
