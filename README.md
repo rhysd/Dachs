@@ -129,7 +129,7 @@ end
 - [x] Block
 - [ ] Variadic arguments
 - [ ] Module
-- [ ] GC
+- [x] GC
 - [x] Tests
 - [x] CMakeLists.txt
 - [x] Travis-CI
@@ -139,7 +139,7 @@ end
 
 This software is disributed under [The MIT License](http://opensource.org/licenses/MIT) if not specified in a source file.
 
-    Copyright (c) 2014 rhysd
+    Copyright (c) 2014-2015 rhysd
 
 This software uses [Boost C++ Libraries](http://www.boost.org/), which is licensed by [The Boost License](http://www.boost.org/users/license.html).
 

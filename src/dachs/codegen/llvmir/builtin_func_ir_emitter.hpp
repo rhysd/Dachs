@@ -46,6 +46,9 @@ class builtin_function_emitter {
     func_table_type is_null_func_table;
     func_table_type realloc_func_table;
     func_table_type free_func_table;
+    llvm::Function *enable_gc_func = nullptr;
+    llvm::Function *disable_gc_func = nullptr;
+    llvm::Function *gc_disabled_func = nullptr;
 
     template<class String>
     llvm::Function *create_func_prototype(String const& name, llvm::Type *const ret_ty, std::initializer_list<llvm::Type *> const& arg_tys)
@@ -341,9 +344,6 @@ public:
             return itr->second;
         }
 
-        // XXX:
-        // Return type mismatches.
-        // print() in Dachs returns () but print() in runtime returns void
         auto *const prototype = create_func_prototype(
                 "__builtin_free",
                 llvm::StructType::get(c.llvm_context, {})->getPointerTo(),
@@ -367,6 +367,61 @@ public:
         free_func_table.emplace(std::move(type_str), prototype);
 
         return prototype;
+    }
+
+    llvm::Function *emit_gc_operation(llvm::Function *func, std::string const& name)
+    {
+        if (func) {
+            return func;
+        }
+
+        auto *const inner_prototype = create_func_prototype(
+                "GC_" + name,
+                c.builder.getVoidTy(),
+                {}
+            );
+        inner_prototype->addFnAttr(llvm::Attribute::NoUnwind);
+
+        func = create_func_prototype(
+                "__builtin_" + name + "_gc",
+                llvm::StructType::get(c.llvm_context, {})->getPointerTo(),
+                {}
+            );
+
+        func->addFnAttr(llvm::Attribute::InlineHint);
+        func->addFnAttr(llvm::Attribute::NoUnwind);
+
+        auto *const body = llvm::BasicBlock::Create(c.llvm_context, "entry", func);
+        auto *const saved_insert_point = c.builder.GetInsertBlock();
+
+        c.builder.SetInsertPoint(body);
+        c.builder.CreateCall(inner_prototype);
+        c.builder.CreateRet(inst_emitter.emit_unit_constant());
+
+        c.builder.SetInsertPoint(saved_insert_point);
+        return func;
+    }
+
+    llvm::Function *emit_enable_gc_func()
+    {
+        return emit_gc_operation(enable_gc_func, "enable");
+    }
+
+    llvm::Function *emit_disable_gc_func()
+    {
+        return emit_gc_operation(enable_gc_func, "disable");
+    }
+
+    // XXX:
+    // int GC_disabled(void); returns int, not bool
+    llvm::Function *emit_gc_disabled_func()
+    {
+        return create_cached_func_prototype(
+                gc_disabled_func,
+                "GC_is_disabled",
+                c.builder.getInt1Ty(),
+                {}
+            );
     }
 
     llvm::Function *emit(std::string const& name, std::vector<type::type> const& arg_types)
@@ -399,6 +454,12 @@ public:
             return emit_free_func(arg_types[0]);
         } else if (name == "__builtin_gen_symbol") {
             return emit_gen_symbol_func();
+        } else if (name == "__builtin_enable_gc") {
+            return emit_enable_gc_func();
+        } else if (name == "__builtin_disable_gc") {
+            return emit_disable_gc_func();
+        } else if (name == "__builtin_gc_disabled?") {
+            return emit_gc_disabled_func();
         } // else ...
 
         return nullptr;

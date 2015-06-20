@@ -1255,6 +1255,18 @@ BOOST_AUTO_TEST_CASE(realloc)
     )");
 }
 
+BOOST_AUTO_TEST_CASE(gc_builtins)
+{
+    CHECK_NO_THROW_CODEGEN_ERROR(R"(
+        func main
+            __builtin_gc_disabled?().println
+            __builtin_disable_gc()
+            __builtin_gc_disabled?().println
+            __builtin_enable_gc()
+        end
+    )");
+}
+
 BOOST_AUTO_TEST_CASE(gen_symbol)
 {
     CHECK_NO_THROW_CODEGEN_ERROR(R"(
