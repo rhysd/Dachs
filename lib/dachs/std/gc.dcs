@@ -1,0 +1,17 @@
+class GC
+    func enable
+        __builtin_enable_gc()
+    end
+
+    func disable
+        __builtin_disable_gc()
+    end
+
+    func enabled?
+        ret !__builtin_gc_disabled?()
+    end
+
+    func disabled?
+        ret __builtin_gc_disabled?()
+    end
+end

@@ -100,6 +100,15 @@ scope::scope_tree analyze_symbols_forward(ast::ast &a, syntax::importer &i)
             gen_symbol_func->define_param(detail::make_global_func_param("size", *type::get_builtin_type("uint")));
         }
 
+        {
+            // func __builtin_gc_enable()
+            detail::make_global_func(scope_root, "__builtin_enable_gc", type::get_unit_type());
+            // func __builtin_gc_disable()
+            detail::make_global_func(scope_root, "__builtin_disable_gc", type::get_unit_type());
+            // func __builtin_gc_is_disabled()
+            detail::make_global_func(scope_root, "__builtin_gc_disabled?", *type::get_builtin_type("bool"));
+        }
+
         // Operators
         // cast functions
     }
