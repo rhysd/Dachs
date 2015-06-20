@@ -409,7 +409,7 @@ public:
 
     llvm::Function *emit_disable_gc_func()
     {
-        return emit_gc_operation(enable_gc_func, "disable");
+        return emit_gc_operation(disable_gc_func, "disable");
     }
 
     // XXX:
