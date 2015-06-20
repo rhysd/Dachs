@@ -1,18 +1,8 @@
 #define BOOST_RESULT_OF_USE_DECLTYPE 1
 
-#include <type_traits>
-#include <functional>
 #include <cstddef>
-#include <cstring>
 #include <boost/lexical_cast.hpp>
-#include <boost/format.hpp>
-#include <boost/variant/variant.hpp>
-#include <boost/variant/static_visitor.hpp>
-#include <boost/variant/apply_visitor.hpp>
-#include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/adaptor/sliced.hpp>
-#include <boost/range/numeric.hpp>
-#include <boost/algorithm/string/join.hpp>
 
 #include "dachs/ast/ast.hpp"
 #include "dachs/ast/stringize_ast.hpp"
@@ -25,416 +15,305 @@ namespace ast {
 namespace detail {
 
 using std::size_t;
-using boost::adaptors::transformed;
 using boost::adaptors::sliced;
-using std::placeholders::_1;
-
-struct to_string : public boost::static_visitor<std::string> {
-    template<class T>
-    std::string operator()(std::shared_ptr<T> const& p) const noexcept
-    {
-        static_assert(traits::is_node<T>::value, "ast_stringizer: visit a object which isn't AST node.");
-        return p->to_string();
-    }
-
-    template<class T, class = typename std::enable_if<!helper::is_shared_ptr<T>::value>::type>
-    std::string operator()(T const& value) const noexcept
-    {
-        try {
-            return boost::lexical_cast<std::string>(value);
-        }
-        catch(boost::bad_lexical_cast const& e) {
-            return e.what();
-        }
-    }
-};
-
-template<class V> // Workaround for forward declaration
-struct node_variant_visitor : public boost::static_visitor<std::string> {
-    V const& visitor;
-    std::string const& indent;
-    char const* const lead;
-
-    node_variant_visitor(V const& v, std::string const& i, char const* const l) : visitor(v), indent(i), lead(l)
-    {}
-
-    template<class T>
-    std::string operator()(std::shared_ptr<T> const& p) const noexcept
-    {
-        return visitor.visit(p, indent, lead);
-    }
-
-    template<class... Args>
-    std::string operator()(boost::variant<Args...> const& v) const noexcept
-    {
-        return visitor.visit(v, indent, lead);
-    }
-};
 
 template<class String>
 class ast_stringizer {
-    template<class T>
-    String prefix_of(std::shared_ptr<T> const& p, String const& indent) const noexcept
-    {
-        return c.yellow(indent+"|\n"+indent+"|--", false)
-            + c.green(p->to_string(), false)
-            + c.gray(" (" + p->location.to_string(false) + ")");
-    }
-
-    template<class... Args>
-    String visit_variant_node(boost::variant<Args...> const& v, String const& indent, char const* const lead) const noexcept
-    {
-        return boost::apply_visitor(node_variant_visitor<ast_stringizer>{*this, indent, lead}, v);
-    }
-
-    template<class T>
-    String visit_optional_node(boost::optional<T> const& o, String const& indent, char const* const lead) const noexcept
-    {
-        return (o ? '\n' + visit(*o, indent, lead) : "");
-    }
-
-    template<class NodeRange, class Pred>
-    String visit_nodes_with_predicate(NodeRange const& ptrs, Pred const& predicate, bool const is_last) const noexcept
-    {
-        if (ptrs.empty()) {
-            return "";
-        }
-
-        auto combine = [](auto const& acc, auto const& item){
-                           return acc + '\n' + item;
-                       };
-
-        if (!is_last) {
-            return boost::accumulate(ptrs | transformed(std::bind(predicate, _1, "|  "))
-                                    , String{}
-                                    , combine);
-        } else {
-            return boost::accumulate(ptrs | sliced(0, ptrs.size()-1) | transformed(std::bind(predicate, _1, "|  "))
-                                    , String{}
-                                    , combine)
-                   + '\n' + predicate(ptrs.back(), "   ");
-        }
-    }
-
-    template<class NodePtrs>
-    String visit_nodes(NodePtrs const& ptrs, String const& indent, bool const is_last) const noexcept
-    {
-        return visit_nodes_with_predicate(ptrs,
-                                          [this, indent](auto const& p, auto const lead){
-                                              return visit(p, indent, lead);
-                                          },
-                                          is_last);
-    }
-
-    template<class NodePtrs>
-    String visit_node_variants(NodePtrs const& ptrs, String const& indent, bool const is_last) const noexcept
-    {
-        return visit_nodes_with_predicate(
-                    ptrs,
-                    [this, indent](auto const& p, auto const lead){
-                        return visit_variant_node(p, indent, lead);
-                    }, 
-                    is_last);
-    }
+    using cstr = char const* const;
 
     helper::colorizer c;
 
+    template<class T>
+    String prefix_of(std::shared_ptr<T> const& p, String const& indent) const
+    {
+        return c.yellow(indent+"|\n"+indent+"|--", false)
+            + c.green(p->to_string(), false)
+            + c.gray(" (" + p->location.to_string(false) + ')')
+            + '\n';
+    }
+
 public:
 
-    String visit(node::inu const& p, String const& indent) const noexcept
+    String stringize(node::inu const& p, String const& indent) const
     {
         return prefix_of(p, indent)
-            + visit_nodes(p->functions, indent + "   ", p->global_constants.empty() && p->classes.empty() && p->imports.empty())
-            + visit_nodes(p->global_constants, indent + "   ", p->classes.empty() && p->imports.empty())
-            + visit_nodes(p->classes, indent + "   ", p->imports.empty())
-            + visit_nodes(p->imports, indent + "   ", true);
+            + stringize(p->functions, indent + "   ", p->global_constants.empty() && p->classes.empty() && p->imports.empty() ? "   " : "|  ")
+            + stringize(p->global_constants, indent + "   ", p->classes.empty() && p->imports.empty() ? "   " : "|  ")
+            + stringize(p->classes, indent + "   ", p->imports.empty() ? "   " : "|  ")
+            + stringize(p->imports, indent + "   ", "   ");
     }
 
-    String visit(node::array_literal const& al, String const& indent, char const* const lead) const noexcept
+    String stringize(node::array_literal const& al, String const& indent, cstr lead) const
     {
-        return prefix_of(al, indent) + visit_nodes(al->element_exprs, indent+lead, true);
+        return prefix_of(al, indent) + stringize(al->element_exprs, indent+lead, "   ");
     }
 
-    String visit(node::tuple_literal const& tl, String const& indent, char const* const lead) const noexcept
+    String stringize(node::tuple_literal const& tl, String const& indent, cstr lead) const
     {
-        return prefix_of(tl, indent) + visit_nodes(tl->element_exprs, indent+lead, true);
+        return prefix_of(tl, indent) + stringize(tl->element_exprs, indent+lead, "   ");
     }
 
-    String visit(node::lambda_expr const& le, String const& indent, char const* const lead) const noexcept
+    String stringize(node::lambda_expr const& le, String const& indent, cstr lead) const
     {
-        return prefix_of(le, indent) + '\n' + visit(le->def, indent+lead, "   ");
+        return prefix_of(le, indent) + stringize(le->def, indent+lead, "   ");
     }
 
-    String visit(node::dict_literal const& ml, String const& indent, char const* const lead) const noexcept
+    String stringize(node::dict_literal const& ml, String const& indent, cstr lead) const
     {
-        return prefix_of(ml, indent)
-                + visit_nodes_with_predicate(ml->value,
-                        [this, indent, lead](auto const& key_value, auto const l){
-                            return visit(key_value.first, indent+lead, "|  ")
-                                + '\n' + visit(key_value.second, indent+lead, l);
-                        }, true);
+        return prefix_of(ml, indent) + stringize(ml->value, indent+lead, "   ");
     }
 
-    String visit(node::parameter const& p, String const& indent, char const* const lead) const noexcept
+    String stringize(node::parameter const& p, String const& indent, cstr lead) const
     {
         return prefix_of(p, indent)
-                + visit_optional_node(p->param_type, indent+lead, "   ");
+                + stringize(p->param_type, indent+lead, "   ");
     }
 
-    String visit(node::object_construct const& oc, String const& indent, char const* const lead) const noexcept
+    String stringize(node::object_construct const& oc, String const& indent, cstr lead) const
     {
         return prefix_of(oc, indent)
-            + '\n' + visit(oc->obj_type, indent+lead, (oc->args.empty() ? "   " : "|  "))
-            + visit_nodes(oc->args, indent+lead, true);
+            + stringize(oc->obj_type, indent+lead, (oc->args.empty() ? "   " : "|  "))
+            + stringize(oc->args, indent+lead, "   ");
     }
 
-    String visit(node::index_access const& ia, String const& indent, char const* const lead) const noexcept
+    String stringize(node::index_access const& ia, String const& indent, cstr lead) const
     {
         return prefix_of(ia, indent)
-            + '\n' + visit(ia->child, indent+lead, "|  ")
-            + '\n' + visit(ia->index_expr, indent+lead, "   ");
+            + stringize(ia->child, indent+lead, "|  ")
+            + stringize(ia->index_expr, indent+lead, "   ");
     }
 
-    String visit(node::ufcs_invocation const& ui, String const& indent, char const* const lead) const noexcept
+    String stringize(node::ufcs_invocation const& ui, String const& indent, cstr lead) const
     {
-        return prefix_of(ui, indent)
-            + '\n' + visit(ui->child, indent+lead, "   ");
+        return prefix_of(ui, indent) + stringize(ui->child, indent+lead, "   ");
     }
 
-    String visit(node::func_invocation const& fc, String const& indent, char const* const lead) const noexcept
+    String stringize(node::func_invocation const& fc, String const& indent, cstr lead) const
     {
         return prefix_of(fc, indent)
-            + '\n' + visit(fc->child, indent+lead, fc->args.empty() ? "   " : "|  ")
-            + visit_nodes(fc->args, indent+lead, true);
+            + stringize(fc->child, indent+lead, fc->args.empty() ? "   " : "|  ")
+            + stringize(fc->args, indent+lead, "   ");
     }
 
-    String visit(node::unary_expr const& ue, String const& indent, char const* const lead) const noexcept
+    String stringize(node::unary_expr const& ue, String const& indent, cstr lead) const
     {
-        return prefix_of(ue, indent) + '\n'
-                + visit(ue->expr, indent+lead, "   ");
+        return prefix_of(ue, indent) + stringize(ue->expr, indent+lead, "   ");
     }
 
-    String visit(node::primary_type const& tt, String const& indent, char const* const lead) const noexcept
+    String stringize(node::primary_type const& tt, String const& indent, cstr lead) const
     {
-        return prefix_of(tt, indent)
-            + visit_nodes(tt->template_params, indent+lead, true);
+        return prefix_of(tt, indent) + stringize(tt->template_params, indent+lead, "   ");
     }
 
-    String visit(node::array_type const& at, String const& indent, char const* const lead) const noexcept
+    String stringize(node::array_type const& at, String const& indent, cstr lead) const
     {
-        return prefix_of(at, indent) + '\n'
-            + visit_optional_node(at->elem_type, indent+lead, "   ");
+        return prefix_of(at, indent) + stringize(at->elem_type, indent+lead, "   ");
     }
 
-    String visit(node::dict_type const& mt, String const& indent, char const* const lead) const noexcept
+    String stringize(node::dict_type const& mt, String const& indent, cstr lead) const
     {
         return prefix_of(mt, indent)
-            + '\n' + visit(mt->key_type, indent+lead, "|  ")
-            + '\n' + visit(mt->value_type, indent+lead, "   ");
+            + stringize(mt->key_type, indent+lead, "|  ")
+            + stringize(mt->value_type, indent+lead, "   ");
     }
 
-    String visit(node::pointer_type const& pt, String const& indent, char const* const lead) const noexcept
+    String stringize(node::pointer_type const& pt, String const& indent, cstr lead) const
     {
-        return prefix_of(pt, indent) + '\n'
-            + visit_optional_node(pt->pointee_type, indent+lead, "   ");
+        return prefix_of(pt, indent)
+            + stringize(pt->pointee_type, indent+lead, "   ");
     }
 
-    String visit(node::typeof_type const& tt, String const& indent, char const* const lead) const noexcept
-    {
-        return prefix_of(tt, indent) + '\n'
-            + visit(tt->expr, indent+lead, "   ");
-    }
-
-    String visit(node::tuple_type const& tt, String const& indent, char const* const lead) const noexcept
+    String stringize(node::typeof_type const& tt, String const& indent, cstr lead) const
     {
         return prefix_of(tt, indent)
-            + visit_nodes(tt->arg_types, indent+lead, true);
+            + stringize(tt->expr, indent+lead, "   ");
     }
 
-    String visit(node::func_type const& ft, String const& indent, char const* const lead) const noexcept
+    String stringize(node::tuple_type const& tt, String const& indent, cstr lead) const
+    {
+        return prefix_of(tt, indent) + stringize(tt->arg_types, indent+lead, "   ");
+    }
+
+    String stringize(node::func_type const& ft, String const& indent, cstr lead) const
     {
         return prefix_of(ft, indent)
-            + visit_nodes(ft->arg_types, indent+lead, false)
-            + visit_optional_node(ft->ret_type, indent+lead, "   ");
+            + stringize(ft->arg_types, indent+lead, "|  ")
+            + stringize(ft->ret_type, indent+lead, "   ");
     }
 
-    String visit(node::qualified_type const& qt, String const& indent, char const* const lead) const noexcept
+    String stringize(node::qualified_type const& qt, String const& indent, cstr lead) const
     {
-        return prefix_of(qt, indent)
-                + '\n' + visit(qt->type, indent+lead, "   ");
+        return prefix_of(qt, indent) + stringize(qt->type, indent+lead, "   ");
     }
 
-    String visit(node::cast_expr const& ce, String const& indent, char const* const lead) const noexcept
+    String stringize(node::cast_expr const& ce, String const& indent, cstr lead) const
     {
         return prefix_of(ce, indent)
-                + '\n' + visit(ce->child, indent+lead, "|  ")
-                + '\n' + visit(ce->cast_type, indent+lead, "   ");
+                + stringize(ce->child, indent+lead, "|  ")
+                + stringize(ce->cast_type, indent+lead, "   ");
     }
 
-    String visit(node::binary_expr const& be, String const& indent, char const* const lead) const noexcept
+    String stringize(node::binary_expr const& be, String const& indent, cstr lead) const
     {
         return prefix_of(be, indent)
-                + '\n' + visit(be->lhs, indent+lead, "|  ")
-                + '\n' + visit(be->rhs, indent+lead, "   ");
+                + stringize(be->lhs, indent+lead, "|  ")
+                + stringize(be->rhs, indent+lead, "   ");
     }
 
-    String visit(node::block_expr const& be, String const& indent, char const* const lead) const noexcept
+    String stringize(node::block_expr const& be, String const& indent, cstr lead) const
     {
         return prefix_of(be, indent)
-            + visit_nodes(be->stmts, indent+lead, false)
-            + '\n' + visit(be->last_expr, indent+lead, "   ");
+            + stringize(be->stmts, indent+lead, "|  ")
+            + stringize(be->last_expr, indent+lead, "   ");
     }
 
-    String visit(node::if_expr const& ie, String const& indent, char const* const lead) const noexcept
+    String stringize(node::if_expr const& ie, String const& indent, cstr lead) const
     {
         return prefix_of(ie, indent)
-                + visit_nodes_with_predicate(ie->block_list,
-                        [this, indent, lead](auto const& block, auto const l){
-                            return visit(block.first, indent+lead, "|  ")
-                                + '\n' + visit(block.second, indent+lead, l);
-                        }, false)
-                + '\n' + visit(ie->else_block, indent+lead, "   ");
+                + stringize(ie->block_list, indent+lead, "|  ")
+                + stringize(ie->else_block, indent+lead, "   ");
     }
 
-    String visit(node::switch_expr const& se, String const& indent, char const* const lead) const noexcept
+    String stringize(node::switch_expr const& se, String const& indent, cstr lead) const
     {
         return prefix_of(se, indent)
-                + '\n' + visit(se->target_expr, indent+lead, "|  ")
-                + visit_nodes_with_predicate(se->when_blocks,
-                        [this, &indent, lead](auto const& cond_and_when_block, auto const l)
-                        {
-                            // XXX: Workaround!
-                            return boost::algorithm::join(
-                                    cond_and_when_block.first | transformed(
-                                            [this, &indent, lead](auto const& cond)
-                                            {
-                                                return visit(cond, indent+lead, "|  ");
-                                            }
-                                        ),
-                                    "\n"
-                                ) + '\n' + visit(cond_and_when_block.second, indent+lead, l);
-                        }, false)
-                + visit(se->else_block, indent+lead, "   ");
+                + stringize(se->target_expr, indent+lead, "|  ")
+                + stringize(se->when_blocks, indent+lead, "|  ")
+                + stringize(se->else_block, indent+lead, "   ");
     }
 
-    String visit(node::typed_expr const& te, String const& indent, char const* const lead) const noexcept
+    String stringize(node::typed_expr const& te, String const& indent, cstr lead) const
     {
         return prefix_of(te, indent)
-                + '\n' + visit(te->child_expr, indent+lead, "|  ")
-                + '\n' + visit(te->specified_type, indent+lead, "   ");
+                + stringize(te->child_expr, indent+lead, "|  ")
+                + stringize(te->specified_type, indent+lead, "   ");
     }
 
-    String visit(node::assignment_stmt const& as, String const& indent, char const* const lead) const noexcept
+    String stringize(node::assignment_stmt const& as, String const& indent, cstr lead) const
     {
         return prefix_of(as, indent)
-               + visit_nodes(as->assignees, indent+lead, false)
-               + '\n' + visit_nodes(as->rhs_exprs, indent+lead, true);
+               + stringize(as->assignees, indent+lead, "|  ")
+               + stringize(as->rhs_exprs, indent+lead, "   ");
     }
 
-    String visit(node::if_stmt const& is, String const& indent, char const* const lead) const noexcept
+    String stringize(node::if_stmt const& is, String const& indent, cstr lead) const
     {
         return prefix_of(is, indent)
-                + visit_nodes_with_predicate(is->clauses,
-                        [this, indent, lead](auto const& cond_and_then_stmts, auto const l){
-                            return visit(cond_and_then_stmts.first, indent+lead, "|  ")
-                                + '\n' + visit(cond_and_then_stmts.second, indent+lead, l);
-                        }, !is->maybe_else_clause)
-                + (is->maybe_else_clause ? '\n' + visit(*(is->maybe_else_clause), indent+lead, "   ") : "");
+                + stringize(is->clauses, indent+lead, !is->maybe_else_clause ? "   " : "|  ")
+                + stringize(is->maybe_else_clause, indent+lead, "   ");
     }
 
-    String visit(node::switch_stmt const& ss, String const& indent, char const* const lead) const noexcept
+    String stringize(node::switch_stmt const& ss, String const& indent, cstr lead) const
     {
         return prefix_of(ss, indent)
-                + '\n' + visit(ss->target_expr, indent+lead, ss->when_stmts_list.empty() && !ss->maybe_else_stmts ? "   " : "|  ")
-                + visit_nodes_with_predicate(ss->when_stmts_list,
-                        [this, &indent, lead](auto const& cond_and_when_stmts, auto const l)
-                        {
-                            // XXX: Workaround!
-                            return boost::algorithm::join(
-                                    cond_and_when_stmts.first | transformed(
-                                            [this, &indent, lead](auto const& cond)
-                                            {
-                                                return visit(cond, indent+lead, "|  ");
-                                            }
-                                        ),
-                                    "\n"
-                                ) + '\n' + visit(cond_and_when_stmts.second, indent+lead, l);
-                        }, !ss->maybe_else_stmts)
-                + (ss->maybe_else_stmts ? visit(*(ss->maybe_else_stmts), indent+lead, "   ") : "");
+                + stringize(ss->target_expr, indent+lead, ss->when_stmts_list.empty() && !ss->maybe_else_stmts ? "   " : "|  ")
+                + stringize(ss->when_stmts_list, indent+lead, !ss->maybe_else_stmts ? "   " : "|  ")
+                + stringize(ss->maybe_else_stmts, indent+lead, "   ");
     }
 
-    String visit(node::return_stmt const& rs, String const& indent, char const* const lead) const noexcept
+    String stringize(node::return_stmt const& rs, String const& indent, cstr lead) const
     {
-        return prefix_of(rs, indent) + visit_nodes(rs->ret_exprs, indent+lead, true);
+        return prefix_of(rs, indent) + stringize(rs->ret_exprs, indent+lead, "   ");
     }
 
-    String visit(node::for_stmt const& fs, String const& indent, char const* const lead) const noexcept
+    String stringize(node::for_stmt const& fs, String const& indent, cstr lead) const
     {
         return prefix_of(fs, indent)
-                + visit_nodes(fs->iter_vars, indent+lead, false)
-                + '\n' + visit(fs->range_expr, indent+lead, "|  ")
-                + '\n' + visit(fs->body_stmts, indent+lead, "   ");
+                + stringize(fs->iter_vars, indent+lead, "|  ")
+                + stringize(fs->range_expr, indent+lead, "|  ")
+                + stringize(fs->body_stmts, indent+lead, "   ");
     }
 
-    String visit(node::while_stmt const& ws, String const& indent, char const* const lead) const noexcept
+    String stringize(node::while_stmt const& ws, String const& indent, cstr lead) const
     {
         return prefix_of(ws, indent)
-                + '\n' + visit(ws->condition, indent+lead, "|  ")
-                + '\n' + visit(ws->body_stmts, indent+lead, "   ");
+                + stringize(ws->condition, indent+lead, "|  ")
+                + stringize(ws->body_stmts, indent+lead, "   ");
     }
 
-    String visit(node::postfix_if_stmt const& pis, String const& indent, char const* const lead) const noexcept
+    String stringize(node::postfix_if_stmt const& pis, String const& indent, cstr lead) const
     {
         return prefix_of(pis, indent)
-                + '\n' + visit_variant_node(pis->body, indent+lead, "|  ")
-                + '\n' + visit(pis->condition, indent+lead, "   ");
+                + stringize(pis->body, indent+lead, "|  ")
+                + stringize(pis->condition, indent+lead, "   ");
     }
 
-    String visit(node::variable_decl const& vd, String const& indent, char const* const lead) const noexcept
+    String stringize(node::variable_decl const& vd, String const& indent, cstr lead) const
     {
         return prefix_of(vd, indent)
-            + (vd->maybe_type ? '\n' + visit(*(vd->maybe_type), indent+lead, "   ") : "");
+            + stringize(vd->maybe_type, indent+lead, "   ");
     }
 
-    String visit(node::initialize_stmt const& vds, String const& indent, char const* const lead) const noexcept
+    String stringize(node::initialize_stmt const& vds, String const& indent, cstr lead) const
     {
         return prefix_of(vds, indent)
-            + visit_nodes(vds->var_decls, indent+lead, !vds->maybe_rhs_exprs)
-            + (vds->maybe_rhs_exprs ? visit_nodes(*(vds->maybe_rhs_exprs), indent+lead, true) : "");
+            + stringize(vds->var_decls, indent+lead, !vds->maybe_rhs_exprs ? "   " : "|  ")
+            + stringize(vds->maybe_rhs_exprs, indent+lead, "   ");
     }
 
-    String visit(node::statement_block const& sb, String const& indent, char const* const lead) const noexcept
+    String stringize(node::statement_block const& sb, String const& indent, cstr lead) const
     {
-        return prefix_of(sb, indent) + visit_nodes(sb->value, indent+lead, true);
+        return prefix_of(sb, indent) + stringize(sb->value, indent+lead, "   ");
     }
 
-    String visit(node::function_definition const& fd, String const& indent, char const* const lead) const noexcept
+    String stringize(node::function_definition const& fd, String const& indent, cstr lead) const
     {
         return prefix_of(fd, indent)
-            + visit_nodes(fd->params, indent+lead, false)
-            + visit_optional_node(fd->return_type, indent+lead, "|  ")
-            + '\n' + visit(fd->body, indent+lead, fd->ensure_body ? "|  " : "   ")
-            + visit_optional_node(fd->ensure_body, indent+lead, "   ");
+            + stringize(fd->params, indent+lead, "|  ")
+            + stringize(fd->return_type, indent+lead, "|  ")
+            + stringize(fd->body, indent+lead, fd->ensure_body ? "|  " : "   ")
+            + stringize(fd->ensure_body, indent+lead, "   ");
     }
 
-    String visit(node::class_definition const& cd, String const& indent, char const* const lead) const noexcept
+    String stringize(node::class_definition const& cd, String const& indent, cstr lead) const
     {
         return prefix_of(cd, indent)
-            + visit_nodes(cd->instance_vars, indent+lead, cd->member_funcs.empty())
-            + visit_nodes(cd->member_funcs, indent+lead, true);
+            + stringize(cd->instance_vars, indent+lead, cd->member_funcs.empty() ? "   " : "|  ")
+            + stringize(cd->member_funcs, indent+lead, "   ");
     }
 
     template<class... Args>
-    String visit(boost::variant<Args...> const& v, String const& indent, char const* const lead) const noexcept
+    String stringize(boost::variant<Args...> const& v, String const& indent, cstr lead) const
     {
-        return visit_variant_node(v, indent, lead);
+        return helper::variant::apply_lambda(
+                [this, &indent, lead](auto const& n){ return stringize(n, indent, lead); },
+                v
+            );
+    }
+
+    template<class Node>
+    String stringize(std::vector<Node> const& nodes, String const& indent, cstr lead) const
+    {
+        if (nodes.empty()) {
+            return "";
+        }
+
+        String s = "";
+        for (auto const& n : nodes | sliced(0, nodes.size()-1)) {
+            s += stringize(n, indent, "|  ");
+        }
+
+        return s + stringize(nodes.back(), indent, lead);
+    }
+
+    template<class T>
+    String stringize(boost::optional<T> const& o, String const& indent, cstr lead) const
+    {
+        return o ? stringize(*o, indent, lead) : "";
+    }
+
+    template<class T, class U>
+    String stringize(std::pair<T, U> const& node_pair, String const& indent, cstr lead) const
+    {
+        return stringize(node_pair.first, indent, "|  ")
+            + stringize(node_pair.second, indent, lead);
     }
 
     // For terminal nodes
     template<class T>
-    String visit(std::shared_ptr<T> const& p, String const& indent, char const* const) const noexcept
+    String stringize(std::shared_ptr<T> const& p, String const& indent, cstr) const
     {
-        static_assert(traits::is_node<T>::value, "ast_stringizer: visit a object which isn't AST node.");
+        static_assert(traits::is_node<T>::value, "ast_stringizer: Stringize a object which isn't AST node.");
         return prefix_of(p, indent);
     }
 };
@@ -443,7 +322,7 @@ public:
 
 std::string stringize_ast(ast const& ast)
 {
-    return detail::ast_stringizer<std::string>{}.visit(ast.root, "");
+    return detail::ast_stringizer<std::string>{}.stringize(ast.root, "");
 }
 
 } // namespace ast
