@@ -13,7 +13,8 @@ Primitive types start with lower case.
 Please see [record.md](record.md) for more detail.
 
 ```
-{field1[: type1], field2[: type2], ...}
+(field1[: Type1], field2[: Type2], ...)
+(Type1, Type2, ...)
 ```
 
 # Array Type
@@ -76,17 +77,17 @@ Below is an example of `Number`. `Number` consists of `Integer`, `Rational` and 
 
 ```
 type Number of
-    case Integer{_}
-    case Rational{numerator, denominator}
-    case Imaginary{real, imaginary}
+    case Integer('a)
+    case Rational(numerator, denominator)
+    case Imaginary(real, imaginary)
 
 func add_one(n: Number): Number
     ...
 end
 
-add_one(Number::Integer{42})
-add_one(Number::Rational{3, 10})
-add_one(Number::Imaginary{1, 5})
+add_one(Number::Integer(42))
+add_one(Number::Rational(3, 10))
+add_one(Number::Imaginary(1, 5))
 ```
 
 It defines `Number`, `Integer`, `Rational`, `Imaginary` types.
