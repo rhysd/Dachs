@@ -1,7 +1,6 @@
 ![Dachs Programming Language](misc/dachs-logo.jpg)
 
-[![Build Status](https://travis-ci.org/rhysd/Dachs.svg?branch=master)](https://travis-ci.org/rhysd/Dachs)
-=========================================================================================================
+**Now new version is being developed in ['next' directory](./next). It will replace current C++ implementation.**
 
 Dachs is a general-purpose programming language designed to be enjoyable, statically-typed and dog-friendly. Dachs is intended to be used for efficient applications and tools development, not for system programming.
 
