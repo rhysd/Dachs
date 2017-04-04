@@ -172,9 +172,11 @@ which have named fields.
 {12, "John"} as {age, name}
 ```
 
-In above example, the type will be `(age: int, name: str)`. This happens because `(_: int, _: str)` is coreced into `(age: 'a, name: 'b)`.
+In above example, the type will be `{age: int, name: str}`. This happens because `{int, str}`
+is coreced into `{age: 'a, name: 'b}`.
 
-Though above example is for anonymous record `(age, name)`, named record also can coerce a record having unnamed fields.
+Though above example is for anonymous record `{age, name}`, named record also can coerce a record
+having unnamed fields.
 
 ```
 type Person of {age, name}
@@ -182,7 +184,7 @@ type Person of {age, name}
 {12, "John"} as Person
 ```
 
-In above snippet, the type will be `Person(int, str)` (`Person(age: int, name: str)`).
+In above snippet, the type will be instantiated as `Person(int, str)` (`Person{age: int, name: str}`).
 
 Additionally, above named record coercing can be written with shorter special form as below:
 
@@ -194,7 +196,36 @@ This is useful when constructing an instance of named record.
 
 # Pattern matching
 
-TBW
+Pattern matching is available with `match` statement/expression.
+
+```
+!! Normal record
+person := {age: 12, name: "John"}
+
+match person
+case {age, "John"}
+    print("Hi, John. You are "); print(age); print(" years old")
+case {20, name}
+    print(name); print(", you are no longer a child!")
+else
+    print("hello "); print(person.name);
+end
+
+!! Unnamed fields (tuples)
+person := {12, "John"}
+
+match person
+case {height, "John"}
+case {12, nickname}
+else
+end
+```
+
+For normal records, field names in pattern of `match` MUST be the same as record definition.
+In above first example, using `height` at the pattern of first `case` arm causes compilation error.
+
+In above second example, the record has unnamed fields. Unnamed fields can be named as you like at pattern
+of the `case` arm.
 
 # Discussion Point
 

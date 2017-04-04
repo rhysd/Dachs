@@ -37,6 +37,38 @@ Example:
 
 TBW
 
+# Type Variable
+
+Type variable is a placeholder which can be replaced by actual type. The name starts with `'`.
+This is used for making a variant type.
+
+```
+type Pair of {'a, 'b}
+```
+
+Above `Pair` type has two fields. But actual types of the fields are not defined. It is determined
+at the point of instantiation.
+
+```
+!! Instantiate Pair{int, str}
+Pair{42, "foo"}
+
+!! Instantiate Pair{Person, Grade}
+Pair{Person{12, "John"}, Grade{4}}
+```
+
+Even if the definition is the same, types instantiated with different types are different from each other.
+
+Generally one character is used such as `'a` or `'b` for this. And if types of fields are omitted as below,
+type variables are assigned by a compiler. Automatically assigned type variables are named `'0`, `'1`, ...
+
+```
+type Query of {question, answer}
+
+!! Above is the same as
+type Query of {question: '0, answer: '1}
+```
+
 # Type Coercion
 
 `{expr} as {type}` binary operator coerces `{expr}` to `{type}`.
