@@ -193,5 +193,71 @@ This is useful when constructing an instance of named record.
 
 TBW
 
+# Discussion Point
+
+## Alternative Syntax with `rec`
+
+```
+rec Foo(age, name)
+
+rec Foo
+    age: int
+    name: str
+end
+
+rec Number
+case Integer(int)
+case Rational(denominator, numerator)
+case Complex
+    real: float
+    imaginary: float
+end
+
+rec Option
+case Some('a)
+case None
+end
+```
+
+## Should use `{` and `}` instead of `(` and `)`?
+
+```
+type Person of {age, name}
+
+type Person of {
+    age: int
+    name: str
+}
+
+type Number of
+    case Integer{int}
+    case Rational{denominator, numerator}
+    case Complex{
+        real: float
+        imaginary: float
+    }
+
+type Option of
+    case Some{'a}
+    case None
+
+!! Instantiation
+Person{12, "John"}
+Person{age: 17, name: "Ken"}
+
+!! Anonymous record
+{age: 12, name: "John"}
+
+!! Unamed fields
+{12, "John"}
+```
+
+- `(` and `)`
+  - `(...)` is more tuple like. (+1)
+  - Instantiation with `Foo(...)` is very similar to function call (-1)
+- `{` and `}`
+  - `{...}` is more distinct than `(...)`. (`(expr)` is one expression rather than record) (+1)
+  - If using `{...}` for other syntax, it may conflict. `{...}` is also useful for representing 'region' (-1)
+
 ---
 [Top](./README.md)
