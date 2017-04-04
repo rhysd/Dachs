@@ -14,12 +14,12 @@ i := 42
 print(i)
 
 !! From a record which has unnamed fields (like tuple)
-r := (1, true, "aaa")
+r := {1, true, "aaa"}
 i, b, s := r
 print(i); print(b); print(s)
 
 !! From a record. Field names must be the same as RHS's ones.
-r2 := (age: 12, name: "John")
+r2 := {age: 12, name: "John"}
 age, name := r2
 print(age); print(name)
 
@@ -27,8 +27,8 @@ print(age); print(name)
 name, age := r2
 
 !! Named record
-type Person of (name, age)
-p := Person("John", 12)
+type Person of {name, age}
+p := Person{"John", 12}
 age, name := p
 print(age); print(name)
 ```

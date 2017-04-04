@@ -45,7 +45,7 @@ e.g.
 f(a, b, c)
 
 !! Call function with block like Ruby
-sort([(1, 5), (2, 6), (3, 4)]) do l, r
+sort([{1, 5}, {2, 6}, {3, 4}]) do l, r
     x := l.0 + l.1
     y := r.0 + r.1
     ret x - y
