@@ -48,9 +48,64 @@ false
 
 # Logical Operators
 
-# Array operations
+# Control Flows
 
-# Dictionary operations
+`{block expression}` means zero or more statements followed by an expression (`[{statement} ...] {expression}`)
+
+## Branch
+
+```
+if {cond} then {block expression} else {block expression} end
+
+if {cond}
+    {block expression}
+else
+    {block expression}
+end
+```
+
+Being different from `if` statement, it must have `else` clause. Both `then` and `else` clauses
+must end with an expression and they must be the same type. `if` expression is evaluated to the
+last expression of selected branch.
+
+There is no `elseif` clause because you should use switch expression described below in the case.
+
+## Switch
+
+Test each `case` clause's `{cond}` expression and execute the block of the clause whose `{cond}`
+is evaluated to `true`. All `case` arms' last expressions must be the same type.
+
+```
+case {cond} then {block expression}
+case {cond}
+    {block expression}
+else
+    {block expression}
+end
+```
+
+`else` is required.
+
+## Match
+
+`match` expression selectively executes matched `case` clause and evalueted to the last expression
+of the clause. All `case` arms' last expressions must be the same type.
+
+```
+match {expression}
+case {pattern} then {block expression}
+case {pattern}
+    {block expression}
+else
+    {block expression}
+end
+```
+
+`else` is required. (TODO: check exhausitivity of patterns)
+
+# Array Operations
+
+# Dictionary Operations
 
 ---
 [Top](./README.md)
