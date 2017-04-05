@@ -5,7 +5,10 @@ SRCS := \
 	prelude/source.go \
 
 TESTS := \
+	cmd/dachs/main.go \
 	prelude/log_test.go \
+	prelude/source_test.go \
+	prelude/error_test.go \
 
 all: build test
 

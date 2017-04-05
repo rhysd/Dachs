@@ -3,12 +3,14 @@ package prelude
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 type Source struct {
 	Name   string
 	Code   []byte
-	IsFile bool
+	Exists bool
 }
 
 func NewSourceFromFile(file string) (*Source, error) {
@@ -28,5 +30,13 @@ func NewSourceFromStdin() (*Source, error) {
 }
 
 func NewDummySource(code string) *Source {
-	return &Source{"dummy", []byte(code), false}
+	return &Source{"<dummy>", []byte(code), false}
+}
+
+func (src *Source) BaseName() string {
+	if !src.Exists {
+		return "out"
+	}
+	b := filepath.Base(src.Name)
+	return strings.TrimSuffix(b, filepath.Ext(b))
 }
