@@ -19,3 +19,5 @@ Dachs is a programming language with below goals:
 - [Expressions](expressions.md)
 - [Types](types.md)
 - [Record](record.md)
+- [Module](module.md)
+- [Internal](internal.md)

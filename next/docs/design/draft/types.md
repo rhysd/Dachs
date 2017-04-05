@@ -125,5 +125,29 @@ add_one(Number::Imaginary{1, 5})
 It defines `Number`, `Integer`, `Rational`, `Imaginary` types.
 Contained value can be retrieved by pattern matching.
 
+# `typeof()`
+
+```
+typeof({expression})
+```
+
+`typeof()` is expanded to the type of `{expression}`.
+
+```
+!! int
+typeof(42)
+
+type MyInt of int
+a := 42 as MyInt
+b := 10 as typeof(a)
+
+!! b has the same type of a
+print(a == b)
+```
+
+# Pointer Type
+
+Pointer type is provided for low-level implementations. Please see [internal.md](./internal.md).
+
 ---
 [Top](./README.md)

@@ -16,6 +16,12 @@ false
 !! float
 3.14
 
+!! binary
+0b01010011
+
+!! hexadecimal
+0xc0ffee
+
 !! string
 "This is string"
 ```
@@ -46,7 +52,26 @@ false
 1.0 / 2.0
 ```
 
-# Logical Operators
+# Relational/Logical Operators
+
+```
+!! Compare two values
+1 == 1
+1 != 2
+1 < 2
+1 <= 2
+2 > 1
+2 >= 1
+
+!! Logical operators
+true && true
+false || true
+!false
+```
+
+# Bitwise Operators
+
+TBW
 
 # Control Flows
 
@@ -103,9 +128,37 @@ end
 
 `else` is required. (TODO: check exhausitivity of patterns)
 
+# Type Assertion
+
+```
+{expression} : {type}
+```
+
+Declare `{expression}` is typed as `{type}`. It is referred by type inference. It is a hint for
+typing an expression and will be checked by compiler. For example, `42 : int` is OK but
+`3.14 : int` causes compilation error.
+
 # Array Operations
 
+## Literal
+
+TBW
+
+## Access to Element
+
+TBW
+
+## Make a Slice
+
+TBW
+
 # Dictionary Operations
+
+TBW
+
+# String Operations
+
+TBW
 
 ---
 [Top](./README.md)
