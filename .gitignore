@@ -1,13 +1,4 @@
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-Testing
-CTestTestfile.cmake
-build/*
 *.o
-*.ll
-*.bc
-*.s
+*.a
 
-!build/Rakefile
+/next/compiler/dachs

@@ -12,10 +12,12 @@ type LoggerTag int
 const (
 	None   LoggerTag = 0
 	Lexing           = 1 << iota
+	Parsing
 )
 
 var tagTable = [...]string{
-	Lexing: "Lexing",
+	Lexing:  "Lexing",
+	Parsing: "Parsing",
 }
 
 type logger struct {
@@ -48,7 +50,7 @@ func Log(args ...interface{}) {
 	}
 
 	// XXX: Need to protect runtime.Caller() with mutex for thread safety
-	_, file, line, ok := runtime.Caller(2)
+	_, file, line, ok := runtime.Caller(1)
 	if !ok {
 		file = "???"
 		line = 0
