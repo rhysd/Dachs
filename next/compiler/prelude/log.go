@@ -21,31 +21,40 @@ var tagTable = [...]string{
 }
 
 type logger struct {
-	EnabledTags LoggerTag
-	Tag         LoggerTag
-	Out         io.Writer
+	enabledTags LoggerTag
+	tag         LoggerTag
+	out         io.Writer
 }
 
 var globalLogger = logger{0, 0, os.Stderr}
 
 func EnableLog(tag LoggerTag) {
-	globalLogger.EnabledTags |= tag
+	globalLogger.enabledTags |= tag
 }
 
 func EnableLogAll() {
-	globalLogger.EnabledTags = ^0
+	globalLogger.enabledTags = ^0
+}
+
+func DisableLogAll() {
+	globalLogger.enabledTags = 0
 }
 
 func DisableLog(tag LoggerTag) {
-	globalLogger.EnabledTags &^= tag
+	globalLogger.enabledTags &^= tag
 }
 
 func NowLogging(tag LoggerTag) {
-	globalLogger.Tag = tag
+	globalLogger.tag = tag
+}
+
+func SetLogWriter(w io.Writer) {
+	// XXX: Need to protect runtime.Caller() with mutex for thread safety
+	globalLogger.out = w
 }
 
 func Log(args ...interface{}) {
-	if globalLogger.Tag&globalLogger.EnabledTags == 0 {
+	if globalLogger.tag&globalLogger.enabledTags == 0 {
 		return
 	}
 
@@ -63,6 +72,6 @@ func Log(args ...interface{}) {
 		}
 	}
 
-	header := fmt.Sprintf("[%s]%s:%d: ", tagTable[globalLogger.Tag], file, line)
-	io.WriteString(globalLogger.Out, header+fmt.Sprintln(args...))
+	header := fmt.Sprintf("[%s] %s:%d: ", tagTable[globalLogger.tag], file, line)
+	io.WriteString(globalLogger.out, header+fmt.Sprintln(args...))
 }
