@@ -158,6 +158,20 @@ TBW
 
 # String Operations
 
+## String Literal
+
+TBW (raw string, multi-line string, escape characters...)
+
+## String Interpolation
+
+TBW
+
+## Substring
+
+TBW
+
+## Concatenation
+
 TBW
 
 ---

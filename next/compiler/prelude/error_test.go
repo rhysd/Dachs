@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func testMakeRange() (Position, Position) {
+func testMakeRange() (Pos, Pos) {
 	s := NewDummySource(
 		`package prelude
 
@@ -14,12 +14,12 @@ import (
 )`,
 	)
 
-	start := Position{4, 1, 4, s}
-	end := Position{20, 3, 3, s}
+	start := Pos{4, 1, 4, s}
+	end := Pos{20, 3, 3, s}
 	return start, end
 }
 
-func testMakePos() Position {
+func testMakePos() Pos {
 	p, _ := testMakeRange()
 	return p
 }
@@ -155,7 +155,7 @@ func TestWrapMethods(t *testing.T) {
 
 func TestCodeIsEmpty(t *testing.T) {
 	s := NewDummySource("")
-	p := Position{0, 1, 1, s}
+	p := Pos{0, 1, 1, s}
 	err := NewError(p, p, "This is error text!")
 	want := "Error at <dummy>:1:1\n  This is error text!"
 	got := err.Error()
