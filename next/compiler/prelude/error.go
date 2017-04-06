@@ -36,6 +36,10 @@ func (err *Error) Error() string {
 	buf.WriteString(strings.Replace(snip, "\n", "\n> ", -1))
 	buf.WriteString("\n\n")
 
+	// TODO:
+	// If the code snippet for the token is too long, skip lines with '...' except for starting N lines
+	// and ending N lines
+
 	return buf.String()
 }
 

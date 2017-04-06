@@ -12,6 +12,7 @@ TESTS := \
 	prelude/source_test.go \
 	prelude/error_test.go \
 	syntax/token_test.go \
+	syntax/lexer_test.go \
 
 all: build test
 
