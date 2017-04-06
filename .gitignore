@@ -2,3 +2,4 @@
 *.a
 
 /next/compiler/dachs
+/next/compiler/cover.out
