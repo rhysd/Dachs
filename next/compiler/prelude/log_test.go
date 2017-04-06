@@ -9,8 +9,8 @@ import (
 func TestOutputAllLogs(t *testing.T) {
 	var buf bytes.Buffer
 
-	DisableLogAll()
-	EnableLogAll()
+	DisableLog(All)
+	EnableLog(All)
 	SetLogWriter(&buf)
 
 	NowLogging(Lexing)
@@ -46,7 +46,7 @@ func TestOutputAllLogs(t *testing.T) {
 func TestOutputSpecific(t *testing.T) {
 	var buf bytes.Buffer
 
-	DisableLogAll()
+	DisableLog(All)
 	EnableLog(Lexing)
 	SetLogWriter(&buf)
 
@@ -80,7 +80,7 @@ func TestOutputSpecific(t *testing.T) {
 func TestOutputDisableSpecific(t *testing.T) {
 	var buf bytes.Buffer
 
-	EnableLogAll()
+	EnableLog(All)
 	DisableLog(Lexing)
 	SetLogWriter(&buf)
 
@@ -114,7 +114,7 @@ func TestOutputDisableSpecific(t *testing.T) {
 func TestOutputDisableAll(t *testing.T) {
 	var buf bytes.Buffer
 
-	DisableLogAll()
+	DisableLog(All)
 	SetLogWriter(&buf)
 
 	NowLogging(Lexing)

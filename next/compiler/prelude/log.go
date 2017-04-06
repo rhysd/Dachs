@@ -7,11 +7,17 @@ import (
 	"runtime"
 )
 
+// LoggerTag represents components you want to see the log for.
 type LoggerTag int
 
 const (
-	None   LoggerTag = 0
-	Lexing           = 1 << iota
+	// None represents nothing to log
+	None LoggerTag = 0
+	// All represents logging all messages
+	All = ^0
+	// Lexing tag logs messages for lexer
+	Lexing = 1 << iota
+	// Parsing tag logs messages for parser
 	Parsing
 )
 
@@ -28,28 +34,24 @@ type logger struct {
 
 var globalLogger = logger{0, 0, os.Stderr}
 
+// EnableLog enables log for flags defined by tag. Tags can be combined with '|'.
 func EnableLog(tag LoggerTag) {
 	globalLogger.enabledTags |= tag
 }
 
-func EnableLogAll() {
-	globalLogger.enabledTags = ^0
-}
-
-func DisableLogAll() {
-	globalLogger.enabledTags = 0
-}
-
+// DisableLog stops logging for flags defined by tag. Tags can be combined with '|'.
 func DisableLog(tag LoggerTag) {
 	globalLogger.enabledTags &^= tag
 }
 
+// NowLogging declares what is now logging with tag.
 func NowLogging(tag LoggerTag) {
 	globalLogger.tag = tag
 }
 
+// SetLogWriter sets a target to write log. Default is os.Stderr
 func SetLogWriter(w io.Writer) {
-	// XXX: Need to protect runtime.Caller() with mutex for thread safety
+	// XXX: Need to protect the assignment with mutex for thread safety
 	globalLogger.out = w
 }
 
@@ -76,10 +78,12 @@ func output(text string, calldepth int) {
 	io.WriteString(globalLogger.out, header+text)
 }
 
+// Log prints one line log. All arguments will be printed by being separated with whitespace
 func Log(args ...interface{}) {
 	output(fmt.Sprintln(args...), 2)
 }
 
+// Logf prints one line formatted log. New line will be added at the end automatically.
 func Logf(format string, args ...interface{}) {
 	output(fmt.Sprintf(format, args...)+"\n", 2)
 }
