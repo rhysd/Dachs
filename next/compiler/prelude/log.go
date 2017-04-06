@@ -53,13 +53,13 @@ func SetLogWriter(w io.Writer) {
 	globalLogger.out = w
 }
 
-func Log(args ...interface{}) {
+func output(text string, calldepth int) {
 	if globalLogger.tag&globalLogger.enabledTags == 0 {
 		return
 	}
 
 	// XXX: Need to protect runtime.Caller() with mutex for thread safety
-	_, file, line, ok := runtime.Caller(1)
+	_, file, line, ok := runtime.Caller(calldepth)
 	if !ok {
 		file = "???"
 		line = 0
@@ -73,5 +73,13 @@ func Log(args ...interface{}) {
 	}
 
 	header := fmt.Sprintf("[%s] %s:%d: ", tagTable[globalLogger.tag], file, line)
-	io.WriteString(globalLogger.out, header+fmt.Sprintln(args...))
+	io.WriteString(globalLogger.out, header+text)
+}
+
+func Log(args ...interface{}) {
+	output(fmt.Sprintln(args...), 2)
+}
+
+func Logf(format string, args ...interface{}) {
+	output(fmt.Sprintf(format, args...)+"\n", 2)
 }

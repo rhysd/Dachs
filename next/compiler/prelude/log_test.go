@@ -19,7 +19,7 @@ func TestOutputAllLogs(t *testing.T) {
 	Log("this", "is", "test", 3.14)
 
 	NowLogging(Parsing)
-	Log("parsing", 42)
+	Logf("parsing %d", 42)
 	Log("this", "is", "test", 1.14)
 
 	got := strings.Split(buf.String(), "\n")
@@ -55,7 +55,7 @@ func TestOutputSpecific(t *testing.T) {
 	Log("this", "is", "test", 3.14)
 
 	NowLogging(Parsing)
-	Log("parsing", 42)
+	Logf("parsing %d", 42)
 	Log("this", "is", "test", 1.14)
 
 	got := strings.Split(buf.String(), "\n")
@@ -89,7 +89,7 @@ func TestOutputDisableSpecific(t *testing.T) {
 	Log("this", "is", "test", 3.14)
 
 	NowLogging(Parsing)
-	Log("parsing", 42)
+	Logf("parsing %d", 42)
 	Log("this", "is", "test", 1.14)
 
 	got := strings.Split(buf.String(), "\n")
@@ -122,7 +122,7 @@ func TestOutputDisableAll(t *testing.T) {
 	Log("this", "is", "test", 3.14)
 
 	NowLogging(Parsing)
-	Log("parsing", 42)
+	Logf("parsing %d", 42)
 	Log("this", "is", "test", 1.14)
 
 	out := buf.String()
