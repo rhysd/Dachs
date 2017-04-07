@@ -3,7 +3,7 @@ package prelude
 
 // Pos represents some point in a source code.
 type Pos struct {
-	// Offset from the beggining of code
+	// Offset from the beginning of code
 	Offset int
 	// Line number
 	Line int

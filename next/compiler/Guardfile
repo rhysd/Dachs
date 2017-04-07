@@ -13,11 +13,15 @@ guard :shell do
     sep m[0]
     case m[0]
     when /_test\.go$/
-      # dir = m[0].match(%r[^[^/]+])[0]
-      # system "go test ./#{dir}"
       run_test m[0]
     else
       system "make build"
+      f = m[0].to_s
+      test_file = "#{f[0, f.length-3]}_test.go"
+      if File.exists? test_file
+        sep test_file
+        run_test test_file
+      end
     end
   end
   watch /(.*)\/testdata\/.+\.(:?ml|out)$/ do |m|

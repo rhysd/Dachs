@@ -1,0 +1,30 @@
+func param_type_all(a: int, b: str, c: float): int
+end
+
+func param_type_partial(a: int, b, c: int)
+end
+
+func param_type_first(a: int, b); end
+
+func param_type_last(a, b: int)
+end
+
+func params_ret(a, b): int
+end
+
+func params_no_ret(a, b)
+end
+
+func one_param_no_ret(a)
+end
+
+func one_param(a): int
+end
+
+func no_param: int
+end
+
+func no_param_no_ret; end
+
+func main
+end

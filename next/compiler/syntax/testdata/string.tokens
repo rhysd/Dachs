@@ -1,0 +1,16 @@
+FUNC:func
+IDENT:main
+NEWLINE:
+STRING:"hello, world"
+NEWLINE:
+STRING:"foo\nbar\b"
+NEWLINE:
+STRING:"\"\i\""
+NEWLINE:
+STRING:""
+NEWLINE:
+STRING:"\n"
+NEWLINE:
+END:end
+NEWLINE:
+EOF:

@@ -1,0 +1,7 @@
+func main
+    "hello, world"
+    "foo\nbar\b"
+    "\"\i\""
+    ""
+    "\n"
+end

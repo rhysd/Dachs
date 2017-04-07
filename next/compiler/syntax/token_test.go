@@ -18,3 +18,10 @@ func TestTokenString(t *testing.T) {
 		t.Fatalf("Expected '%s' but actually '%s'", want, got)
 	}
 }
+
+func TestStringToken(t *testing.T) {
+	s := TokenEOF.String()
+	if s != "EOF" {
+		t.Fatalf("Expected 'EOF' but actually '%s'", s)
+	}
+}

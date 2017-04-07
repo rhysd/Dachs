@@ -1,0 +1,6 @@
+!! comment at head of program
+
+func main
+    !! comment!! in body
+    42 !! this is second comment
+end

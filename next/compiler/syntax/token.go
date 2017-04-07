@@ -23,7 +23,6 @@ const (
 	TokenIdent
 	TokenBool
 	TokenInt
-	TokenUInt
 	TokenFloat
 	TokenString
 	TokenMinus
@@ -63,42 +62,44 @@ const (
 	TokenFunc
 	TokenDo
 	TokenRightArrow
+	TokenComma
+	TokenBreak
+	TokenNext
 )
 
 var tokenTable = [...]string{
 	TokenIllegal:       "ILLEGAL",
 	TokenEOF:           "EOF",
-	TokenComment:       "COMMENT",
-	TokenNewline:       "NEWLINE",
-	TokenSemicolon:     "SEMICOLON",
-	TokenLParen:        "LPAREN",
-	TokenRParen:        "RPAREN",
-	TokenLBrace:        "LBRACE",
-	TokenRBrace:        "RBRACE",
-	TokenLBracket:      "LBRACKET",
-	TokenRBracket:      "RBRACKET",
-	TokenIdent:         "IDENT", // Including `'a`, `_`
+	TokenComment:       "COMMENT",   // !!
+	TokenNewline:       "NEWLINE",   // \n
+	TokenSemicolon:     "SEMICOLON", // ;
+	TokenLParen:        "LPAREN",    // (
+	TokenRParen:        "RPAREN",    // )
+	TokenLBrace:        "LBRACE",    // {
+	TokenRBrace:        "RBRACE",    // }
+	TokenLBracket:      "LBRACKET",  // [
+	TokenRBracket:      "RBRACKET",  // ]
+	TokenIdent:         "IDENT",     // Including `'a`, `_`
 	TokenBool:          "BOOL",
 	TokenInt:           "INT",
-	TokenUInt:          "UINT",
 	TokenFloat:         "FLOAT",
-	TokenString:        "STRING", // "...",
-	TokenMinus:         "MINUS",
-	TokenPlus:          "PLUS",
-	TokenStar:          "STAR", // *
-	TokenDiv:           "DIV",  // /
-	TokenNot:           "NOT",  // !
-	TokenOr:            "OR",   // ||
-	TokenAnd:           "AND",  // &&
-	TokenPercent:       "PERCENT",
-	TokenEqual:         "EQUAL", // ==
-	TokenNotEqual:      "NOT_EQUAL",
-	TokenAssign:        "ASSIGN", // =
-	TokenDefine:        "DEFINE", // :=
-	TokenLess:          "LESS",
-	TokenLessEqual:     "LESS_EQUAL",
-	TokenGreater:       "GREATER",
-	TokenGreaterEqual:  "GREATER_EQUAL",
+	TokenString:        "STRING",        // "...",
+	TokenMinus:         "MINUS",         // -
+	TokenPlus:          "PLUS",          // +
+	TokenStar:          "STAR",          // *
+	TokenDiv:           "DIV",           // /
+	TokenNot:           "NOT",           // !
+	TokenOr:            "OR",            // ||
+	TokenAnd:           "AND",           // &&
+	TokenPercent:       "PERCENT",       // %
+	TokenEqual:         "EQUAL",         // ==
+	TokenNotEqual:      "NOT_EQUAL",     // !=
+	TokenAssign:        "ASSIGN",        // =
+	TokenDefine:        "DEFINE",        // :=
+	TokenLess:          "LESS",          // <
+	TokenLessEqual:     "LESS_EQUAL",    // <=
+	TokenGreater:       "GREATER",       // >
+	TokenGreaterEqual:  "GREATER_EQUAL", // >=
 	TokenEnd:           "END",
 	TokenIf:            "IF",
 	TokenThen:          "THEN",
@@ -110,16 +111,23 @@ var tokenTable = [...]string{
 	TokenDot:           "DOT",
 	TokenType:          "TYPE",
 	TokenOf:            "OF",
-	TokenColon:         "COLON",
+	TokenColon:         "COLON", // :
 	TokenFor:           "FOR",
 	TokenIn:            "IN",
-	TokenFatRightArrow: "FAT_RIGHT_ALLOW", // =>
+	TokenFatRightArrow: "FAT_RIGHT_ARROW", // =>
 	TokenColonColon:    "COLON_COLON",     // ::
 	TokenTypeof:        "TYPEOF",
 	TokenAs:            "AS",
 	TokenFunc:          "FUNC",
 	TokenDo:            "DO",
-	TokenRightArrow:    "RIGHT_ALLOW", // ->
+	TokenRightArrow:    "RIGHT_ARROW", // ->
+	TokenComma:         "COMMA",
+	TokenBreak:         "BREAK",
+	TokenNext:          "NEXT",
+}
+
+func (k TokenKind) String() string {
+	return tokenTable[k]
 }
 
 // Token represents tokens lexed from source code

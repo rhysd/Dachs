@@ -205,5 +205,34 @@ end
 
 First form is a 'while' loop and second is a 'foreach' loop.
 
+### Break loop
+
+`break` statement is used for the purpose
+
+```
+i := 0
+for true
+    if i > 10
+        break
+    end
+    i = i + 1
+end
+```
+
+### Continue loop
+
+`next` statement is used for the purpose
+
+```
+i := 0
+for i < 10
+    i = i + 1
+    if i % 2 != 0
+        next
+    end
+    print(i)
+end
+```
+
 ---
 [Top](./README.md)

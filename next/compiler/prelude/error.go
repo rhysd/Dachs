@@ -36,6 +36,10 @@ func (err *Error) Error() string {
 	buf.WriteString(strings.Replace(snip, "\n", "\n> ", -1))
 	buf.WriteString("\n\n")
 
+	// TODO:
+	// If the code snippet for the token is too long, skip lines with '...' except for starting N lines
+	// and ending N lines
+
 	return buf.String()
 }
 
@@ -51,22 +55,22 @@ func (err *Error) Wrapf(format string, args ...interface{}) *Error {
 	return err
 }
 
-// NewError makes a new complation error with the range.
+// NewError makes a new compilation error with the range.
 func NewError(start, end Pos, msg string) *Error {
 	return &Error{start, end, []string{msg}}
 }
 
-// NewErrorAt makes a new complation error with the position.
+// NewErrorAt makes a new compilation error with the position.
 func NewErrorAt(pos Pos, msg string) *Error {
 	return NewError(pos, Pos{}, msg)
 }
 
-// NewErrorf makes a new complation error with the range and formatted message.
+// NewErrorf makes a new compilation error with the range and formatted message.
 func NewErrorf(start, end Pos, format string, args ...interface{}) *Error {
 	return NewError(start, end, fmt.Sprintf(format, args...))
 }
 
-// NewErrorfAt makes a new complation error with the position and formatted message.
+// NewErrorfAt makes a new compilation error with the position and formatted message.
 func NewErrorfAt(pos Pos, format string, args ...interface{}) *Error {
 	return NewError(pos, Pos{}, fmt.Sprintf(format, args...))
 }

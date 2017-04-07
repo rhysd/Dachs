@@ -3,7 +3,7 @@ Compiler for Dachs Programming Language
 
 Compiler consists of some packages written in Go.
 
-## Prerequisities
+## Prerequisites
 
 - [Go 1.7+](https://golang.org/)
 - [bdwgc](https://github.com/ivmai/bdwgc)
@@ -12,7 +12,7 @@ Compiler consists of some packages written in Go.
 - Git
 - [cmake](https://cmake.org/) for building LLVM
 
-To install libgc (bdwgc), use pacakge manager for your OS.
+To install libgc (bdwgc), use package manager for your OS.
 
 - Debian family Linux: `apt-get install libgc-dev`
 - macOS: `brew install bdw-gc`

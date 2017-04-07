@@ -1,0 +1,10 @@
+func main
+    -> a, b, c in a + b - c
+    -> 42
+    -> a, b do
+        ret a + b
+    end
+    -> do
+        ret 1
+    end
+end
