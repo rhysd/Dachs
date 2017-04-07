@@ -191,6 +191,8 @@ var keywords = map[string]TokenKind{
 	"do":     TokenDo,
 	"true":   TokenBool,
 	"false":  TokenBool,
+	"break":  TokenBreak,
+	"next":   TokenNext,
 }
 
 func lexIdent(l *Lexer) stateFn {

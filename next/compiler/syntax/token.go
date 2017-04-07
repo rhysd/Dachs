@@ -63,6 +63,8 @@ const (
 	TokenDo
 	TokenRightArrow
 	TokenComma
+	TokenBreak
+	TokenNext
 )
 
 var tokenTable = [...]string{
@@ -120,6 +122,8 @@ var tokenTable = [...]string{
 	TokenDo:            "DO",
 	TokenRightArrow:    "RIGHT_ARROW", // ->
 	TokenComma:         "COMMA",
+	TokenBreak:         "BREAK",
+	TokenNext:          "NEXT",
 }
 
 func (k TokenKind) String() string {
