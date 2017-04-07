@@ -30,6 +30,7 @@ func NewLexer(src *prelude.Source) *Lexer {
 		Offset: 0,
 		Line:   1,
 		Column: 1,
+		File:   src,
 	}
 	return &Lexer{
 		state:   lex,

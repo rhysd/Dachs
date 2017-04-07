@@ -122,6 +122,10 @@ var tokenTable = [...]string{
 	TokenRightArrow:    "RIGHT_ARROW", // ->
 }
 
+func (k TokenKind) String() string {
+	return tokenTable[k]
+}
+
 // Token represents tokens lexed from source code
 type Token struct {
 	Kind  TokenKind

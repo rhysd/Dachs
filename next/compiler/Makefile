@@ -1,4 +1,6 @@
 SRCS := \
+	driver/dachs/main.go \
+	driver/mediator.go \
 	prelude/error.go \
 	prelude/log.go \
 	prelude/position.go \
@@ -7,7 +9,6 @@ SRCS := \
 	syntax/lexer.go \
 
 TESTS := \
-	driver/dachs/main.go \
 	prelude/log_test.go \
 	prelude/source_test.go \
 	prelude/error_test.go \
