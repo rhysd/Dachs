@@ -1,4 +1,4 @@
-// Package driver provides a class to glue all modules of Dachs compiler implentation.
+// Package driver provides a class to glue all modules of Dachs compiler implementation.
 package driver
 
 import (

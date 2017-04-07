@@ -246,6 +246,10 @@ func lexEqual(l *Lexer) stateFn {
 	case '=':
 		l.eat()
 		l.emit(TokenEqual)
+	case '>':
+		// Lex =>
+		l.eat()
+		l.emit(TokenFatRightArrow)
 	default:
 		l.emit(TokenAssign)
 	}
@@ -265,10 +269,6 @@ func lexColon(l *Lexer) stateFn {
 		// Lex ::
 		l.eat()
 		l.emit(TokenColonColon)
-	case '>':
-		// Lex =>
-		l.eat()
-		l.emit(TokenFatRightArrow)
 	default:
 		l.emit(TokenColon)
 	}
@@ -473,6 +473,9 @@ func lex(l *Lexer) stateFn {
 		case ',':
 			l.eat()
 			l.emit(TokenComma)
+		case '.':
+			l.eat()
+			l.emit(TokenDot)
 		default:
 			switch {
 			case unicode.IsSpace(l.top):

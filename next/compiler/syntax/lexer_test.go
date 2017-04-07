@@ -108,6 +108,11 @@ func TestLexingInvalid(t *testing.T) {
 		"3.14e",
 		"0xg",
 		"0b2",
+		"?",
+		"\"unclosed string",
+		"a | b",
+		"a & b",
+		"\xDF\xFF",
 	} {
 		_, err := testLex(prelude.NewDummySource(input))
 		if err == nil {

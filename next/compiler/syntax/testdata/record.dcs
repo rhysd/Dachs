@@ -1,0 +1,9 @@
+type A of {a, b}
+
+func main
+    var a := A{42, "aaa"}
+    b := {10, "bbb"}
+    a = b as A
+    c := {10, "bbb"} as {age, name}
+    print(c.age)
+end

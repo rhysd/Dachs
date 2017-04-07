@@ -5,7 +5,7 @@ Primitive types start with lower case.
 - `int` : signed 64bit integer
 - `uint` : unsigned 64bit integer
 - `bool` : boolean type (`true` or `false`)
-- `flaot` : 64bit floating point number
+- `float` : 64bit floating point number
 - `string` : string type
 
 # Record Type
@@ -143,6 +143,28 @@ b := 10 as typeof(a)
 
 !! b has the same type of a
 print(a == b)
+```
+
+# Type Instantiation
+
+```
+Type{param1, param2, ...}
+```
+
+e.g.
+
+```
+!! Generic type User{'0, '1}
+type User of {name, data}
+
+!! Instantiate User with str and int
+type IntUser of User{str, int}
+
+!! Instantiate User with str and float
+type FloatUser of User{str, float}
+
+!! Only set an actual type to the first parameter
+type User2 of User{str, '1}
 ```
 
 # Pointer Type

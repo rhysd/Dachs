@@ -1,0 +1,7 @@
+func main
+    m := ["one" => 1, "two" => 2]
+    m["three"] = 3
+    print(m["three"])
+
+    array_or_dict = []
+end
