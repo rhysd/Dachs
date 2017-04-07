@@ -1,0 +1,7 @@
+language: go
+go: 1.x
+dist: trusty
+os:
+  - linux
+script:
+  - bash ./next/scripts/travis.sh

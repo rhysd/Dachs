@@ -1,0 +1,17 @@
+version: "{build}"
+clone_depth: 1
+clone_folder: c:\gopath\src\github.com\rhysd\Dachs
+environment:
+    GOPATH: c:\gopath
+install:
+    - echo %PATH%
+    - echo %GOPATH%
+    - go version
+    - go env
+    - cd .\next\compiler
+    - go get -v -t -d ./...
+    - set PATH=%PATH%;%GOPATH%\bin
+build: off
+test_script:
+    - go test -v ./...
+deploy: off
