@@ -23,7 +23,6 @@ const (
 	TokenIdent
 	TokenBool
 	TokenInt
-	TokenUInt
 	TokenFloat
 	TokenString
 	TokenMinus
@@ -63,6 +62,7 @@ const (
 	TokenFunc
 	TokenDo
 	TokenRightArrow
+	TokenComma
 )
 
 var tokenTable = [...]string{
@@ -80,7 +80,6 @@ var tokenTable = [...]string{
 	TokenIdent:         "IDENT",     // Including `'a`, `_`
 	TokenBool:          "BOOL",
 	TokenInt:           "INT",
-	TokenUInt:          "UINT",
 	TokenFloat:         "FLOAT",
 	TokenString:        "STRING",        // "...",
 	TokenMinus:         "MINUS",         // -
@@ -120,6 +119,7 @@ var tokenTable = [...]string{
 	TokenFunc:          "FUNC",
 	TokenDo:            "DO",
 	TokenRightArrow:    "RIGHT_ARROW", // ->
+	TokenComma:         "COMMA",
 }
 
 func (k TokenKind) String() string {

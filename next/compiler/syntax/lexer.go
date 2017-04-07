@@ -59,16 +59,18 @@ func (l *Lexer) forward() {
 	}
 
 	if err != nil {
-		panic(err)
+		l.fail(err.Error())
+		l.eof = true
+		return
 	}
 
 	if !utf8.ValidRune(r) {
-		// TODO: Do not panic
-		panic(fmt.Errorf("Invalid UTF-8 character at line:%d,col:%d: '%c' (%d)", l.current.Line, l.current.Column, r, r))
+		l.fail(fmt.Sprintf("Invalid UTF-8 character at line:%d,col:%d: '%c' (%d)", l.current.Line, l.current.Column, r, r))
+		l.eof = true
+		return
 	}
 
 	l.top = r
-	l.eof = false
 }
 
 func (l *Lexer) eat() {
@@ -101,6 +103,16 @@ func isLetter(r rune) bool {
 		r >= utf8.RuneSelf && unicode.IsLetter(r)
 }
 
+func isDigit(r rune) bool {
+	return '0' <= r && r <= '9'
+}
+
+func isHex(r rune) bool {
+	return '0' <= r && r <= '9' ||
+		'a' <= r && r <= 'f' ||
+		'A' <= r && r <= 'F'
+}
+
 func (l *Lexer) eatIdent() bool {
 	if !isLetter(l.top) {
 		l.expected("letter for head character of identifer", l.top)
@@ -108,7 +120,7 @@ func (l *Lexer) eatIdent() bool {
 	}
 	l.eat()
 
-	for isLetter(l.top) || unicode.IsDigit(l.top) {
+	for isLetter(l.top) || isDigit(l.top) {
 		l.eat()
 	}
 	return true
@@ -124,15 +136,14 @@ func (l *Lexer) emit(kind TokenKind) {
 }
 
 func (l *Lexer) fail(msg string) {
-	if l.Error == nil {
-		return
+	if l.Error != nil {
+		l.Error(prelude.NewError(l.start, l.current, msg))
 	}
-	l.Error(prelude.NewError(l.start, l.current, msg))
+	l.emit(TokenIllegal)
 }
 
 func (l *Lexer) expected(s string, actual rune) {
 	l.fail(fmt.Sprintf("Expected %s but got '%c'(%d)", s, actual, actual))
-	l.emit(TokenIllegal)
 }
 
 func (l *Lexer) currentString() string {
@@ -218,7 +229,6 @@ func lexStringLiteral(l *Lexer) stateFn {
 		l.eat()
 	}
 	l.fail("Unclosed string literal")
-	l.emit(TokenIllegal)
 	return nil
 }
 
@@ -262,9 +272,10 @@ func lexColon(l *Lexer) stateFn {
 func lexDigit(l *Lexer) stateFn {
 	tok := TokenInt
 
-	// Eat first digit
-	l.eat()
-	for unicode.IsDigit(l.top) {
+	// Note:
+	// This function assumes first digit is already eaten
+
+	for isDigit(l.top) {
 		l.eat()
 	}
 
@@ -272,7 +283,7 @@ func lexDigit(l *Lexer) stateFn {
 	if l.top == '.' {
 		tok = TokenFloat
 		l.eat()
-		for unicode.IsDigit(l.top) {
+		for isDigit(l.top) {
 			l.eat()
 		}
 	}
@@ -283,17 +294,79 @@ func lexDigit(l *Lexer) stateFn {
 		if l.top == '+' || l.top == '-' {
 			l.eat()
 		}
-		if !unicode.IsDigit(l.top) {
+		if !isDigit(l.top) {
 			l.expected("number for exponential part of float literal", l.top)
 			return nil
 		}
-		for unicode.IsDigit(l.top) {
+		for isHex(l.top) {
 			l.eat()
 		}
 	}
 
+	if tok == TokenInt && l.top == 'u' {
+		// Lex 'u' of 123u
+		l.eat()
+	}
+
 	l.emit(tok)
 	return lex
+}
+
+func lexHex(l *Lexer) stateFn {
+	if !isHex(l.top) {
+		l.expected("hexiadecimal number (0~f)", l.top)
+		return nil
+	}
+	l.eat()
+
+	for isHex(l.top) {
+		l.eat()
+	}
+
+	if l.top == 'u' {
+		l.eat()
+	}
+
+	l.emit(TokenInt)
+	return lex
+}
+
+func lexBin(l *Lexer) stateFn {
+	if l.top != '0' && l.top != '1' {
+		l.expected("binary number (0 or 1)", l.top)
+		return nil
+	}
+	l.eat()
+
+	for l.top == '0' || l.top == '1' {
+		l.eat()
+	}
+
+	if l.top == 'u' {
+		l.eat()
+	}
+
+	l.emit(TokenInt)
+	return lex
+}
+
+func lexNumber(l *Lexer) stateFn {
+	if l.top != '0' {
+		l.eat()
+		return lexDigit
+	}
+
+	l.eat()
+	switch l.top {
+	case 'x':
+		l.eat()
+		return lexHex
+	case 'b':
+		l.eat()
+		return lexBin
+	default:
+		return lexDigit
+	}
 }
 
 func lex(l *Lexer) stateFn {
@@ -390,13 +463,16 @@ func lex(l *Lexer) stateFn {
 			} else {
 				l.emit(TokenGreater)
 			}
+		case ',':
+			l.eat()
+			l.emit(TokenComma)
 		default:
 			switch {
 			case unicode.IsSpace(l.top):
 				// Note: '\n' was already checked
 				l.consume()
-			case unicode.IsDigit(l.top):
-				return lexDigit
+			case isDigit(l.top):
+				return lexNumber
 			default:
 				return lexIdent
 			}
