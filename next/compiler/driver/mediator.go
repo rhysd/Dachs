@@ -50,7 +50,7 @@ func NewDriver(file string, logs []string) (*Driver, error) {
 
 // Lex only lexes a givven source
 func (d *Driver) Lex() ([]*syntax.Token, error) {
-	var err error = nil
+	var err error
 	l := syntax.NewLexer(d.Source)
 	l.Error = func(e *prelude.Error) {
 		err = e

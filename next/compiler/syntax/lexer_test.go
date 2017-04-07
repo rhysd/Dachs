@@ -10,6 +10,30 @@ import (
 	"github.com/rhysd/Dachs/next/compiler/prelude"
 )
 
+func testLex(s *prelude.Source) ([]*Token, error) {
+	l := NewLexer(s)
+	defer close(l.Tokens)
+
+	var err error
+	l.Error = func(e *prelude.Error) { err = e }
+	tokens := make([]*Token, 0, 200)
+
+	go l.Lex()
+Loop:
+	for {
+		select {
+		case t := <-l.Tokens:
+			tokens = append(tokens, t)
+			switch t.Kind {
+			case TokenEOF, TokenIllegal:
+				break Loop
+			}
+		}
+	}
+
+	return tokens, err
+}
+
 func TestLexingOK(t *testing.T) {
 	inputs, err := filepath.Glob("testdata/*.dcs")
 	if err != nil {
@@ -35,31 +59,19 @@ func TestLexingOK(t *testing.T) {
 				break
 			}
 		}
+
+		// If there is no .tokens file, skip it.
+		if expect == "" {
+			continue
+		}
+
 		t.Run(base, func(t *testing.T) {
 			s, err := prelude.NewSourceFromFile(input)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			l := NewLexer(s)
-			defer close(l.Tokens)
-
-			err = nil
-			l.Error = func(e *prelude.Error) { err = e }
-			tokens := make([]*Token, 0, 200)
-
-			go l.Lex()
-		Loop:
-			for {
-				select {
-				case t := <-l.Tokens:
-					tokens = append(tokens, t)
-					switch t.Kind {
-					case TokenEOF, TokenIllegal:
-						break Loop
-					}
-				}
-			}
+			tokens, err := testLex(s)
 
 			if err != nil {
 				t.Fatal(err)
@@ -88,5 +100,18 @@ func TestLexingOK(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLexingInvalid(t *testing.T) {
+	for _, input := range []string{
+		"3.14e",
+		"0xg",
+		"0b2",
+	} {
+		_, err := testLex(prelude.NewDummySource(input))
+		if err == nil {
+			t.Errorf("%s: Expected that an error occurred, but there was no error", input)
+		}
 	}
 }

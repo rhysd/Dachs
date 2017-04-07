@@ -1,0 +1,14 @@
+COMMENT:!! comment at head of program
+NEWLINE:
+NEWLINE:
+FUNC:func
+IDENT:main
+NEWLINE:
+COMMENT:!! comment!! in body
+NEWLINE:
+INT:42
+COMMENT:!! this is second comment
+NEWLINE:
+END:end
+NEWLINE:
+EOF:

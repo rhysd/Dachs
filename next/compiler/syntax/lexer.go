@@ -13,18 +13,22 @@ type stateFn func(*Lexer) stateFn
 
 const eof = -1
 
+// Lexer lexes Dachs source code in another goroutine
 type Lexer struct {
 	state   stateFn
 	start   prelude.Pos
 	current prelude.Pos
 	src     *prelude.Source
 	input   *bytes.Reader
-	Tokens  chan *Token
-	top     rune
-	eof     bool
-	Error   func(*prelude.Error)
+	// Tokens is a channel to receive tokens lexed by lexer
+	Tokens chan *Token
+	top    rune
+	eof    bool
+	// Error is a callback called when lexer find an error
+	Error func(*prelude.Error)
 }
 
+// NewLexer makes a new lexer instance
 func NewLexer(src *prelude.Source) *Lexer {
 	start := prelude.Pos{
 		Offset: 0,
@@ -43,6 +47,7 @@ func NewLexer(src *prelude.Source) *Lexer {
 	}
 }
 
+// Lex starts to lex target source. Tokens will be sent to Tokens channel
 func (l *Lexer) Lex() {
 	l.forward()
 	for l.state != nil {

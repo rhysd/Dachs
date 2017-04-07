@@ -1,0 +1,12 @@
+func main
+    case true then 42
+    case false
+    else
+        print("else")
+    end
+
+    case 10 > 0
+        a := 1 + 1
+        print("no else")
+    end
+end

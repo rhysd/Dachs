@@ -1,0 +1,11 @@
+func main
+    if true
+    end
+    if true then
+    end
+    if false
+    else
+    end
+    if true; end
+    if true; else; end
+end
