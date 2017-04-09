@@ -65,6 +65,7 @@ const (
 	TokenComma
 	TokenBreak
 	TokenNext
+	TokenEllipsis
 )
 
 var tokenTable = [...]string{
@@ -124,6 +125,7 @@ var tokenTable = [...]string{
 	TokenComma:         "COMMA",
 	TokenBreak:         "BREAK",
 	TokenNext:          "NEXT",
+	TokenEllipsis:      "ELLIPSIS",
 }
 
 func (k TokenKind) String() string {

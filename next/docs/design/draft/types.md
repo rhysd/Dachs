@@ -145,6 +145,18 @@ b := 10 as typeof(a)
 print(a == b)
 ```
 
+# Function Type
+
+```
+({param type}, {param type}, {param type}, ...) -> {return type}
+```
+
+e.g.
+
+```
+(int, str) -> float
+```
+
 # Type Instantiation
 
 ```

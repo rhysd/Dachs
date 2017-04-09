@@ -3,10 +3,11 @@ package syntax
 import (
 	"bytes"
 	"fmt"
-	"github.com/rhysd/Dachs/next/compiler/prelude"
 	"io"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/rhysd/Dachs/next/compiler/prelude"
 )
 
 type stateFn func(*Lexer) stateFn
@@ -376,6 +377,26 @@ func lexNumber(l *Lexer) stateFn {
 	}
 }
 
+func lexDot(l *Lexer) stateFn {
+	// Eat first dot
+	l.eat()
+
+	if l.top != '.' {
+		l.emit(TokenDot)
+		return lex
+	}
+
+	l.eat()
+	if l.top != '.' {
+		l.expected("'.' for '...'", l.top)
+		return nil
+	}
+
+	l.eat()
+	l.emit(TokenEllipsis)
+	return lex
+}
+
 func lex(l *Lexer) stateFn {
 	for {
 		if l.eof {
@@ -474,8 +495,7 @@ func lex(l *Lexer) stateFn {
 			l.eat()
 			l.emit(TokenComma)
 		case '.':
-			l.eat()
-			l.emit(TokenDot)
+			return lexDot
 		default:
 			switch {
 			case unicode.IsSpace(l.top):

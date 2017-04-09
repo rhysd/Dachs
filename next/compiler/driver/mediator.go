@@ -43,12 +43,14 @@ func NewDriver(file string, logs []string) (*Driver, error) {
 		return nil, fmt.Errorf("Error on opening source: %s", err.Error())
 	}
 
-	setupLog(logs)
+	if err = setupLog(logs); err != nil {
+		return nil, err
+	}
 
 	return &Driver{Source: src}, nil
 }
 
-// Lex only lexes a givven source
+// Lex only lexes a given source
 func (d *Driver) Lex() ([]*syntax.Token, error) {
 	var err error
 	l := syntax.NewLexer(d.Source)

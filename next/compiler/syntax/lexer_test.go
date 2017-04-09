@@ -113,6 +113,7 @@ func TestLexingInvalid(t *testing.T) {
 		"a | b",
 		"a & b",
 		"\xDF\xFF",
+		"..f",
 	} {
 		_, err := testLex(prelude.NewDummySource(input))
 		if err == nil {

@@ -1,4 +1,7 @@
 SRCS := \
+	ast/node.go \
+	ast/visitor.go \
+	ast/printer.go \
 	driver/dachs/main.go \
 	driver/mediator.go \
 	prelude/error.go \
@@ -7,6 +10,8 @@ SRCS := \
 	prelude/source.go \
 	syntax/token.go \
 	syntax/lexer.go \
+
+	# syntax/grammar.go \
 
 TESTS := \
 	prelude/log_test.go \
@@ -22,6 +27,10 @@ build: dachs
 dachs: $(SRCS)
 	go get -t -d ./...
 	if which time > /dev/null; then time go build ./driver/dachs; else go build ./driver/dachs; fi
+
+syntax/grammar.go: syntax/grammar.go.y
+	go get golang.org/x/tools/cmd/goyacc
+	goyacc -o syntax/grammar.go syntax/grammar.go.y
 
 test: $(TESTS)
 	go test ./...
