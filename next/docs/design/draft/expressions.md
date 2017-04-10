@@ -143,6 +143,31 @@ Declare `{expression}` is typed as `{type}`. It is referred by type inference. I
 typing an expression and will be checked by compiler. For example, `42 : int` is OK but
 `3.14 : int` causes compilation error.
 
+# Function Call
+
+```
+{callee}({arg1}, {arg2}, ...)
+{callee}(name1: {arg1}, name2: {arg2}, ...)
+```
+
+There are two way to call function with arguments.
+
+When calling a function with expressions only, arguments of callee and parameters of caller are
+matched with their positions.
+
+When calling a function with names and their expressions, arguments of callee and parameters of caller are
+matched with their names.
+
+```
+func pow(base, exp)
+    ...
+end
+
+pow(3, 4)
+pow(base: 3, exp: 4)
+pow(exp: 4, base: 3)
+```
+
 # Array Operations
 
 ## Literal
@@ -158,6 +183,23 @@ TBW
 TBW
 
 # Dictionary Operations
+
+## Literal
+
+```
+[e1 => e2, e3 => e4, ...]
+[ => ]
+```
+
+```
+!! Initialize dictionary with some elements
+intToWord := [0 => "zero", 1 => "one"]
+
+!! Initialize empty dictionary
+emp := [ => ]
+```
+
+Empty literal is `[ => ]` to distinguish dictionary from array.
 
 TBW
 

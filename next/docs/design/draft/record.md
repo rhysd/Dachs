@@ -40,6 +40,7 @@ Example:
 
 ```
 !! Empty
+{}
 
 !! Record which has two fields (anonymous)
 {age: 12, name: "John"}
@@ -289,9 +290,11 @@ Person(age: 17, name: "Ken")
 - `(` and `)`
   - `(...)` is more tuple like. (+1)
   - Instantiation with `Foo(...)` is very similar to function call (-1)
+    - But defining constructor function `Foo()` also looks good (rather than Foo{...} special coercion) (+1)
 - `{` and `}`
   - `{...}` is more distinct than `(...)`. (`(expr)` is one expression rather than record) (+1)
   - If using `{...}` for other syntax, it may conflict. `{...}` is also useful for representing 'region' (-1)
+    - I want to use `{...}` for dictionary literal... (-1)
 
 ---
 [Top](./README.md)
