@@ -13,28 +13,69 @@ e.g.
 i := 42
 print(i)
 
-!! From a record which has unnamed fields (like tuple)
-r := {1, true, "aaa"}
-i, b, s := r
-print(i); print(b); print(s)
-
-!! From a record. Field names must be the same as RHS's ones.
-r2 := {age: 12, name: "John"}
-age, name := r2
-print(age); print(name)
-
-!! Match with names. So below is also OK.
-name, age := r2
-
-!! Named record
-type Person of {name, age}
-p := Person{"John", 12}
-age, name := p
-print(age); print(name)
+var s := "foo"
 ```
 
 When `var` is added to the definition, the variable will be mutable.
 By default, variables are immutable (like `const` in C).
+
+## Destructuring
+
+From fields of [record](record.md), variables can be defined with destructuring like JavaScript.
+
+```
+{...} := some_record_value
+```
+
+e.g.
+
+```
+!! From a record which has unnamed fields (like tuple)
+r := {1, true, "aaa"}
+{i, b, s} := r
+print(i); print(b); print(s)
+
+!! From a record. Field names must be the same as RHS's ones.
+r2 := {age: 12, name: "John"}
+{age, name} := r2
+print(age); print(name)
+
+!! Match with names. So below is also OK.
+{name, age} := r2
+
+!! Named record
+type Person of {name, age}
+p := Person("John", 12)
+{age, name} := p
+print(age); print(name)
+```
+
+If the record at right hand side doesn't have unnamed fields, the names of destructured variables
+MUST have the same name as corresponding fields. For example, `{foo} := {foo: 42}` is OK but
+`{bar} := {foo: 42}` is not OK because of field name mismatch (`foo` v.s. `bar`).
+
+If the record at right hand side has unnamed fields, the names of destructured variables can be
+named as you like.
+
+```
+r := {_: 42, _: "foo"}
+
+{foo, bar} := r
+{f, b} := r
+```
+
+Unnamed field is a field which is not named *yet*. So you can set its name freely.
+
+Destructuring can be nested. In the case, defined variables' names also must match to
+the corresponding fields.
+
+```
+r := {a: 1, {b: 3.14, c: "aaa"}}
+
+{a, {b, c}} := r
+```
+
+TODO: Define 'ignore' syntax
 
 # Variable Assignment
 

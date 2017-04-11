@@ -191,6 +191,8 @@ TBW
 [ => ]
 ```
 
+e.g.
+
 ```
 !! Initialize dictionary with some elements
 intToWord := [0 => "zero", 1 => "one"]

@@ -1,14 +1,11 @@
 Record is a compound type which contains zero or more fields. Field is a pair of name and its type.
 
-Field names **MUST** start with lower case.
-
-# Syntax
+# Anonymous Record
 
 ## Definition
 
 ```
 {field1[: Type1], field2[: Type2], ...}
-{Type1, Type2, ...}
 ```
 
 Example:
@@ -32,6 +29,8 @@ Example:
 
 ## Literal
 
+Syntax for creating anonymous record value is like
+
 ```
 {field1: expr1, field2: expr2, ...}
 ```
@@ -44,16 +43,9 @@ Example:
 
 !! Record which has two fields (anonymous)
 {age: 12, name: "John"}
-
-!! Record which has two fields (named)
-type Person of {age, name}
-Person{age: 12, name: "John"}
-
-!! Unnamed fields (typed as {int, str})
-{12, "John"}
 ```
 
-# How to Define Named Type
+# Named Record
 
 Type alias (`type {name} of {type}`) is available to define named type. Type alias defines new
 type *strongly*. So it cannot be converted from original type implicitly.
@@ -69,101 +61,139 @@ type Person of {
 type Student of {name, grade}
 ```
 
+## Literal
+
+Named record value is made like
+
+```
+type Person of {age, name}
+
+Person{age: 12, name: "John"}
+```
+
+As the feature of `type ... of`, it defines constructor function implicitly.
+
+```
+type Person of {age, name}
+
+func Person(age: 'a, name: 'b)
+    ret {age: age, name: name}
+end
+```
+
+It's not a special function and enable to make instance of `Person` without field names.
+
+```
+Person(12, "John")
+
+!! Above is the same as below
+Person{age: 12, name: "John"}
+```
+
 # Unnamed Field
 
 Generally, field has its name. But Dachs allows field not to have a name, called unnamed field.
-To define an unnamed field, omit field names. It means 'not named yet'.
+To define an unnamed field, specify `_` as field name. It means 'not named yet'.
 
 Currently both named field and unnamed field cannot live in the same record. If a record has
 an unnamed record, all records must be unnamed in the record.
 
 ```
 !! First field is int, second field is str. But they don't have name yet.
-{int, str}
+{_: int, _: str}
 
 !! Types are omitted. It has two fields.
-{'a, 'b}
+{_, _}
 ```
 
-Basically this is not intended to be written by hand. As described in below 'Instantiation'
-section, Records containing unnamed fields is used like a tuple.
+Unnamed field doesn't have its name and field in record is accessed via its name. So unnamed field
+cannot be accessed at first. You need to give a name to the field to access.
+To give a name to unnamed field, you need to use pattern matching or destructuring.
 
 ```
-!! This is typed as {int, str}
-{12, "John"}
-```
+r := {_: 12, _: "John"}
 
-Unnamed field can be named after.
+match r
+case {12, name}
+    print(name)
+case {age, _}
+    print(age)
+end
 
-```
-!! Typed as {age: int, name: str}
-{12, "John"} as {age, name}
-
-type Person of {age, name}
-
-!! Typed as Person{age: 12, name: str}
-{12, "John"} of Person
-
-!! The same as above
-Person{12, "John"}
-```
-
-To access to unnamed field directly, index number is available instead.
-
-```
-r := {12, "John"}
-
-r.0 == 12
-r.1 == "John"
+{age, name} := r
+print(age)
+print(name)
 ```
 
 Unnamed field is used for enum type (please see [types.md](types.md) for more detail of enum type).
 This is used to name its field at pattern in `match` expression (or statement).
 
+For example, `Option` type can be written as below.
+
 ```
+!! Option::Some has one unnamed field.
 type Option of
-    case Some{'a}
+    case Some{_}
     case None
 
-!! Type is Option{int}
-some := Some{42}
+!! Type is Option{_: int}.
+!! Use constructor function to make a value easily.
+some := Some(42)
 
+!! Unnamed field can firstly access in the case arm
 match some
-case Some{answer}
+case Option::Some{answer}
     print(answer)
-case None
+case Option::None
     print("no answer!")
 end
 ```
 
-Here, `Some` has one unmaed field. The field name 'answer' is determined at `case` arm at `match`.
+Here, `Some` has one unmaed field. The field name 'answer' is determined at `case` arm at `match`
+statement.
 
 This is useful for the data structure which contains any value (field name should be changed
 depending on what is contained).
 
-# Instantiation
-
-Anonymous record value is like
-
-```
-{age: 12, name: "John"}
-```
-
-And named record value is like
-
-```
-type Person of {age, name}
-Person{age: 12, name: "John"}
-```
+## Instantiation
 
 For records which have unnamed fields,
 
 ```
-{12, "John"}
+pair := {_: 12, _: "John"}
+```
+
+Named record which has unnamed fields can be made with constructor function.
+
+```
+type Pair of {_: int, _: str}
+
+pair := Pair(12, "John")
+
+type Option of
+    case Some{_}
+    case None
+
+some := Option::Some(42)
+!! Instead of Option::Some{_: 42}
+```
+
+# Field Name Punning
+
+Like JavaScript's property punning, field of record at literal can be punned. It means that
+`{foo: foo}` can be squashed into `{foo}`.
+
+```
+age, name := 12, "John"
+
+person := {age, name}
+
+!! This is the same as {age: age, name: name}
+!! Type of person is {age: int, name: str}
 ```
 
 # Coercion
-
+~~
 ## Unnamed Fields to Named Fields
 
 Unamed fields can be named after by coercing the record which have unnamed fields into the record
@@ -194,6 +224,10 @@ Person{12, "John"}
 ```
 
 This is useful when constructing an instance of named record.
+~~
+
+Coercion is too confusing so I froze adding it to spec (e.g. How does it work if anonymous fields
+record nested?)
 
 # Pattern matching
 
@@ -213,7 +247,7 @@ else
 end
 
 !! Unnamed fields (tuples)
-person := {12, "John"}
+person := {_: 12, _: "John"}
 
 match person
 case {height, "John"}
@@ -225,8 +259,8 @@ end
 For normal records, field names in pattern of `match` MUST be the same as record definition.
 In above first example, using `height` at the pattern of first `case` arm causes compilation error.
 
-In above second example, the record has unnamed fields. Unnamed fields can be named as you like at pattern
-of the `case` arm.
+In above second example, the record has unnamed fields. Unnamed fields can be named as you like
+at pattern of the `case` arm.
 
 # Discussion Point
 
