@@ -1,4 +1,4 @@
-![Dachs Programming Language](misc/dachs-logo.jpg)
+![Dachs Programming Language](misc/dachs-logo.png)
 
 **Now new version is being developed in ['next' directory](./next). It will replace current C++ implementation.**
 

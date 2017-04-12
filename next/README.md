@@ -15,7 +15,7 @@ Goals :dog2:
 
 Please see [documents][] for more detail.
 
-[Dachs logo]: ../misc/dachs-logo.jpg
+[Dachs logo]: ../misc/dachs-logo.png
 [documents]: ./docs/design/draft/README.md
 [Travis CI results]: https://travis-ci.org/rhysd/Dachs
 [Travis CI badge]: https://travis-ci.org/rhysd/Dachs.svg?branch=master
