@@ -133,6 +133,42 @@ end
 
 `else` is required. (TODO: check exhausitivity of patterns)
 
+# Type Coercion
+
+```
+{expression} as {type}
+```
+
+Coerce the `{expression}` to `{type}`. Basically it is a type assertion for expressions.
+It is referred by type inference and can be a hint for typing the expression.
+
+If actual type of the expression and specified type are incompatible, compiler will raise
+a type mismatch error.
+
+```
+!! Error: type mismatch
+{aaa: 42, bbb: 10} as {ccc: str}
+```
+
+The exception is a primitive type. Signed integer can be coerced into
+unsigned integer and vice versa. And floating point numbers can also be coerced into integer type.
+
+```
+i := 42
+
+!! OK. It will be 42u
+i as uint
+
+!! OK. It would be 0x1111...1
+-1 as uint
+
+!! OK. It will be 3
+3.14 as int
+
+!! OK. It will be 3.0
+3 as float
+```
+
 # Type Assertion
 
 ```
