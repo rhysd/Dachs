@@ -59,7 +59,7 @@ func Visit(v Visitor, n Node) {
 	// Pattern
 	case *RecordPattern:
 		for _, f := range n.Fields {
-			Visit(v, f)
+			Visit(v, f.Pattern)
 		}
 	case *ArrayPattern:
 		for _, e := range n.Elems {
@@ -81,7 +81,7 @@ func Visit(v Visitor, n Node) {
 			Visit(v, e)
 		}
 	case *VarAssign:
-		for _, a := range n.Assignees {
+		for _, a := range n.RHSExprs {
 			Visit(v, a)
 		}
 	case *IndexAssign:

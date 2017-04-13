@@ -18,6 +18,12 @@ func (p Printer) Visit(n Node) Visitor {
 }
 
 func Fprint(out io.Writer, n Node) {
+	f := n.Pos().File
+	if f != nil {
+		fmt.Fprintf(out, "AST of %s:", f.Name)
+	} else {
+		fmt.Fprint(out, "AST:")
+	}
 	p := Printer{1, out}
 	Visit(p, n)
 }

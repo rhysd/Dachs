@@ -12,6 +12,16 @@ type Symbol struct {
 	ID   int
 }
 
+var symID = 1
+
+func NewSymbol(n string) Symbol {
+	symID++
+	return Symbol{
+		Name: n,
+		ID:   symID,
+	}
+}
+
 type UnaryOp int
 
 const (
@@ -47,11 +57,6 @@ type (
 		String() string
 	}
 
-	HasRange struct {
-		StartPos prelude.Pos
-		EndPos   prelude.Pos
-	}
-
 	// Root
 	Program struct {
 		Toplevels []Node
@@ -73,10 +78,11 @@ type (
 
 	// func () ... end
 	Function struct {
-		HasRange
-		Name   Symbol
-		Params []FuncParam
-		Body   []Statement
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Name     Symbol
+		Params   []FuncParam
+		Body     []Statement
 	}
 
 	// import a.b.c
@@ -88,7 +94,8 @@ type (
 	// import a.b.*
 	//  => Parents: ['a', 'b'] and Imported: []{'*'}
 	Import struct {
-		HasRange
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
 		Relative bool
 		Parents  []string
 		Imported []string
@@ -105,23 +112,26 @@ type (
 	// int, float, Foo, ...
 	TypeRef struct {
 		Type
-		HasRange
-		Name Symbol
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Name     Symbol
 	}
 
 	// 'a, 'b, ...
 	TypeVar struct {
 		Type
-		HasRange
-		Name Symbol
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Name     Symbol
 	}
 
 	// T{a, b, ...}
 	TypeInstantiate struct {
 		Type
-		HasRange
-		Name Symbol
-		Args []Type
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Name     Symbol
+		Args     []Type
 	}
 
 	RecordTypeField struct {
@@ -133,16 +143,18 @@ type (
 	// {a: int, b: T}
 	RecordType struct {
 		Type
-		HasRange
-		Fields []RecordTypeField
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Fields   []RecordTypeField
 	}
 
 	// {_: int, _: str}
 	// {_, _}
 	TupleType struct {
 		Type
-		HasRange
-		Elems []Type
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Elems    []Type
 	}
 
 	// (int, str) -> float
@@ -169,8 +181,9 @@ type (
 	// typeof(...)
 	TypeofType struct {
 		Type
-		HasRange
-		Expr Expression
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Expr     Expression
 	}
 
 	/*
@@ -184,67 +197,81 @@ type (
 	// 42
 	IntConstPattern struct {
 		Pattern
-		HasRange
-		Value int64
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Value    int64
 	}
 
 	// 42u
 	UIntConstPattern struct {
 		Pattern
-		HasRange
-		Value uint64
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Value    uint64
 	}
 
 	// true
 	BoolConstPattern struct {
 		Pattern
-		HasRange
-		Value bool
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Value    bool
 	}
 
 	// "foo"
 	StringConstPattern struct {
 		Pattern
-		HasRange
-		Value string
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Value    string
 	}
 
 	// 3.14
 	FloatConstPattern struct {
 		Pattern
-		HasRange
-		Value float64
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Value    float64
+	}
+
+	RecordPatternField struct {
+		Name    string
+		Pattern Pattern
 	}
 
 	// {a, b}
 	// {a, b, ...}
 	RecordPattern struct {
 		Pattern
-		HasRange
-		Name   Symbol
-		Fields []Pattern
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Name     Symbol
+		Fields   []RecordPatternField
 	}
 
 	// a
 	// _
 	VarDeclPattern struct {
 		Pattern
-		HasRange
-		Name Symbol
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Name     Symbol
 	}
 
 	// [a, b, c]
 	// [a, b, ...]
 	ArrayPattern struct {
 		Pattern
-		HasRange
-		Elems []Pattern
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Elems    []Pattern
 	}
 
 	// '...' of [x, y, ...] or {x, y, ...}
 	RestPattern struct {
 		Pattern
-		HasRange
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
 	}
 
 	/*
@@ -259,23 +286,26 @@ type (
 	// _
 	VarDeclDestructuring struct {
 		Destructuring
-		HasRange
-		Name Symbol
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Name     Symbol
 	}
 
 	// {a, b}
 	// {a, b, ...}
 	RecordDestructiring struct {
 		Destructuring
-		HasRange
-		Name   Symbol
-		Fields []Destructuring
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Name     Symbol
+		Fields   []Destructuring
 	}
 
 	// '...' of {a, b, ...}
 	RestDestructuring struct {
 		Destructuring
-		HasRange
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
 	}
 
 	/*
@@ -303,9 +333,9 @@ type (
 	// a, b = 42, 42
 	VarAssign struct {
 		Statement
-		StartPos  prelude.Pos
-		Names     []Symbol
-		Assignees []Expression
+		StartPos prelude.Pos
+		Names    []Symbol
+		RHSExprs []Expression
 	}
 
 	// arr[idx] = 42
@@ -331,10 +361,11 @@ type (
 	// end
 	IfStmt struct {
 		Statement
-		HasRange
-		Cond Expression
-		Then []Statement
-		Else []Statement
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Cond     Expression
+		Then     []Statement
+		Else     []Statement
 	}
 
 	SwitchStmtCase struct {
@@ -370,9 +401,10 @@ type (
 	// end
 	MatchStmt struct {
 		Statement
-		HasRange
-		Cases []MatchStmtCase
-		Else  []Statement
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Cases    []MatchStmtCase
+		Else     []Statement
 	}
 
 	// expr
@@ -392,36 +424,55 @@ type (
 	// 42
 	IntLiteral struct {
 		Expression
-		HasRange
-		Value int64
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Value    int64
 	}
 
 	// 42u
 	UIntLiteral struct {
 		Expression
-		HasRange
-		Value uint64
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Value    uint64
+	}
+
+	FloatLiteral struct {
+		Expression
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Value    float64
 	}
 
 	// true
 	BoolLiteral struct {
 		Expression
-		HasRange
-		Value bool
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Value    bool
 	}
 
 	// "..."
 	StringLiteral struct {
 		Expression
-		HasRange
-		Value string
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Value    string
+	}
+
+	VarRef struct {
+		Expression
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Name     Symbol
 	}
 
 	// [e1, e2, ..., en]
 	ArrayLiteral struct {
 		Expression
-		HasRange
-		Elems []Expression
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Elems    []Expression
 	}
 
 	DictKeyVal struct {
@@ -433,8 +484,9 @@ type (
 	// [=>]
 	DictLiteral struct {
 		Expression
-		HasRange
-		Elems []DictKeyVal
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Elems    []DictKeyVal
 	}
 
 	// -42
@@ -449,10 +501,11 @@ type (
 	// 1 + 1
 	BinaryExpr struct {
 		Expression
-		HasRange
-		Op  BinaryOp
-		LHS Expression
-		RHS Expression
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Op       BinaryOp
+		LHS      Expression
+		RHS      Expression
 	}
 
 	// stmt; stmt; expr
@@ -468,16 +521,17 @@ type (
 	// if true then 42 else 10 end
 	IfExpr struct {
 		Expression
-		HasRange
-		Cond Expression
-		Then *SeqExpr
-		Else *SeqExpr
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Cond     Expression
+		Then     Expression
+		Else     Expression
 	}
 
 	SwitchExprCase struct {
 		StartPos prelude.Pos
 		Cond     Expression
-		Body     *SeqExpr
+		Body     Expression
 	}
 
 	// case foo then 10
@@ -487,12 +541,12 @@ type (
 		Expression
 		EndPos prelude.Pos
 		Cases  []SwitchExprCase
-		Else   *SeqExpr
+		Else   Expression
 	}
 
 	MatchExprCase struct {
 		Pattern Pattern
-		Body    *SeqExpr
+		Body    Expression
 	}
 
 	// match some_expr
@@ -502,9 +556,10 @@ type (
 	// end
 	MatchExpr struct {
 		Expression
-		HasRange
-		Cases []MatchExprCase
-		Else  *SeqExpr
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Cases    []MatchExprCase
+		Else     Expression
 	}
 
 	// expr as type
@@ -530,16 +585,18 @@ type (
 	// Foo{name: val, name2: val2}
 	RecordLiteral struct {
 		Expression
-		HasRange
-		Name   Symbol
-		Fields []RecordLitField
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Name     Symbol
+		Fields   []RecordLitField
 	}
 
 	// {_: e1, _: e2, ...}
 	TupleLiteral struct {
 		Expression
-		HasRange
-		Elems []Expression
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Elems    []Expression
 	}
 
 	// foo(e1, e2, e3)
@@ -584,13 +641,15 @@ func mayAnonym(name string) string {
 	return name
 }
 
-func (n *Program) String() string            { return fmt.Sprintf("Program (toplevels: %d)", len(n.Toplevels)) }
-func (n *Typedef) String() string            { return fmt.Sprintf("Typedef (%s)", n.Name.Name) }
-func (n *Function) String() string           { return fmt.Sprintf("Function (%s)", n.Name.Name) }
-func (n *Import) String() string             { return fmt.Sprintf("Import (%s)", n.Path()) }
-func (n *TypeRef) String() string            { return fmt.Sprintf("TypeRef (%s)", n.Name.Name) }
-func (n *TypeVar) String() string            { return fmt.Sprintf("TypeVar (%s)", n.Name.Name) }
-func (n *TypeInstantiate) String() string    { return fmt.Sprintf("TypeVar (%s)", mayAnonym(n.Name.Name)) }
+func (n *Program) String() string  { return fmt.Sprintf("Program (toplevels: %d)", len(n.Toplevels)) }
+func (n *Typedef) String() string  { return fmt.Sprintf("Typedef (%s)", n.Name.Name) }
+func (n *Function) String() string { return fmt.Sprintf("Function (%s)", n.Name.Name) }
+func (n *Import) String() string   { return fmt.Sprintf("Import (%s)", n.Path()) }
+func (n *TypeRef) String() string  { return fmt.Sprintf("TypeRef (%s)", n.Name.Name) }
+func (n *TypeVar) String() string  { return fmt.Sprintf("TypeVar (%s)", n.Name.Name) }
+func (n *TypeInstantiate) String() string {
+	return fmt.Sprintf("TypeInstantiate (%s)", mayAnonym(n.Name.Name))
+}
 func (n *RecordType) String() string         { return "RecordType" }
 func (n *TupleType) String() string          { return "TupleType" }
 func (n *FunctionType) String() string       { return "FunctionType" }
@@ -636,8 +695,10 @@ func (n *MatchStmt) String() string     { return "MatchStmt" }
 func (n *ExprStmt) String() string      { return "ExprStmt" }
 func (n *IntLiteral) String() string    { return fmt.Sprintf("IntLiteral (%d)", n.Value) }
 func (n *UIntLiteral) String() string   { return fmt.Sprintf("UIntLiteral (%d)", n.Value) }
+func (n *FloatLiteral) String() string  { return fmt.Sprintf("FloatLiteral (%f)", n.Value) }
 func (n *BoolLiteral) String() string   { return fmt.Sprintf("BoolLiteral (%v)", n.Value) }
 func (n *StringLiteral) String() string { return fmt.Sprintf("StringLiteral \"%s\"", n.Value) }
+func (n *VarRef) String() string        { return fmt.Sprintf("VarRef (%s)", n.Name.Name) }
 func (n *ArrayLiteral) String() string  { return fmt.Sprintf("ArrayLiteral (elems: %d)", len(n.Elems)) }
 func (n *DictLiteral) String() string   { return fmt.Sprintf("DictLiteral (elems: %d)", len(n.Elems)) }
 func (n *UnaryExpr) String() string     { return "UnaryExpr" }
@@ -707,7 +768,7 @@ func (n *RestDestructuring) End() prelude.Pos    { return n.EndPos }
 func (n *VarDecl) Pos() prelude.Pos              { return n.StartPos }
 func (n *VarDecl) End() prelude.Pos              { return n.RHSExprs[len(n.RHSExprs)-1].End() }
 func (n *VarAssign) Pos() prelude.Pos            { return n.StartPos }
-func (n *VarAssign) End() prelude.Pos            { return n.Assignees[len(n.Assignees)-1].End() }
+func (n *VarAssign) End() prelude.Pos            { return n.RHSExprs[len(n.RHSExprs)-1].End() }
 func (n *IndexAssign) Pos() prelude.Pos          { return n.Assignee.Pos() }
 func (n *IndexAssign) End() prelude.Pos          { return n.RHS.End() }
 func (n *RetStmt) Pos() prelude.Pos              { return n.StartPos }
@@ -730,10 +791,14 @@ func (n *IntLiteral) Pos() prelude.Pos    { return n.StartPos }
 func (n *IntLiteral) End() prelude.Pos    { return n.EndPos }
 func (n *UIntLiteral) Pos() prelude.Pos   { return n.StartPos }
 func (n *UIntLiteral) End() prelude.Pos   { return n.EndPos }
+func (n *FloatLiteral) Pos() prelude.Pos  { return n.StartPos }
+func (n *FloatLiteral) End() prelude.Pos  { return n.EndPos }
 func (n *BoolLiteral) Pos() prelude.Pos   { return n.StartPos }
 func (n *BoolLiteral) End() prelude.Pos   { return n.EndPos }
 func (n *StringLiteral) Pos() prelude.Pos { return n.StartPos }
 func (n *StringLiteral) End() prelude.Pos { return n.EndPos }
+func (n *VarRef) Pos() prelude.Pos        { return n.StartPos }
+func (n *VarRef) End() prelude.Pos        { return n.EndPos }
 func (n *ArrayLiteral) Pos() prelude.Pos  { return n.StartPos }
 func (n *ArrayLiteral) End() prelude.Pos  { return n.EndPos }
 func (n *DictLiteral) Pos() prelude.Pos   { return n.StartPos }
