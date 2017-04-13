@@ -1,5 +1,5 @@
 type Num of
-    case Integer{'v}
+    case Integer{_}
     case Rational{
         denom: int
         num: int
@@ -7,8 +7,8 @@ type Num of
     case Complex{real, imag}
 
 func main
-    i := Num::Integer{12}
-    r := Num::Rational{3, 5}
-    c1 := Complex{3, 10}
+    i := Num::Integer(12)
+    r := Num::Rational(3, 5)
+    c1 := Complex(3, 10)
     c2 := Complex{real: 3.0, imag: 10.0}
 end

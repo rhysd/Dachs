@@ -43,7 +43,12 @@ func main() {
 		file = flag.Arg(0)
 	}
 
-	d, err := driver.NewDriver(file, strings.Split(*log, ","))
+	logs := []string{}
+	if len(*log) > 0 {
+		logs = strings.Split(*log, ",")
+	}
+
+	d, err := driver.NewDriver(file, logs)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(4)

@@ -89,7 +89,7 @@ func TestLexingOK(t *testing.T) {
 			}
 
 			if len(tokens) != len(lines) {
-				t.Fatal("Number of tokens is unexpected. want: %d, got: %d", len(lines), len(tokens))
+				t.Fatalf("Number of tokens is unexpected. want: %d, got: %d", len(lines), len(tokens))
 			}
 
 			for i, tok := range tokens {

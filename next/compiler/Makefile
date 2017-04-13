@@ -1,13 +1,13 @@
 SRCS := \
-	ast/node.go \
-	ast/visitor.go \
-	ast/printer.go \
 	driver/dachs/main.go \
 	driver/mediator.go \
 	prelude/error.go \
 	prelude/log.go \
 	prelude/position.go \
 	prelude/source.go \
+	ast/node.go \
+	ast/visitor.go \
+	ast/printer.go \
 	syntax/token.go \
 	syntax/lexer.go \
 
