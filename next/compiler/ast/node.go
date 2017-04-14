@@ -1,3 +1,4 @@
+// Package ast provides a high-level data structure for representing Dachs source code.
 package ast
 
 import (
@@ -7,43 +8,59 @@ import (
 	"github.com/rhysd/Dachs/next/compiler/prelude"
 )
 
+// Symbol represents symbols in source (variable name, type name, ...).
 type Symbol struct {
 	Name string
 	ID   int
 }
 
-var symID = 1
-
+// NewSymbol creates a new symbol with ID.
 func NewSymbol(n string) Symbol {
-	symID++
 	return Symbol{
 		Name: n,
-		ID:   symID,
+		ID:   0,
 	}
 }
 
+// UnaryOp is a kind of unary operator.
 type UnaryOp int
 
 const (
+	// NegOp represents '-'
 	NegOp UnaryOp = iota
+	// NotOp represents '!'
 	NotOp
 )
 
+// BinaryOp is a kind of binary operator.
 type BinaryOp int
 
 const (
+	// AddOp represents '+'
 	AddOp BinaryOp = iota
+	// SubOp represents '-'
 	SubOp
+	// MultOp represents '*'
 	MultOp
+	// DivOp represents '/'
 	DivOp
+	// ModOp represents '%'
 	ModOp
+	// EqOp represents '=='
 	EqOp
+	// NotEqOp represents '!='
 	NotEqOp
+	// LessOp represents '<'
 	LessOp
+	// LessEqOp represents '<='
 	LessEqOp
+	// GreaterOp represents '>'
 	GreaterOp
+	// GreaterEqOp represents '>='
 	GreaterEqOp
+	// AndOp represents '&&'
 	AndOp
+	// OrOp represents '||'
 	OrOp
 )
 
@@ -637,6 +654,7 @@ type (
 	}
 )
 
+// Path builds an import path string
 func (i *Import) Path() string {
 	head := ""
 	if i.Relative {

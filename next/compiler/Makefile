@@ -17,6 +17,8 @@ TESTS := \
 	prelude/log_test.go \
 	prelude/source_test.go \
 	prelude/error_test.go \
+	ast/printer_test.go \
+	ast/visitor_test.go \
 	syntax/token_test.go \
 	syntax/lexer_test.go \
 
