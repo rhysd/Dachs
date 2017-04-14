@@ -75,6 +75,9 @@ r := {a: 1, {b: 3.14, c: "aaa"}}
 {a, {b, c}} := r
 ```
 
+Instead of JavaScript, array cannot be used for destructuring (`[x, y] = [1, 2]`) because length of
+array is determined at runtime. Compiler cannot check the length at compile time.
+
 TODO: Define 'ignore' syntax
 
 # Variable Assignment
@@ -90,10 +93,10 @@ var i := 42
 i = 21
 ```
 
-Assign RHS value to variables specifed at LHS. If there is multiple names at LHS, RHS must be
+Assign RHS value to variables specified at LHS. If there is multiple names at LHS, RHS must be
 record which has the same number of fields as names at LHS.
 
-Since it changes the value(s) containd in variable(s), the variables must have been defined as
+Since it changes the value(s) contained in variable(s), the variables must have been defined as
 mutable with `var` keyword before.
 
 # Return
@@ -272,6 +275,24 @@ for i < 10
         next
     end
     print(i)
+end
+```
+
+# Discussion Point
+
+## Arm of `match` statement
+
+Currently `match` statement uses `case` as keyword to define its arms. But it's also used for `switch` statement (`case {cond} then ... case {cond} then ... else ... end`). Should we use `case` also for `match`'s arms?
+
+It's confusing to use the same `case` keyword for similar syntax if there is a big `match` statement. I'm considering `with` for alternative.
+
+```
+match i
+with 42 then ...
+with 21
+  ...
+else
+  ...
 end
 ```
 

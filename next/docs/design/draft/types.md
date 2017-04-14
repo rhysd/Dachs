@@ -14,7 +14,6 @@ Please see [record.md](record.md) for more detail.
 
 ```
 {field1[: Type1], field2[: Type2], ...}
-{Type1, Type2, ...}
 ```
 
 # Array Type
@@ -72,11 +71,21 @@ type Query of {question: '0, answer: '1}
 # Type Coercion
 
 `{expr} as {type}` binary operator coerces `{expr}` to `{type}`.
-Coercion is permitted only for changing interpretation of the value for some **built-in** conversion
+It basically works as type assertion, and works as type conversion in some primitive conversion.
+Conversion by coercion is permitted only for changing interpretation of the value for some
+**built-in** conversion.
+Or aliased type with `type ... of` can be also converted from underlying type.
 
-- Primitive type conversion between `int` and `uint`.
-- Conversion between anonymous record and named record. They should have the same layout.
+```
+!! Primitive types conversion
+42 as uint
+3.14 as int
+3u as float
 
+!! Conversion from underlying type to aliased type
+type MyInt of int
+42 as MyInt
+```
 # Type Alias
 
 ```
@@ -143,6 +152,18 @@ b := 10 as typeof(a)
 
 !! b has the same type of a
 print(a == b)
+```
+
+# Function Type
+
+```
+({param type}, {param type}, {param type}, ...) -> {return type}
+```
+
+e.g.
+
+```
+(int, str) -> float
 ```
 
 # Type Instantiation

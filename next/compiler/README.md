@@ -3,6 +3,19 @@ Compiler for Dachs Programming Language
 
 Compiler consists of some packages written in Go.
 
+## Packages
+
+A compiler consists of some separated Go packages.
+
+- [driver](./driver): Driver is a mediator to glue all separated packages
+  - [driver/dachs](./driver/dachs): Command line interface of a compiler
+- [ast](./ast): Syntax tree of Dachs. It contains node definitions and visitor API
+- [syntax](./syntax): Syntax analysis (lexing and parsing)
+- [types](./types): Type definitions
+- [semantics](./semantics): Semantic analysis (type inference, various semantic checks and conversion to MIR)
+- [mir](./mir): MIR (Midlevel Intermediate Representation) definitions
+- [codegen](./codegen): LLVM IR code generation using [LLVM Go bindings](https://godoc.org/llvm.org/llvm/bindings/go/llvm)
+
 ## Prerequisites
 
 - [Go 1.7+](https://golang.org/)
@@ -62,4 +75,6 @@ $ go test ./...
 ## License
 
 MIT License
+
+> Copyright (c) 2017 rhysd
 

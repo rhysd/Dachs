@@ -12,13 +12,13 @@ import {module path}.{{name1}, {name2}, ...}
 Module path is a dot (`.`) separated entries. `.` will be converted into file path separater.
 For example, `std.array` represents `array.dcs` under `std` directory.
 
+If the module path starts with a dot, it means relative path from the source file. For example,
+`.foo.bar` means `./foo/bar.dcs`.
+
 e.g.
 
 ```
-!! Import all names as 'array' namespace. e.g. array.Array
-import std.array
-
-!! Import all names from DACHS_LIB_ROOT/std/array.dcs with exposing
+!! Import all names from DACHS_LIB_ROOT/std/array.dcs as 'array' namespace
 import std.array.*
 
 !! Import 'Array' only from DACHS_LIB_ROOT/std/array.dcs with exposing
@@ -26,9 +26,14 @@ import std.array.Array
 
 !! Import 'is_digit' and 'to_string' from DACHS_LIB_ROOT/std/numeric.dcs with exposing
 import std.numeric.{is_digit, to_string}
+
+!! Import 'Blah' from local file './foo/bar.dcs'
+import .foo.bar.Blah
 ```
 
 Note that `std.array` is implicitly imported if array is used in a program.
+
+TODO: Add syntax to make an alias of imported module (e.g. `import std.array as A`) for avoiding name conflicts.
 
 ## Export
 

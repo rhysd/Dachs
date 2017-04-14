@@ -3,3 +3,5 @@
 
 /next/compiler/dachs
 /next/compiler/cover.out
+/next/compiler/syntax/grammar.go
+/next/compiler/y.output

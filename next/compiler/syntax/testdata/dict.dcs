@@ -3,5 +3,6 @@ func main
     m["three"] = 3
     print(m["three"])
 
-    array_or_dict = []
+    empty_array := []
+    empty_dict := [=>]
 end

@@ -192,43 +192,6 @@ person := {age, name}
 !! Type of person is {age: int, name: str}
 ```
 
-# Coercion
-~~
-## Unnamed Fields to Named Fields
-
-Unamed fields can be named after by coercing the record which have unnamed fields into the record
-which have named fields.
-
-```
-{12, "John"} as {age, name}
-```
-
-In above example, the type will be `{age: int, name: str}`. This happens because `{int, str}`
-is coreced into `{age: 'a, name: 'b}`.
-
-Though above example is for anonymous record `{age, name}`, named record also can coerce a record
-having unnamed fields.
-
-```
-type Person of {age, name}
-
-{12, "John"} as Person
-```
-
-In above snippet, the type will be instantiated as `Person(int, str)` (`Person{age: int, name: str}`).
-
-Additionally, above named record coercing can be written with shorter special form as below:
-
-```
-Person{12, "John"}
-```
-
-This is useful when constructing an instance of named record.
-~~
-
-Coercion is too confusing so I froze adding it to spec (e.g. How does it work if anonymous fields
-record nested?)
-
 # Pattern matching
 
 Pattern matching is available with `match` statement/expression.
