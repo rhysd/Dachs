@@ -31,7 +31,7 @@ func TestGatherSpecificNode(t *testing.T) {
 	root := &Program{
 		Toplevels: []Node{
 			&Function{
-				Name:   NewSymbol("foo"),
+				Ident:  NewSymbol("foo"),
 				Params: []FuncParam{},
 				Body: []Statement{
 					&RetStmt{
@@ -58,7 +58,7 @@ func TestCancelVisit(t *testing.T) {
 	root := &Program{
 		Toplevels: []Node{
 			&Function{
-				Name:   NewSymbol("foo"),
+				Ident:  NewSymbol("foo"),
 				Params: []FuncParam{},
 				Body: []Statement{
 					&ExprStmt{

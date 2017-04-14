@@ -67,20 +67,20 @@ type (
 	// type Name of Type
 	Typedef struct {
 		StartPos prelude.Pos
-		Name     Symbol
+		Ident    Symbol
 		Type     Type
 	}
 
 	FuncParam struct {
-		Name Symbol
-		Type Type
+		Ident Symbol
+		Type  Type
 	}
 
 	// func () ... end
 	Function struct {
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
-		Name     Symbol
+		Ident    Symbol
 		Params   []FuncParam
 		Body     []Statement
 	}
@@ -114,7 +114,7 @@ type (
 		Type
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
-		Name     Symbol
+		Ident    Symbol
 	}
 
 	// 'a, 'b, ...
@@ -122,7 +122,7 @@ type (
 		Type
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
-		Name     Symbol
+		Ident    Symbol
 	}
 
 	// T{a, b, ...}
@@ -130,7 +130,7 @@ type (
 		Type
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
-		Name     Symbol
+		Ident    Symbol
 		Args     []Type
 	}
 
@@ -146,6 +146,11 @@ type (
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
 		Fields   []RecordTypeField
+		// Note:
+		// Should I add Ident to this struct?
+		// Currently named record type is invoked with type parameter such as Name{T, U}.
+		// If making it possible to invoke T{foo: T, bar: U}, this struct possibly has
+		// record name.
 	}
 
 	// {_: int, _: str}
@@ -245,7 +250,7 @@ type (
 		Pattern
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
-		Name     Symbol
+		Ident    Symbol
 		Fields   []RecordPatternField
 	}
 
@@ -255,7 +260,7 @@ type (
 		Pattern
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
-		Name     Symbol
+		Ident    Symbol
 	}
 
 	// [a, b, c]
@@ -288,18 +293,28 @@ type (
 		Destructuring
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
-		Name     Symbol
+		Ident    Symbol
 	}
 
 	// {a, b}
+	// {foo: a, bar: b}
 	// {a, b, ...}
+	// {foo: a, bar: b, ...}
 	RecordDestructiring struct {
 		Destructuring
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
-		Name     Symbol
+		Ident    Symbol
 		Fields   []Destructuring
 	}
+
+	// Note:
+	// 'Fields' of 'RecordDestructiring' is []Destructuring, not []struct{Name string, Bound Destructuring}.
+	// This is because destructuring does not permit {foo: bar} style pattern.
+	// If it's permitted, it's complicated to use it with unnamed fields record (tuples).
+	// How does `{foo: bar} := {_: 42}` work? It might raise a compilation error. But I don't want
+	// to make additional special case related to unnamed fields.
+	// So, for now, simply forbid destructuring with different name from field's.
 
 	// '...' of {a, b, ...}
 	RestDestructuring struct {
@@ -334,7 +349,7 @@ type (
 	VarAssign struct {
 		Statement
 		StartPos prelude.Pos
-		Names    []Symbol
+		Idents   []Symbol
 		RHSExprs []Expression
 	}
 
@@ -464,7 +479,7 @@ type (
 		Expression
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
-		Name     Symbol
+		Ident    Symbol
 	}
 
 	// [e1, e2, ..., en]
@@ -587,7 +602,7 @@ type (
 		Expression
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
-		Name     Symbol
+		Ident    Symbol
 		Fields   []RecordLitField
 	}
 
@@ -641,19 +656,41 @@ func mayAnonym(name string) string {
 	return name
 }
 
-func (n *Program) String() string  { return fmt.Sprintf("Program (toplevels: %d)", len(n.Toplevels)) }
-func (n *Typedef) String() string  { return fmt.Sprintf("Typedef (%s)", n.Name.Name) }
-func (n *Function) String() string { return fmt.Sprintf("Function (%s)", n.Name.Name) }
-func (n *Import) String() string   { return fmt.Sprintf("Import (%s)", n.Path()) }
-func (n *TypeRef) String() string  { return fmt.Sprintf("TypeRef (%s)", n.Name.Name) }
-func (n *TypeVar) String() string  { return fmt.Sprintf("TypeVar (%s)", n.Name.Name) }
-func (n *TypeInstantiate) String() string {
-	return fmt.Sprintf("TypeInstantiate (%s)", mayAnonym(n.Name.Name))
+/*
+ * Interfaces for Node
+ */
+
+func (n *Program) String() string { return fmt.Sprintf("Program (toplevels: %d)", len(n.Toplevels)) }
+func (n *Typedef) String() string { return fmt.Sprintf("Typedef (%s)", n.Ident.Name) }
+func (n *Function) String() string {
+	ns := make([]string, 0, len(n.Params))
+	for _, p := range n.Params {
+		ns = append(ns, p.Ident.Name)
+	}
+	return fmt.Sprintf("Function %s(%s)", n.Ident.Name, strings.Join(ns, ","))
 }
-func (n *RecordType) String() string         { return "RecordType" }
-func (n *TupleType) String() string          { return "TupleType" }
-func (n *FunctionType) String() string       { return "FunctionType" }
-func (n *EnumType) String() string           { return "EnumType" }
+func (n *Import) String() string  { return fmt.Sprintf("Import (%s)", n.Path()) }
+func (n *TypeRef) String() string { return fmt.Sprintf("TypeRef (%s)", n.Ident.Name) }
+func (n *TypeVar) String() string { return fmt.Sprintf("TypeVar (%s)", n.Ident.Name) }
+func (n *TypeInstantiate) String() string {
+	return fmt.Sprintf("TypeInstantiate (%s)", mayAnonym(n.Ident.Name))
+}
+func (n *RecordType) String() string {
+	ns := make([]string, 0, len(n.Fields))
+	for _, f := range n.Fields {
+		ns = append(ns, f.Name)
+	}
+	return fmt.Sprintf("RecordType {%s}", strings.Join(ns, ","))
+}
+func (n *TupleType) String() string    { return "TupleType" }
+func (n *FunctionType) String() string { return "FunctionType" }
+func (n *EnumType) String() string {
+	ns := make([]string, 0, len(n.Cases))
+	for _, c := range n.Cases {
+		ns = append(ns, c.Name)
+	}
+	return fmt.Sprintf("EnumType (%s)", strings.Join(ns, ","))
+}
 func (n *TypeofType) String() string         { return "Typeof" }
 func (n *IntConstPattern) String() string    { return fmt.Sprintf("IntConstPattern (%d)", n.Value) }
 func (n *UIntConstPattern) String() string   { return fmt.Sprintf("UIntConstPattern (%d)", n.Value) }
@@ -661,16 +698,20 @@ func (n *BoolConstPattern) String() string   { return fmt.Sprintf("BoolConstPatt
 func (n *StringConstPattern) String() string { return fmt.Sprintf("StringConstPattern \"%s\"", n.Value) }
 func (n *FloatConstPattern) String() string  { return fmt.Sprintf("FloatConstPattern (%f)", n.Value) }
 func (n *RecordPattern) String() string {
-	return fmt.Sprintf("RecordPattern (%s)", mayAnonym(n.Name.Name))
+	ns := make([]string, 0, len(n.Fields))
+	for _, f := range n.Fields {
+		ns = append(ns, f.Name)
+	}
+	return fmt.Sprintf("RecordPattern %s{%s}", mayAnonym(n.Ident.Name), strings.Join(ns, ","))
 }
-func (n *VarDeclPattern) String() string { return fmt.Sprintf("VarDeclPattern (%s)", n.Name.Name) }
+func (n *VarDeclPattern) String() string { return fmt.Sprintf("VarDeclPattern (%s)", n.Ident.Name) }
 func (n *ArrayPattern) String() string   { return "ArrayPattern" }
 func (n *RestPattern) String() string    { return "RestPattern" }
 func (n *VarDeclDestructuring) String() string {
-	return fmt.Sprintf("VarDeclDestructuring (%s)", n.Name.Name)
+	return fmt.Sprintf("VarDeclDestructuring (%s)", n.Ident.Name)
 }
 func (n *RecordDestructiring) String() string {
-	return fmt.Sprintf("RecordDestructiring (%s)", mayAnonym(n.Name.Name))
+	return fmt.Sprintf("RecordDestructiring (%s)", mayAnonym(n.Ident.Name))
 }
 func (n *RestDestructuring) String() string { return "RestDestructuring" }
 func (n *VarDecl) String() string {
@@ -681,8 +722,8 @@ func (n *VarDecl) String() string {
 	return fmt.Sprintf("VarDecl %s(decls: %d)", v, len(n.Decls))
 }
 func (n *VarAssign) String() string {
-	ns := make([]string, 0, len(n.Names))
-	for _, n := range n.Names {
+	ns := make([]string, 0, len(n.Idents))
+	for _, n := range n.Idents {
 		ns = append(ns, n.Name)
 	}
 	return fmt.Sprintf("VarAssign (%s)", strings.Join(ns, ","))
@@ -698,7 +739,7 @@ func (n *UIntLiteral) String() string   { return fmt.Sprintf("UIntLiteral (%d)",
 func (n *FloatLiteral) String() string  { return fmt.Sprintf("FloatLiteral (%f)", n.Value) }
 func (n *BoolLiteral) String() string   { return fmt.Sprintf("BoolLiteral (%v)", n.Value) }
 func (n *StringLiteral) String() string { return fmt.Sprintf("StringLiteral \"%s\"", n.Value) }
-func (n *VarRef) String() string        { return fmt.Sprintf("VarRef (%s)", n.Name.Name) }
+func (n *VarRef) String() string        { return fmt.Sprintf("VarRef (%s)", n.Ident.Name) }
 func (n *ArrayLiteral) String() string  { return fmt.Sprintf("ArrayLiteral (elems: %d)", len(n.Elems)) }
 func (n *DictLiteral) String() string   { return fmt.Sprintf("DictLiteral (elems: %d)", len(n.Elems)) }
 func (n *UnaryExpr) String() string     { return "UnaryExpr" }
@@ -710,7 +751,11 @@ func (n *MatchExpr) String() string     { return "MatchExpr" }
 func (n *CoerceExpr) String() string    { return "CoerceExpr" }
 func (n *IndexAccess) String() string   { return "IndexAccess" }
 func (n *RecordLiteral) String() string {
-	return fmt.Sprintf("RecordLiteral (%s)", mayAnonym(n.Name.Name))
+	ns := make([]string, 0, len(n.Fields))
+	for _, f := range n.Fields {
+		ns = append(ns, f.Name)
+	}
+	return fmt.Sprintf("RecordLiteral %s{%s}", mayAnonym(n.Ident.Name), strings.Join(ns, ","))
 }
 func (n *TupleLiteral) String() string  { return fmt.Sprintf("TupleLiteral (elems: %d)", len(n.Elems)) }
 func (n *FuncCall) String() string      { return "FuncCall" }

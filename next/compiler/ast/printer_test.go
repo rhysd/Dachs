@@ -14,18 +14,18 @@ func TestPrint(t *testing.T) {
 	root := &Program{
 		Toplevels: []Node{
 			&Typedef{
-				Name: NewSymbol("e"),
+				Ident: NewSymbol("e"),
 				Type: &TupleType{
 					Elems: []Type{
 						&TypeInstantiate{
-							Name: NewSymbol("f"),
+							Ident: NewSymbol("f"),
 							Args: []Type{
-								&TypeRef{Name: NewSymbol("int")},
+								&TypeRef{Ident: NewSymbol("int")},
 							},
 						},
 						&FunctionType{
 							ParamTypes: []Type{
-								&TypeRef{Name: NewSymbol("int")},
+								&TypeRef{Ident: NewSymbol("int")},
 							},
 							RetType: &TypeofType{Expr: &IntLiteral{Value: 10}},
 						},
@@ -35,7 +35,7 @@ func TestPrint(t *testing.T) {
 									Name: "hey",
 									Child: &RecordType{
 										Fields: []RecordTypeField{
-											RecordTypeField{"b", &TypeVar{Name: NewSymbol("c")}},
+											RecordTypeField{"b", &TypeVar{Ident: NewSymbol("c")}},
 										},
 									},
 								},
@@ -45,9 +45,9 @@ func TestPrint(t *testing.T) {
 				},
 			},
 			&Function{
-				Name: NewSymbol("foo"),
+				Ident: NewSymbol("foo"),
 				Params: []FuncParam{
-					FuncParam{NewSymbol("a"), &TypeRef{Name: NewSymbol("d")}},
+					{NewSymbol("a"), &TypeRef{Ident: NewSymbol("d")}},
 				},
 				Body: []Statement{
 					&VarDecl{
@@ -56,7 +56,7 @@ func TestPrint(t *testing.T) {
 							&RecordDestructiring{
 								Fields: []Destructuring{
 									&VarDeclDestructuring{
-										Name: NewSymbol("g"),
+										Ident: NewSymbol("g"),
 									},
 									&RestDestructuring{},
 								},
@@ -69,7 +69,7 @@ func TestPrint(t *testing.T) {
 						},
 					},
 					&VarAssign{
-						Names: []Symbol{NewSymbol("h")},
+						Idents: []Symbol{NewSymbol("h")},
 						RHSExprs: []Expression{
 							&UnaryExpr{
 								Child: &BoolLiteral{Value: true},
@@ -89,7 +89,7 @@ func TestPrint(t *testing.T) {
 						Index:    &IntLiteral{Value: 0},
 						RHS: &CoerceExpr{
 							Expr: &RecordLiteral{
-								Name: Symbol{},
+								Ident: Symbol{},
 								Fields: []RecordLitField{
 									{
 										Name: "_",
@@ -97,7 +97,7 @@ func TestPrint(t *testing.T) {
 									},
 								},
 							},
-							Type: &TypeRef{Name: NewSymbol("i")},
+							Type: &TypeRef{Ident: NewSymbol("i")},
 						},
 					},
 					&IfStmt{
@@ -121,7 +121,7 @@ func TestPrint(t *testing.T) {
 						Else: []Statement{
 							&ExprStmt{
 								Expr: &FuncCall{
-									Callee: &VarRef{Name: NewSymbol("f")},
+									Callee: &VarRef{Ident: NewSymbol("f")},
 									Args: []Expression{
 										&IntLiteral{Value: 10},
 									},
@@ -150,7 +150,7 @@ func TestPrint(t *testing.T) {
 										},
 									},
 									Else: &FuncCallNamed{
-										Callee: &VarRef{Name: NewSymbol("g")},
+										Callee: &VarRef{Ident: NewSymbol("g")},
 										Args: []NamedArg{
 											{Name: "foo", Expr: &FloatLiteral{Value: 1.0}},
 										},
@@ -168,7 +168,7 @@ func TestPrint(t *testing.T) {
 											Value: false,
 										},
 										&VarDeclPattern{
-											Name: NewSymbol("pat"),
+											Ident: NewSymbol("pat"),
 										},
 									},
 								},
@@ -183,11 +183,11 @@ func TestPrint(t *testing.T) {
 									Cases: []MatchExprCase{
 										{
 											Pattern: &RecordPattern{
-												Name: NewSymbol("patt"),
+												Ident: NewSymbol("patt"),
 												Fields: []RecordPatternField{
 													{
 														Name:    "a",
-														Pattern: &VarDeclPattern{Name: NewSymbol("a")},
+														Pattern: &VarDeclPattern{Ident: NewSymbol("a")},
 													},
 													{
 														Name:    "b",
@@ -271,13 +271,13 @@ func TestPrint(t *testing.T) {
 -   -   -   -   -   TypeRef (int)
 -   -   -   -   -   Typeof
 -   -   -   -   -   -   IntLiteral (10)
--   -   -   -   EnumType
--   -   -   -   -   RecordType
+-   -   -   -   EnumType (hey)
+-   -   -   -   -   RecordType {b}
 -   -   -   -   -   -   TypeVar (c)
--   -   Function (foo)
+-   -   Function foo(a)
 -   -   -   TypeRef (d)
 -   -   -   VarDecl var
--   -   -   -   RecordDestructiring
+-   -   -   -   RecordDestructiring (anonym)
 -   -   -   -   -   VarDeclDestructuring (g)
 -   -   -   -   -   RestDestructuring
 -   -   -   -   UIntLiteral (42)
@@ -291,7 +291,7 @@ func TestPrint(t *testing.T) {
 -   -   -   -   ArrayLiteral (elems: 0)
 -   -   -   -   IntLiteral (0)
 -   -   -   -   CoerceExpr
--   -   -   -   -   RecordLiteral (anonym)
+-   -   -   -   -   RecordLiteral anonym{_}
 -   -   -   -   -   -   IntLiteral (42)
 -   -   -   -   -   TypeRef (i)
 -   -   -   IfStmt
@@ -326,7 +326,7 @@ func TestPrint(t *testing.T) {
 -   -   -   -   RetStmt
 -   -   -   -   ExprStmt
 -   -   -   -   -   MatchExpr
--   -   -   -   -   -   RecordPattern
+-   -   -   -   -   -   RecordPattern patt{a,b,c,d,e,}
 -   -   -   -   -   -   -   VarDeclPattern (a)
 -   -   -   -   -   -   -   StringConstPattern "hello"
 -   -   -   -   -   -   -   IntConstPattern (42)
@@ -379,7 +379,7 @@ func TestHeader(t *testing.T) {
 			&Function{
 				StartPos: pos,
 				EndPos:   pos,
-				Name:     NewSymbol("main"),
+				Ident:    NewSymbol("main"),
 			},
 		},
 	}
