@@ -11,7 +11,7 @@ NEWLINE:
 FUNC:func
 IDENT:main
 NEWLINE:
-IDENT:var
+VAR:var
 IDENT:a
 ASSIGN:=
 IDENT:A

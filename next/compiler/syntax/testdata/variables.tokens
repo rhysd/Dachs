@@ -6,7 +6,7 @@ IDENT:foo
 ASSIGN:=
 INT:42
 NEWLINE:
-IDENT:var
+VAR:var
 IDENT:a
 COMMA:,
 IDENT:b

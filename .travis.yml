@@ -3,5 +3,7 @@ go: 1.x
 dist: trusty
 os:
   - linux
+install:
+  - true
 script:
   - bash ./next/scripts/travis.sh
