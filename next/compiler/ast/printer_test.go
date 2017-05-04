@@ -137,6 +137,19 @@ func TestPrint(t *testing.T) {
 									},
 								},
 							},
+							&ExprStmt{
+								Expr: &FuncCall{
+									Callee: &VarRef{Ident: NewSymbol("f")},
+									Args: []Expression{
+										&IntLiteral{Value: 10},
+									},
+									DoBlock: &Lambda{
+										IsDoBlock: true,
+										Params:    []FuncParam{},
+										BodyExpr:  &IntLiteral{Value: 88},
+									},
+								},
+							},
 						},
 					},
 					&SwitchStmt{
@@ -251,13 +264,6 @@ func TestPrint(t *testing.T) {
 							BodyExpr: &VarRef{Ident: NewSymbol("x")},
 						},
 					},
-					&ExprStmt{
-						Expr: &Lambda{
-							IsDoBlock: true,
-							Params:    []FuncParam{},
-							BodyExpr:  &IntLiteral{Value: 88},
-						},
-					},
 					&RetStmt{
 						Exprs: []Expression{
 							&IntLiteral{
@@ -284,7 +290,17 @@ func TestPrint(t *testing.T) {
 						Range: &ArrayLiteral{},
 						Body: []Statement{
 							&ExprStmt{
-								Expr: &VarRef{Ident: NewSymbol("p")},
+								Expr: &FuncCallNamed{
+									Callee: &VarRef{Ident: NewSymbol("g")},
+									Args: []NamedArg{
+										{Name: "foo", Expr: &FloatLiteral{Value: 1.0}},
+									},
+									DoBlock: &Lambda{
+										IsDoBlock: true,
+										Params:    []FuncParam{},
+										BodyExpr:  &IntLiteral{Value: 88},
+									},
+								},
 							},
 						},
 					},
@@ -356,6 +372,12 @@ func TestPrint(t *testing.T) {
 -   -   -   -   -   FuncCall
 -   -   -   -   -   -   VarRef (f)
 -   -   -   -   -   -   IntLiteral (10)
+-   -   -   -   ExprStmt
+-   -   -   -   -   FuncCall
+-   -   -   -   -   -   VarRef (f)
+-   -   -   -   -   -   IntLiteral (10)
+-   -   -   -   -   -   Lambda ()
+-   -   -   -   -   -   -   IntLiteral (88)
 -   -   -   SwitchStmt
 -   -   -   -   BoolLiteral (false)
 -   -   -   -   ExprStmt
@@ -391,9 +413,6 @@ func TestPrint(t *testing.T) {
 -   -   -   -   Lambda (x)
 -   -   -   -   -   TypeRef (uint)
 -   -   -   -   -   VarRef (x)
--   -   -   ExprStmt
--   -   -   -   Lambda ()
--   -   -   -   -   IntLiteral (88)
 -   -   -   RetStmt
 -   -   -   -   IntLiteral (42)
 -   -   -   -   IndexAccess
@@ -406,7 +425,11 @@ func TestPrint(t *testing.T) {
 -   -   -   -   VarDeclDestructuring (p)
 -   -   -   -   ArrayLiteral (elems: 0)
 -   -   -   -   ExprStmt
--   -   -   -   -   VarRef (p)
+-   -   -   -   -   FuncCallNamed
+-   -   -   -   -   -   VarRef (g)
+-   -   -   -   -   -   FloatLiteral (1.0
+-   -   -   -   -   -   Lambda ()
+-   -   -   -   -   -   -   IntLiteral (88)
 -   -   -   WhileStmt
 -   -   -   -   BoolLiteral (true)
 -   -   -   -   ExprStmt

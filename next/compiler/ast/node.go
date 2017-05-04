@@ -337,11 +337,11 @@ type (
 		statementNode()
 	}
 
-	// a := 42
-	// var a, b := 42, 42
-	// {foo} := {foo: 42}
-	// Foo{foo} := Foo{foo: 42}
-	// Foo{foo}, {foo} := Foo{foo: 42}, {foo: 42}
+	// let a = 42
+	// var a, b = 42, 42
+	// let {foo} = {foo: 42}
+	// var Foo{foo} = Foo{foo: 42}
+	// let Foo{foo}, {foo} = Foo{foo: 42}, {foo: 42}
 	VarDecl struct {
 		Statement
 		StartPos prelude.Pos
@@ -769,11 +769,11 @@ func (n *RecordDestructuring) String() string {
 	return fmt.Sprintf("RecordDestructuring %s{%s}", mayAnonym(n.Ident.Name), strings.Join(ns, ","))
 }
 func (n *VarDecl) String() string {
-	v := ""
+	v := "let"
 	if n.Mutable {
-		v = "var "
+		v = "var"
 	}
-	return fmt.Sprintf("VarDecl %s(decls: %d)", v, len(n.Decls))
+	return fmt.Sprintf("VarDecl %s (decls: %d)", v, len(n.Decls))
 }
 func (n *VarAssign) String() string {
 	ns := make([]string, 0, len(n.Idents))
@@ -870,19 +870,13 @@ func (n *VarDeclDestructuring) Pos() prelude.Pos { return n.StartPos }
 func (n *VarDeclDestructuring) End() prelude.Pos { return n.EndPos }
 func (n *RecordDestructuring) Pos() prelude.Pos  { return n.StartPos }
 func (n *RecordDestructuring) End() prelude.Pos  { return n.EndPos }
-func (n *VarDecl) Pos() prelude.Pos {
-	if n.Mutable {
-		// If 'var' is specified, start position should be set to the position of 'var' token.
-		return n.StartPos
-	}
-	return n.Decls[0].Pos()
-}
-func (n *VarDecl) End() prelude.Pos     { return n.RHSExprs[len(n.RHSExprs)-1].End() }
-func (n *VarAssign) Pos() prelude.Pos   { return n.StartPos }
-func (n *VarAssign) End() prelude.Pos   { return n.RHSExprs[len(n.RHSExprs)-1].End() }
-func (n *IndexAssign) Pos() prelude.Pos { return n.Assignee.Pos() }
-func (n *IndexAssign) End() prelude.Pos { return n.RHS.End() }
-func (n *RetStmt) Pos() prelude.Pos     { return n.StartPos }
+func (n *VarDecl) Pos() prelude.Pos              { return n.StartPos }
+func (n *VarDecl) End() prelude.Pos              { return n.RHSExprs[len(n.RHSExprs)-1].End() }
+func (n *VarAssign) Pos() prelude.Pos            { return n.StartPos }
+func (n *VarAssign) End() prelude.Pos            { return n.RHSExprs[len(n.RHSExprs)-1].End() }
+func (n *IndexAssign) Pos() prelude.Pos          { return n.Assignee.Pos() }
+func (n *IndexAssign) End() prelude.Pos          { return n.RHS.End() }
+func (n *RetStmt) Pos() prelude.Pos              { return n.StartPos }
 func (n *RetStmt) End() prelude.Pos {
 	len := len(n.Exprs)
 	if len == 0 {
