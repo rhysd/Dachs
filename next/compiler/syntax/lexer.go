@@ -188,7 +188,6 @@ var keywords = map[string]TokenKind{
 	"ret":    TokenRet,
 	"import": TokenImport,
 	"type":   TokenType,
-	"of":     TokenOf,
 	"for":    TokenFor,
 	"in":     TokenIn,
 	"typeof": TokenTypeof,

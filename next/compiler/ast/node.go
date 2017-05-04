@@ -92,7 +92,7 @@ type (
 
 	EnumTypeCase struct {
 		Name  string
-		Child *RecordType
+		Child Type
 	}
 
 	// case Foo

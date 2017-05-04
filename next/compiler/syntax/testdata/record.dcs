@@ -1,4 +1,4 @@
-type A of {a, b}
+type A = {a, b}
 
 func main
     var a = A(42, "aaa")

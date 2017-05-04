@@ -49,7 +49,6 @@ const (
 	TokenImport
 	TokenDot
 	TokenType
-	TokenOf
 	TokenColon
 	TokenFor
 	TokenIn
@@ -111,7 +110,6 @@ var tokenTable = [...]string{
 	TokenImport:        "IMPORT",
 	TokenDot:           "DOT",
 	TokenType:          "TYPE",
-	TokenOf:            "OF",
 	TokenColon:         "COLON", // :
 	TokenFor:           "FOR",
 	TokenIn:            "IN",

@@ -43,6 +43,7 @@ import (
 	dict_keyvals []ast.DictKeyVal
 	named_args []ast.NamedArg
 	lambda *ast.Lambda
+	enum_cases []ast.EnumTypeCase
 	bool bool
 }
 
@@ -86,7 +87,6 @@ import (
 %token<token> IMPORT
 %token<token> DOT
 %token<token> TYPE
-%token<token> OF
 %token<token> COLON
 %token<token> FOR
 %token<token> IN
@@ -120,9 +120,10 @@ import (
 %type<token> sep newlines elem_sep then mutability
 %type<> opt_newlines
 %type<import_node> import_body import_spec import_end
-%type<node> toplevel import func_def
+%type<node> toplevel import func_def typedef
 %type<nodes> toplevels
 %type<names> sep_names comma_sep_names
+%type<enum_cases> enum_typedef_cases
 %type<type_node> type opt_type_annotate
 %type<stmts> statements
 %type<stmt> statement if_statement ret_statement switch_statement match_statement var_decl_statement expr_statement for_statement while_statement index_assign_statement assign_statement
@@ -176,7 +177,7 @@ toplevels:
 			$$ = append($1, $3)
 		}
 
-toplevel: import | func_def
+toplevel: import | func_def | typedef
 
 import:
 	IMPORT opt_newlines import_body
@@ -256,6 +257,36 @@ func_params:
 	| func_params elem_sep IDENT opt_type_annotate
 		{
 			$$ = append($1, ast.FuncParam{ast.NewSymbol($3.Value()), $4})
+		}
+
+typedef:
+	TYPE IDENT ASSIGN opt_newlines type
+		{
+			$$ = &ast.Typedef {
+				StartPos: $1.Start,
+				Ident: ast.NewSymbol($2.Value()),
+				Type: $5,
+			}
+		}
+	| TYPE IDENT ASSIGN opt_newlines enum_typedef_cases
+		{
+			$$ = &ast.EnumTypedef {
+				StartPos: $1.Start,
+				Ident: ast.NewSymbol($2.Value()),
+				Cases: $5,
+			}
+		}
+
+enum_typedef_cases:
+	CASE IDENT type_record_or_tuple
+		{
+			$$ = []ast.EnumTypeCase{
+				{$2.Value(), $3},
+			}
+		}
+	| enum_typedef_cases newlines CASE IDENT type_record_or_tuple
+		{
+			$$ = append($1, ast.EnumTypeCase{$4.Value(), $5})
 		}
 
 opt_type_annotate: { $$ = nil }

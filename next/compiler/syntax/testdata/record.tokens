@@ -1,6 +1,6 @@
 TYPE:type
 IDENT:A
-OF:of
+ASSIGN:=
 LBRACE:{
 IDENT:a
 COMMA:,

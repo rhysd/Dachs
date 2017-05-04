@@ -1,6 +1,6 @@
 TYPE:type
 IDENT:Num
-OF:of
+ASSIGN:=
 NEWLINE:
 CASE:case
 IDENT:Integer

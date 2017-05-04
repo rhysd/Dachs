@@ -1,18 +1,18 @@
-type A of int
-type B of {name}
-type C of B{str}
-type D of {name: str}
-type E of {name: 'a}
-type F of {a, b}
-type G of {
+type A = int
+type B = {name}
+type C = B{str}
+type D = {name: str}
+type E = {name: 'a}
+type F = {a, b}
+type G = {
     a: int
     b: str
 }
-type H of {a: int, b}
-type I of F{'a, str}
-type J of [int]
-type K of [int => str]
-type L of {
+type H = {a: int, b}
+type I = F{'a, str}
+type J = [int]
+type K = [int => str]
+type L = {
     map: [int => 'value]
     array: ['elem]
 }

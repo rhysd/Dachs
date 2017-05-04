@@ -1,4 +1,4 @@
-type Num of
+type Num =
     case Integer{_}
     case Rational{
         denom: int
