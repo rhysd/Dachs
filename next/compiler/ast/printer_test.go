@@ -55,7 +55,7 @@ func TestPrint(t *testing.T) {
 					&VarDecl{
 						Mutable: true,
 						Decls: []Destructuring{
-							&RecordDestructiring{
+							&RecordDestructuring{
 								Fields: []RecordDestructuringField{
 									{
 										"g",
@@ -325,7 +325,7 @@ func TestPrint(t *testing.T) {
 -   -   -   TypeRef (d)
 -   -   -   TypeRef (Foo)
 -   -   -   VarDecl var
--   -   -   -   RecordDestructiring anonym{g,hey}
+-   -   -   -   RecordDestructuring anonym{g,hey}
 -   -   -   -   -   VarDeclDestructuring (g)
 -   -   -   -   -   VarDeclDestructuring (h)
 -   -   -   -   UIntLiteral (42)

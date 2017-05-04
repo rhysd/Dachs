@@ -766,7 +766,7 @@ func (n *RecordDestructuring) String() string {
 	for _, f := range n.Fields {
 		ns = append(ns, f.Name)
 	}
-	return fmt.Sprintf("RecordDestructiring %s{%s}", mayAnonym(n.Ident.Name), strings.Join(ns, ","))
+	return fmt.Sprintf("RecordDestructuring %s{%s}", mayAnonym(n.Ident.Name), strings.Join(ns, ","))
 }
 func (n *VarDecl) String() string {
 	v := ""

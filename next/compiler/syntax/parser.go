@@ -57,7 +57,7 @@ func (l *pseudoLexer) getError() error {
 }
 
 func Parse(tokens chan *Token) (*ast.Program, error) {
-	yyDebug = 9999
+	// yyDebug = 9999
 	yyErrorVerbose = true
 
 	l := &pseudoLexer{tokens: tokens}

@@ -10,9 +10,6 @@ type Visitor interface {
 
 // Visit visits the tree with the visitor.
 func Visit(v Visitor, n Node) {
-	if n == nil {
-		return
-	}
 	if v = v.Visit(n); v == nil {
 		return
 	}
@@ -32,7 +29,9 @@ func Visit(v Visitor, n Node) {
 		}
 	case *Function:
 		for _, p := range n.Params {
-			Visit(v, p.Type)
+			if p.Type != nil {
+				Visit(v, p.Type)
+			}
 		}
 		if n.RetType != nil {
 			Visit(v, n.RetType)
@@ -48,7 +47,9 @@ func Visit(v Visitor, n Node) {
 		}
 	case *RecordType:
 		for _, f := range n.Fields {
-			Visit(v, f.Type)
+			if f.Type != nil {
+				Visit(v, f.Type)
+			}
 		}
 	case *TupleType:
 		for _, e := range n.Elems {
@@ -199,16 +200,22 @@ func Visit(v Visitor, n Node) {
 		for _, a := range n.Args {
 			Visit(v, a)
 		}
-		Visit(v, n.DoBlock)
+		if n.DoBlock != nil {
+			Visit(v, n.DoBlock)
+		}
 	case *FuncCallNamed:
 		Visit(v, n.Callee)
 		for _, a := range n.Args {
 			Visit(v, a.Expr)
 		}
-		Visit(v, n.DoBlock)
+		if n.DoBlock != nil {
+			Visit(v, n.DoBlock)
+		}
 	case *Lambda:
 		for _, p := range n.Params {
-			Visit(v, p.Type)
+			if p.Type != nil {
+				Visit(v, p.Type)
+			}
 		}
 		Visit(v, n.BodyExpr)
 	}
