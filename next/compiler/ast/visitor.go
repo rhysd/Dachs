@@ -199,11 +199,13 @@ func Visit(v Visitor, n Node) {
 		for _, a := range n.Args {
 			Visit(v, a)
 		}
+		Visit(v, n.DoBlock)
 	case *FuncCallNamed:
 		Visit(v, n.Callee)
 		for _, a := range n.Args {
 			Visit(v, a.Expr)
 		}
+		Visit(v, n.DoBlock)
 	case *Lambda:
 		for _, p := range n.Params {
 			Visit(v, p.Type)

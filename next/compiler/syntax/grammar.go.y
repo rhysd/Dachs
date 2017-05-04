@@ -42,6 +42,7 @@ import (
 	record_lit_field ast.RecordLitField
 	dict_keyvals []ast.DictKeyVal
 	named_args []ast.NamedArg
+	lambda *ast.Lambda
 	bool bool
 }
 
@@ -143,12 +144,13 @@ import (
 %type<rec_destruct_field> record_destruct_field
 %type<pattern> pattern const_pattern var_pattern record_pattern array_pattern
 %type<patterns> array_pat_elems
+%type<bool> opt_exhaustive_pattern
 %type<record_pattern> rec_pat_anonym
 %type<rec_pat_field> rec_pat_field
 %type<rec_pat_fields> rec_pat_fields
 %type<dict_keyvals> dict_elems
 %type<named_args> func_call_named_args
-%type<bool> opt_exhaustive_pattern
+%type<lambda> opt_do_end_block
 %type<> program
 
 /* XXX */
@@ -850,20 +852,46 @@ postfix_expr:
 				Name: i.Value(),
 			}
 		}
-	| postfix_expr LPAREN opt_newlines func_call_named_args opt_newlines RPAREN
+	| postfix_expr LPAREN opt_newlines func_call_named_args opt_newlines RPAREN opt_do_end_block
 		{
 			$$ = &ast.FuncCallNamed{
 				EndPos: $6.End,
 				Callee: $1,
 				Args: $4,
+				DoBlock: $7,
 			}
 		}
-	| postfix_expr LPAREN opt_newlines func_call_args opt_newlines RPAREN
+	| postfix_expr LPAREN opt_newlines func_call_args opt_newlines RPAREN opt_do_end_block
 		{
 			$$ = &ast.FuncCall{
 				EndPos: $6.End,
 				Callee: $1,
 				Args: $4,
+				DoBlock: $7,
+			}
+		}
+
+opt_do_end_block:
+		{
+			$$ = nil
+		}
+	| DO lambda_params_in opt_newlines stmts_expr opt_newlines END
+		{
+			params := $2
+			// Reverse 'params'
+			len := len(params)
+			for i,p := range params[:len/2] {
+				j := len - 1 - i
+				params[i] = params[j]
+				params[j] = p
+			}
+
+			$$ = &ast.Lambda{
+				StartPos: $1.Start,
+				EndPos: $6.End,
+				IsDoBlock: true,
+				Params: params,
+				BodyExpr: $4,
 			}
 		}
 
@@ -887,7 +915,6 @@ func_call_args:
 			$$ = append($1, $4)
 		}
 
-
 primary_expr:
 	if_expr
 	| switch_expr
@@ -899,8 +926,6 @@ primary_expr:
 	| var_ref
 	| constant
 	| LPAREN opt_newlines expression opt_newlines RPAREN { $$ = $3 }
-
-/* TODO: do-end block*/
 
 stmts_expr:
 	statements expression

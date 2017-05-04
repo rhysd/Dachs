@@ -654,9 +654,10 @@ type (
 	// foo()
 	FuncCall struct {
 		Expression
-		EndPos prelude.Pos
-		Callee Expression
-		Args   []Expression
+		EndPos  prelude.Pos
+		Callee  Expression
+		Args    []Expression
+		DoBlock *Lambda
 	}
 
 	NamedArg struct {
@@ -667,9 +668,10 @@ type (
 	// foo(a: e1, b: e2)
 	FuncCallNamed struct {
 		Expression
-		EndPos prelude.Pos
-		Callee Expression
-		Args   []NamedArg
+		EndPos  prelude.Pos
+		Callee  Expression
+		Args    []NamedArg
+		DoBlock *Lambda
 	}
 
 	// -> a, b in a + b
