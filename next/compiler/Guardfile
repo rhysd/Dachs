@@ -24,10 +24,6 @@ guard :shell do
       end
     end
   end
-  watch /(.*)\/testdata\/.+\.(:?ml|out)$/ do |m|
-    sep m[0]
-    system "go test ./#{m[1]}"
-  end
   watch /\.c$/ do |m|
     sep m[0]
     system "make build"
