@@ -3,8 +3,10 @@ package driver
 
 import (
 	"fmt"
+	"github.com/rhysd/Dachs/next/compiler/ast"
 	"github.com/rhysd/Dachs/next/compiler/prelude"
 	"github.com/rhysd/Dachs/next/compiler/syntax"
+	"io"
 )
 
 // Driver is a mediator of Dachs compiler as a frontend of LLVM.
@@ -71,4 +73,30 @@ func (d *Driver) Lex() ([]*syntax.Token, error) {
 			}
 		}
 	}
+}
+
+func (d *Driver) Parse() (*ast.Program, error) {
+	var err error
+	l := syntax.NewLexer(d.Source)
+	l.Error = func(e *prelude.Error) {
+		err = e
+	}
+	go l.Lex()
+	root, parseErr := syntax.Parse(l.Tokens)
+	if err != nil {
+		return nil, err
+	}
+	if parseErr != nil {
+		return nil, parseErr
+	}
+	return root, nil
+}
+
+func (d *Driver) FprintAST(out io.Writer) error {
+	root, err := d.Parse()
+	if err != nil {
+		return err
+	}
+	ast.Fprintln(out, root)
+	return nil
 }

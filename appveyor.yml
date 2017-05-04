@@ -8,10 +8,12 @@ install:
     - echo %GOPATH%
     - go version
     - go env
+    - go get golang.org/x/tools/cmd/goyacc
     - cd .\next\compiler
     - go get -v -t -d ./...
     - set PATH=%PATH%;%GOPATH%\bin
 build: off
 test_script:
+    - goyacc -o syntax/grammar.go syntax/grammar.go.y
     - go test -v ./...
 deploy: off

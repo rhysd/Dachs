@@ -10,8 +10,9 @@ import (
 
 var (
 	help       = flag.Bool("help", false, "Show this help")
-	showTokens = flag.Bool("tokens", false, "Lexing code only and show tokens")
 	log        = flag.String("log", "", "Logging components (comma-separated). Component: 'Lexing', 'Parsing' or 'All'")
+	showTokens = flag.Bool("tokens", false, "Lexing code only and show tokens")
+	showAST    = flag.Bool("ast", false, "Parse code only and show AST as output")
 )
 
 const usageHeader = `Usage: dachs [flags] [file]
@@ -62,6 +63,11 @@ func main() {
 		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\n%s\n", err.Error())
+			os.Exit(4)
+		}
+	case *showAST:
+		if err := d.FprintAST(os.Stderr); err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 			os.Exit(4)
 		}
 	default:

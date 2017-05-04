@@ -10,13 +10,13 @@ e.g.
 
 ```
 func add_with_print(a: int, b: int): int
-    c := a + b
+    let c = a + b
     print(c)
     ret c
 end
 
 func add_with_print(a, b)
-    c := a + b
+    let c = a + b
     print(c)
     ret c
 end
@@ -34,9 +34,12 @@ TBW
 {function}({args})
 
 {function}({args}) do {args}
-    {statements}
+    {sequence expression}
 end
 ```
+
+Body of `do ... end` block is a sequence expression like as body of `if` expression. So it can contain
+zero or more statements and the last expression will be returned as the value of the block.
 
 e.g.
 
@@ -46,9 +49,9 @@ f(a, b, c)
 
 !! Call function with block like Ruby
 sort([{1, 5}, {2, 6}, {3, 4}]) do l, r
-    x := l.0 + l.1
-    y := r.0 + r.1
-    ret x - y
+    let x = l.0 + l.1
+    let y = r.0 + r.1
+    x - y
 end
 
 !! For one-line usage, use lambda expression.

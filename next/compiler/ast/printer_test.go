@@ -29,16 +29,17 @@ func TestPrint(t *testing.T) {
 							},
 							RetType: &TypeofType{Expr: &IntLiteral{Value: 10}},
 						},
-						&EnumType{
-							Cases: []EnumTypeCase{
-								{
-									Name: "hey",
-									Child: &RecordType{
-										Fields: []RecordTypeField{
-											RecordTypeField{"b", &TypeVar{Ident: NewSymbol("c")}},
-										},
-									},
-								},
+					},
+				},
+			},
+			&EnumTypedef{
+				Ident: NewSymbol("z"),
+				Cases: []EnumTypeCase{
+					{
+						Name: "hey",
+						Child: &RecordType{
+							Fields: []RecordTypeField{
+								RecordTypeField{"b", &TypeVar{Ident: NewSymbol("c")}},
 							},
 						},
 					},
@@ -49,16 +50,25 @@ func TestPrint(t *testing.T) {
 				Params: []FuncParam{
 					{NewSymbol("a"), &TypeRef{Ident: NewSymbol("d")}},
 				},
+				RetType: &TypeRef{Ident: NewSymbol("Foo")},
 				Body: []Statement{
 					&VarDecl{
 						Mutable: true,
 						Decls: []Destructuring{
 							&RecordDestructiring{
-								Fields: []Destructuring{
-									&VarDeclDestructuring{
-										Ident: NewSymbol("g"),
+								Fields: []RecordDestructuringField{
+									{
+										"g",
+										&VarDeclDestructuring{
+											Ident: NewSymbol("g"),
+										},
 									},
-									&RestDestructuring{},
+									{
+										"hey",
+										&VarDeclDestructuring{
+											Ident: NewSymbol("h"),
+										},
+									},
 								},
 							},
 						},
@@ -160,6 +170,7 @@ func TestPrint(t *testing.T) {
 						},
 					},
 					&MatchStmt{
+						Matched: &BoolLiteral{Value: false},
 						Cases: []MatchStmtCase{
 							{
 								Pattern: &ArrayPattern{
@@ -171,6 +182,7 @@ func TestPrint(t *testing.T) {
 											Ident: NewSymbol("pat"),
 										},
 									},
+									Exhaustive: true,
 								},
 								Stmts: []Statement{
 									&RetStmt{},
@@ -180,6 +192,7 @@ func TestPrint(t *testing.T) {
 						Else: []Statement{
 							&ExprStmt{
 								Expr: &MatchExpr{
+									Matched: &BoolLiteral{Value: false},
 									Cases: []MatchExprCase{
 										{
 											Pattern: &RecordPattern{
@@ -204,10 +217,6 @@ func TestPrint(t *testing.T) {
 													{
 														Name:    "e",
 														Pattern: &FloatConstPattern{Value: 2.7},
-													},
-													{
-														Name:    "",
-														Pattern: &RestPattern{},
 													},
 												},
 											},
@@ -234,6 +243,21 @@ func TestPrint(t *testing.T) {
 							},
 						},
 					},
+					&ExprStmt{
+						Expr: &Lambda{
+							Params: []FuncParam{
+								{NewSymbol("x"), &TypeRef{Ident: NewSymbol("uint")}},
+							},
+							BodyExpr: &VarRef{Ident: NewSymbol("x")},
+						},
+					},
+					&ExprStmt{
+						Expr: &Lambda{
+							IsDoBlock: true,
+							Params:    []FuncParam{},
+							BodyExpr:  &IntLiteral{Value: 88},
+						},
+					},
 					&RetStmt{
 						Exprs: []Expression{
 							&IntLiteral{
@@ -246,6 +270,29 @@ func TestPrint(t *testing.T) {
 									},
 								},
 								Index: &IntLiteral{Value: 0},
+							},
+							&FieldAccess{
+								Child: &VarRef{Ident: NewSymbol("r")},
+								Name:  "f",
+							},
+						},
+					},
+					&ForEachStmt{
+						Iterator: &VarDeclDestructuring{
+							Ident: NewSymbol("p"),
+						},
+						Range: &ArrayLiteral{},
+						Body: []Statement{
+							&ExprStmt{
+								Expr: &VarRef{Ident: NewSymbol("p")},
+							},
+						},
+					},
+					&WhileStmt{
+						Cond: &BoolLiteral{Value: true},
+						Body: []Statement{
+							&ExprStmt{
+								Expr: &IntLiteral{Value: 54},
 							},
 						},
 					},
@@ -271,15 +318,16 @@ func TestPrint(t *testing.T) {
 -   -   -   -   -   TypeRef (int)
 -   -   -   -   -   Typeof
 -   -   -   -   -   -   IntLiteral (10)
--   -   -   -   EnumType (hey)
--   -   -   -   -   RecordType {b}
--   -   -   -   -   -   TypeVar (c)
+-   -   EnumTypedef z(hey)
+-   -   -   RecordType {b}
+-   -   -   -   TypeVar (c)
 -   -   Function foo(a)
 -   -   -   TypeRef (d)
+-   -   -   TypeRef (Foo)
 -   -   -   VarDecl var
--   -   -   -   RecordDestructiring (anonym)
+-   -   -   -   RecordDestructiring anonym{g,hey}
 -   -   -   -   -   VarDeclDestructuring (g)
--   -   -   -   -   RestDestructuring
+-   -   -   -   -   VarDeclDestructuring (h)
 -   -   -   -   UIntLiteral (42)
 -   -   -   VarAssign (h)
 -   -   -   -   UnaryExpr
@@ -320,30 +368,49 @@ func TestPrint(t *testing.T) {
 -   -   -   -   -   -   -   VarRef (g)
 -   -   -   -   -   -   -   FloatLiteral (1.0
 -   -   -   MatchStmt
+-   -   -   -   BoolLiteral (false)
 -   -   -   -   ArrayPattern
 -   -   -   -   -   BoolConstPattern (false)
 -   -   -   -   -   VarDeclPattern (pat)
 -   -   -   -   RetStmt
 -   -   -   -   ExprStmt
 -   -   -   -   -   MatchExpr
--   -   -   -   -   -   RecordPattern patt{a,b,c,d,e,}
+-   -   -   -   -   -   BoolLiteral (false)
+-   -   -   -   -   -   RecordPattern patt{a,b,c,d,e}
 -   -   -   -   -   -   -   VarDeclPattern (a)
 -   -   -   -   -   -   -   StringConstPattern "hello"
 -   -   -   -   -   -   -   IntConstPattern (42)
 -   -   -   -   -   -   -   UIntConstPattern (11)
 -   -   -   -   -   -   -   FloatConstPattern (2.7
--   -   -   -   -   -   -   RestPattern
 -   -   -   -   -   -   IntLiteral (10)
 -   -   -   -   -   -   TupleLiteral (elems: 1)
 -   -   -   -   -   -   -   DictLiteral (elems: 1)
 -   -   -   -   -   -   -   -   StringLiteral "foo"
 -   -   -   -   -   -   -   -   UIntLiteral (3)
+-   -   -   ExprStmt
+-   -   -   -   Lambda (x)
+-   -   -   -   -   TypeRef (uint)
+-   -   -   -   -   VarRef (x)
+-   -   -   ExprStmt
+-   -   -   -   Lambda ()
+-   -   -   -   -   IntLiteral (88)
 -   -   -   RetStmt
 -   -   -   -   IntLiteral (42)
 -   -   -   -   IndexAccess
 -   -   -   -   -   ArrayLiteral (elems: 1)
 -   -   -   -   -   -   IntLiteral (3)
 -   -   -   -   -   IntLiteral (0)
+-   -   -   -   FieldAccess (f)
+-   -   -   -   -   VarRef (r)
+-   -   -   ForEachStmt
+-   -   -   -   VarDeclDestructuring (p)
+-   -   -   -   ArrayLiteral (elems: 0)
+-   -   -   -   ExprStmt
+-   -   -   -   -   VarRef (p)
+-   -   -   WhileStmt
+-   -   -   -   BoolLiteral (true)
+-   -   -   -   ExprStmt
+-   -   -   -   -   IntLiteral (54)
 -   -   Import (.foo.bar.{piyo,poyo})
 `, "\n")
 

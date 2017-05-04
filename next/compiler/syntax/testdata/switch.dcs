@@ -6,7 +6,7 @@ func main
     end
 
     case 10 > 0
-        a := 1 + 1
+        let a = 1 + 1
         print("no else")
     end
 end

@@ -10,8 +10,8 @@ SRCS := \
 	ast/printer.go \
 	syntax/token.go \
 	syntax/lexer.go \
-
-	# syntax/grammar.go \
+	syntax/grammar.go \
+	syntax/parser.go \
 
 TESTS := \
 	prelude/log_test.go \

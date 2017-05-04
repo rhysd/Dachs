@@ -1,67 +1,69 @@
 # Variable Definition
 
 ```
-{names} := {expression}
+let {names} = {expression}
 
-var {names} := {expression}
+var {names} = {expression}
 ```
 
 e.g.
 
 ```
 !! Define 'i' containing int value
-i := 42
+let i = 42
 print(i)
 
-var s := "foo"
+var s = "foo"
 ```
 
-When `var` is added to the definition, the variable will be mutable.
-By default, variables are immutable (like `const` in C).
+When `let` is specified to the definition, the variable will be immutable.
+And when `var` is specified to the definition, the variable will be mutable.
 
 ## Destructuring
 
 From fields of [record](record.md), variables can be defined with destructuring like JavaScript.
 
 ```
-{...} := some_record_value
+let {...} = some_record_value
+
+var {...} = some_record_value
 ```
 
 e.g.
 
 ```
 !! From a record which has unnamed fields (like tuple)
-r := {1, true, "aaa"}
-{i, b, s} := r
+let r = {1, true, "aaa"}
+let {i, b, s} = r
 print(i); print(b); print(s)
 
 !! From a record. Field names must be the same as RHS's ones.
-r2 := {age: 12, name: "John"}
-{age, name} := r2
+let r2 = {age: 12, name: "John"}
+let {age, name} = r2
 print(age); print(name)
 
 !! Match with names. So below is also OK.
-{name, age} := r2
+let {name, age} = r2
 
 !! Named record
-type Person of {name, age}
-p := Person("John", 12)
-{age, name} := p
+type Person = {name, age}
+let p = Person("John", 12)
+let {age, name} = p
 print(age); print(name)
 ```
 
 If the record at right hand side doesn't have unnamed fields, the names of destructured variables
-MUST have the same name as corresponding fields. For example, `{foo} := {foo: 42}` is OK but
-`{bar} := {foo: 42}` is not OK because of field name mismatch (`foo` v.s. `bar`).
+MUST have the same name as corresponding fields. For example, `let {foo} = {foo: 42}` is OK but
+`let {bar} = {foo: 42}` is not OK because of field name mismatch (`foo` v.s. `bar`).
 
 If the record at right hand side has unnamed fields, the names of destructured variables can be
 named as you like.
 
 ```
-r := {_: 42, _: "foo"}
+let r = {_: 42, _: "foo"}
 
-{foo, bar} := r
-{f, b} := r
+let {foo, bar} = r
+let {f, b} = r
 ```
 
 Unnamed field is a field which is not named *yet*. So you can set its name freely.
@@ -70,15 +72,20 @@ Destructuring can be nested. In the case, defined variables' names also must mat
 the corresponding fields.
 
 ```
-r := {a: 1, {b: 3.14, c: "aaa"}}
+let r = {a: 1, {b: 3.14, c: "aaa"}}
 
-{a, {b, c}} := r
+let {a, {b, c}} = r
 ```
 
 Instead of JavaScript, array cannot be used for destructuring (`[x, y] = [1, 2]`) because length of
 array is determined at runtime. Compiler cannot check the length at compile time.
 
-TODO: Define 'ignore' syntax
+Properties not appearing in destructuring are ignored.
+
+```
+!! 'c' property is ignored
+let {a, b} = {a: 42, b: "a", c: 3.14}
+```
 
 # Variable Assignment
 
@@ -89,7 +96,7 @@ TODO: Define 'ignore' syntax
 e.g.
 
 ```
-var i := 42
+var i = 42
 i = 21
 ```
 
@@ -119,7 +126,7 @@ func triple(i) {
     return i, i * 2, i * 3
 }
 
-ten, twenty, thirty := triple(10)
+let ten, twenty, thirty = triple(10)
 ```
 
 `ret` returns value(s) from function. When multiple expressions are specified, They will be
@@ -201,12 +208,12 @@ case 404 then print("not found")
 else          print("???")
 end
 
-type Person of
+type Person =
     case Student(age)
     case Engineer(skill)
     case Baby
 
-// person := ...
+// let person = ...
 
 match person
 case Student(name, _)
@@ -254,7 +261,7 @@ First form is a 'while' loop and second is a 'foreach' loop.
 `break` statement is used for the purpose
 
 ```
-i := 0
+var i = 0
 for true
     if i > 10
         break
@@ -268,7 +275,7 @@ end
 `next` statement is used for the purpose
 
 ```
-i := 0
+var i = 0
 for i < 10
     i = i + 1
     if i % 2 != 0

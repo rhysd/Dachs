@@ -10,6 +10,9 @@ type Visitor interface {
 
 // Visit visits the tree with the visitor.
 func Visit(v Visitor, n Node) {
+	if n == nil {
+		return
+	}
 	if v = v.Visit(n); v == nil {
 		return
 	}
@@ -23,9 +26,16 @@ func Visit(v Visitor, n Node) {
 		}
 	case *Typedef:
 		Visit(v, n.Type)
+	case *EnumTypedef:
+		for _, c := range n.Cases {
+			Visit(v, c.Child)
+		}
 	case *Function:
 		for _, p := range n.Params {
 			Visit(v, p.Type)
+		}
+		if n.RetType != nil {
+			Visit(v, n.RetType)
 		}
 		for _, s := range n.Body {
 			Visit(v, s)
@@ -49,10 +59,6 @@ func Visit(v Visitor, n Node) {
 			Visit(v, p)
 		}
 		Visit(v, n.RetType)
-	case *EnumType:
-		for _, c := range n.Cases {
-			Visit(v, c.Child)
-		}
 	case *TypeofType:
 		Visit(v, n.Expr)
 
@@ -67,9 +73,9 @@ func Visit(v Visitor, n Node) {
 		}
 
 	// Destructuring
-	case *RecordDestructiring:
+	case *RecordDestructuring:
 		for _, f := range n.Fields {
-			Visit(v, f)
+			Visit(v, f.Child)
 		}
 
 	// Statement
@@ -111,6 +117,7 @@ func Visit(v Visitor, n Node) {
 			Visit(v, s)
 		}
 	case *MatchStmt:
+		Visit(v, n.Matched)
 		for _, c := range n.Cases {
 			Visit(v, c.Pattern)
 			for _, s := range c.Stmts {
@@ -118,6 +125,17 @@ func Visit(v Visitor, n Node) {
 			}
 		}
 		for _, s := range n.Else {
+			Visit(v, s)
+		}
+	case *ForEachStmt:
+		Visit(v, n.Iterator)
+		Visit(v, n.Range)
+		for _, s := range n.Body {
+			Visit(v, s)
+		}
+	case *WhileStmt:
+		Visit(v, n.Cond)
+		for _, s := range n.Body {
 			Visit(v, s)
 		}
 	case *ExprStmt:
@@ -154,6 +172,7 @@ func Visit(v Visitor, n Node) {
 		}
 		Visit(v, n.Else)
 	case *MatchExpr:
+		Visit(v, n.Matched)
 		for _, c := range n.Cases {
 			Visit(v, c.Pattern)
 			Visit(v, c.Body)
@@ -165,6 +184,8 @@ func Visit(v Visitor, n Node) {
 	case *IndexAccess:
 		Visit(v, n.Child)
 		Visit(v, n.Index)
+	case *FieldAccess:
+		Visit(v, n.Child)
 	case *RecordLiteral:
 		for _, f := range n.Fields {
 			Visit(v, f.Expr)
@@ -178,10 +199,17 @@ func Visit(v Visitor, n Node) {
 		for _, a := range n.Args {
 			Visit(v, a)
 		}
+		Visit(v, n.DoBlock)
 	case *FuncCallNamed:
 		Visit(v, n.Callee)
 		for _, a := range n.Args {
 			Visit(v, a.Expr)
 		}
+		Visit(v, n.DoBlock)
+	case *Lambda:
+		for _, p := range n.Params {
+			Visit(v, p.Type)
+		}
+		Visit(v, n.BodyExpr)
 	}
 }

@@ -154,7 +154,7 @@ The exception is a primitive type. Signed integer can be coerced into
 unsigned integer and vice versa. And floating point numbers can also be coerced into integer type.
 
 ```
-i := 42
+let i = 42
 
 !! OK. It will be 42u
 i as uint
@@ -231,10 +231,10 @@ e.g.
 
 ```
 !! Initialize dictionary with some elements
-intToWord := [0 => "zero", 1 => "one"]
+let intToWord = [0 => "zero", 1 => "one"]
 
 !! Initialize empty dictionary
-emp := [ => ]
+let emp = [ => ]
 ```
 
 Empty literal is `[ => ]` to distinguish dictionary from array.

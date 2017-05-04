@@ -28,6 +28,8 @@ type UnaryOp int
 const (
 	// NegOp represents '-'
 	NegOp UnaryOp = iota
+	// NegOp represents '+'
+	PositiveOp UnaryOp = iota
 	// NotOp represents '!'
 	NotOp
 )
@@ -88,6 +90,19 @@ type (
 		Type     Type
 	}
 
+	EnumTypeCase struct {
+		Name  string
+		Child Type
+	}
+
+	// case Foo
+	// case Foo{...}
+	EnumTypedef struct {
+		StartPos prelude.Pos
+		Ident    Symbol
+		Cases    []EnumTypeCase
+	}
+
 	FuncParam struct {
 		Ident Symbol
 		Type  Type
@@ -98,6 +113,7 @@ type (
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
 		Ident    Symbol
+		RetType  Type
 		Params   []FuncParam
 		Body     []Statement
 	}
@@ -187,19 +203,6 @@ type (
 		RetType    Type
 	}
 
-	EnumTypeCase struct {
-		StartPos prelude.Pos
-		Name     string
-		Child    *RecordType
-	}
-
-	// case Foo
-	// case Foo{...}
-	EnumType struct {
-		Type
-		Cases []EnumTypeCase
-	}
-
 	// typeof(...)
 	TypeofType struct {
 		Type
@@ -284,17 +287,13 @@ type (
 	// [a, b, ...]
 	ArrayPattern struct {
 		Pattern
-		StartPos prelude.Pos
-		EndPos   prelude.Pos
-		Elems    []Pattern
+		StartPos   prelude.Pos
+		EndPos     prelude.Pos
+		Elems      []Pattern
+		Exhaustive bool // Represents '...'
 	}
 
-	// '...' of [x, y, ...] or {x, y, ...}
-	RestPattern struct {
-		Pattern
-		StartPos prelude.Pos
-		EndPos   prelude.Pos
-	}
+	// TODO: Add DictPattern
 
 	/*
 	 * Destructuring
@@ -313,31 +312,21 @@ type (
 		Ident    Symbol
 	}
 
+	RecordDestructuringField struct {
+		Name  string
+		Child Destructuring
+	}
+
 	// {a, b}
 	// {foo: a, bar: b}
 	// {a, b, ...}
 	// {foo: a, bar: b, ...}
-	RecordDestructiring struct {
+	RecordDestructuring struct {
 		Destructuring
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
 		Ident    Symbol
-		Fields   []Destructuring
-	}
-
-	// Note:
-	// 'Fields' of 'RecordDestructiring' is []Destructuring, not []struct{Name string, Bound Destructuring}.
-	// This is because destructuring does not permit {foo: bar} style pattern.
-	// If it's permitted, it's complicated to use it with unnamed fields record (tuples).
-	// How does `{foo: bar} := {_: 42}` work? It might raise a compilation error. But I don't want
-	// to make additional special case related to unnamed fields.
-	// So, for now, simply forbid destructuring with different name from field's.
-
-	// '...' of {a, b, ...}
-	RestDestructuring struct {
-		Destructuring
-		StartPos prelude.Pos
-		EndPos   prelude.Pos
+		Fields   []RecordDestructuringField
 	}
 
 	/*
@@ -435,8 +424,30 @@ type (
 		Statement
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
+		Matched  Expression
 		Cases    []MatchStmtCase
 		Else     []Statement
+	}
+
+	// for a in array
+	// end
+	ForEachStmt struct {
+		Statement
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Iterator Destructuring
+		Range    Expression
+		Body     []Statement
+	}
+
+	// for true
+	// end
+	WhileStmt struct {
+		Statement
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Cond     Expression
+		Body     []Statement
 	}
 
 	// expr
@@ -533,11 +544,9 @@ type (
 	// 1 + 1
 	BinaryExpr struct {
 		Expression
-		StartPos prelude.Pos
-		EndPos   prelude.Pos
-		Op       BinaryOp
-		LHS      Expression
-		RHS      Expression
+		Op  BinaryOp
+		LHS Expression
+		RHS Expression
 	}
 
 	// stmt; stmt; expr
@@ -590,6 +599,7 @@ type (
 		Expression
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
+		Matched  Expression
 		Cases    []MatchExprCase
 		Else     Expression
 	}
@@ -607,6 +617,14 @@ type (
 		EndPos prelude.Pos
 		Child  Expression
 		Index  Expression
+	}
+
+	// expr.name
+	FieldAccess struct {
+		Expression
+		EndPos prelude.Pos
+		Child  Expression
+		Name   string
 	}
 
 	RecordLitField struct {
@@ -628,6 +646,7 @@ type (
 		Expression
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
+		Ident    Symbol
 		Elems    []Expression
 	}
 
@@ -635,9 +654,10 @@ type (
 	// foo()
 	FuncCall struct {
 		Expression
-		EndPos prelude.Pos
-		Callee Expression
-		Args   []Expression
+		EndPos  prelude.Pos
+		Callee  Expression
+		Args    []Expression
+		DoBlock *Lambda
 	}
 
 	NamedArg struct {
@@ -648,9 +668,23 @@ type (
 	// foo(a: e1, b: e2)
 	FuncCallNamed struct {
 		Expression
-		EndPos prelude.Pos
-		Callee Expression
-		Args   []NamedArg
+		EndPos  prelude.Pos
+		Callee  Expression
+		Args    []NamedArg
+		DoBlock *Lambda
+	}
+
+	// -> a, b in a + b
+	// -> 42
+	// foo() do x, y ... end
+	Lambda struct {
+		Expression
+		StartPos  prelude.Pos
+		EndPos    prelude.Pos
+		IsDoBlock bool
+		Params    []FuncParam
+		// In do ... end block, statements expression is allowed
+		BodyExpr Expression
 	}
 )
 
@@ -680,6 +714,13 @@ func mayAnonym(name string) string {
 
 func (n *Program) String() string { return fmt.Sprintf("Program (toplevels: %d)", len(n.Toplevels)) }
 func (n *Typedef) String() string { return fmt.Sprintf("Typedef (%s)", n.Ident.Name) }
+func (n *EnumTypedef) String() string {
+	ns := make([]string, 0, len(n.Cases))
+	for _, c := range n.Cases {
+		ns = append(ns, c.Name)
+	}
+	return fmt.Sprintf("EnumTypedef %s(%s)", n.Ident.Name, strings.Join(ns, ","))
+}
 func (n *Function) String() string {
 	ns := make([]string, 0, len(n.Params))
 	for _, p := range n.Params {
@@ -700,15 +741,8 @@ func (n *RecordType) String() string {
 	}
 	return fmt.Sprintf("RecordType {%s}", strings.Join(ns, ","))
 }
-func (n *TupleType) String() string    { return "TupleType" }
-func (n *FunctionType) String() string { return "FunctionType" }
-func (n *EnumType) String() string {
-	ns := make([]string, 0, len(n.Cases))
-	for _, c := range n.Cases {
-		ns = append(ns, c.Name)
-	}
-	return fmt.Sprintf("EnumType (%s)", strings.Join(ns, ","))
-}
+func (n *TupleType) String() string          { return "TupleType" }
+func (n *FunctionType) String() string       { return "FunctionType" }
 func (n *TypeofType) String() string         { return "Typeof" }
 func (n *IntConstPattern) String() string    { return fmt.Sprintf("IntConstPattern (%d)", n.Value) }
 func (n *UIntConstPattern) String() string   { return fmt.Sprintf("UIntConstPattern (%d)", n.Value) }
@@ -724,14 +758,16 @@ func (n *RecordPattern) String() string {
 }
 func (n *VarDeclPattern) String() string { return fmt.Sprintf("VarDeclPattern (%s)", n.Ident.Name) }
 func (n *ArrayPattern) String() string   { return "ArrayPattern" }
-func (n *RestPattern) String() string    { return "RestPattern" }
 func (n *VarDeclDestructuring) String() string {
 	return fmt.Sprintf("VarDeclDestructuring (%s)", n.Ident.Name)
 }
-func (n *RecordDestructiring) String() string {
-	return fmt.Sprintf("RecordDestructiring (%s)", mayAnonym(n.Ident.Name))
+func (n *RecordDestructuring) String() string {
+	ns := make([]string, 0, len(n.Fields))
+	for _, f := range n.Fields {
+		ns = append(ns, f.Name)
+	}
+	return fmt.Sprintf("RecordDestructiring %s{%s}", mayAnonym(n.Ident.Name), strings.Join(ns, ","))
 }
-func (n *RestDestructuring) String() string { return "RestDestructuring" }
 func (n *VarDecl) String() string {
 	v := ""
 	if n.Mutable {
@@ -751,6 +787,8 @@ func (n *RetStmt) String() string       { return "RetStmt" }
 func (n *IfStmt) String() string        { return "IfStmt" }
 func (n *SwitchStmt) String() string    { return "SwitchStmt" }
 func (n *MatchStmt) String() string     { return "MatchStmt" }
+func (n *ForEachStmt) String() string   { return "ForEachStmt" }
+func (n *WhileStmt) String() string     { return "WhileStmt" }
 func (n *ExprStmt) String() string      { return "ExprStmt" }
 func (n *IntLiteral) String() string    { return fmt.Sprintf("IntLiteral (%d)", n.Value) }
 func (n *UIntLiteral) String() string   { return fmt.Sprintf("UIntLiteral (%d)", n.Value) }
@@ -768,6 +806,7 @@ func (n *SwitchExpr) String() string    { return "SwitchExpr" }
 func (n *MatchExpr) String() string     { return "MatchExpr" }
 func (n *CoerceExpr) String() string    { return "CoerceExpr" }
 func (n *IndexAccess) String() string   { return "IndexAccess" }
+func (n *FieldAccess) String() string   { return fmt.Sprintf("FieldAccess (%s)", n.Name) }
 func (n *RecordLiteral) String() string {
 	ns := make([]string, 0, len(n.Fields))
 	for _, f := range n.Fields {
@@ -778,12 +817,21 @@ func (n *RecordLiteral) String() string {
 func (n *TupleLiteral) String() string  { return fmt.Sprintf("TupleLiteral (elems: %d)", len(n.Elems)) }
 func (n *FuncCall) String() string      { return "FuncCall" }
 func (n *FuncCallNamed) String() string { return "FuncCallNamed" }
+func (n *Lambda) String() string {
+	ns := make([]string, 0, len(n.Params))
+	for _, p := range n.Params {
+		ns = append(ns, p.Ident.Name)
+	}
+	return fmt.Sprintf("Lambda (%s)", strings.Join(ns, ","))
+}
 
 // Note: len(n.Toplevels) is never zero because main function is required
 func (n *Program) Pos() prelude.Pos              { return n.Toplevels[0].Pos() }
 func (n *Program) End() prelude.Pos              { return n.Toplevels[len(n.Toplevels)-1].End() }
 func (n *Typedef) Pos() prelude.Pos              { return n.StartPos }
 func (n *Typedef) End() prelude.Pos              { return n.Type.End() }
+func (n *EnumTypedef) Pos() prelude.Pos          { return n.StartPos }
+func (n *EnumTypedef) End() prelude.Pos          { return n.Cases[len(n.Cases)-1].Child.End() }
 func (n *Function) Pos() prelude.Pos             { return n.StartPos }
 func (n *Function) End() prelude.Pos             { return n.EndPos }
 func (n *Import) Pos() prelude.Pos               { return n.StartPos }
@@ -800,8 +848,6 @@ func (n *TupleType) Pos() prelude.Pos            { return n.StartPos }
 func (n *TupleType) End() prelude.Pos            { return n.EndPos }
 func (n *FunctionType) Pos() prelude.Pos         { return n.StartPos }
 func (n *FunctionType) End() prelude.Pos         { return n.RetType.End() }
-func (n *EnumType) Pos() prelude.Pos             { return n.Cases[0].StartPos }
-func (n *EnumType) End() prelude.Pos             { return n.Cases[len(n.Cases)-1].Child.End() }
 func (n *TypeofType) Pos() prelude.Pos           { return n.StartPos }
 func (n *TypeofType) End() prelude.Pos           { return n.EndPos }
 func (n *IntConstPattern) Pos() prelude.Pos      { return n.StartPos }
@@ -820,21 +866,23 @@ func (n *VarDeclPattern) Pos() prelude.Pos       { return n.StartPos }
 func (n *VarDeclPattern) End() prelude.Pos       { return n.EndPos }
 func (n *ArrayPattern) Pos() prelude.Pos         { return n.StartPos }
 func (n *ArrayPattern) End() prelude.Pos         { return n.EndPos }
-func (n *RestPattern) Pos() prelude.Pos          { return n.StartPos }
-func (n *RestPattern) End() prelude.Pos          { return n.EndPos }
 func (n *VarDeclDestructuring) Pos() prelude.Pos { return n.StartPos }
 func (n *VarDeclDestructuring) End() prelude.Pos { return n.EndPos }
-func (n *RecordDestructiring) Pos() prelude.Pos  { return n.StartPos }
-func (n *RecordDestructiring) End() prelude.Pos  { return n.EndPos }
-func (n *RestDestructuring) Pos() prelude.Pos    { return n.StartPos }
-func (n *RestDestructuring) End() prelude.Pos    { return n.EndPos }
-func (n *VarDecl) Pos() prelude.Pos              { return n.StartPos }
-func (n *VarDecl) End() prelude.Pos              { return n.RHSExprs[len(n.RHSExprs)-1].End() }
-func (n *VarAssign) Pos() prelude.Pos            { return n.StartPos }
-func (n *VarAssign) End() prelude.Pos            { return n.RHSExprs[len(n.RHSExprs)-1].End() }
-func (n *IndexAssign) Pos() prelude.Pos          { return n.Assignee.Pos() }
-func (n *IndexAssign) End() prelude.Pos          { return n.RHS.End() }
-func (n *RetStmt) Pos() prelude.Pos              { return n.StartPos }
+func (n *RecordDestructuring) Pos() prelude.Pos  { return n.StartPos }
+func (n *RecordDestructuring) End() prelude.Pos  { return n.EndPos }
+func (n *VarDecl) Pos() prelude.Pos {
+	if n.Mutable {
+		// If 'var' is specified, start position should be set to the position of 'var' token.
+		return n.StartPos
+	}
+	return n.Decls[0].Pos()
+}
+func (n *VarDecl) End() prelude.Pos     { return n.RHSExprs[len(n.RHSExprs)-1].End() }
+func (n *VarAssign) Pos() prelude.Pos   { return n.StartPos }
+func (n *VarAssign) End() prelude.Pos   { return n.RHSExprs[len(n.RHSExprs)-1].End() }
+func (n *IndexAssign) Pos() prelude.Pos { return n.Assignee.Pos() }
+func (n *IndexAssign) End() prelude.Pos { return n.RHS.End() }
+func (n *RetStmt) Pos() prelude.Pos     { return n.StartPos }
 func (n *RetStmt) End() prelude.Pos {
 	len := len(n.Exprs)
 	if len == 0 {
@@ -848,6 +896,10 @@ func (n *SwitchStmt) Pos() prelude.Pos    { return n.Cases[0].StartPos }
 func (n *SwitchStmt) End() prelude.Pos    { return n.EndPos }
 func (n *MatchStmt) Pos() prelude.Pos     { return n.StartPos }
 func (n *MatchStmt) End() prelude.Pos     { return n.EndPos }
+func (n *ForEachStmt) Pos() prelude.Pos   { return n.StartPos }
+func (n *ForEachStmt) End() prelude.Pos   { return n.EndPos }
+func (n *WhileStmt) Pos() prelude.Pos     { return n.StartPos }
+func (n *WhileStmt) End() prelude.Pos     { return n.EndPos }
 func (n *ExprStmt) Pos() prelude.Pos      { return n.Expr.Pos() }
 func (n *ExprStmt) End() prelude.Pos      { return n.Expr.End() }
 func (n *IntLiteral) Pos() prelude.Pos    { return n.StartPos }
@@ -868,8 +920,8 @@ func (n *DictLiteral) Pos() prelude.Pos   { return n.StartPos }
 func (n *DictLiteral) End() prelude.Pos   { return n.EndPos }
 func (n *UnaryExpr) Pos() prelude.Pos     { return n.StartPos }
 func (n *UnaryExpr) End() prelude.Pos     { return n.Child.End() }
-func (n *BinaryExpr) Pos() prelude.Pos    { return n.StartPos }
-func (n *BinaryExpr) End() prelude.Pos    { return n.EndPos }
+func (n *BinaryExpr) Pos() prelude.Pos    { return n.LHS.Pos() }
+func (n *BinaryExpr) End() prelude.Pos    { return n.RHS.Pos() }
 func (n *SeqExpr) Pos() prelude.Pos {
 	if len(n.Stmts) == 0 {
 		return n.LastExpr.Pos()
@@ -887,6 +939,8 @@ func (n *CoerceExpr) Pos() prelude.Pos    { return n.Expr.Pos() }
 func (n *CoerceExpr) End() prelude.Pos    { return n.Type.End() }
 func (n *IndexAccess) Pos() prelude.Pos   { return n.Child.Pos() }
 func (n *IndexAccess) End() prelude.Pos   { return n.EndPos }
+func (n *FieldAccess) Pos() prelude.Pos   { return n.Child.Pos() }
+func (n *FieldAccess) End() prelude.Pos   { return n.EndPos }
 func (n *RecordLiteral) Pos() prelude.Pos { return n.StartPos }
 func (n *RecordLiteral) End() prelude.Pos { return n.EndPos }
 func (n *TupleLiteral) Pos() prelude.Pos  { return n.StartPos }
@@ -895,3 +949,11 @@ func (n *FuncCall) Pos() prelude.Pos      { return n.Callee.Pos() }
 func (n *FuncCall) End() prelude.Pos      { return n.EndPos }
 func (n *FuncCallNamed) Pos() prelude.Pos { return n.Callee.Pos() }
 func (n *FuncCallNamed) End() prelude.Pos { return n.EndPos }
+func (n *Lambda) Pos() prelude.Pos        { return n.StartPos }
+func (n *Lambda) End() prelude.Pos {
+	if n.IsDoBlock {
+		return n.EndPos
+	} else {
+		return n.BodyExpr.End()
+	}
+}

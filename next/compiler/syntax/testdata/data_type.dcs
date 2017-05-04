@@ -1,4 +1,4 @@
-type Num of
+type Num =
     case Integer{_}
     case Rational{
         denom: int
@@ -7,8 +7,8 @@ type Num of
     case Complex{real, imag}
 
 func main
-    i := Num::Integer(12)
-    r := Num::Rational(3, 5)
-    c1 := Complex(3, 10)
-    c2 := Complex{real: 3.0, imag: 10.0}
+    let i = Num::Integer(12)
+    let r = Num::Rational(3, 5)
+    let c1 = Complex(3, 10)
+    let c2 = Complex{real: 3.0, imag: 10.0}
 end
