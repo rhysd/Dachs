@@ -199,14 +199,11 @@ var keywords = map[string]TokenKind{
 	"false":  TokenBool,
 	"break":  TokenBreak,
 	"next":   TokenNext,
+	"var":    TokenVar,
+	"let":    TokenLet,
 }
 
 func lexIdent(l *Lexer) stateFn {
-	if l.top == '\'' {
-		// For type variable 'a
-		l.eat()
-	}
-
 	if !l.eatIdent() {
 		return nil
 	}
@@ -261,16 +258,11 @@ func lexEqual(l *Lexer) stateFn {
 func lexColon(l *Lexer) stateFn {
 	l.eat()
 
-	switch l.top {
-	case '=':
-		// Lex :=
-		l.eat()
-		l.emit(TokenDefine)
-	case ':':
+	if l.top == ':' {
 		// Lex ::
 		l.eat()
 		l.emit(TokenColonColon)
-	default:
+	} else {
 		l.emit(TokenColon)
 	}
 
@@ -306,7 +298,7 @@ func lexDigit(l *Lexer) stateFn {
 			l.expected("number for exponential part of float literal", l.top)
 			return nil
 		}
-		for isHex(l.top) {
+		for isDigit(l.top) {
 			l.eat()
 		}
 	}
@@ -431,6 +423,8 @@ func lex(l *Lexer) stateFn {
 			l.eat()
 			l.emit(TokenRBracket)
 		case '\'':
+			l.eat()
+			l.emit(TokenSingleQuote)
 			// Type variable 'a
 			return lexIdent
 		case '"':

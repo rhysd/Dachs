@@ -1,8 +1,8 @@
 func main
-    m := ["one" => 1, "two" => 2]
+    var m = ["one" => 1, "two" => 2]
     m["three"] = 3
     print(m["three"])
 
-    empty_array := []
-    empty_dict := [=>]
+    let empty_array = []
+    let empty_dict = [=>]
 end

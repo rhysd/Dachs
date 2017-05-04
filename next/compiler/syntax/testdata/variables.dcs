@@ -1,5 +1,5 @@
 func main
-    foo := 42
-    var a, b := 12, "aaa"
+    let foo = 42
+    var a, b = 12, "aaa"
     a = foo
 end

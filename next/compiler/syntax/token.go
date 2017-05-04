@@ -10,7 +10,6 @@ type TokenKind int
 
 const (
 	TokenIllegal TokenKind = iota
-	TokenEOF
 	TokenComment
 	TokenNewline
 	TokenSemicolon
@@ -36,7 +35,6 @@ const (
 	TokenEqual
 	TokenNotEqual
 	TokenAssign
-	TokenDefine
 	TokenLess
 	TokenLessEqual
 	TokenGreater
@@ -66,11 +64,14 @@ const (
 	TokenBreak
 	TokenNext
 	TokenEllipsis
+	TokenSingleQuote
+	TokenVar
+	TokenLet
+	TokenEOF
 )
 
 var tokenTable = [...]string{
 	TokenIllegal:       "ILLEGAL",
-	TokenEOF:           "EOF",
 	TokenComment:       "COMMENT",   // !!
 	TokenNewline:       "NEWLINE",   // \n
 	TokenSemicolon:     "SEMICOLON", // ;
@@ -96,7 +97,6 @@ var tokenTable = [...]string{
 	TokenEqual:         "EQUAL",         // ==
 	TokenNotEqual:      "NOT_EQUAL",     // !=
 	TokenAssign:        "ASSIGN",        // =
-	TokenDefine:        "DEFINE",        // :=
 	TokenLess:          "LESS",          // <
 	TokenLessEqual:     "LESS_EQUAL",    // <=
 	TokenGreater:       "GREATER",       // >
@@ -126,6 +126,10 @@ var tokenTable = [...]string{
 	TokenBreak:         "BREAK",
 	TokenNext:          "NEXT",
 	TokenEllipsis:      "ELLIPSIS",
+	TokenSingleQuote:   "SINGLE_QUOTE",
+	TokenVar:           "VAR",
+	TokenLet:           "LET",
+	TokenEOF:           "EOF",
 }
 
 func (k TokenKind) String() string {

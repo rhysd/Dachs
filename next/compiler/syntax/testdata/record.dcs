@@ -1,11 +1,11 @@
 type A of {a, b}
 
 func main
-    var a := A(42, "aaa")
-    b := A{a: 10, b: "bbb"}
+    var a = A(42, "aaa")
+    let b = A{a: 10, b: "bbb"}
     a = b
-    age := 12
-    name := "bbb"
-    c := {age, name}
+    let age = 12
+    let name = "bbb"
+    let c = {age, name}
     print(c.age)
 end
