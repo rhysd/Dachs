@@ -51,14 +51,14 @@ Type alias (`type {name} of {type}`) is available to define named type. Type ali
 type *strongly*. So it cannot be converted from original type implicitly.
 
 ```
-type Empty of {}
+type Empty = {}
 
-type Person of {
+type Person = {
     name: str
     age: int
 }
 
-type Student of {name, grade}
+type Student = {name, grade}
 ```
 
 ## Literal
@@ -66,7 +66,7 @@ type Student of {name, grade}
 Named record value is made like
 
 ```
-type Person of {age, name}
+type Person = {age, name}
 
 Person{age: 12, name: "John"}
 ```
@@ -74,7 +74,7 @@ Person{age: 12, name: "John"}
 As the feature of `type ... of`, it defines constructor function implicitly.
 
 ```
-type Person of {age, name}
+type Person = {age, name}
 
 func Person(age: 'a, name: 'b)
     ret {age: age, name: name}
@@ -111,7 +111,7 @@ cannot be accessed at first. You need to give a name to the field to access.
 To give a name to unnamed field, you need to use pattern matching or destructuring.
 
 ```
-r := {_: 12, _: "John"}
+let r = {_: 12, _: "John"}
 
 match r
 case {12, name}
@@ -120,7 +120,7 @@ case {age, _}
     print(age)
 end
 
-{age, name} := r
+let {age, name} = r
 print(age)
 print(name)
 ```
@@ -132,13 +132,13 @@ For example, `Option` type can be written as below.
 
 ```
 !! Option::Some has one unnamed field.
-type Option of
+type Option =
     case Some{_}
     case None
 
 !! Type is Option{_: int}.
 !! Use constructor function to make a value easily.
-some := Some(42)
+let some = Some(42)
 
 !! Unnamed field can firstly access in the case arm
 match some
@@ -160,21 +160,21 @@ depending on what is contained).
 For records which have unnamed fields,
 
 ```
-pair := {_: 12, _: "John"}
+let pair = {_: 12, _: "John"}
 ```
 
 Named record which has unnamed fields can be made with constructor function.
 
 ```
-type Pair of {_: int, _: str}
+type Pair = {_: int, _: str}
 
-pair := Pair(12, "John")
+let pair = Pair(12, "John")
 
-type Option of
+type Option =
     case Some{_}
     case None
 
-some := Option::Some(42)
+let some = Option::Some(42)
 !! Instead of Option::Some{_: 42}
 ```
 
@@ -184,9 +184,9 @@ Like JavaScript's property punning, field of record at literal can be punned. It
 `{foo: foo}` can be squashed into `{foo}`.
 
 ```
-age, name := 12, "John"
+let age, name = 12, "John"
 
-person := {age, name}
+let person = {age, name}
 
 !! This is the same as {age: age, name: name}
 !! Type of person is {age: int, name: str}
@@ -198,7 +198,7 @@ Pattern matching is available with `match` statement/expression.
 
 ```
 !! Normal record
-person := {age: 12, name: "John"}
+let person = {age: 12, name: "John"}
 
 match person
 case {age, "John"}
@@ -210,7 +210,7 @@ else
 end
 
 !! Unnamed fields (tuples)
-person := {_: 12, _: "John"}
+let person = {_: 12, _: "John"}
 
 match person
 case {height, "John"}
@@ -254,14 +254,14 @@ end
 ## Should use `{` and `}` instead of `(` and `)`?
 
 ```
-type Person of (age, name)
+type Person = (age, name)
 
-type Person of (
+type Person = (
     age: int
     name: str
 )
 
-type Number of
+type Number =
     )ase Integer(int)
     case Rational(denominator, numerator)
     case Complex(
@@ -269,7 +269,7 @@ type Number of
         imaginary: float
     )
 
-type Option of
+type Option =
     case Some('a)
     case None
 

@@ -39,14 +39,14 @@ e.g.
 
 ```
 !! Array is mutable and has a `T *` pointer as data
-type Array of {
+type Array = {
     data: unsafe.ptr('a)
     length: uint
     capacity: uint
 }
 
 !! String is immutable and has a `char *` pointer as data
-type String of {
+type String = {
     data: unsafe.ptr(i8)
     size: uint
 }

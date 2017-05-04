@@ -42,7 +42,7 @@ Type variable is a placeholder which can be replaced by actual type. The name st
 This is used for making a variant type.
 
 ```
-type Pair of {'a, 'b}
+type Pair = {'a, 'b}
 ```
 
 Above `Pair` type has two fields. But actual types of the fields are not defined. It is determined
@@ -62,10 +62,10 @@ Generally one character is used such as `'a` or `'b` for this. And if types of f
 type variables are assigned by a compiler. Automatically assigned type variables are named `'0`, `'1`, ...
 
 ```
-type Query of {question, answer}
+type Query = {question, answer}
 
 !! Above is the same as
-type Query of {question: '0, answer: '1}
+type Query = {question: '0, answer: '1}
 ```
 
 # Type Coercion
@@ -74,7 +74,7 @@ type Query of {question: '0, answer: '1}
 It basically works as type assertion, and works as type conversion in some primitive conversion.
 Conversion by coercion is permitted only for changing interpretation of the value for some
 **built-in** conversion.
-Or aliased type with `type ... of` can be also converted from underlying type.
+Or aliased type with `type ... = ...` can be also converted from underlying type.
 
 ```
 !! Primitive types conversion
@@ -83,7 +83,7 @@ Or aliased type with `type ... of` can be also converted from underlying type.
 3u as float
 
 !! Conversion from underlying type to aliased type
-type MyInt of int
+type MyInt = int
 42 as MyInt
 ```
 # Type Alias
@@ -95,10 +95,10 @@ type {Name} of {type}
 Defines `{Name}` as an alias of `{type}`. `{Name}` is defined as a new type. So it is typed *strongly* and cannot be converted from original type implicitly.
 
 ```
-type MyInt of int
+type MyInt = int
 
-my := 42 as MyInt
-i := my as int
+let my = 42 as MyInt
+let i = my as int
 ```
 
 Note that aliased type's name **MUST** start with upper case.
@@ -117,7 +117,7 @@ type {Name} of
 Below is an example of `Number`. `Number` consists of `Integer`, `Rational` and `Imaginary` here.
 
 ```
-type Number of
+type Number =
     case Integer{'a}
     case Rational{numerator, denominator}
     case Imaginary{real, imaginary}
@@ -146,9 +146,9 @@ typeof({expression})
 !! int
 typeof(42)
 
-type MyInt of int
-a := 42 as MyInt
-b := 10 as typeof(a)
+type MyInt = int
+let a = 42 as MyInt
+let b = 10 as typeof(a)
 
 !! b has the same type of a
 print(a == b)
@@ -176,16 +176,16 @@ e.g.
 
 ```
 !! Generic type User{'0, '1}
-type User of {name, data}
+type User = {name, data}
 
 !! Instantiate User with str and int
-type IntUser of User{str, int}
+type IntUser = User{str, int}
 
 !! Instantiate User with str and float
-type FloatUser of User{str, float}
+type FloatUser = User{str, float}
 
 !! Only set an actual type to the first parameter
-type User2 of User{str, '1}
+type User2 = User{str, '1}
 ```
 
 # Pointer Type
