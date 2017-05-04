@@ -570,8 +570,9 @@ type (
 	}
 
 	SwitchExprCase struct {
-		Cond Expression
-		Body Expression
+		StartPos prelude.Pos
+		Cond     Expression
+		Body     Expression
 	}
 
 	// case foo then 10
@@ -579,10 +580,9 @@ type (
 	// end
 	SwitchExpr struct {
 		Expression
-		StartPos prelude.Pos
-		EndPos   prelude.Pos
-		Cases    []SwitchExprCase
-		Else     Expression
+		EndPos prelude.Pos
+		Cases  []SwitchExprCase
+		Else   Expression
 	}
 
 	MatchExprCase struct {
@@ -929,7 +929,7 @@ func (n *SeqExpr) Pos() prelude.Pos {
 func (n *SeqExpr) End() prelude.Pos       { return n.LastExpr.End() }
 func (n *IfExpr) Pos() prelude.Pos        { return n.StartPos }
 func (n *IfExpr) End() prelude.Pos        { return n.EndPos }
-func (n *SwitchExpr) Pos() prelude.Pos    { return n.StartPos }
+func (n *SwitchExpr) Pos() prelude.Pos    { return n.Cases[0].StartPos }
 func (n *SwitchExpr) End() prelude.Pos    { return n.EndPos }
 func (n *MatchExpr) Pos() prelude.Pos     { return n.StartPos }
 func (n *MatchExpr) End() prelude.Pos     { return n.EndPos }

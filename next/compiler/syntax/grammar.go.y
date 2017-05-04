@@ -105,6 +105,7 @@ import (
 %token<token> LET
 %token<token> EOF
 
+%nonassoc prec_lambda
 %left OR
 %left AND
 %left EQUAL NOTEQUAL
@@ -113,22 +114,23 @@ import (
 %left STAR DIV PERCENT
 %left AS
 %right NOT
+%right prec_unary
 
-%type<token> sep sep_char newlines elem_sep then mutability
+%type<token> sep newlines elem_sep then mutability
 %type<> opt_newlines
 %type<import_node> import_body import_spec import_end
 %type<node> toplevel import func_def
 %type<nodes> toplevels
 %type<names> sep_names comma_sep_names
 %type<type_node> type opt_type_annotate
-%type<stmts> statements opt_stmts opt_else
+%type<stmts> statements
 %type<stmt> statement if_statement ret_statement switch_statement match_statement var_decl_statement expr_statement for_statement while_statement index_assign_statement assign_statement
 %type<switch_stmt_cases> switch_stmt_cases
 %type<match_stmt_cases> match_stmt_cases
-%type<expr> expression constant binary_expr unary_expr postfix_expr primary_expr if_expr switch_expr match_expr record_or_tuple_literal record_or_tuple_anonym var_ref array_literal dict_literal lambda_expr
+%type<expr> expression constant postfix_expr primary_expr if_expr switch_expr match_expr record_or_tuple_literal record_or_tuple_anonym var_ref array_literal dict_literal lambda_expr stmts_expr
 %type<exprs> ret_body comma_sep_exprs array_elems func_call_args
-%type<switch_expr_cases> switch_expr_cases_else
-%type<match_expr_cases> match_expr_cases_else
+%type<switch_expr_cases> switch_expr_cases
+%type<match_expr_cases> match_expr_cases
 %type<record_lit_fields> record_literal_fields
 %type<record_lit_field> record_literal_field
 %type<params> func_params func_params_paren lambda_params_in lambda_params_do
@@ -224,11 +226,11 @@ import_end:
 		}
 
 func_def:
-	FUNC IDENT func_params_paren opt_type_annotate sep statements opt_newlines END
+	FUNC IDENT func_params_paren opt_type_annotate sep statements END
 		{
 			$$ = &ast.Function{
 				StartPos: $1.Start,
-				EndPos: $8.End,
+				EndPos: $7.End,
 				Ident: ast.NewSymbol($2.Value()),
 				RetType: $4,
 				Params: $3,
@@ -385,18 +387,9 @@ statements:
 		{
 			$$ = []ast.Statement{$1}
 		}
-	| statements sep statement
+	| statements statement
 		{
-			$$ = append($1, $3)
-		}
-
-opt_stmts:
-		{
-			$$ = []ast.Statement{}
-		}
-	| opt_stmts sep statement
-		{
-			$$ = append($1, $3)
+			$$ = append($1, $2)
 		}
 
 statement:
@@ -412,7 +405,7 @@ statement:
 	| expr_statement
 
 ret_statement:
-	RET ret_body
+	RET ret_body sep
 		{
 			$$ = &ast.RetStmt{
 				StartPos: $1.Start,
@@ -424,82 +417,98 @@ ret_body:
 		{
 			$$ = []ast.Expression{}
 		}
-	| ret_body opt_newlines COMMA opt_newlines expression
+	| ret_body COMMA opt_newlines expression
 		{
-			$$ = append($1, $5)
+			$$ = append($1, $4)
 		}
 
 if_statement:
-	IF expression then opt_newlines statements opt_newlines opt_else END
+	IF expression then statements END
+		{
+			$$ = &ast.IfStmt{
+				StartPos: $1.Start,
+				EndPos: $5.End,
+				Cond: $2,
+				Then: $4,
+			}
+		}
+	| IF expression then statements ELSE opt_newlines statements END
 		{
 			$$ = &ast.IfStmt{
 				StartPos: $1.Start,
 				EndPos: $8.End,
 				Cond: $2,
-				Then: $5,
+				Then: $4,
 				Else: $7,
 			}
 		}
 
-then: THEN | NEWLINE
-
-opt_else:
-		{
-			$$ = []ast.Statement{}
-		}
-	| ELSE opt_newlines statements opt_newlines
-		{
-			$$ = $3
-		}
+then: THEN | THEN newlines | newlines
 
 switch_statement:
-	switch_stmt_cases opt_else END
+	switch_stmt_cases END
 		{
 			$$ = &ast.SwitchStmt{
-				EndPos: $3.End,
+				EndPos: $2.End,
 				Cases: $1,
-				Else: $2,
+			}
+		}
+	| switch_stmt_cases ELSE opt_newlines statements END
+		{
+			$$ = &ast.SwitchStmt{
+				EndPos: $5.End,
+				Cases: $1,
+				Else: $4,
 			}
 		}
 
 switch_stmt_cases:
-	CASE expression then opt_newlines statements sep
+	CASE expression then statements
 		{
-			$$ = []ast.SwitchStmtCase{ {$1.Start, $2, $5} }
+			$$ = []ast.SwitchStmtCase{ {$1.Start, $2, $4} }
 		}
-	| switch_stmt_cases CASE expression then opt_newlines statements sep
+	| switch_stmt_cases CASE expression then statements
 		{
-			$$ = append($1, ast.SwitchStmtCase{$2.Start, $3, $6})
+			$$ = append($1, ast.SwitchStmtCase{$2.Start, $3, $5})
 		}
 
 match_statement:
-	MATCH expression newlines match_stmt_cases opt_else END
+	MATCH expression sep match_stmt_cases END
 		{
 			$$ = &ast.MatchStmt{
 				StartPos: $1.Start,
-				EndPos: $6.End,
+				EndPos: $5.End,
 				Matched: $2,
 				Cases: $4,
-				Else: $5,
+			}
+		}
+	| MATCH expression sep match_stmt_cases ELSE opt_newlines statements END
+		{
+			$$ = &ast.MatchStmt{
+				StartPos: $1.Start,
+				EndPos: $8.End,
+				Matched: $2,
+				Cases: $4,
+				Else: $7,
 			}
 		}
 
 match_stmt_cases:
-	CASE pattern then opt_newlines statements sep
+	CASE pattern then statements
 		{
-			$$ = []ast.MatchStmtCase{ {$2, $5} }
+			$$ = []ast.MatchStmtCase{ {$2, $4} }
 		}
-	| match_stmt_cases CASE pattern then opt_newlines statements sep
+	| match_stmt_cases CASE pattern then statements
 		{
-			$$ = append($1, ast.MatchStmtCase{$3, $6})
+			$$ = append($1, ast.MatchStmtCase{$3, $5})
 		}
 
 for_statement:
-	FOR destructuring IN expression sep statements opt_newlines END
+	FOR destructuring IN expression sep statements END
 		{
 			$$ = &ast.ForEachStmt{
 				StartPos: $1.Start,
-				EndPos: $8.End,
+				EndPos: $7.End,
 				Iterator: $2,
 				Range: $4,
 				Body: $6,
@@ -507,18 +516,18 @@ for_statement:
 		}
 
 while_statement:
-	FOR expression sep statements opt_newlines END
+	FOR expression sep statements END
 		{
 			$$ = &ast.WhileStmt{
 				StartPos: $1.Start,
-				EndPos: $6.End,
+				EndPos: $5.End,
 				Cond: $2,
 				Body: $4,
 			}
 		}
 
 index_assign_statement:
-	expression LBRACKET expression RBRACKET opt_newlines ASSIGN opt_newlines expression
+	expression LBRACKET expression RBRACKET opt_newlines ASSIGN opt_newlines expression sep
 		{
 			$$ = &ast.IndexAssign{
 				Assignee: $1,
@@ -528,7 +537,7 @@ index_assign_statement:
 		}
 
 assign_statement:
-	IDENT ASSIGN opt_newlines expression
+	IDENT ASSIGN opt_newlines expression sep
 		{
 			t := $1
 			$$ = &ast.VarAssign{
@@ -563,7 +572,7 @@ comma_sep_names:
 		}
 
 var_decl_statement:
-	mutability destructurings ASSIGN opt_newlines comma_sep_exprs
+	mutability destructurings ASSIGN opt_newlines comma_sep_exprs sep
 		{
 			mut := $1
 			$$ = &ast.VarDecl{
@@ -577,7 +586,7 @@ var_decl_statement:
 mutability: VAR | LET
 
 expr_statement:
-	expression
+	expression sep
 		{
 			$$ = &ast.ExprStmt{Expr: $1}
 		}
@@ -685,18 +694,15 @@ comma_sep_exprs:
 		}
 
 expression:
-	binary_expr
-
-binary_expr:
-	unary_expr
-	| binary_expr AS opt_newlines type
+	postfix_expr
+	| expression AS opt_newlines type
 		{
 			$$ = &ast.CoerceExpr{
 				Expr: $1,
 				Type: $4,
 			}
 		}
-	| binary_expr STAR opt_newlines binary_expr
+	| expression STAR opt_newlines expression
 		{
 			$$ = &ast.BinaryExpr{
 				Op: ast.MultOp,
@@ -704,7 +710,7 @@ binary_expr:
 				RHS: $4,
 			}
 		}
-	| binary_expr DIV opt_newlines binary_expr
+	| expression DIV opt_newlines expression
 		{
 			$$ = &ast.BinaryExpr{
 				Op: ast.DivOp,
@@ -712,7 +718,7 @@ binary_expr:
 				RHS: $4,
 			}
 		}
-	| binary_expr PERCENT opt_newlines binary_expr
+	| expression PERCENT opt_newlines expression
 		{
 			$$ = &ast.BinaryExpr{
 				Op: ast.ModOp,
@@ -720,7 +726,7 @@ binary_expr:
 				RHS: $4,
 			}
 		}
-	| binary_expr PLUS opt_newlines binary_expr
+	| expression PLUS opt_newlines expression
 		{
 			$$ = &ast.BinaryExpr{
 				Op: ast.AddOp,
@@ -728,7 +734,7 @@ binary_expr:
 				RHS: $4,
 			}
 		}
-	| binary_expr MINUS opt_newlines binary_expr
+	| expression MINUS opt_newlines expression
 		{
 			$$ = &ast.BinaryExpr{
 				Op: ast.SubOp,
@@ -736,7 +742,7 @@ binary_expr:
 				RHS: $4,
 			}
 		}
-	| binary_expr LESS opt_newlines binary_expr
+	| expression LESS opt_newlines expression
 		{
 			$$ = &ast.BinaryExpr{
 				Op: ast.LessOp,
@@ -744,7 +750,7 @@ binary_expr:
 				RHS: $4,
 			}
 		}
-	| binary_expr LESSEQUAL opt_newlines binary_expr
+	| expression LESSEQUAL opt_newlines expression
 		{
 			$$ = &ast.BinaryExpr{
 				Op: ast.LessEqOp,
@@ -752,7 +758,7 @@ binary_expr:
 				RHS: $4,
 			}
 		}
-	| binary_expr GREATER opt_newlines binary_expr
+	| expression GREATER opt_newlines expression
 		{
 			$$ = &ast.BinaryExpr{
 				Op: ast.GreaterOp,
@@ -760,7 +766,7 @@ binary_expr:
 				RHS: $4,
 			}
 		}
-	| binary_expr GREATEREQUAL opt_newlines binary_expr
+	| expression GREATEREQUAL opt_newlines expression
 		{
 			$$ = &ast.BinaryExpr{
 				Op: ast.GreaterEqOp,
@@ -768,7 +774,7 @@ binary_expr:
 				RHS: $4,
 			}
 		}
-	| binary_expr EQUAL opt_newlines binary_expr
+	| expression EQUAL opt_newlines expression
 		{
 			$$ = &ast.BinaryExpr{
 				Op: ast.EqOp,
@@ -776,7 +782,7 @@ binary_expr:
 				RHS: $4,
 			}
 		}
-	| binary_expr NOTEQUAL opt_newlines binary_expr
+	| expression NOTEQUAL opt_newlines expression
 		{
 			$$ = &ast.BinaryExpr{
 				Op: ast.NotEqOp,
@@ -784,7 +790,7 @@ binary_expr:
 				RHS: $4,
 			}
 		}
-	| binary_expr AND opt_newlines binary_expr
+	| expression AND opt_newlines expression
 		{
 			$$ = &ast.BinaryExpr{
 				Op: ast.AndOp,
@@ -792,7 +798,7 @@ binary_expr:
 				RHS: $4,
 			}
 		}
-	| binary_expr OR opt_newlines binary_expr
+	| expression OR opt_newlines expression
 		{
 			$$ = &ast.BinaryExpr{
 				Op: ast.OrOp,
@@ -800,10 +806,7 @@ binary_expr:
 				RHS: $4,
 			}
 		}
-
-unary_expr:
-	postfix_expr
-	| PLUS unary_expr
+	| PLUS expression %prec prec_unary
 		{
 			$$ = &ast.UnaryExpr{
 				StartPos: $1.Start,
@@ -811,7 +814,7 @@ unary_expr:
 				Child: $2,
 			}
 		}
-	| MINUS unary_expr
+	| MINUS expression %prec prec_unary
 		{
 			$$ = &ast.UnaryExpr{
 				StartPos: $1.Start,
@@ -819,7 +822,7 @@ unary_expr:
 				Child: $2,
 			}
 		}
-	| NOT unary_expr
+	| NOT expression %prec prec_unary
 		{
 			$$ = &ast.UnaryExpr{
 				StartPos: $1.Start,
@@ -899,87 +902,73 @@ primary_expr:
 
 /* TODO: do-end block*/
 
+stmts_expr:
+	statements expression
+		{
+			$$ = &ast.SeqExpr{Stmts: $1, LastExpr: $2}
+		}
+	| expression
+
 if_expr:
 	IF expression then
-		opt_newlines opt_stmts sep expression opt_newlines
-	ELSE
-		opt_newlines opt_stmts sep expression opt_newlines
+		stmts_expr
+	ELSE opt_newlines
+		stmts_expr opt_newlines
 	END
 		{
 			$$ = &ast.IfExpr{
 				StartPos: $1.Start,
-				EndPos: $15.End,
+				EndPos: $9.End,
 				Cond: $2,
-				Then: seqExpr($5, $7),
-				Else: seqExpr($11, $13),
+				Then: $4,
+				Else: $7,
 			}
 		}
 
 switch_expr:
-	CASE switch_expr_cases_else opt_newlines opt_stmts sep expression opt_newlines END
+	switch_expr_cases opt_newlines ELSE opt_newlines stmts_expr opt_newlines END
 		{
-			cases := $2
-
-			// Reverse 'cases'
-			len := len(cases)
-			for i,c := range cases[:len/2] {
-				j := len - 1 - i
-				cases[i] = cases[j]
-				cases[j] = c
-			}
-
 			$$ = &ast.SwitchExpr{
-				StartPos: $1.Start,
-				EndPos: $8.End,
-				Cases: cases,
-				Else: seqExpr($4, $6),
+				EndPos: $7.End,
+				Cases: $1,
+				Else: $5,
 			}
 		}
 
-switch_expr_cases_else:
-	expression then opt_newlines opt_stmts sep expression sep ELSE
+switch_expr_cases:
+	CASE expression then stmts_expr
 		{
 			$$ = []ast.SwitchExprCase{
-				{$1, seqExpr($4, $6)},
+				{$1.Start, $2, $4},
 			}
 		}
-	| expression then opt_newlines opt_stmts sep expression sep CASE switch_expr_cases_else
+	| switch_expr_cases sep CASE expression then stmts_expr
 		{
-			$$ = append($9, ast.SwitchExprCase{$1, seqExpr($4, $6)})
+			$$ = append($1, ast.SwitchExprCase{$3.Start, $4, $6})
 		}
 
 match_expr:
-	MATCH expression newlines CASE match_expr_cases_else opt_newlines opt_stmts sep expression opt_newlines END
+	MATCH expression sep match_expr_cases opt_newlines ELSE opt_newlines stmts_expr opt_newlines END
 		{
-			cases := $5
-
-			// Reverse 'cases'
-			len := len(cases)
-			for i,c := range cases[:len/2] {
-				j := len - 1 - i
-				cases[i] = cases[j]
-				cases[j] = c
-			}
-
 			$$ = &ast.MatchExpr{
 				StartPos: $1.Start,
-				EndPos: $11.End,
+				EndPos: $10.End,
 				Matched: $2,
-				Cases: cases,
-				Else: seqExpr($7, $9),
+				Cases: $4,
+				Else: $8,
 			}
 		}
 
-match_expr_cases_else:
-	pattern then opt_newlines opt_stmts sep expression sep ELSE
+match_expr_cases:
+	CASE pattern then stmts_expr
 		{
 			$$ = []ast.MatchExprCase{
-				{$1, seqExpr($4, $6)},
+				{$2, $4},
 			}
 		}
-	| pattern then opt_newlines opt_stmts sep expression sep CASE match_expr_cases_else
+	| match_expr_cases sep CASE pattern then stmts_expr
 		{
-			$$ = append($9, ast.MatchExprCase{$1, seqExpr($4, $6)})
+			$$ = append($1, ast.MatchExprCase{$4, $6})
 		}
 
 record_or_tuple_literal:
@@ -1137,7 +1126,7 @@ dict_elems:
   lambda_params_do informs parser of what comes after IDENT token to avoid conflict.
 */
 lambda_expr:
-	RIGHTARROW lambda_params_in expression
+	RIGHTARROW lambda_params_in expression %prec prec_lambda
 		{
 			params := $2
 			// Reverse 'params'
@@ -1155,7 +1144,7 @@ lambda_expr:
 				BodyExpr: $3,
 			}
 		}
-	| RIGHTARROW expression
+	| RIGHTARROW expression %prec prec_lambda
 		{
 			$$ = &ast.Lambda{
 				StartPos: $1.Start,
@@ -1164,7 +1153,7 @@ lambda_expr:
 			}
 		}
 	| RIGHTARROW lambda_params_do opt_newlines
-		opt_stmts sep expression opt_newlines
+		stmts_expr opt_newlines
 	END
 		{
 			params := $2
@@ -1178,21 +1167,21 @@ lambda_expr:
 
 			$$ = &ast.Lambda{
 				StartPos: $1.Start,
-				EndPos: $8.End,
+				EndPos: $6.End,
 				IsDoBlock: true,
 				Params: params,
-				BodyExpr: seqExpr($4, $6),
+				BodyExpr: $4,
 			}
 		}
 	| RIGHTARROW DO opt_newlines
-		opt_stmts sep expression opt_newlines
+		stmts_expr opt_newlines
 	END
 		{
 			$$ = &ast.Lambda{
 				StartPos: $1.Start,
-				EndPos: $8.End,
+				EndPos: $6.End,
 				IsDoBlock: true,
-				BodyExpr: seqExpr($4, $6),
+				BodyExpr: $4,
 			}
 		}
 
@@ -1510,13 +1499,17 @@ sep_names:
 elem_sep:
 	COMMA | newlines
 
-newlines: NEWLINE | newlines NEWLINE
+newlines:
+	NEWLINE
+	| NEWLINE newlines
 
 opt_newlines: {} | newlines {}
 
-sep_char: SEMICOLON | newlines
-
-sep: sep_char | sep sep_char
+sep:
+   SEMICOLON
+   | NEWLINE
+   | SEMICOLON sep
+   | NEWLINE sep
 
 %%
 

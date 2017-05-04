@@ -10,6 +10,9 @@ type Visitor interface {
 
 // Visit visits the tree with the visitor.
 func Visit(v Visitor, n Node) {
+	if n == nil {
+		return
+	}
 	if v = v.Visit(n); v == nil {
 		return
 	}
