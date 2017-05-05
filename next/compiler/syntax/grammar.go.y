@@ -117,7 +117,7 @@ import (
 %right NOT
 %right prec_unary
 
-%type<token> sep newlines elem_sep then mutability
+%type<token> seps sep newlines elem_sep then mutability
 %type<> opt_newlines
 %type<import_node> import_body import_spec import_end
 %type<node> toplevel import func_def typedef
@@ -172,7 +172,7 @@ toplevels:
 		{
 			$$ = []ast.Node{$1}
 		}
-	| toplevels sep toplevel
+	| toplevels seps toplevel
 		{
 			$$ = append($1, $3)
 		}
@@ -432,11 +432,19 @@ type_ref:
 statements:
 	statement
 		{
-			$$ = []ast.Statement{$1}
+			s := $1
+			if s == nil {
+				$$ = []ast.Statement{}
+			} else {
+				$$ = []ast.Statement{$1}
+			}
 		}
 	| statements statement
 		{
-			$$ = append($1, $2)
+			s := $2
+			if s != nil {
+				$$ = append($1, s)
+			}
 		}
 
 opt_stmts:
@@ -456,6 +464,7 @@ statement:
 	| assign_statement
 	| var_decl_statement
 	| expr_statement
+	| sep { $$ = nil }
 
 ret_statement:
 	RET ret_body sep
@@ -485,14 +494,14 @@ if_statement:
 				Then: $4,
 			}
 		}
-	| IF expression then opt_stmts ELSE opt_newlines opt_stmts END
+	| IF expression then opt_stmts ELSE opt_stmts END
 		{
 			$$ = &ast.IfStmt{
 				StartPos: $1.Start,
-				EndPos: $8.End,
+				EndPos: $7.End,
 				Cond: $2,
 				Then: $4,
-				Else: $7,
+				Else: $6,
 			}
 		}
 
@@ -506,12 +515,12 @@ switch_statement:
 				Cases: $1,
 			}
 		}
-	| switch_stmt_cases ELSE opt_newlines opt_stmts END
+	| switch_stmt_cases ELSE opt_stmts END
 		{
 			$$ = &ast.SwitchStmt{
-				EndPos: $5.End,
+				EndPos: $4.End,
 				Cases: $1,
-				Else: $4,
+				Else: $3,
 			}
 		}
 
@@ -526,7 +535,7 @@ switch_stmt_cases:
 		}
 
 match_statement:
-	MATCH expression sep match_stmt_cases END
+	MATCH expression seps match_stmt_cases END
 		{
 			$$ = &ast.MatchStmt{
 				StartPos: $1.Start,
@@ -535,14 +544,14 @@ match_statement:
 				Cases: $4,
 			}
 		}
-	| MATCH expression sep match_stmt_cases ELSE opt_newlines opt_stmts END
+	| MATCH expression seps match_stmt_cases ELSE opt_stmts END
 		{
 			$$ = &ast.MatchStmt{
 				StartPos: $1.Start,
-				EndPos: $8.End,
+				EndPos: $7.End,
 				Matched: $2,
 				Cases: $4,
-				Else: $7,
+				Else: $6,
 			}
 		}
 
@@ -988,26 +997,26 @@ stmts_expr:
 if_expr:
 	IF expression then
 		stmts_expr
-	ELSE opt_newlines
+	ELSE
 		stmts_expr opt_newlines
 	END
 		{
 			$$ = &ast.IfExpr{
 				StartPos: $1.Start,
-				EndPos: $9.End,
+				EndPos: $8.End,
 				Cond: $2,
 				Then: $4,
-				Else: $7,
+				Else: $6,
 			}
 		}
 
 switch_expr:
-	switch_expr_cases opt_newlines ELSE opt_newlines stmts_expr opt_newlines END
+	switch_expr_cases opt_newlines ELSE stmts_expr opt_newlines END
 		{
 			$$ = &ast.SwitchExpr{
-				EndPos: $7.End,
+				EndPos: $6.End,
 				Cases: $1,
-				Else: $5,
+				Else: $4,
 			}
 		}
 
@@ -1018,20 +1027,20 @@ switch_expr_cases:
 				{$1.Start, $2, $4},
 			}
 		}
-	| switch_expr_cases sep CASE expression then stmts_expr
+	| switch_expr_cases seps CASE expression then stmts_expr
 		{
 			$$ = append($1, ast.SwitchExprCase{$3.Start, $4, $6})
 		}
 
 match_expr:
-	MATCH expression sep match_expr_cases opt_newlines ELSE opt_newlines stmts_expr opt_newlines END
+	MATCH expression seps match_expr_cases opt_newlines ELSE stmts_expr opt_newlines END
 		{
 			$$ = &ast.MatchExpr{
 				StartPos: $1.Start,
-				EndPos: $10.End,
+				EndPos: $9.End,
 				Matched: $2,
 				Cases: $4,
-				Else: $8,
+				Else: $7,
 			}
 		}
 
@@ -1042,7 +1051,7 @@ match_expr_cases:
 				{$2, $4},
 			}
 		}
-	| match_expr_cases sep CASE pattern then stmts_expr
+	| match_expr_cases seps CASE pattern then stmts_expr
 		{
 			$$ = append($1, ast.MatchExprCase{$4, $6})
 		}
@@ -1581,11 +1590,13 @@ newlines:
 
 opt_newlines: {} | newlines {}
 
-sep:
+seps:
    SEMICOLON
    | NEWLINE
-   | SEMICOLON sep
-   | NEWLINE sep
+   | SEMICOLON seps
+   | NEWLINE seps
+
+sep: SEMICOLON | NEWLINE
 
 %%
 
