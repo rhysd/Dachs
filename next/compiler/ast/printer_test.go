@@ -325,116 +325,116 @@ func TestPrint(t *testing.T) {
 	Fprintln(&buf, root)
 
 	want := strings.Split(`AST:
--   Program
--   -   Typedef (e)
--   -   -   TupleType
--   -   -   -   TypeInstantiate (f)
--   -   -   -   -   TypeRef
--   -   -   -   FunctionType
--   -   -   -   -   TypeRef (int)
--   -   -   -   -   Typeof
--   -   -   -   -   -   IntLiteral (10)
--   -   EnumTypedef z(hey)
--   -   -   RecordType {b}
--   -   -   -   TypeVar (c)
--   -   Function foo(a)
--   -   -   TypeRef (d)
--   -   -   TypeRef (Foo)
--   -   -   VarDecl var
--   -   -   -   RecordDestructuring anonym{g,hey}
--   -   -   -   -   VarDeclDestructuring (g)
--   -   -   -   -   VarDeclDestructuring (h)
--   -   -   -   UIntLiteral (42)
--   -   -   VarAssign (h)
--   -   -   -   UnaryExpr
--   -   -   -   -   BoolLiteral
--   -   -   -   BinaryExpr
--   -   -   -   -   StringLiteral "hello"
--   -   -   -   -   FloatLiteral (3.14
--   -   -   IndexAssign
--   -   -   -   ArrayLiteral (elems: 0)
--   -   -   -   IntLiteral (0)
--   -   -   -   CoerceExpr
--   -   -   -   -   RecordLiteral anonym{_}
--   -   -   -   -   -   IntLiteral (42)
--   -   -   -   -   TypeRef (i)
--   -   -   IfStmt
--   -   -   -   BoolLiteral (false)
--   -   -   -   ExprStmt
--   -   -   -   -   IfExpr
--   -   -   -   -   -   BoolLiteral
--   -   -   -   -   -   SeqExpr
--   -   -   -   -   -   -   RetStmt
--   -   -   -   -   -   -   IntLiteral (42)
--   -   -   -   -   -   SeqExpr
--   -   -   -   -   -   -   FloatLiteral (1.0
--   -   -   -   ExprStmt
--   -   -   -   -   FuncCall
--   -   -   -   -   -   VarRef (f)
--   -   -   -   -   -   IntLiteral (10)
--   -   -   -   ExprStmt
--   -   -   -   -   FuncCall
--   -   -   -   -   -   VarRef (f)
--   -   -   -   -   -   IntLiteral (10)
--   -   -   -   -   -   Lambda ()
--   -   -   -   -   -   -   IntLiteral (88)
--   -   -   SwitchStmt
--   -   -   -   BoolLiteral (false)
--   -   -   -   ExprStmt
+Program
+-   Typedef (e)
+-   -   TupleType
+-   -   -   TypeInstantiate (f)
+-   -   -   -   TypeRef
+-   -   -   FunctionType
+-   -   -   -   TypeRef (int)
+-   -   -   -   Typeof
+-   -   -   -   -   IntLiteral (10)
+-   EnumTypedef z(hey)
+-   -   RecordType {b}
+-   -   -   TypeVar (c)
+-   Function foo(a)
+-   -   TypeRef (d)
+-   -   TypeRef (Foo)
+-   -   VarDecl var
+-   -   -   RecordDestructuring anonym{g,hey}
+-   -   -   -   VarDeclDestructuring (g)
+-   -   -   -   VarDeclDestructuring (h)
+-   -   -   UIntLiteral (42)
+-   -   VarAssign (h)
+-   -   -   UnaryExpr
+-   -   -   -   BoolLiteral
+-   -   -   BinaryExpr
+-   -   -   -   StringLiteral "hello"
+-   -   -   -   FloatLiteral (3.14
+-   -   IndexAssign
+-   -   -   ArrayLiteral (elems: 0)
+-   -   -   IntLiteral (0)
+-   -   -   CoerceExpr
+-   -   -   -   RecordLiteral anonym{_}
 -   -   -   -   -   IntLiteral (42)
--   -   -   -   ExprStmt
--   -   -   -   -   SwitchExpr
--   -   -   -   -   -   BoolLiteral (true)
--   -   -   -   -   -   IntLiteral (12)
--   -   -   -   -   -   FuncCallNamed
--   -   -   -   -   -   -   VarRef (g)
--   -   -   -   -   -   -   FloatLiteral (1.0
--   -   -   MatchStmt
--   -   -   -   BoolLiteral (false)
--   -   -   -   ArrayPattern
--   -   -   -   -   BoolConstPattern (false)
--   -   -   -   -   VarDeclPattern (pat)
--   -   -   -   RetStmt
--   -   -   -   ExprStmt
--   -   -   -   -   MatchExpr
--   -   -   -   -   -   BoolLiteral (false)
--   -   -   -   -   -   RecordPattern patt{a,b,c,d,e}
--   -   -   -   -   -   -   VarDeclPattern (a)
--   -   -   -   -   -   -   StringConstPattern "hello"
--   -   -   -   -   -   -   IntConstPattern (42)
--   -   -   -   -   -   -   UIntConstPattern (11)
--   -   -   -   -   -   -   FloatConstPattern (2.7
--   -   -   -   -   -   IntLiteral (10)
--   -   -   -   -   -   TupleLiteral (elems: 1)
--   -   -   -   -   -   -   DictLiteral (elems: 1)
--   -   -   -   -   -   -   -   StringLiteral "foo"
--   -   -   -   -   -   -   -   UIntLiteral (3)
+-   -   -   -   TypeRef (i)
+-   -   IfStmt
+-   -   -   BoolLiteral (false)
 -   -   -   ExprStmt
--   -   -   -   Lambda (x)
--   -   -   -   -   TypeRef (uint)
--   -   -   -   -   VarRef (x)
--   -   -   RetStmt
+-   -   -   -   IfExpr
+-   -   -   -   -   BoolLiteral
+-   -   -   -   -   SeqExpr
+-   -   -   -   -   -   RetStmt
+-   -   -   -   -   -   IntLiteral (42)
+-   -   -   -   -   SeqExpr
+-   -   -   -   -   -   FloatLiteral (1.0
+-   -   -   ExprStmt
+-   -   -   -   FuncCall
+-   -   -   -   -   VarRef (f)
+-   -   -   -   -   IntLiteral (10)
+-   -   -   ExprStmt
+-   -   -   -   FuncCall
+-   -   -   -   -   VarRef (f)
+-   -   -   -   -   IntLiteral (10)
+-   -   -   -   -   Lambda ()
+-   -   -   -   -   -   IntLiteral (88)
+-   -   SwitchStmt
+-   -   -   BoolLiteral (false)
+-   -   -   ExprStmt
 -   -   -   -   IntLiteral (42)
--   -   -   -   IndexAccess
--   -   -   -   -   ArrayLiteral (elems: 1)
--   -   -   -   -   -   IntLiteral (3)
--   -   -   -   -   IntLiteral (0)
--   -   -   -   FieldAccess (f)
--   -   -   -   -   VarRef (r)
--   -   -   ForEachStmt
--   -   -   -   VarDeclDestructuring (p)
--   -   -   -   ArrayLiteral (elems: 0)
--   -   -   -   ExprStmt
+-   -   -   ExprStmt
+-   -   -   -   SwitchExpr
+-   -   -   -   -   BoolLiteral (true)
+-   -   -   -   -   IntLiteral (12)
 -   -   -   -   -   FuncCallNamed
 -   -   -   -   -   -   VarRef (g)
 -   -   -   -   -   -   FloatLiteral (1.0
--   -   -   -   -   -   Lambda ()
--   -   -   -   -   -   -   IntLiteral (88)
--   -   -   WhileStmt
--   -   -   -   BoolLiteral (true)
--   -   -   -   ExprStmt
--   -   -   -   -   IntLiteral (54)
--   -   Import (.foo.bar.{piyo,poyo})
+-   -   MatchStmt
+-   -   -   BoolLiteral (false)
+-   -   -   ArrayPattern
+-   -   -   -   BoolConstPattern (false)
+-   -   -   -   VarDeclPattern (pat)
+-   -   -   RetStmt
+-   -   -   ExprStmt
+-   -   -   -   MatchExpr
+-   -   -   -   -   BoolLiteral (false)
+-   -   -   -   -   RecordPattern patt{a,b,c,d,e}
+-   -   -   -   -   -   VarDeclPattern (a)
+-   -   -   -   -   -   StringConstPattern "hello"
+-   -   -   -   -   -   IntConstPattern (42)
+-   -   -   -   -   -   UIntConstPattern (11)
+-   -   -   -   -   -   FloatConstPattern (2.7
+-   -   -   -   -   IntLiteral (10)
+-   -   -   -   -   TupleLiteral (elems: 1)
+-   -   -   -   -   -   DictLiteral (elems: 1)
+-   -   -   -   -   -   -   StringLiteral "foo"
+-   -   -   -   -   -   -   UIntLiteral (3)
+-   -   ExprStmt
+-   -   -   Lambda (x)
+-   -   -   -   TypeRef (uint)
+-   -   -   -   VarRef (x)
+-   -   RetStmt
+-   -   -   IntLiteral (42)
+-   -   -   IndexAccess
+-   -   -   -   ArrayLiteral (elems: 1)
+-   -   -   -   -   IntLiteral (3)
+-   -   -   -   IntLiteral (0)
+-   -   -   FieldAccess (f)
+-   -   -   -   VarRef (r)
+-   -   ForEachStmt
+-   -   -   VarDeclDestructuring (p)
+-   -   -   ArrayLiteral (elems: 0)
+-   -   -   ExprStmt
+-   -   -   -   FuncCallNamed
+-   -   -   -   -   VarRef (g)
+-   -   -   -   -   FloatLiteral (1.0
+-   -   -   -   -   Lambda ()
+-   -   -   -   -   -   IntLiteral (88)
+-   -   WhileStmt
+-   -   -   BoolLiteral (true)
+-   -   -   ExprStmt
+-   -   -   -   IntLiteral (54)
+-   Import (.foo.bar.{piyo,poyo})
 `, "\n")
 
 	got := make([]string, 0, len(want))

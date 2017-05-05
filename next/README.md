@@ -1,5 +1,5 @@
 <!-- Dachs Programming Language -->
-<img src="misc/dachs-logo.png" width="350" alt="Dachs Programming Language"/>
+<img src="https://github.com/rhysd/Dachs/blob/master/misc/dachs-logo.png?raw=true" width="350" alt="Dachs Programming Language"/>
 
 [![Travis CI status][Travis CI badge]][Travis CI results]
 [![Appveyor status][Appveyor badge]][Appveyor results]

@@ -85,6 +85,7 @@ func TestParseOK(t *testing.T) {
 				}
 				got = append(got, line[:len(line)-1])
 			}
+			got = got[1:] // Omit header
 
 			f, err := os.Open(expect)
 			if err != nil {

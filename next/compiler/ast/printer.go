@@ -27,7 +27,7 @@ func Fprint(out io.Writer, n Node) {
 	} else {
 		fmt.Fprint(out, "AST:")
 	}
-	p := Printer{1, out}
+	p := Printer{0, out}
 	Visit(p, n)
 }
 

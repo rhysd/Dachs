@@ -1,4 +1,4 @@
-<img src="misc/dachs-logo.png" width="350" alt="Dachs Programming Language"/>
+<img src="https://github.com/rhysd/Dachs/blob/master/misc/dachs-logo.png?raw=true" width="350" alt="Dachs Programming Language"/>
 
 **Now new version is being developed in ['next' directory](./next). It will replace current C++ implementation.**
 

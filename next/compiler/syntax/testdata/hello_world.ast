@@ -1,7 +1,6 @@
-AST of testdata/hello_world.dcs:
--   Program (toplevels: 1) (1:1-3:4)
--   -   Function main() (1:1-3:4)
--   -   -   ExprStmt (2:5-2:26)
--   -   -   -   FuncCall (2:5-2:26)
--   -   -   -   -   VarRef (print) (2:5-2:10)
--   -   -   -   -   StringLiteral "hello, world" (2:11-2:25)
+Program (toplevels: 1) (1:1-3:4)
+-   Function main() (1:1-3:4)
+-   -   ExprStmt (2:5-2:26)
+-   -   -   FuncCall (2:5-2:26)
+-   -   -   -   VarRef (print) (2:5-2:10)
+-   -   -   -   StringLiteral "hello, world" (2:11-2:25)
