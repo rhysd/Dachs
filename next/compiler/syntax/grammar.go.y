@@ -125,7 +125,7 @@ import (
 %type<names> sep_names comma_sep_names
 %type<enum_cases> enum_typedef_cases
 %type<type_node> type opt_type_annotate
-%type<stmts> statements
+%type<stmts> statements opt_stmts
 %type<stmt> statement if_statement ret_statement switch_statement match_statement var_decl_statement expr_statement for_statement while_statement index_assign_statement assign_statement
 %type<switch_stmt_cases> switch_stmt_cases
 %type<match_stmt_cases> match_stmt_cases
@@ -135,7 +135,7 @@ import (
 %type<match_expr_cases> match_expr_cases
 %type<record_lit_fields> record_literal_fields
 %type<record_lit_field> record_literal_field
-%type<params> func_params func_params_paren lambda_params_in lambda_params_do
+%type<params> func_params lambda_params_in lambda_params_do
 %type<type_node> type_ref type_var type_instantiate type_record_or_tuple type_func type_typeof
 %type<type_fields> type_record_fields
 %type<type_nodes> opt_types types
@@ -229,30 +229,44 @@ import_end:
 		}
 
 func_def:
-	FUNC IDENT func_params_paren opt_type_annotate sep statements END
+	FUNC IDENT opt_type_annotate sep opt_stmts END
 		{
 			$$ = &ast.Function{
 				StartPos: $1.Start,
-				EndPos: $7.End,
+				EndPos: $6.End,
 				Ident: ast.NewSymbol($2.Value()),
-				RetType: $4,
-				Params: $3,
-				Body: $6,
+				RetType: $3,
+				Params: []ast.FuncParam{},
+				Body: $5,
+			}
+		}
+	| FUNC IDENT LPAREN opt_newlines RPAREN opt_type_annotate sep opt_stmts END
+		{
+			$$ = &ast.Function{
+				StartPos: $1.Start,
+				EndPos: $9.End,
+				Ident: ast.NewSymbol($2.Value()),
+				RetType: $6,
+				Params: []ast.FuncParam{},
+				Body: $8,
+			}
+		}
+	| FUNC IDENT LPAREN opt_newlines func_params opt_newlines RPAREN opt_type_annotate sep opt_stmts END
+		{
+			$$ = &ast.Function{
+				StartPos: $1.Start,
+				EndPos: $11.End,
+				Ident: ast.NewSymbol($2.Value()),
+				RetType: $8,
+				Params: $5,
+				Body: $10,
 			}
 		}
 
-func_params_paren:
-		{
-			$$ = []ast.FuncParam{}
-		}
-	| LPAREN opt_newlines func_params opt_newlines RPAREN
-		{
-			$$ = $3
-		}
-
 func_params:
+	IDENT opt_type_annotate
 		{
-			$$ = []ast.FuncParam{}
+			$$ = []ast.FuncParam{{ast.NewSymbol($1.Value()), $2}}
 		}
 	| func_params elem_sep IDENT opt_type_annotate
 		{
@@ -425,6 +439,12 @@ statements:
 			$$ = append($1, $2)
 		}
 
+opt_stmts:
+		{
+			$$ = []ast.Statement{}
+		}
+	| statements
+
 statement:
 	ret_statement
 	| if_statement
@@ -456,7 +476,7 @@ ret_body:
 		}
 
 if_statement:
-	IF expression then statements END
+	IF expression then opt_stmts END
 		{
 			$$ = &ast.IfStmt{
 				StartPos: $1.Start,
@@ -465,7 +485,7 @@ if_statement:
 				Then: $4,
 			}
 		}
-	| IF expression then statements ELSE opt_newlines statements END
+	| IF expression then opt_stmts ELSE opt_newlines opt_stmts END
 		{
 			$$ = &ast.IfStmt{
 				StartPos: $1.Start,
@@ -486,7 +506,7 @@ switch_statement:
 				Cases: $1,
 			}
 		}
-	| switch_stmt_cases ELSE opt_newlines statements END
+	| switch_stmt_cases ELSE opt_newlines opt_stmts END
 		{
 			$$ = &ast.SwitchStmt{
 				EndPos: $5.End,
@@ -496,11 +516,11 @@ switch_statement:
 		}
 
 switch_stmt_cases:
-	CASE expression then statements
+	CASE expression then opt_stmts
 		{
 			$$ = []ast.SwitchStmtCase{ {$1.Start, $2, $4} }
 		}
-	| switch_stmt_cases CASE expression then statements
+	| switch_stmt_cases CASE expression then opt_stmts
 		{
 			$$ = append($1, ast.SwitchStmtCase{$2.Start, $3, $5})
 		}
@@ -515,7 +535,7 @@ match_statement:
 				Cases: $4,
 			}
 		}
-	| MATCH expression sep match_stmt_cases ELSE opt_newlines statements END
+	| MATCH expression sep match_stmt_cases ELSE opt_newlines opt_stmts END
 		{
 			$$ = &ast.MatchStmt{
 				StartPos: $1.Start,
@@ -527,17 +547,17 @@ match_statement:
 		}
 
 match_stmt_cases:
-	CASE pattern then statements
+	CASE pattern then opt_stmts
 		{
 			$$ = []ast.MatchStmtCase{ {$2, $4} }
 		}
-	| match_stmt_cases CASE pattern then statements
+	| match_stmt_cases CASE pattern then opt_stmts
 		{
 			$$ = append($1, ast.MatchStmtCase{$3, $5})
 		}
 
 for_statement:
-	FOR destructuring IN expression sep statements END
+	FOR destructuring IN expression sep opt_stmts END
 		{
 			$$ = &ast.ForEachStmt{
 				StartPos: $1.Start,
@@ -549,7 +569,7 @@ for_statement:
 		}
 
 while_statement:
-	FOR expression sep statements END
+	FOR expression sep opt_stmts END
 		{
 			$$ = &ast.WhileStmt{
 				StartPos: $1.Start,

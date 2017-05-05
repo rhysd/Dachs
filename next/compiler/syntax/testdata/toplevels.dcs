@@ -1,0 +1,13 @@
+import std.array
+
+func main
+end
+
+type A = int
+
+import std.array.{a, b}
+
+func foo(a)
+end
+
+type B = float

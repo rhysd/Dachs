@@ -21,6 +21,7 @@ TESTS := \
 	ast/visitor_test.go \
 	syntax/token_test.go \
 	syntax/lexer_test.go \
+	syntax/grammar_test.go \
 
 all: build test
 

@@ -66,11 +66,12 @@ func main() {
 			os.Exit(4)
 		}
 	case *showAST:
-		if err := d.FprintAST(os.Stderr); err != nil {
+		if err := d.FprintAST(os.Stdout); err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 			os.Exit(4)
 		}
 	default:
+		fmt.Fprintln(os.Stderr, "Default action is not implemented yet. Please try implemented flags. -help is available to see all flags.")
 		panic("unimplemented")
 	}
 

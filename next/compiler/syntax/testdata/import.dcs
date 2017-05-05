@@ -1,0 +1,6 @@
+import std.array
+import std.array.{index_at, Array}
+import std.array.*
+
+func main
+end
