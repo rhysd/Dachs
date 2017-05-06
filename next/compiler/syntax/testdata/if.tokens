@@ -21,14 +21,13 @@ END:end
 NEWLINE:
 IF:if
 BOOL:true
-SEMICOLON:;
+THEN:then
 END:end
 NEWLINE:
 IF:if
 BOOL:true
-SEMICOLON:;
+THEN:then
 ELSE:else
-SEMICOLON:;
 END:end
 NEWLINE:
 END:end

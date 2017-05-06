@@ -2,9 +2,10 @@ func main
     -> a, b, c in a + b - c
     -> 42
     -> a, b do
-        ret a + b
+        a + b
     end
     -> do
-        ret 1
+        let a = 42
+        a + 3
     end
 end

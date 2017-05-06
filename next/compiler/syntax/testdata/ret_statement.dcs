@@ -1,0 +1,17 @@
+func one_expr: int
+    ret 42
+end
+
+func mult_expr
+    ret "aaa", true, 3.14
+end
+
+func mult_expr2
+    ret "aaa",
+        true,
+        3.14
+end
+
+func main
+    ret
+end

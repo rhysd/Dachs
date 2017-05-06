@@ -1,0 +1,15 @@
+func foo(
+    a, b
+): int
+    print(12)
+    42
+end
+
+func bar(
+    a: int
+    b: bool
+)
+    42
+end
+
+func main; end

@@ -6,6 +6,6 @@ func main
     if false
     else
     end
-    if true; end
-    if true; else; end
+    if true then end
+    if true then else end
 end

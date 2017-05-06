@@ -23,7 +23,7 @@ import (
 	params []ast.FuncParam
 	switch_stmt_cases []ast.SwitchStmtCase
 	match_stmt_cases []ast.MatchStmtCase
-	var_decl_stmt *ast.VarDecl
+	var_assign_stmt *ast.VarAssign
 	type_fields []ast.RecordTypeField
 	pattern ast.Pattern
 	patterns []ast.Pattern
@@ -122,11 +122,12 @@ import (
 %type<import_node> import_body import_spec import_end
 %type<node> toplevel import func_def typedef
 %type<nodes> toplevels
-%type<names> sep_names comma_sep_names
+%type<names> sep_names
 %type<enum_cases> enum_typedef_cases
 %type<type_node> type opt_type_annotate
 %type<stmts> statements opt_stmts
 %type<stmt> statement if_statement ret_statement switch_statement match_statement var_decl_statement expr_statement for_statement while_statement index_assign_statement assign_statement
+%type<var_assign_stmt> var_assign_lhs
 %type<switch_stmt_cases> switch_stmt_cases
 %type<match_stmt_cases> match_stmt_cases
 %type<expr> expression constant postfix_expr primary_expr if_expr switch_expr match_expr record_or_tuple_literal record_or_tuple_anonym var_ref array_literal dict_literal lambda_expr stmts_expr
@@ -474,10 +475,17 @@ ret_statement:
 				Exprs: $2,
 			}
 		}
+	| RET sep
+		{
+			$$ = &ast.RetStmt{
+				StartPos: $1.Start,
+			}
+		}
 
 ret_body:
+	expression
 		{
-			$$ = []ast.Expression{}
+			$$ = []ast.Expression{$1}
 		}
 	| ret_body COMMA opt_newlines expression
 		{
@@ -589,48 +597,37 @@ while_statement:
 		}
 
 index_assign_statement:
-	expression LBRACKET expression RBRACKET opt_newlines ASSIGN opt_newlines expression sep
+	postfix_expr LBRACKET opt_newlines expression opt_newlines RBRACKET ASSIGN opt_newlines expression sep
 		{
 			$$ = &ast.IndexAssign{
 				Assignee: $1,
-				Index: $3,
-				RHS: $8,
+				Index: $4,
+				RHS: $9,
 			}
 		}
 
 assign_statement:
-	IDENT ASSIGN opt_newlines expression sep
+	var_assign_lhs ASSIGN opt_newlines comma_sep_exprs
+		{
+			n := $1
+			n.RHSExprs = $4
+			$$ = n
+		}
+
+var_assign_lhs:
+	IDENT
 		{
 			t := $1
 			$$ = &ast.VarAssign{
 				StartPos: t.Start,
 				Idents: []ast.Symbol{ast.NewSymbol(t.Value())},
-				RHSExprs: []ast.Expression{$4},
 			}
 		}
-	| IDENT COMMA comma_sep_names ASSIGN opt_newlines comma_sep_exprs
+	| var_assign_lhs COMMA opt_newlines IDENT
 		{
-			t := $1
-			tail := $3
-			idents := append(make([]ast.Symbol, 0, len(tail)+1), ast.NewSymbol(t.Value()))
-			for _, i := range tail {
-				idents = append(idents, ast.NewSymbol(i))
-			}
-			$$ = &ast.VarAssign{
-				StartPos: t.Start,
-				Idents: idents,
-				RHSExprs: $6,
-			}
-		}
-
-comma_sep_names:
-	IDENT
-		{
-			$$ = []string{$1.Value()}
-		}
-	| comma_sep_names COMMA IDENT
-		{
-			$$ = append($1, $3.Value())
+			n := $1
+			n.Idents = append(n.Idents, ast.NewSymbol($4.Value()))
+			$$ = n
 		}
 
 var_decl_statement:
@@ -1332,7 +1329,7 @@ constant:
 			t := $1
 			v, s, err := tokenToInt(t.Value())
 			if err != nil {
-				yylex.Error(fmt.Sprintf("Parse error at integer literal '%s': %s", t.Value(), err.Error))
+				yylex.Error(fmt.Sprintf("Parse error at integer literal '%s': %s", t.Value(), err.Error()))
 			} else if s {
 				$$ = &ast.IntLiteral{
 					StartPos: t.Start,
@@ -1600,11 +1597,14 @@ sep: SEMICOLON | NEWLINE
 
 %%
 
-func tokenToInt(s string) (uint64, bool, error) {
-	isSigned := true
+func tokenToInt(s string) (val uint64, sign bool, err error) {
+	sign = true
+	bits := 63
+
 	if strings.HasSuffix(s, "u") {
 		s = s[:len(s)-1]
-		isSigned = false
+		sign = false
+		bits = 64
 	}
 
 	base := 10
@@ -1614,18 +1614,8 @@ func tokenToInt(s string) (uint64, bool, error) {
 		base, s = 2, s[2:]
 	}
 
-	u, err := strconv.ParseUint(s, base, 64)
-	return u, isSigned, err
-}
-
-func seqExpr(stmts []ast.Statement, e ast.Expression) ast.Expression {
-	if len(stmts) == 0 {
-		return e
-	}
-	return &ast.SeqExpr{
-		Stmts: stmts,
-		LastExpr: e,
-	}
+	val, err = strconv.ParseUint(s, base, bits)
+	return
 }
 
 // vim: noet
