@@ -127,9 +127,9 @@ import (
 %type<names> sep_names
 %type<enum_cases> enum_typedef_cases
 %type<type_node> opt_type_annotate
-%type<stmts> statements opt_stmts
+%type<stmts> block opt_block_sep block_sep
 %type<stmt>
-	statement
+	statement_sep
 	ret_statement
 	var_decl_statement
 	expr_statement
@@ -262,7 +262,7 @@ import_end:
 		}
 
 func_def:
-	FUNC IDENT opt_type_annotate sep opt_stmts END
+	FUNC IDENT opt_type_annotate sep block END
 		{
 			$$ = &ast.Function{
 				StartPos: $1.Start,
@@ -273,7 +273,7 @@ func_def:
 				Body: $5,
 			}
 		}
-	| FUNC IDENT LPAREN opt_newlines RPAREN opt_type_annotate sep opt_stmts END
+	| FUNC IDENT LPAREN opt_newlines RPAREN opt_type_annotate sep block END
 		{
 			$$ = &ast.Function{
 				StartPos: $1.Start,
@@ -284,7 +284,7 @@ func_def:
 				Body: $8,
 			}
 		}
-	| FUNC IDENT LPAREN opt_newlines func_params opt_newlines RPAREN opt_type_annotate sep opt_stmts END
+	| FUNC IDENT LPAREN opt_newlines func_params opt_newlines RPAREN opt_type_annotate sep block END
 		{
 			$$ = &ast.Function{
 				StartPos: $1.Start,
@@ -462,31 +462,67 @@ type_ref:
 			}
 		}
 
-statements:
-	statement
+/* block maybe ends with separator */
+opt_block_sep:
+		{
+			$$ = []ast.Statement{}
+		}
+	| opt_block_sep statement_sep
+		{
+			s := $2
+			if s != nil {
+				$$ = append($1, s)
+			} else {
+				$$ = $1
+			}
+		}
+
+/* block ends with separator */
+block_sep:
+	statement_sep
 		{
 			s := $1
 			if s == nil {
 				$$ = []ast.Statement{}
 			} else {
-				$$ = []ast.Statement{$1}
+				$$ = []ast.Statement{s}
 			}
 		}
-	| statements statement
+	| block_sep statement_sep
 		{
 			s := $2
 			if s != nil {
 				$$ = append($1, s)
+			} else {
+				$$ = $1
 			}
 		}
 
-opt_stmts:
-		{
-			$$ = []ast.Statement{}
-		}
-	| statements
+/*
+  Omitting the last separater at below statements is not permitted.
+    - if_statement
+    - switch_statement
+    - match_statement
 
-statement:
+  This is because the statements may be also expressions.
+  If permitting to omit trailing separater when one of the statements are the last one of the block,
+  it causes a conflict with if_statement/switch_statement/match_statement rules in expression rule.
+
+  Otherwise the last separator can be omitted. It's useful when writing a statement in one line.
+    e.g.
+      if cond then a = 42 else b = 12 end
+*/
+block:
+	opt_block_sep { $$ = $1 }
+	| opt_block_sep ret_statement { $$ = append($1, $2) }
+	| opt_block_sep for_statement { $$ = append($1, $2) }
+	| opt_block_sep while_statement { $$ = append($1, $2) }
+	| opt_block_sep index_assign_statement { $$ = append($1, $2) }
+	| opt_block_sep assign_statement { $$ = append($1, $2) }
+	| opt_block_sep var_decl_statement { $$ = append($1, $2) }
+	| opt_block_sep expr_statement { $$ = append($1, $2) }
+
+statement_sep:
 	ret_statement sep { $$ = $1 }
 	| if_statement sep { $$ = $1 }
 	| switch_statement sep { $$ = $1 }
@@ -525,7 +561,7 @@ ret_body:
 		}
 
 if_statement:
-	IF expression then opt_stmts END
+	IF expression then block END
 		{
 			$$ = &ast.IfStmt{
 				StartPos: $1.Start,
@@ -534,7 +570,7 @@ if_statement:
 				Then: $4,
 			}
 		}
-	| IF expression then opt_stmts ELSE opt_stmts END
+	| IF expression then block ELSE block END
 		{
 			$$ = &ast.IfStmt{
 				StartPos: $1.Start,
@@ -555,7 +591,7 @@ switch_statement:
 				Cases: $1,
 			}
 		}
-	| switch_stmt_cases ELSE opt_stmts END
+	| switch_stmt_cases ELSE block END
 		{
 			$$ = &ast.SwitchStmt{
 				EndPos: $4.End,
@@ -565,11 +601,11 @@ switch_statement:
 		}
 
 switch_stmt_cases:
-	CASE expression then opt_stmts
+	CASE expression then block_sep
 		{
 			$$ = []ast.SwitchStmtCase{ {$1.Start, $2, $4} }
 		}
-	| switch_stmt_cases CASE expression then opt_stmts
+	| switch_stmt_cases CASE expression then block_sep
 		{
 			$$ = append($1, ast.SwitchStmtCase{$2.Start, $3, $5})
 		}
@@ -584,7 +620,7 @@ match_statement:
 				Cases: $4,
 			}
 		}
-	| MATCH expression seps match_stmt_cases ELSE opt_stmts END
+	| MATCH expression seps match_stmt_cases ELSE block END
 		{
 			$$ = &ast.MatchStmt{
 				StartPos: $1.Start,
@@ -596,17 +632,17 @@ match_statement:
 		}
 
 match_stmt_cases:
-	CASE pattern then opt_stmts
+	CASE pattern then block_sep
 		{
 			$$ = []ast.MatchStmtCase{ {$2, $4} }
 		}
-	| match_stmt_cases CASE pattern then opt_stmts
+	| match_stmt_cases CASE pattern then block_sep
 		{
 			$$ = append($1, ast.MatchStmtCase{$3, $5})
 		}
 
 for_statement:
-	FOR destructuring IN expression sep opt_stmts END
+	FOR destructuring IN expression sep block END
 		{
 			$$ = &ast.ForEachStmt{
 				StartPos: $1.Start,
@@ -618,7 +654,7 @@ for_statement:
 		}
 
 while_statement:
-	FOR expression sep opt_stmts END
+	FOR expression sep block END
 		{
 			$$ = &ast.WhileStmt{
 				StartPos: $1.Start,
@@ -988,7 +1024,7 @@ opt_do_end_block:
 		{
 			$$ = nil
 		}
-	| DO lambda_params_in statements END
+	| DO lambda_params_in block END
 		{
 			params := $2
 			// Reverse 'params'
@@ -1224,7 +1260,7 @@ lambda_expr:
 			}
 		}
 	| RIGHTARROW lambda_params_do
-		statements
+		block
 	END
 		{
 			params := $2
@@ -1250,7 +1286,7 @@ lambda_expr:
 			}
 		}
 	| RIGHTARROW DO
-		statements
+		block
 	END
 		{
 			e, err := blockExpr($3, $1.Start)
