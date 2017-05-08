@@ -38,10 +38,12 @@ NEWLINE:
 NEWLINE:
 MATCH:match
 INT:42
+NEWLINE:
 CASE:case
 INT:42
 THEN:then
 STRING:"ok"
+NEWLINE:
 ELSE:else
 STRING:"oops"
 END:end

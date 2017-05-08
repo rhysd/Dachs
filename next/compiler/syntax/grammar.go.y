@@ -602,11 +602,11 @@ switch_statement:
 		}
 
 switch_stmt_when:
-	WHEN expression then block_sep
+	WHEN expression then opt_block_sep
 		{
 			$$ = []ast.SwitchStmtWhen{ {$1.Start, $2, $4} }
 		}
-	| switch_stmt_when WHEN expression then block_sep
+	| switch_stmt_when WHEN expression then opt_block_sep
 		{
 			$$ = append($1, ast.SwitchStmtWhen{$2.Start, $3, $5})
 		}
@@ -633,11 +633,11 @@ match_statement:
 		}
 
 match_stmt_cases:
-	CASE pattern then block_sep
+	CASE pattern then opt_block_sep
 		{
 			$$ = []ast.MatchStmtCase{ {$2, $4} }
 		}
-	| match_stmt_cases CASE pattern then block_sep
+	| match_stmt_cases CASE pattern then opt_block_sep
 		{
 			$$ = append($1, ast.MatchStmtCase{$3, $5})
 		}

@@ -1,12 +1,12 @@
 FUNC:func
 IDENT:main
 NEWLINE:
-CASE:case
+WHEN:when
 BOOL:true
 THEN:then
 INT:42
 NEWLINE:
-CASE:case
+WHEN:when
 BOOL:false
 NEWLINE:
 ELSE:else
@@ -19,9 +19,9 @@ NEWLINE:
 END:end
 NEWLINE:
 NEWLINE:
-CASE:case
+WHEN:when
 INT:10
-GREATER:>
+GREATER:
 INT:0
 NEWLINE:
 LET:let
