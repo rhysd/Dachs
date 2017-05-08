@@ -12,6 +12,7 @@ SRCS := \
 	syntax/lexer.go \
 	syntax/grammar.go \
 	syntax/parser.go \
+	syntax/expr_block.go \
 
 TESTS := \
 	prelude/log_test.go \

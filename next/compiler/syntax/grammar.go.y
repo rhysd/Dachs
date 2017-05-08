@@ -993,17 +993,17 @@ stmts_expr:
 
 if_expr:
 	IF expression then
-		stmts_expr
+		stmts_expr opt_newlines
 	ELSE
 		stmts_expr opt_newlines
 	END
 		{
 			$$ = &ast.IfExpr{
 				StartPos: $1.Start,
-				EndPos: $8.End,
+				EndPos: $9.End,
 				Cond: $2,
 				Then: $4,
-				Else: $6,
+				Else: $7,
 			}
 		}
 
