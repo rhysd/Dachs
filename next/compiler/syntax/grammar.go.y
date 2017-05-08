@@ -48,64 +48,65 @@ import (
 	bool bool
 }
 
-%token<token> ILLEGAL
-%token<token> COMMENT
-%token<token> NEWLINE
-%token<token> SEMICOLON
-%token<token> LPAREN
-%token<token> RPAREN
-%token<token> LBRACE
-%token<token> RBRACE
-%token<token> LBRACKET
-%token<token> RBRACKET
-%token<token> IDENT
-%token<token> BOOL
-%token<token> INT
-%token<token> FLOAT
-%token<token> STRING
-%token<token> MINUS
-%token<token> PLUS
-%token<token> STAR
-%token<token> DIV
-%token<token> NOT
-%token<token> OR
-%token<token> AND
-%token<token> PERCENT
-%token<token> EQUAL
-%token<token> NOTEQUAL
-%token<token> ASSIGN
-%token<token> LESS
-%token<token> LESSEQUAL
-%token<token> GREATER
-%token<token> GREATEREQUAL
-%token<token> END
-%token<token> IF
-%token<token> THEN
-%token<token> ELSE
-%token<token> CASE
-%token<token> MATCH
-%token<token> RET
-%token<token> IMPORT
-%token<token> DOT
-%token<token> TYPE
-%token<token> COLON
-%token<token> FOR
-%token<token> IN
-%token<token> FATRIGHTARROW
-%token<token> COLONCOLON
-%token<token> TYPEOF
-%token<token> AS
-%token<token> FUNC
-%token<token> DO
-%token<token> RIGHTARROW
-%token<token> COMMA
-%token<token> BREAK
-%token<token> NEXT
-%token<token> ELLIPSIS
-%token<token> SINGLEQUOTE
-%token<token> VAR
-%token<token> LET
-%token<token> EOF
+%token<token>
+	ILLEGAL
+	COMMENT
+	NEWLINE
+	SEMICOLON
+	LPAREN
+	RPAREN
+	LBRACE
+	RBRACE
+	LBRACKET
+	RBRACKET
+	IDENT
+	BOOL
+	INT
+	FLOAT
+	STRING
+	MINUS
+	PLUS
+	STAR
+	DIV
+	NOT
+	OR
+	AND
+	PERCENT
+	EQUAL
+	NOTEQUAL
+	ASSIGN
+	LESS
+	LESSEQUAL
+	GREATER
+	GREATEREQUAL
+	END
+	IF
+	THEN
+	ELSE
+	CASE
+	MATCH
+	RET
+	IMPORT
+	DOT
+	TYPE
+	COLON
+	FOR
+	IN
+	FATRIGHTARROW
+	COLONCOLON
+	TYPEOF
+	AS
+	FUNC
+	DO
+	RIGHTARROW
+	COMMA
+	BREAK
+	NEXT
+	ELLIPSIS
+	SINGLEQUOTE
+	VAR
+	LET
+	EOF
 
 %nonassoc prec_lambda
 %left OR
@@ -125,28 +126,57 @@ import (
 %type<nodes> toplevels
 %type<names> sep_names
 %type<enum_cases> enum_typedef_cases
-%type<type_node> type opt_type_annotate
+%type<type_node> opt_type_annotate
 %type<stmts> statements opt_stmts
-%type<stmt> statement ret_statement var_decl_statement expr_statement for_statement while_statement index_assign_statement assign_statement
+%type<stmt>
+	statement
+	ret_statement
+	var_decl_statement
+	expr_statement
+	for_statement
+	while_statement
+	index_assign_statement
+	assign_statement
 %type<var_assign_stmt> var_assign_lhs
 %type<if_stmt> if_statement
 %type<switch_stmt> switch_statement
 %type<match_stmt> match_statement
 %type<switch_stmt_cases> switch_stmt_cases
 %type<match_stmt_cases> match_stmt_cases
-%type<expr> expression constant postfix_expr primary_expr record_or_tuple_literal record_or_tuple_anonym var_ref array_literal dict_literal lambda_expr
+%type<expr>
+	expression
+	constant
+	postfix_expr
+	primary_expr
+	record_or_tuple_literal
+	record_or_tuple_anonym
+	var_ref
+	array_literal
+	dict_literal
+	lambda_expr
 %type<exprs> ret_body comma_sep_exprs array_elems func_call_args
 %type<record_lit_fields> record_literal_fields
 %type<record_lit_field> record_literal_field
 %type<params> func_params lambda_params_in lambda_params_do
-%type<type_node> type_ref type_var type_instantiate type_record_or_tuple type_func type_typeof
+%type<type_node>
+	type
+	type_ref
+	type_var
+	type_instantiate
+	type_record_or_tuple
+	type_func type_typeof
 %type<type_fields> type_record_fields
 %type<type_nodes> opt_types types
 %type<destructuring> destructuring var_destruct record_destruct
 %type<destructurings> destructurings
 %type<rec_destruct_fields> record_destruct_fields
 %type<rec_destruct_field> record_destruct_field
-%type<pattern> pattern const_pattern var_pattern record_pattern array_pattern
+%type<pattern>
+	pattern
+	const_pattern
+	var_pattern
+	record_pattern
+	array_pattern
 %type<patterns> array_pat_elems
 %type<bool> opt_exhaustive_pattern
 %type<record_pattern> rec_pat_anonym
