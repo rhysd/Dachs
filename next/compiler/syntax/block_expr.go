@@ -23,7 +23,7 @@ import (
 // The last expression is outer 'if' statement (will be converted into 'if' expression). It contains
 // another 'if' statement in 'else' block. It should be also converted into expression recursively.
 
-func promoteIfStmt(stmt *ast.IfStmt) (ast.Expression, error) {
+func ifExpr(stmt *ast.IfStmt) (ast.Expression, error) {
 	thenExpr, err := blockExpr(stmt.Then, stmt.StartPos)
 	if err != nil {
 		return nil, prelude.Wrap(stmt.Pos(), stmt.End(), err, "'then' block of 'if' expression is incorrect")
@@ -43,7 +43,7 @@ func promoteIfStmt(stmt *ast.IfStmt) (ast.Expression, error) {
 	}, nil
 }
 
-func promoteSwitchStmt(stmt *ast.SwitchStmt) (ast.Expression, error) {
+func switchExpr(stmt *ast.SwitchStmt) (ast.Expression, error) {
 	cases := make([]ast.SwitchExprCase, 0, len(stmt.Cases))
 	for i, c := range stmt.Cases {
 		e, err := blockExpr(c.Stmts, c.StartPos)
@@ -68,7 +68,7 @@ func promoteSwitchStmt(stmt *ast.SwitchStmt) (ast.Expression, error) {
 	}, nil
 }
 
-func promoteMatchStmt(stmt *ast.MatchStmt) (ast.Expression, error) {
+func matchExpr(stmt *ast.MatchStmt) (ast.Expression, error) {
 	cases := make([]ast.MatchExprCase, 0, len(stmt.Cases))
 	for i, c := range stmt.Cases {
 		e, err := blockExpr(c.Stmts, stmt.StartPos)
@@ -100,11 +100,11 @@ func promoteStmtToExpr(stmt ast.Statement) (ast.Expression, error) {
 	case *ast.ExprStmt:
 		return stmt.Expr, nil
 	case *ast.IfStmt:
-		return promoteIfStmt(stmt)
+		return ifExpr(stmt)
 	case *ast.SwitchStmt:
-		return promoteSwitchStmt(stmt)
+		return switchExpr(stmt)
 	case *ast.MatchStmt:
-		return promoteMatchStmt(stmt)
+		return matchExpr(stmt)
 	default:
 		return nil, prelude.NewErrorf(stmt.Pos(), stmt.End(), "Blocks in expression must end with an expression but the last item in block is '%s'", stmt.String())
 	}

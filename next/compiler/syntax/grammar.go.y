@@ -15,6 +15,9 @@ import (
 	node ast.Node
 	nodes []ast.Node
 	stmt ast.Statement
+	if_stmt *ast.IfStmt
+	switch_stmt *ast.SwitchStmt
+	match_stmt *ast.MatchStmt
 	stmts []ast.Statement
 	type_node ast.Type
 	type_nodes []ast.Type
@@ -36,8 +39,6 @@ import (
 	rec_pat_field ast.RecordPatternField
 	expr ast.Expression
 	exprs []ast.Expression
-	switch_expr_cases []ast.SwitchExprCase
-	match_expr_cases []ast.MatchExprCase
 	record_lit_fields []ast.RecordLitField
 	record_lit_field ast.RecordLitField
 	dict_keyvals []ast.DictKeyVal
@@ -126,14 +127,15 @@ import (
 %type<enum_cases> enum_typedef_cases
 %type<type_node> type opt_type_annotate
 %type<stmts> statements opt_stmts
-%type<stmt> statement if_statement ret_statement switch_statement match_statement var_decl_statement expr_statement for_statement while_statement index_assign_statement assign_statement
+%type<stmt> statement ret_statement var_decl_statement expr_statement for_statement while_statement index_assign_statement assign_statement
 %type<var_assign_stmt> var_assign_lhs
+%type<if_stmt> if_statement
+%type<switch_stmt> switch_statement
+%type<match_stmt> match_statement
 %type<switch_stmt_cases> switch_stmt_cases
 %type<match_stmt_cases> match_stmt_cases
-%type<expr> expression constant postfix_expr primary_expr if_expr switch_expr match_expr record_or_tuple_literal record_or_tuple_anonym var_ref array_literal dict_literal lambda_expr stmts_expr
+%type<expr> expression constant postfix_expr primary_expr record_or_tuple_literal record_or_tuple_anonym var_ref array_literal dict_literal lambda_expr
 %type<exprs> ret_body comma_sep_exprs array_elems func_call_args
-%type<switch_expr_cases> switch_expr_cases
-%type<match_expr_cases> match_expr_cases
 %type<record_lit_fields> record_literal_fields
 %type<record_lit_field> record_literal_field
 %type<params> func_params lambda_params_in lambda_params_do
@@ -455,20 +457,20 @@ opt_stmts:
 	| statements
 
 statement:
-	ret_statement
-	| if_statement
-	| switch_statement
-	| match_statement
-	| for_statement
-	| while_statement
-	| index_assign_statement
-	| assign_statement
-	| var_decl_statement
-	| expr_statement
+	ret_statement sep { $$ = $1 }
+	| if_statement sep { $$ = $1 }
+	| switch_statement sep { $$ = $1 }
+	| match_statement sep { $$ = $1 }
+	| for_statement sep { $$ = $1 }
+	| while_statement sep { $$ = $1 }
+	| index_assign_statement sep { $$ = $1 }
+	| assign_statement sep { $$ = $1 }
+	| var_decl_statement sep { $$ = $1 }
+	| expr_statement sep { $$ = $1 }
 	| sep { $$ = nil }
 
 ret_statement:
-	RET ret_body sep
+	RET ret_body
 		{
 			$$ = &ast.RetStmt{
 				StartPos: $1.Start,
@@ -597,7 +599,7 @@ while_statement:
 		}
 
 index_assign_statement:
-	postfix_expr LBRACKET opt_newlines expression opt_newlines RBRACKET ASSIGN opt_newlines expression sep
+	postfix_expr LBRACKET opt_newlines expression opt_newlines RBRACKET ASSIGN opt_newlines expression
 		{
 			$$ = &ast.IndexAssign{
 				Assignee: $1,
@@ -631,7 +633,7 @@ var_assign_lhs:
 		}
 
 var_decl_statement:
-	mutability destructurings ASSIGN opt_newlines comma_sep_exprs sep
+	mutability destructurings ASSIGN opt_newlines comma_sep_exprs
 		{
 			mut := $1
 			$$ = &ast.VarDecl{
@@ -645,7 +647,7 @@ var_decl_statement:
 mutability: VAR | LET
 
 expr_statement:
-	expression sep
+	expression
 		{
 			$$ = &ast.ExprStmt{Expr: $1}
 		}
@@ -889,6 +891,30 @@ expression:
 				Child: $2,
 			}
 		}
+	| if_statement
+		{
+			e, err := ifExpr($1)
+			if err != nil {
+				yylex.Error(err.Error())
+			}
+			$$ = e
+		}
+	| switch_statement
+		{
+			e, err := switchExpr($1)
+			if err != nil {
+				yylex.Error(err.Error())
+			}
+			$$ = e
+		}
+	| match_statement
+		{
+			e, err := matchExpr($1)
+			if err != nil {
+				yylex.Error(err.Error())
+			}
+			$$ = e
+		}
 
 postfix_expr:
 	primary_expr
@@ -932,7 +958,7 @@ opt_do_end_block:
 		{
 			$$ = nil
 		}
-	| DO lambda_params_in opt_newlines stmts_expr opt_newlines END
+	| DO lambda_params_in statements END
 		{
 			params := $2
 			// Reverse 'params'
@@ -943,12 +969,17 @@ opt_do_end_block:
 				params[j] = p
 			}
 
+			e, err := blockExpr($3, $1.Start)
+			if err != nil {
+				yylex.Error(err.Error())
+			}
+
 			$$ = &ast.Lambda{
 				StartPos: $1.Start,
-				EndPos: $6.End,
+				EndPos: $4.End,
 				IsDoBlock: true,
 				Params: params,
-				BodyExpr: $4,
+				BodyExpr: e,
 			}
 		}
 
@@ -973,85 +1004,13 @@ func_call_args:
 		}
 
 primary_expr:
-	if_expr
-	| switch_expr
-	| match_expr
-	| record_or_tuple_literal
+	record_or_tuple_literal
 	| array_literal
 	| dict_literal
 	| lambda_expr
 	| var_ref
 	| constant
 	| LPAREN opt_newlines expression opt_newlines RPAREN { $$ = $3 }
-
-stmts_expr:
-	statements expression
-		{
-			$$ = &ast.SeqExpr{Stmts: $1, LastExpr: $2}
-		}
-	| expression
-
-if_expr:
-	IF expression then
-		stmts_expr opt_newlines
-	ELSE
-		stmts_expr opt_newlines
-	END
-		{
-			$$ = &ast.IfExpr{
-				StartPos: $1.Start,
-				EndPos: $9.End,
-				Cond: $2,
-				Then: $4,
-				Else: $7,
-			}
-		}
-
-switch_expr:
-	switch_expr_cases opt_newlines ELSE stmts_expr opt_newlines END
-		{
-			$$ = &ast.SwitchExpr{
-				EndPos: $6.End,
-				Cases: $1,
-				Else: $4,
-			}
-		}
-
-switch_expr_cases:
-	CASE expression then stmts_expr
-		{
-			$$ = []ast.SwitchExprCase{
-				{$1.Start, $2, $4},
-			}
-		}
-	| switch_expr_cases seps CASE expression then stmts_expr
-		{
-			$$ = append($1, ast.SwitchExprCase{$3.Start, $4, $6})
-		}
-
-match_expr:
-	MATCH expression seps match_expr_cases opt_newlines ELSE stmts_expr opt_newlines END
-		{
-			$$ = &ast.MatchExpr{
-				StartPos: $1.Start,
-				EndPos: $9.End,
-				Matched: $2,
-				Cases: $4,
-				Else: $7,
-			}
-		}
-
-match_expr_cases:
-	CASE pattern then stmts_expr
-		{
-			$$ = []ast.MatchExprCase{
-				{$2, $4},
-			}
-		}
-	| match_expr_cases seps CASE pattern then stmts_expr
-		{
-			$$ = append($1, ast.MatchExprCase{$4, $6})
-		}
 
 record_or_tuple_literal:
 	IDENT record_or_tuple_anonym
@@ -1234,8 +1193,8 @@ lambda_expr:
 				BodyExpr: $2,
 			}
 		}
-	| RIGHTARROW lambda_params_do opt_newlines
-		stmts_expr opt_newlines
+	| RIGHTARROW lambda_params_do
+		statements
 	END
 		{
 			params := $2
@@ -1247,23 +1206,33 @@ lambda_expr:
 				params[j] = p
 			}
 
+			e, err := blockExpr($3, $1.Start)
+			if err != nil {
+				yylex.Error(err.Error())
+			}
+
 			$$ = &ast.Lambda{
 				StartPos: $1.Start,
-				EndPos: $6.End,
+				EndPos: $4.End,
 				IsDoBlock: true,
 				Params: params,
-				BodyExpr: $4,
+				BodyExpr: e,
 			}
 		}
-	| RIGHTARROW DO opt_newlines
-		stmts_expr opt_newlines
+	| RIGHTARROW DO
+		statements
 	END
 		{
+			e, err := blockExpr($3, $1.Start)
+			if err != nil {
+				yylex.Error(err.Error())
+			}
+
 			$$ = &ast.Lambda{
 				StartPos: $1.Start,
-				EndPos: $6.End,
+				EndPos: $4.End,
 				IsDoBlock: true,
-				BodyExpr: $4,
+				BodyExpr: e,
 			}
 		}
 
