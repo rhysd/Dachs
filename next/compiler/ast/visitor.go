@@ -108,7 +108,7 @@ func Visit(v Visitor, n Node) {
 			Visit(v, s)
 		}
 	case *SwitchStmt:
-		for _, c := range n.Cases {
+		for _, c := range n.When {
 			Visit(v, c.Cond)
 			for _, s := range c.Stmts {
 				Visit(v, s)

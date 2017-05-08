@@ -389,14 +389,14 @@ type (
 		Else     []Statement
 	}
 
-	SwitchStmtCase struct {
+	SwitchStmtWhen struct {
 		StartPos prelude.Pos
 		Cond     Expression
 		Stmts    []Statement
 	}
 
-	// case foo then ...
-	// case bar
+	// when foo then ...
+	// when bar
 	//   ...
 	// else
 	//   ...
@@ -404,7 +404,7 @@ type (
 	SwitchStmt struct {
 		Statement
 		EndPos prelude.Pos
-		Cases  []SwitchStmtCase
+		When   []SwitchStmtWhen
 		Else   []Statement
 	}
 
@@ -886,7 +886,7 @@ func (n *RetStmt) End() prelude.Pos {
 }
 func (n *IfStmt) Pos() prelude.Pos        { return n.StartPos }
 func (n *IfStmt) End() prelude.Pos        { return n.EndPos }
-func (n *SwitchStmt) Pos() prelude.Pos    { return n.Cases[0].StartPos }
+func (n *SwitchStmt) Pos() prelude.Pos    { return n.When[0].StartPos }
 func (n *SwitchStmt) End() prelude.Pos    { return n.EndPos }
 func (n *MatchStmt) Pos() prelude.Pos     { return n.StartPos }
 func (n *MatchStmt) End() prelude.Pos     { return n.EndPos }

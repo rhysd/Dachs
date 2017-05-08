@@ -44,8 +44,8 @@ func ifExpr(stmt *ast.IfStmt) (ast.Expression, error) {
 }
 
 func switchExpr(stmt *ast.SwitchStmt) (ast.Expression, error) {
-	cases := make([]ast.SwitchExprCase, 0, len(stmt.Cases))
-	for i, c := range stmt.Cases {
+	cases := make([]ast.SwitchExprCase, 0, len(stmt.When))
+	for i, c := range stmt.When {
 		e, err := blockExpr(c.Stmts, c.StartPos)
 		if err != nil {
 			return nil, prelude.Wrapf(stmt.Pos(), stmt.End(), err, "%dth 'case' block is incorrect", i+1)

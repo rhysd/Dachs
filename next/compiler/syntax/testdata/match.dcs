@@ -11,5 +11,7 @@ func main
     case "no else"
     end
 
-    match 42 case 42 then "ok" else "oops" end
+    match 42
+    case 42 then "ok"
+    else "oops" end
 end

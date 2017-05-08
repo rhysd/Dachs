@@ -66,6 +66,7 @@ const (
 	TokenSingleQuote
 	TokenVar
 	TokenLet
+	TokenWhen
 	TokenEOF
 )
 
@@ -127,6 +128,7 @@ var tokenTable = [...]string{
 	TokenSingleQuote:   "SINGLE_QUOTE",
 	TokenVar:           "VAR",
 	TokenLet:           "LET",
+	TokenWhen:          "WHEN",
 	TokenEOF:           "EOF",
 }
 

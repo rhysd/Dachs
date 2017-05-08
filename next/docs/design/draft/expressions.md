@@ -106,8 +106,8 @@ Test each `case` clause's `{cond}` expression and execute the block of the claus
 is evaluated to `true`. All `case` arms' last expressions must be the same type.
 
 ```
-case {cond} then {block expression}
-case {cond}
+when {cond} then {block expression}
+when {cond}
     {block expression}
 else
     {block expression}

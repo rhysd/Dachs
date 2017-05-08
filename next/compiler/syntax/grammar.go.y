@@ -24,7 +24,7 @@ import (
 	import_node *ast.Import
 	names []string
 	params []ast.FuncParam
-	switch_stmt_cases []ast.SwitchStmtCase
+	switch_stmt_when []ast.SwitchStmtWhen
 	match_stmt_cases []ast.MatchStmtCase
 	var_assign_stmt *ast.VarAssign
 	type_fields []ast.RecordTypeField
@@ -106,6 +106,7 @@ import (
 	SINGLEQUOTE
 	VAR
 	LET
+	WHEN
 	EOF
 
 %nonassoc prec_lambda
@@ -141,7 +142,7 @@ import (
 %type<if_stmt> if_statement
 %type<switch_stmt> switch_statement
 %type<match_stmt> match_statement
-%type<switch_stmt_cases> switch_stmt_cases
+%type<switch_stmt_when> switch_stmt_when
 %type<match_stmt_cases> match_stmt_cases
 %type<expr>
 	expression
@@ -581,33 +582,33 @@ if_statement:
 			}
 		}
 
-then: THEN | THEN newlines | newlines
+then: THEN | NEWLINE
 
 switch_statement:
-	switch_stmt_cases END
+	switch_stmt_when END
 		{
 			$$ = &ast.SwitchStmt{
 				EndPos: $2.End,
-				Cases: $1,
+				When: $1,
 			}
 		}
-	| switch_stmt_cases ELSE block END
+	| switch_stmt_when ELSE block END
 		{
 			$$ = &ast.SwitchStmt{
 				EndPos: $4.End,
-				Cases: $1,
+				When: $1,
 				Else: $3,
 			}
 		}
 
-switch_stmt_cases:
-	CASE expression then block_sep
+switch_stmt_when:
+	WHEN expression then block_sep
 		{
-			$$ = []ast.SwitchStmtCase{ {$1.Start, $2, $4} }
+			$$ = []ast.SwitchStmtWhen{ {$1.Start, $2, $4} }
 		}
-	| switch_stmt_cases CASE expression then block_sep
+	| switch_stmt_when WHEN expression then block_sep
 		{
-			$$ = append($1, ast.SwitchStmtCase{$2.Start, $3, $5})
+			$$ = append($1, ast.SwitchStmtWhen{$2.Start, $3, $5})
 		}
 
 match_statement:
