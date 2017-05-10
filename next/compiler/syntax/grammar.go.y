@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"github.com/rhysd/Dachs/next/compiler/ast"
+	"github.com/rhysd/Dachs/next/compiler/prelude"
 )
 %}
 
@@ -1109,7 +1110,7 @@ record_or_tuple_anonym:
 				elems = append(elems, fields[0].Expr)
 				for i, f := range fields[1:] {
 					if f.Name != "_" {
-						yylex.Error(fmt.Sprintf("Mixing unnamed and named fields is not permitted. %dth field must be unnamed at %s", i+2, $1.String()))
+						yylex.Error(fmt.Sprintf("Mixing unnamed and named fields is not permitted. %s field must be unnamed at %s", prelude.Ordinal(i+2), $1.String()))
 						break
 					}
 					elems = append(elems, f.Expr)
@@ -1122,7 +1123,7 @@ record_or_tuple_anonym:
 			} else {
 				for i, f := range fields[1:] {
 					if f.Name == "_" {
-						yylex.Error(fmt.Sprintf("Mixing unnamed and named fields is not permitted. %dth field must be named at %s", i+2, $1.String()))
+						yylex.Error(fmt.Sprintf("Mixing unnamed and named fields is not permitted. %s field must be named at %s", prelude.Ordinal(i+2), $1.String()))
 						break
 					}
 				}

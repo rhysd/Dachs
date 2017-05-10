@@ -5,6 +5,7 @@ SRCS := \
 	prelude/log.go \
 	prelude/position.go \
 	prelude/source.go \
+	prelude/ordinal.go \
 	ast/node.go \
 	ast/visitor.go \
 	ast/printer.go \
@@ -18,6 +19,7 @@ TESTS := \
 	prelude/log_test.go \
 	prelude/source_test.go \
 	prelude/error_test.go \
+	prelude/ordinal_test.go \
 	ast/printer_test.go \
 	ast/visitor_test.go \
 	syntax/token_test.go \
