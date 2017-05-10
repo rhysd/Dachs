@@ -23,15 +23,15 @@ import (
 // The last expression is outer 'if' statement (will be converted into 'if' expression). It contains
 // another 'if' statement in 'else' block. It should be also converted into expression recursively.
 
-func ifExpr(stmt *ast.IfStmt) (ast.Expression, error) {
+func ifExpr(stmt *ast.IfStmt) (ast.Expression, *prelude.Error) {
 	thenExpr, err := blockExpr(stmt.Then, stmt.StartPos)
 	if err != nil {
-		return nil, prelude.Wrap(stmt.Pos(), stmt.End(), err, "'then' block of 'if' expression is incorrect")
+		return nil, err.WrapAt(stmt.Pos(), "'then' block of 'if' expression is incorrect")
 	}
 
 	elseExpr, err := blockExpr(stmt.Else, stmt.StartPos)
 	if err != nil {
-		return nil, prelude.Wrap(stmt.Pos(), stmt.End(), err, "'else' block of 'if' expression is incorrect")
+		return nil, err.WrapAt(stmt.Pos(), "'else' block of 'if' expression is incorrect")
 	}
 
 	return &ast.IfExpr{
@@ -43,12 +43,12 @@ func ifExpr(stmt *ast.IfStmt) (ast.Expression, error) {
 	}, nil
 }
 
-func switchExpr(stmt *ast.SwitchStmt) (ast.Expression, error) {
+func switchExpr(stmt *ast.SwitchStmt) (ast.Expression, *prelude.Error) {
 	cases := make([]ast.SwitchExprCase, 0, len(stmt.Cases))
 	for i, c := range stmt.Cases {
 		e, err := blockExpr(c.Stmts, stmt.StartPos)
 		if err != nil {
-			return nil, prelude.Wrapf(stmt.Pos(), stmt.End(), err, "%dth 'case' block is incorrect", i+1)
+			return nil, err.WrapfAt(stmt.Pos(), "%dth 'case' block is incorrect", i+1)
 		}
 		cases = append(cases, ast.SwitchExprCase{
 			Cond: c.Cond,
@@ -58,7 +58,7 @@ func switchExpr(stmt *ast.SwitchStmt) (ast.Expression, error) {
 
 	elseExpr, err := blockExpr(stmt.Else, stmt.Pos())
 	if err != nil {
-		return nil, prelude.Wrap(stmt.Pos(), stmt.End(), err, "'else' block of 'case' expression is incorrect")
+		return nil, err.WrapAt(stmt.Pos(), "'else' block of 'case' expression is incorrect")
 	}
 
 	return &ast.SwitchExpr{
@@ -69,12 +69,12 @@ func switchExpr(stmt *ast.SwitchStmt) (ast.Expression, error) {
 	}, nil
 }
 
-func matchExpr(stmt *ast.MatchStmt) (ast.Expression, error) {
+func matchExpr(stmt *ast.MatchStmt) (ast.Expression, *prelude.Error) {
 	cases := make([]ast.MatchExprArm, 0, len(stmt.Arms))
 	for i, c := range stmt.Arms {
 		e, err := blockExpr(c.Stmts, stmt.StartPos)
 		if err != nil {
-			return nil, prelude.Wrapf(stmt.Pos(), stmt.End(), err, "%dth 'case' block of 'match' expression is incorrect", i+1)
+			return nil, err.WrapfAt(stmt.Pos(), "%dth 'case' block of 'match' expression is incorrect", i+1)
 		}
 		cases = append(cases, ast.MatchExprArm{
 			Pattern: c.Pattern,
@@ -84,7 +84,7 @@ func matchExpr(stmt *ast.MatchStmt) (ast.Expression, error) {
 
 	elseExpr, err := blockExpr(stmt.Else, stmt.StartPos)
 	if err != nil {
-		return nil, prelude.Wrap(stmt.Pos(), stmt.End(), err, "'else' block of 'match' expression is incorrect")
+		return nil, err.WrapAt(stmt.Pos(), "'else' block of 'match' expression is incorrect")
 	}
 
 	return &ast.MatchExpr{
@@ -96,7 +96,7 @@ func matchExpr(stmt *ast.MatchStmt) (ast.Expression, error) {
 	}, nil
 }
 
-func promoteStmtToExpr(stmt ast.Statement) (ast.Expression, error) {
+func promoteStmtToExpr(stmt ast.Statement) (ast.Expression, *prelude.Error) {
 	switch stmt := stmt.(type) {
 	case *ast.ExprStmt:
 		return stmt.Expr, nil
@@ -111,7 +111,7 @@ func promoteStmtToExpr(stmt ast.Statement) (ast.Expression, error) {
 	}
 }
 
-func blockExpr(stmts []ast.Statement, hint prelude.Pos) (ast.Expression, error) {
+func blockExpr(stmts []ast.Statement, hint prelude.Pos) (ast.Expression, *prelude.Error) {
 	if len(stmts) == 0 {
 		return nil, prelude.NewErrorAt(hint, "Blocks in expression must end with an expression, but the block is empty")
 	}

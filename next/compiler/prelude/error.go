@@ -45,14 +45,25 @@ func (err *Error) Error() string {
 
 // Wrap stacks the additional message upon current error.
 func (err *Error) Wrap(msg string) *Error {
-	err.Messages = append(err.Messages, msg)
+	err.Messages = append(err.Messages, "Note: "+msg)
 	return err
 }
 
 // Wrapf stacks the additional formatted message upon current error.
 func (err *Error) Wrapf(format string, args ...interface{}) *Error {
-	err.Messages = append(err.Messages, fmt.Sprintf(format, args...))
+	err.Messages = append(err.Messages, fmt.Sprintf("Note: "+format, args...))
 	return err
+}
+
+// WrapAt stacks the additional message upon current error with position.
+func (err *Error) WrapAt(pos Pos, msg string) *Error {
+	err.Messages = append(err.Messages, fmt.Sprintf("Note at %s:%d:%d: %s", pos.File.Name, pos.Line, pos.Column, msg))
+	return err
+}
+
+// WrapfAt stacks the additional formatted message upon current error with poisition.
+func (err *Error) WrapfAt(pos Pos, format string, args ...interface{}) *Error {
+	return err.WrapAt(pos, fmt.Sprintf(format, args...))
 }
 
 // NewError makes a new compilation error with the range.

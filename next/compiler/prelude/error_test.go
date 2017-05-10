@@ -132,7 +132,7 @@ func TestWrapMethods(t *testing.T) {
 	want :=
 		`Error at <dummy>:1:4
   This is original error text!
-  This is additional error text!
+  Note: This is additional error text!
 
 > age prelude
 > 
@@ -144,6 +144,32 @@ func TestWrapMethods(t *testing.T) {
 	errs := []*Error{
 		NewError(s, e, "This is original error text!").Wrap("This is additional error text!"),
 		NewError(s, e, "This is original error text!").Wrapf("This is %s!", "additional error text"),
+	}
+	for _, err := range errs {
+		got := err.Error()
+		if got != want {
+			t.Fatalf("Unexpected error message. want: '%s', got: '%s'", want, got)
+		}
+	}
+}
+
+func TestWrapMethodsWithPos(t *testing.T) {
+	want :=
+		`Error at <dummy>:1:4
+  This is original error text!
+  Note at <dummy>:1:4: This is additional error text!
+
+> age prelude
+> 
+> imp
+
+`
+
+	s, e := testMakeRange()
+
+	errs := []*Error{
+		NewError(s, e, "This is original error text!").WrapAt(s, "This is additional error text!"),
+		NewError(s, e, "This is original error text!").WrapfAt(s, "This is %s!", "additional error text"),
 	}
 	for _, err := range errs {
 		got := err.Error()
