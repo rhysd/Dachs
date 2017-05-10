@@ -119,7 +119,7 @@ func Visit(v Visitor, n Node) {
 		}
 	case *MatchStmt:
 		Visit(v, n.Matched)
-		for _, c := range n.Cases {
+		for _, c := range n.Arms {
 			Visit(v, c.Pattern)
 			for _, s := range c.Stmts {
 				Visit(v, s)
@@ -174,7 +174,7 @@ func Visit(v Visitor, n Node) {
 		Visit(v, n.Else)
 	case *MatchExpr:
 		Visit(v, n.Matched)
-		for _, c := range n.Cases {
+		for _, c := range n.Arms {
 			Visit(v, c.Pattern)
 			Visit(v, c.Body)
 		}

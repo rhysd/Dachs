@@ -67,6 +67,7 @@ const (
 	TokenVar
 	TokenLet
 	TokenSwitch
+	TokenWith
 	TokenEOF
 )
 
@@ -129,6 +130,7 @@ var tokenTable = [...]string{
 	TokenVar:           "VAR",
 	TokenLet:           "LET",
 	TokenSwitch:        "SWITCH",
+	TokenWith:          "WITH",
 	TokenEOF:           "EOF",
 }
 

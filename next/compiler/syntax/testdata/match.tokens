@@ -4,7 +4,7 @@ NEWLINE:
 MATCH:match
 INT:42
 NEWLINE:
-CASE:case
+WITH:with
 INT:21
 THEN:then
 IDENT:print
@@ -12,7 +12,7 @@ LPAREN:(
 STRING:"ok"
 RPAREN:)
 NEWLINE:
-CASE:case
+WITH:with
 INT:3
 NEWLINE:
 IDENT:print
@@ -29,17 +29,20 @@ NEWLINE:
 NEWLINE:
 MATCH:match
 STRING:"foo"
-NEWLINE:
-CASE:case
+WITH:with
 STRING:"no else"
-NEWLINE:
+THEN:then
+IDENT:print
+LPAREN:(
+STRING:"foo!"
+RPAREN:)
 END:end
 NEWLINE:
 NEWLINE:
 MATCH:match
 INT:42
 NEWLINE:
-CASE:case
+WITH:with
 INT:42
 THEN:then
 STRING:"ok"

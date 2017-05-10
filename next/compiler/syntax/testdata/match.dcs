@@ -1,17 +1,15 @@
 func main
     match 42
-    case 21 then print("ok")
-    case 3
+    with 21 then print("ok")
+    with 3
         print("san")
     else
         !! else
     end
 
-    match "foo"
-    case "no else"
-    end
+    match "foo" with "no else" then print("foo!") end
 
     match 42
-    case 42 then "ok"
+    with 42 then "ok"
     else "oops" end
 end

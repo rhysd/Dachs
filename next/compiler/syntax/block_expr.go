@@ -70,13 +70,13 @@ func switchExpr(stmt *ast.SwitchStmt) (ast.Expression, error) {
 }
 
 func matchExpr(stmt *ast.MatchStmt) (ast.Expression, error) {
-	cases := make([]ast.MatchExprCase, 0, len(stmt.Cases))
-	for i, c := range stmt.Cases {
+	cases := make([]ast.MatchExprArm, 0, len(stmt.Arms))
+	for i, c := range stmt.Arms {
 		e, err := blockExpr(c.Stmts, stmt.StartPos)
 		if err != nil {
 			return nil, prelude.Wrapf(stmt.Pos(), stmt.End(), err, "%dth 'case' block of 'match' expression is incorrect", i+1)
 		}
-		cases = append(cases, ast.MatchExprCase{
+		cases = append(cases, ast.MatchExprArm{
 			Pattern: c.Pattern,
 			Body:    e,
 		})
@@ -91,7 +91,7 @@ func matchExpr(stmt *ast.MatchStmt) (ast.Expression, error) {
 		StartPos: stmt.StartPos,
 		EndPos:   stmt.EndPos,
 		Matched:  stmt.Matched,
-		Cases:    cases,
+		Arms:     cases,
 		Else:     elseExpr,
 	}, nil
 }

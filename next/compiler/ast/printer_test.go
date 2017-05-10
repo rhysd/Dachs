@@ -184,7 +184,7 @@ func TestPrint(t *testing.T) {
 					},
 					&MatchStmt{
 						Matched: &BoolLiteral{Value: false},
-						Cases: []MatchStmtCase{
+						Arms: []MatchStmtArm{
 							{
 								Pattern: &ArrayPattern{
 									Elems: []Pattern{
@@ -206,7 +206,7 @@ func TestPrint(t *testing.T) {
 							&ExprStmt{
 								Expr: &MatchExpr{
 									Matched: &BoolLiteral{Value: false},
-									Cases: []MatchExprCase{
+									Arms: []MatchExprArm{
 										{
 											Pattern: &RecordPattern{
 												Ident: NewSymbol("patt"),

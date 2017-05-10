@@ -193,8 +193,8 @@ Switch statement to execute one of `case` clauses selectively. `else` can be omi
 
 ```
 match {expression}
-case {pattern} then {statements}
-case {pattern}
+with {pattern} then {statements}
+with {pattern}
     {statements}
 else
     {statements}
@@ -205,8 +205,8 @@ e.g.
 
 ```
 match status
-case 200 then print("ok")
-case 404 then print("not found")
+with 200 then print("ok")
+with 404 then print("not found")
 else          print("???")
 end
 
@@ -218,19 +218,30 @@ type Person =
 // let person = ...
 
 match person
-case Student(name, _)
+with Student(name, _)
     print("Student"); print(age)
-case Engineer(skill)
+with Engineer(skill)
     print("Engineer"); print(skill)
-case Baby
+with Baby
     print("Hello, world")
 else
     print("who are you?")
 end
 ```
 
-`match` statement to execute one of `case` clauses selectively matching to each patterns.
+`match` statement to execute one of `with` clauses selectively matching to each patterns.
 `else` clause can be omitted.
+
+`match` statement is considered to be used in one line. This can be used like
+`if let ... = ... {}` statement in Rust.
+
+```
+match person with Student("john", age)
+    println("He is " + age + " years old")
+end
+
+match person with Student(age) then println(age) end
+```
 
 ## Loop
 

@@ -201,6 +201,7 @@ var keywords = map[string]TokenKind{
 	"var":    TokenVar,
 	"let":    TokenLet,
 	"switch": TokenSwitch,
+	"with":   TokenWith,
 }
 
 func lexIdent(l *Lexer) stateFn {

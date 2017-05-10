@@ -105,6 +105,7 @@ import (
 	VAR
 	LET
 	SWITCH
+	WITH
 	EOF
 
 %nonassoc prec_lambda
@@ -141,7 +142,7 @@ import (
 %type<switch_stmt> switch_statement
 %type<match_stmt> match_statement
 %type<switch_stmt> switch_stmt_cases
-%type<match_stmt> match_stmt_cases
+%type<match_stmt> match_stmt_arms
 %type<expr>
 	expression
 	constant
@@ -598,14 +599,14 @@ switch_statement:
 		}
 
 switch_stmt_cases:
-	SWITCH opt_newlines CASE expression then opt_block_sep
+	SWITCH opt_newlines CASE expression then block
 		{
 			$$ = &ast.SwitchStmt{
 				StartPos: $1.Start,
 				Cases: []ast.SwitchStmtCase{ {$4, $6} },
 			}
 		}
-	| switch_stmt_cases CASE expression then opt_block_sep
+	| switch_stmt_cases CASE expression then block
 		{
 			n := $1
 			n.Cases = append(n.Cases, ast.SwitchStmtCase{$3, $5})
@@ -613,13 +614,13 @@ switch_stmt_cases:
 		}
 
 match_statement:
-	match_stmt_cases END
+	match_stmt_arms END
 		{
 			n := $1
 			n.EndPos = $2.End
 			$$ = n
 		}
-	| match_stmt_cases ELSE block END
+	| match_stmt_arms ELSE block END
 		{
 			n := $1
 			n.Else = $3
@@ -627,19 +628,19 @@ match_statement:
 			$$ = n
 		}
 
-match_stmt_cases:
-	MATCH expression seps CASE pattern then opt_block_sep
+match_stmt_arms:
+	MATCH expression opt_newlines WITH pattern then block
 		{
 			$$ = &ast.MatchStmt{
 				StartPos: $1.Start,
 				Matched: $2,
-				Cases: []ast.MatchStmtCase{ {$5, $7} },
+				Arms: []ast.MatchStmtArm{ {$5, $7} },
 			}
 		}
-	| match_stmt_cases CASE pattern then opt_block_sep
+	| match_stmt_arms WITH pattern then block
 		{
 			n := $1
-			n.Cases = append(n.Cases, ast.MatchStmtCase{$3, $5})
+			n.Arms = append(n.Arms, ast.MatchStmtArm{$3, $5})
 			$$ = n
 		}
 

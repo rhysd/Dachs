@@ -408,14 +408,14 @@ type (
 		Else     []Statement
 	}
 
-	MatchStmtCase struct {
+	MatchStmtArm struct {
 		Pattern Pattern
 		Stmts   []Statement
 	}
 
 	// match some_expr
-	// case foo then ...
-	// case {aaa, ...}
+	// with foo then ...
+	// with {aaa, ...}
 	//   ...
 	// else
 	//   ...
@@ -425,7 +425,7 @@ type (
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
 		Matched  Expression
-		Cases    []MatchStmtCase
+		Arms     []MatchStmtArm
 		Else     []Statement
 	}
 
@@ -585,7 +585,7 @@ type (
 		Else     Expression
 	}
 
-	MatchExprCase struct {
+	MatchExprArm struct {
 		Pattern Pattern
 		Body    Expression
 	}
@@ -600,7 +600,7 @@ type (
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
 		Matched  Expression
-		Cases    []MatchExprCase
+		Arms     []MatchExprArm
 		Else     Expression
 	}
 

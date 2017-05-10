@@ -119,13 +119,13 @@ end
 
 ## Match
 
-`match` expression selectively executes matched `case` clause and evalueted to the last expression
-of the clause. All `case` arms' last expressions must be the same type.
+`match` expression selectively executes matched `with` clause and evalueted to the last expression
+of the clause. All `with` arms' last expressions must be the same type.
 
 ```
 match {expression}
-case {pattern} then {block expression}
-case {pattern}
+with {pattern} then {block expression}
+with {pattern}
     {block expression}
 else
     {block expression}
