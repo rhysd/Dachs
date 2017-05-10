@@ -25,6 +25,7 @@ TESTS := \
 	syntax/token_test.go \
 	syntax/lexer_test.go \
 	syntax/grammar_test.go \
+	syntax/block_expr_test.go \
 
 all: build test
 
