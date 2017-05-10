@@ -153,7 +153,7 @@ func TestPrint(t *testing.T) {
 						},
 					},
 					&SwitchStmt{
-						When: []SwitchStmtWhen{
+						Cases: []SwitchStmtCase{
 							{
 								Cond: &BoolLiteral{Value: false},
 								Stmts: []Statement{

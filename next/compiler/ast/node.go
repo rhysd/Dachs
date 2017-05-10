@@ -389,10 +389,9 @@ type (
 		Else     []Statement
 	}
 
-	SwitchStmtWhen struct {
-		StartPos prelude.Pos
-		Cond     Expression
-		Stmts    []Statement
+	SwitchStmtCase struct {
+		Cond  Expression
+		Stmts []Statement
 	}
 
 	// when foo then ...
@@ -403,9 +402,10 @@ type (
 	// end
 	SwitchStmt struct {
 		Statement
-		EndPos prelude.Pos
-		When   []SwitchStmtWhen
-		Else   []Statement
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Cases    []SwitchStmtCase
+		Else     []Statement
 	}
 
 	MatchStmtCase struct {
@@ -570,9 +570,8 @@ type (
 	}
 
 	SwitchExprCase struct {
-		StartPos prelude.Pos
-		Cond     Expression
-		Body     Expression
+		Cond Expression
+		Body Expression
 	}
 
 	// case foo then 10
@@ -580,9 +579,10 @@ type (
 	// end
 	SwitchExpr struct {
 		Expression
-		EndPos prelude.Pos
-		Cases  []SwitchExprCase
-		Else   Expression
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Cases    []SwitchExprCase
+		Else     Expression
 	}
 
 	MatchExprCase struct {
@@ -886,7 +886,7 @@ func (n *RetStmt) End() prelude.Pos {
 }
 func (n *IfStmt) Pos() prelude.Pos        { return n.StartPos }
 func (n *IfStmt) End() prelude.Pos        { return n.EndPos }
-func (n *SwitchStmt) Pos() prelude.Pos    { return n.When[0].StartPos }
+func (n *SwitchStmt) Pos() prelude.Pos    { return n.StartPos }
 func (n *SwitchStmt) End() prelude.Pos    { return n.EndPos }
 func (n *MatchStmt) Pos() prelude.Pos     { return n.StartPos }
 func (n *MatchStmt) End() prelude.Pos     { return n.EndPos }
@@ -925,7 +925,7 @@ func (n *SeqExpr) Pos() prelude.Pos {
 func (n *SeqExpr) End() prelude.Pos       { return n.LastExpr.End() }
 func (n *IfExpr) Pos() prelude.Pos        { return n.StartPos }
 func (n *IfExpr) End() prelude.Pos        { return n.EndPos }
-func (n *SwitchExpr) Pos() prelude.Pos    { return n.Cases[0].StartPos }
+func (n *SwitchExpr) Pos() prelude.Pos    { return n.StartPos }
 func (n *SwitchExpr) End() prelude.Pos    { return n.EndPos }
 func (n *MatchExpr) Pos() prelude.Pos     { return n.StartPos }
 func (n *MatchExpr) End() prelude.Pos     { return n.EndPos }

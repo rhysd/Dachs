@@ -1,11 +1,13 @@
 func main
-    when true then 42
-    when false
+    switch
+    case true then 42
+    case false
     else
         print("else")
     end
 
-    when 10 > 0
+    switch
+    case 10 > 0
         let a = 1 + 1
         print("no else")
     end

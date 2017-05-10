@@ -163,8 +163,9 @@ end
 ## Switch
 
 ```
-when {cond} then {statements}
-when {cond}
+switch
+case {cond} then {statements}
+case {cond}
     {statements}
 else
     {statements}
@@ -174,11 +175,12 @@ end
 e.g.
 
 ```
-when i % 15 == 0
+switch
+case i % 15 == 0
     print("fizzbuzz")
-when i % 3  == 0
+case i % 3  == 0
     print("fizz")
-when i % 5  == 0
+case i % 5  == 0
     print("buzz")
 else
     print(i)

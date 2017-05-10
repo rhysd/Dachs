@@ -40,6 +40,6 @@ test: $(TESTS)
 	go test ./...
 
 clean:
-	rm -f dachs
+	rm -f dachs syntax/grammar.go
 
 .PHONY: all build clean test

@@ -24,8 +24,6 @@ import (
 	import_node *ast.Import
 	names []string
 	params []ast.FuncParam
-	switch_stmt_when []ast.SwitchStmtWhen
-	match_stmt_cases []ast.MatchStmtCase
 	var_assign_stmt *ast.VarAssign
 	type_fields []ast.RecordTypeField
 	pattern ast.Pattern
@@ -106,7 +104,7 @@ import (
 	SINGLEQUOTE
 	VAR
 	LET
-	WHEN
+	SWITCH
 	EOF
 
 %nonassoc prec_lambda
@@ -142,8 +140,8 @@ import (
 %type<if_stmt> if_statement
 %type<switch_stmt> switch_statement
 %type<match_stmt> match_statement
-%type<switch_stmt_when> switch_stmt_when
-%type<match_stmt_cases> match_stmt_cases
+%type<switch_stmt> switch_stmt_cases
+%type<match_stmt> match_stmt_cases
 %type<expr>
 	expression
 	constant
@@ -585,61 +583,64 @@ if_statement:
 then: THEN | NEWLINE
 
 switch_statement:
-	switch_stmt_when END
+	switch_stmt_cases END
 		{
-			$$ = &ast.SwitchStmt{
-				EndPos: $2.End,
-				When: $1,
-			}
+			n := $1
+			n.EndPos = $2.End
+			$$ = n
 		}
-	| switch_stmt_when ELSE block END
+	| switch_stmt_cases ELSE block END
 		{
-			$$ = &ast.SwitchStmt{
-				EndPos: $4.End,
-				When: $1,
-				Else: $3,
-			}
+			n := $1
+			n.Else = $3
+			n.EndPos = $4.End
+			$$ = n
 		}
 
-switch_stmt_when:
-	WHEN expression then opt_block_sep
+switch_stmt_cases:
+	SWITCH opt_newlines CASE expression then opt_block_sep
 		{
-			$$ = []ast.SwitchStmtWhen{ {$1.Start, $2, $4} }
+			$$ = &ast.SwitchStmt{
+				StartPos: $1.Start,
+				Cases: []ast.SwitchStmtCase{ {$4, $6} },
+			}
 		}
-	| switch_stmt_when WHEN expression then opt_block_sep
+	| switch_stmt_cases CASE expression then opt_block_sep
 		{
-			$$ = append($1, ast.SwitchStmtWhen{$2.Start, $3, $5})
+			n := $1
+			n.Cases = append(n.Cases, ast.SwitchStmtCase{$3, $5})
+			$$ = n
 		}
 
 match_statement:
-	MATCH expression seps match_stmt_cases END
+	match_stmt_cases END
 		{
-			$$ = &ast.MatchStmt{
-				StartPos: $1.Start,
-				EndPos: $5.End,
-				Matched: $2,
-				Cases: $4,
-			}
+			n := $1
+			n.EndPos = $2.End
+			$$ = n
 		}
-	| MATCH expression seps match_stmt_cases ELSE block END
+	| match_stmt_cases ELSE block END
 		{
-			$$ = &ast.MatchStmt{
-				StartPos: $1.Start,
-				EndPos: $7.End,
-				Matched: $2,
-				Cases: $4,
-				Else: $6,
-			}
+			n := $1
+			n.Else = $3
+			n.EndPos = $4.End
+			$$ = n
 		}
 
 match_stmt_cases:
-	CASE pattern then opt_block_sep
+	MATCH expression seps CASE pattern then opt_block_sep
 		{
-			$$ = []ast.MatchStmtCase{ {$2, $4} }
+			$$ = &ast.MatchStmt{
+				StartPos: $1.Start,
+				Matched: $2,
+				Cases: []ast.MatchStmtCase{ {$5, $7} },
+			}
 		}
 	| match_stmt_cases CASE pattern then opt_block_sep
 		{
-			$$ = append($1, ast.MatchStmtCase{$3, $5})
+			n := $1
+			n.Cases = append(n.Cases, ast.MatchStmtCase{$3, $5})
+			$$ = n
 		}
 
 for_statement:
