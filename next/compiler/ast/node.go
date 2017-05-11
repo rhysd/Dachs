@@ -450,6 +450,18 @@ type (
 		Body     []Statement
 	}
 
+	BreakStmt struct {
+		Statement
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+	}
+
+	NextStmt struct {
+		Statement
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+	}
+
 	// expr
 	ExprStmt struct {
 		Statement
@@ -789,6 +801,8 @@ func (n *SwitchStmt) String() string    { return "SwitchStmt" }
 func (n *MatchStmt) String() string     { return "MatchStmt" }
 func (n *ForEachStmt) String() string   { return "ForEachStmt" }
 func (n *WhileStmt) String() string     { return "WhileStmt" }
+func (n *BreakStmt) String() string     { return "BreakStmt" }
+func (n *NextStmt) String() string      { return "NextStmt" }
 func (n *ExprStmt) String() string      { return "ExprStmt" }
 func (n *IntLiteral) String() string    { return fmt.Sprintf("IntLiteral (%d)", n.Value) }
 func (n *UIntLiteral) String() string   { return fmt.Sprintf("UIntLiteral (%d)", n.Value) }
@@ -894,6 +908,10 @@ func (n *ForEachStmt) Pos() prelude.Pos   { return n.StartPos }
 func (n *ForEachStmt) End() prelude.Pos   { return n.EndPos }
 func (n *WhileStmt) Pos() prelude.Pos     { return n.StartPos }
 func (n *WhileStmt) End() prelude.Pos     { return n.EndPos }
+func (n *BreakStmt) Pos() prelude.Pos     { return n.StartPos }
+func (n *BreakStmt) End() prelude.Pos     { return n.EndPos }
+func (n *NextStmt) Pos() prelude.Pos      { return n.StartPos }
+func (n *NextStmt) End() prelude.Pos      { return n.EndPos }
 func (n *ExprStmt) Pos() prelude.Pos      { return n.Expr.Pos() }
 func (n *ExprStmt) End() prelude.Pos      { return n.Expr.End() }
 func (n *IntLiteral) Pos() prelude.Pos    { return n.StartPos }

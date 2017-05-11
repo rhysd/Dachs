@@ -138,6 +138,8 @@ import (
 	while_statement
 	index_assign_statement
 	assign_statement
+	break_statement
+	next_statement
 %type<var_assign_stmt> var_assign_lhs
 %type<if_stmt> if_statement
 %type<switch_stmt> switch_statement
@@ -522,6 +524,8 @@ block:
 	| opt_block_sep assign_statement { $$ = append($1, $2) }
 	| opt_block_sep var_decl_statement { $$ = append($1, $2) }
 	| opt_block_sep expr_statement { $$ = append($1, $2) }
+	| opt_block_sep break_statement { $$ = append($1, $2) }
+	| opt_block_sep next_statement { $$ = append($1, $2) }
 
 statement_sep:
 	ret_statement sep { $$ = $1 }
@@ -534,6 +538,8 @@ statement_sep:
 	| assign_statement sep { $$ = $1 }
 	| var_decl_statement sep { $$ = $1 }
 	| expr_statement sep { $$ = $1 }
+	| break_statement sep { $$ = $1 }
+	| next_statement sep { $$ = $1 }
 	| sep { $$ = nil }
 
 ret_statement:
@@ -720,6 +726,26 @@ expr_statement:
 	expression
 		{
 			$$ = &ast.ExprStmt{Expr: $1}
+		}
+
+break_statement:
+	BREAK
+		{
+			t := $1
+			$$ = &ast.BreakStmt{
+				StartPos: t.Start,
+				EndPos: t.End,
+			}
+		}
+
+next_statement:
+	NEXT
+		{
+			t := $1
+			$$ = &ast.NextStmt{
+				StartPos: t.Start,
+				EndPos: t.End,
+			}
 		}
 
 destructurings:

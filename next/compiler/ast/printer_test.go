@@ -302,6 +302,7 @@ func TestPrint(t *testing.T) {
 									},
 								},
 							},
+							&NextStmt{},
 						},
 					},
 					&WhileStmt{
@@ -310,6 +311,7 @@ func TestPrint(t *testing.T) {
 							&ExprStmt{
 								Expr: &IntLiteral{Value: 54},
 							},
+							&BreakStmt{},
 						},
 					},
 				},
@@ -430,10 +432,12 @@ Program
 -   -   -   -   -   FloatLiteral (1.0
 -   -   -   -   -   Lambda ()
 -   -   -   -   -   -   IntLiteral (88)
+-   -   -   NextStmt
 -   -   WhileStmt
 -   -   -   BoolLiteral (true)
 -   -   -   ExprStmt
 -   -   -   -   IntLiteral (54)
+-   -   -   BreakStmt
 -   Import (.foo.bar.{piyo,poyo})
 `, "\n")
 
