@@ -3,9 +3,9 @@ IDENT:main
 NEWLINE:
 STRING:"hello, world"
 NEWLINE:
-STRING:"foo\nbar\b"
+STRING:"foo\nbar\t"
 NEWLINE:
-STRING:"\"\i\""
+STRING:"\"i\""
 NEWLINE:
 STRING:""
 NEWLINE:

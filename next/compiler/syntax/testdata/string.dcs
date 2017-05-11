@@ -1,7 +1,7 @@
 func main
     "hello, world"
-    "foo\nbar\b"
-    "\"\i\""
+    "foo\nbar\t"
+    "\"i\""
     ""
     "\n"
 end

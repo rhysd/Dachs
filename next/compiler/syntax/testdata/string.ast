@@ -1,0 +1,14 @@
+Program (toplevels: 1) (1:1-7:4)
+-   Function main() (1:1-7:4)
+-   -   ExprStmt (2:5-2:19)
+-   -   -   StringLiteral "hello, world" (2:5-2:19)
+-   -   ExprStmt (3:5-3:17)
+-   -   -   StringLiteral "foo
+bar	" (3:5-3:17)
+-   -   ExprStmt (4:5-4:12)
+-   -   -   StringLiteral ""i"" (4:5-4:12)
+-   -   ExprStmt (5:5-5:7)
+-   -   -   StringLiteral "" (5:5-5:7)
+-   -   ExprStmt (6:5-6:9)
+-   -   -   StringLiteral "
+" (6:5-6:9)
