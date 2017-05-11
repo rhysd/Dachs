@@ -1,0 +1,14 @@
+type Num =
+    case Integer{_}
+    case Rational{
+        denom: int
+        num: int
+    }
+    case Complex{real, imag}
+
+func main
+    let i = Num.Integer(12)
+    let r = Num.Rational(3, 5)
+    let c1 = Num.Complex(3, 10)
+    let c2 = Num.Complex{real: 3.0, imag: 10.0}
+end

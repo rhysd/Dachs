@@ -201,7 +201,7 @@ import (
 %%
 
 program:
-	opt_newlines toplevels opt_newlines
+	opt_newlines toplevels
 		{
 			yylex.(*pseudoLexer).result = &ast.Program{Toplevels: $2}
 		}
@@ -211,12 +211,19 @@ toplevels:
 		{
 			$$ = []ast.Node{$1}
 		}
-	| toplevels seps toplevel
+	| toplevels toplevel
 		{
-			$$ = append($1, $3)
+			$$ = append($1, $2)
 		}
 
-toplevel: import | func_def | typedef
+/*
+  'typedef' has 'seps' at the end of its rule because it need to show when the
+  rule ends.
+*/
+toplevel:
+	import seps { $$ = $1 }
+	| func_def seps { $$ = $1 }
+	| typedef
 
 import:
 	IMPORT opt_newlines import_body
@@ -312,8 +319,12 @@ func_params:
 			$$ = append($1, ast.FuncParam{ast.NewSymbol($3.Value()), $4})
 		}
 
+/*
+  'seps' must be at the end. If there is not 'seps' at the end of 'typedefs', parser cannot know when
+  recursive 'enum_typedef_cases' rule ends.
+*/
 typedef:
-	TYPE IDENT ASSIGN opt_newlines type
+	TYPE IDENT ASSIGN opt_newlines type seps
 		{
 			$$ = &ast.Typedef {
 				StartPos: $1.Start,
@@ -321,7 +332,7 @@ typedef:
 				Type: $5,
 			}
 		}
-	| TYPE IDENT ASSIGN opt_newlines enum_typedef_cases
+	| TYPE IDENT ASSIGN opt_newlines enum_typedef_cases seps
 		{
 			$$ = &ast.EnumTypedef {
 				StartPos: $1.Start,
