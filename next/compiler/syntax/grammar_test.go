@@ -99,7 +99,7 @@ func TestParseOK(t *testing.T) {
 			}
 
 			if len(got) != len(want) {
-				t.Fatalf("Number of tokens is unexpected. want: %d, got: %d. Output was '%s'", len(want), len(got), strings.Join(got, ""))
+				t.Fatalf("Number of lines is unexpected. want: %d, got: %d. Output was '%s'", len(want), len(got), strings.Join(got, "\n"))
 			}
 
 			for i, w := range want {

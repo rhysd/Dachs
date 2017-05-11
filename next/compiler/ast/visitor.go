@@ -53,7 +53,9 @@ func Visit(v Visitor, n Node) {
 		}
 	case *TupleType:
 		for _, e := range n.Elems {
-			Visit(v, e)
+			if e != nil {
+				Visit(v, e)
+			}
 		}
 	case *FunctionType:
 		for _, p := range n.ParamTypes {
@@ -62,6 +64,11 @@ func Visit(v Visitor, n Node) {
 		Visit(v, n.RetType)
 	case *TypeofType:
 		Visit(v, n.Expr)
+	case *ArrayType:
+		Visit(v, n.Elem)
+	case *DictType:
+		Visit(v, n.Key)
+		Visit(v, n.Value)
 
 	// Pattern
 	case *RecordPattern:

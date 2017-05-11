@@ -29,6 +29,13 @@ func TestPrint(t *testing.T) {
 							},
 							RetType: &TypeofType{Expr: &IntLiteral{Value: 10}},
 						},
+						&ArrayType{
+							Elem: &TypeRef{Ident: NewSymbol("int")},
+						},
+						&DictType{
+							Key:   &TypeRef{Ident: NewSymbol("string")},
+							Value: &TypeRef{Ident: NewSymbol("int")},
+						},
 					},
 				},
 			},
@@ -336,6 +343,11 @@ Program
 -   -   -   -   TypeRef (int)
 -   -   -   -   Typeof
 -   -   -   -   -   IntLiteral (10)
+-   -   -   ArrayType
+-   -   -   -   TypeRef (int)
+-   -   -   DictType
+-   -   -   -   TypeRef (string)
+-   -   -   -   TypeRef (int)
 -   EnumTypedef z(hey)
 -   -   RecordType {b}
 -   -   -   TypeVar (c)

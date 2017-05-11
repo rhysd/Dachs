@@ -128,7 +128,7 @@ import (
 %type<names> sep_names
 %type<enum_cases> enum_typedef_cases
 %type<type_node> opt_type_annotate
-%type<stmts> block opt_block_sep block_sep
+%type<stmts> block opt_block_sep
 %type<stmt>
 	statement_sep
 	ret_statement
@@ -167,7 +167,10 @@ import (
 	type_var
 	type_instantiate
 	type_record_or_tuple
-	type_func type_typeof
+	type_func
+	type_typeof
+	type_array
+	type_dict
 %type<type_fields> type_record_fields
 %type<type_nodes> opt_types types
 %type<destructuring> destructuring var_destruct record_destruct
@@ -342,7 +345,36 @@ enum_typedef_cases:
 opt_type_annotate: { $$ = nil }
 	| COLON type { $$ = $2 }
 
-type: type_var | type_record_or_tuple | type_func | type_instantiate | type_ref | type_typeof
+type:
+	type_var
+	| type_record_or_tuple
+	| type_func
+	| type_instantiate
+	| type_ref
+	| type_typeof
+	| type_array
+	| type_dict
+
+type_array:
+	LBRACKET opt_newlines type opt_newlines RBRACKET
+		{
+			$$ = &ast.ArrayType{
+				StartPos: $1.Start,
+				EndPos: $5.End,
+				Elem: $3,
+			}
+		}
+
+type_dict:
+	LBRACKET opt_newlines type opt_newlines FATRIGHTARROW opt_newlines type opt_newlines RBRACKET
+		{
+			$$ = &ast.DictType{
+				StartPos: $1.Start,
+				EndPos: $9.End,
+				Key: $3,
+				Value: $7,
+			}
+		}
 
 type_var:
 	SINGLEQUOTE IDENT
@@ -350,7 +382,7 @@ type_var:
 			$$ = &ast.TypeVar{
 				StartPos: $1.Start,
 				EndPos: $2.End,
-				Ident: ast.NewSymbol($1.Value()),
+				Ident: ast.NewSymbol($2.Value()),
 			}
 		}
 
@@ -471,27 +503,6 @@ opt_block_sep:
 			$$ = []ast.Statement{}
 		}
 	| opt_block_sep statement_sep
-		{
-			s := $2
-			if s != nil {
-				$$ = append($1, s)
-			} else {
-				$$ = $1
-			}
-		}
-
-/* block ends with separator */
-block_sep:
-	statement_sep
-		{
-			s := $1
-			if s == nil {
-				$$ = []ast.Statement{}
-			} else {
-				$$ = []ast.Statement{s}
-			}
-		}
-	| block_sep statement_sep
 		{
 			s := $2
 			if s != nil {

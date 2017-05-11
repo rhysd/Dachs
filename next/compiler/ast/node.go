@@ -211,6 +211,21 @@ type (
 		Expr     Expression
 	}
 
+	ArrayType struct {
+		Type
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Elem     Type
+	}
+
+	DictType struct {
+		Type
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Key      Type
+		Value    Type
+	}
+
 	/*
 	 * Pattern
 	 */
@@ -756,6 +771,8 @@ func (n *RecordType) String() string {
 func (n *TupleType) String() string          { return "TupleType" }
 func (n *FunctionType) String() string       { return "FunctionType" }
 func (n *TypeofType) String() string         { return "Typeof" }
+func (n *ArrayType) String() string          { return "ArrayType" }
+func (n *DictType) String() string           { return "DictType" }
 func (n *IntConstPattern) String() string    { return fmt.Sprintf("IntConstPattern (%d)", n.Value) }
 func (n *UIntConstPattern) String() string   { return fmt.Sprintf("UIntConstPattern (%d)", n.Value) }
 func (n *BoolConstPattern) String() string   { return fmt.Sprintf("BoolConstPattern (%v)", n.Value) }
@@ -864,6 +881,10 @@ func (n *FunctionType) Pos() prelude.Pos         { return n.StartPos }
 func (n *FunctionType) End() prelude.Pos         { return n.RetType.End() }
 func (n *TypeofType) Pos() prelude.Pos           { return n.StartPos }
 func (n *TypeofType) End() prelude.Pos           { return n.EndPos }
+func (n *ArrayType) Pos() prelude.Pos            { return n.StartPos }
+func (n *ArrayType) End() prelude.Pos            { return n.EndPos }
+func (n *DictType) Pos() prelude.Pos             { return n.StartPos }
+func (n *DictType) End() prelude.Pos             { return n.EndPos }
 func (n *IntConstPattern) Pos() prelude.Pos      { return n.StartPos }
 func (n *IntConstPattern) End() prelude.Pos      { return n.EndPos }
 func (n *UIntConstPattern) Pos() prelude.Pos     { return n.StartPos }
