@@ -121,3 +121,11 @@ func TestLexingInvalid(t *testing.T) {
 		}
 	}
 }
+
+func TestLexingUnknownChar(t *testing.T) {
+	_, err := testLex(prelude.NewDummySource("func main\n# foo\nend\n"))
+	if err == nil {
+		t.Error("Error should cause for unknown character")
+	}
+	println(err.Error())
+}

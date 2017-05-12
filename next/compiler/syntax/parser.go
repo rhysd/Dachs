@@ -28,7 +28,7 @@ func (l *pseudoLexer) Lex(lval *yySymType) int {
 			case TokenComment:
 				continue
 			case TokenIllegal:
-				return -1
+				return 0
 			case TokenNewline:
 				if l.skipNewline {
 					continue
@@ -61,6 +61,7 @@ func Parse(tokens chan *Token) (*ast.Program, error) {
 	yyErrorVerbose = true
 
 	l := &pseudoLexer{tokens: tokens}
+	defer close(tokens)
 	ret := yyParse(l)
 
 	if ret != 0 || l.errCount != 0 {
