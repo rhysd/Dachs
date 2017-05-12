@@ -5,10 +5,20 @@ type Num =
         num: int
     }
     case Complex{real, imag}
+    case Oops
 
 func main
-    let i = Num.Integer(12)
-    let r = Num.Rational(3, 5)
-    let c1 = Num.Complex(3, 10)
-    let c2 = Num.Complex{real: 3.0, imag: 10.0}
+    let i = Num::Integer(12)
+    let r = Num::Rational(3, 5)
+    let c1 = Num::Complex(3, 10)
+    let c2 = Num::Complex{real: 3.0, imag: 10.0}
+
+    match c2
+    with Num::Integer{i}
+        print(i)
+    with Num::Oops
+        print("ah...")
+    else
+        print("noop")
+    end
 end

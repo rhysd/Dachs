@@ -154,6 +154,7 @@ import (
 	record_or_tuple_literal
 	record_or_tuple_anonym
 	var_ref
+	enum_ref
 	array_literal
 	dict_literal
 	lambda_expr
@@ -342,7 +343,18 @@ typedef:
 		}
 
 enum_typedef_cases:
-	CASE IDENT type_record_or_tuple
+	CASE IDENT
+		{
+			t := $2
+			ty := &ast.TupleType{
+				StartPos: t.Start,
+				EndPos: t.End,
+			}
+			$$ = []ast.EnumTypeCase{
+				{$2.Value(), ty},
+			}
+		}
+	| CASE IDENT type_record_or_tuple
 		{
 			$$ = []ast.EnumTypeCase{
 				{$2.Value(), $3},
@@ -351,6 +363,15 @@ enum_typedef_cases:
 	| enum_typedef_cases newlines CASE IDENT type_record_or_tuple
 		{
 			$$ = append($1, ast.EnumTypeCase{$4.Value(), $5})
+		}
+	| enum_typedef_cases newlines CASE IDENT
+		{
+			t := $4
+			ty := &ast.TupleType{
+				StartPos: t.Start,
+				EndPos: t.End,
+			}
+			$$ = append($1, ast.EnumTypeCase{t.Value(), ty})
 		}
 
 opt_type_annotate: { $$ = nil }
@@ -799,6 +820,17 @@ record_destruct:
 				Fields: $4,
 			}
 		}
+	| IDENT COLONCOLON IDENT hack_record_lbrace LBRACE record_destruct_fields opt_newlines RBRACE
+		{
+			t := $1
+			$$ = &ast.RecordDestructuring{
+				StartPos: t.Start,
+				EndPos: $8.End,
+				Ident: ast.NewSymbol(t.Value()),
+				EnumName: $3.Value(),
+				Fields: $6,
+			}
+		}
 	| hack_record_lbrace LBRACE record_destruct_fields opt_newlines RBRACE
 		{
 			$$ = &ast.RecordDestructuring{
@@ -1126,6 +1158,7 @@ primary_expr:
 	| array_literal
 	| dict_literal
 	| lambda_expr
+	| enum_ref
 	| var_ref
 	| constant
 	| LPAREN opt_newlines expression opt_newlines RPAREN { $$ = $3 }
@@ -1141,6 +1174,23 @@ record_or_tuple_literal:
 			case *ast.TupleLiteral:
 				r.Ident = ast.NewSymbol(i.Value())
 				r.StartPos = i.Start
+			default:
+				yylex.Error("FATAL: record_or_tuple_anonym is not record nor tuple: " + r.String())
+			}
+			$$ = r
+		}
+	| IDENT COLONCOLON IDENT record_or_tuple_anonym
+		{
+			i, r := $1, $4
+			switch r := r.(type) {
+			case *ast.RecordLiteral:
+				r.Ident = ast.NewSymbol(i.Value())
+				r.StartPos = i.Start
+				r.EnumName = $3.Value()
+			case *ast.TupleLiteral:
+				r.Ident = ast.NewSymbol(i.Value())
+				r.StartPos = i.Start
+				r.EnumName = $3.Value()
 			default:
 				yylex.Error("FATAL: record_or_tuple_anonym is not record nor tuple: " + r.String())
 			}
@@ -1410,6 +1460,18 @@ var_ref:
 			}
 		}
 
+enum_ref:
+	IDENT COLONCOLON IDENT
+		{
+			l, r := $1, $3
+			$$ = &ast.EnumRef{
+				StartPos: l.Start,
+				EndPos: r.End,
+				Ident: ast.NewSymbol(l.Value()),
+				Variant: r.Value(),
+			}
+		}
+
 constant:
 	INT
 		{
@@ -1470,7 +1532,10 @@ constant:
 		}
 
 pattern:
-	const_pattern | record_pattern | array_pattern | var_pattern
+	const_pattern
+	| record_pattern
+	| array_pattern
+	| var_pattern
 
 const_pattern:
 	INT
@@ -1542,6 +1607,10 @@ var_pattern:
 			}
 		}
 
+/*
+  Reference to enum variant Foo::Bar is just a syntax sugar of Foo::Bar{} because enum variant
+  definition like `type Foo = case Bar` is treated as type `Foo = case Bar{}`.
+*/
 record_pattern:
 	IDENT rec_pat_anonym
 		{
@@ -1550,6 +1619,25 @@ record_pattern:
 			n.StartPos = t.Start
 			n.Ident = ast.NewSymbol(t.Value())
 			$$ = n
+		}
+	| IDENT COLONCOLON IDENT rec_pat_anonym
+		{
+			n := $4
+			t := $1
+			n.StartPos = t.Start
+			n.Ident = ast.NewSymbol(t.Value())
+			n.EnumName = $3.Value()
+			$$ = n
+		}
+	| IDENT COLONCOLON IDENT
+		{
+			l, r := $1, $3
+			$$ = &ast.RecordPattern{
+				StartPos: l.Start,
+				EndPos: r.End,
+				Ident: ast.NewSymbol(l.Value()),
+				EnumName: r.Value(),
+			}
 		}
 	| rec_pat_anonym
 		{

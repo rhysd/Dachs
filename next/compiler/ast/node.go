@@ -281,11 +281,14 @@ type (
 
 	// {a, b}
 	// {a, b, ...}
+	// Foo{a, b, ...}
+	// Foo::Bar{a, b, ...}
 	RecordPattern struct {
 		Pattern
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
 		Ident    Symbol
+		EnumName string
 		Fields   []RecordPatternField
 	}
 
@@ -334,13 +337,16 @@ type (
 
 	// {a, b}
 	// {foo: a, bar: b}
-	// {a, b, ...}
-	// {foo: a, bar: b, ...}
+	// Foo{foo: a, bar: b}
+	// Foo::Bar{foo: a, bar: b}
+	// Foo{a, b}
+	// Foo::Bar{a, b}
 	RecordDestructuring struct {
 		Destructuring
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
 		Ident    Symbol
+		EnumName string
 		Fields   []RecordDestructuringField
 	}
 
@@ -654,26 +660,40 @@ type (
 		Name   string
 	}
 
+	// ident::name
+	EnumRef struct {
+		Expression
+		StartPos prelude.Pos
+		EndPos   prelude.Pos
+		Ident    Symbol
+		Variant  string
+	}
+
 	RecordLitField struct {
 		Name string
 		Expr Expression
 	}
 
 	// Foo{name: val, name2: val2}
+	// Foo::Bar{name: val, name2: val2}
 	RecordLiteral struct {
 		Expression
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
 		Ident    Symbol
+		EnumName string
 		Fields   []RecordLitField
 	}
 
 	// {_: e1, _: e2, ...}
+	// Foo{_: e1, _: e2, ...}
+	// Foo::Bar{_: e1, _: e2, ...}
 	TupleLiteral struct {
 		Expression
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
 		Ident    Symbol
+		EnumName string
 		Elems    []Expression
 	}
 
@@ -783,7 +803,11 @@ func (n *RecordPattern) String() string {
 	for _, f := range n.Fields {
 		ns = append(ns, f.Name)
 	}
-	return fmt.Sprintf("RecordPattern %s{%s}", mayAnonym(n.Ident.Name), strings.Join(ns, ","))
+	name := mayAnonym(n.Ident.Name)
+	if n.EnumName != "" {
+		name += "::" + n.EnumName
+	}
+	return fmt.Sprintf("RecordPattern %s{%s}", name, strings.Join(ns, ","))
 }
 func (n *VarDeclPattern) String() string { return fmt.Sprintf("VarDeclPattern (%s)", n.Ident.Name) }
 func (n *ArrayPattern) String() string   { return "ArrayPattern" }
@@ -795,7 +819,11 @@ func (n *RecordDestructuring) String() string {
 	for _, f := range n.Fields {
 		ns = append(ns, f.Name)
 	}
-	return fmt.Sprintf("RecordDestructuring %s{%s}", mayAnonym(n.Ident.Name), strings.Join(ns, ","))
+	name := mayAnonym(n.Ident.Name)
+	if n.EnumName != "" {
+		name += "::" + n.EnumName
+	}
+	return fmt.Sprintf("RecordDestructuring %s{%s}", name, strings.Join(ns, ","))
 }
 func (n *VarDecl) String() string {
 	v := "let"
@@ -838,14 +866,25 @@ func (n *MatchExpr) String() string     { return "MatchExpr" }
 func (n *CoerceExpr) String() string    { return "CoerceExpr" }
 func (n *IndexAccess) String() string   { return "IndexAccess" }
 func (n *FieldAccess) String() string   { return fmt.Sprintf("FieldAccess (%s)", n.Name) }
+func (n *EnumRef) String() string       { return fmt.Sprintf("EnumRef %s::%s", n.Ident.Name, n.Variant) }
 func (n *RecordLiteral) String() string {
 	ns := make([]string, 0, len(n.Fields))
 	for _, f := range n.Fields {
 		ns = append(ns, f.Name)
 	}
-	return fmt.Sprintf("RecordLiteral %s{%s}", mayAnonym(n.Ident.Name), strings.Join(ns, ","))
+	name := mayAnonym(n.Ident.Name)
+	if n.EnumName != "" {
+		name += "::" + n.EnumName
+	}
+	return fmt.Sprintf("RecordLiteral %s{%s}", name, strings.Join(ns, ","))
 }
-func (n *TupleLiteral) String() string  { return fmt.Sprintf("TupleLiteral (elems: %d)", len(n.Elems)) }
+func (n *TupleLiteral) String() string {
+	name := n.Ident.Name
+	if n.EnumName != "" {
+		name += "::" + n.EnumName
+	}
+	return fmt.Sprintf("TupleLiteral %s(elems: %d)", name, len(n.Elems))
+}
 func (n *FuncCall) String() string      { return "FuncCall" }
 func (n *FuncCallNamed) String() string { return "FuncCallNamed" }
 func (n *Lambda) String() string {
@@ -974,6 +1013,8 @@ func (n *IndexAccess) Pos() prelude.Pos   { return n.Child.Pos() }
 func (n *IndexAccess) End() prelude.Pos   { return n.EndPos }
 func (n *FieldAccess) Pos() prelude.Pos   { return n.Child.Pos() }
 func (n *FieldAccess) End() prelude.Pos   { return n.EndPos }
+func (n *EnumRef) Pos() prelude.Pos       { return n.StartPos }
+func (n *EnumRef) End() prelude.Pos       { return n.EndPos }
 func (n *RecordLiteral) Pos() prelude.Pos { return n.StartPos }
 func (n *RecordLiteral) End() prelude.Pos { return n.EndPos }
 func (n *TupleLiteral) Pos() prelude.Pos  { return n.StartPos }
