@@ -78,6 +78,18 @@ func TestPrint(t *testing.T) {
 									},
 								},
 							},
+							&RecordDestructuring{
+								Ident:    NewSymbol("Blah"),
+								EnumName: "Woo",
+								Fields: []RecordDestructuringField{
+									{
+										"i",
+										&VarDeclDestructuring{
+											Ident: NewSymbol("i"),
+										},
+									},
+								},
+							},
 						},
 						RHSExprs: []Expression{
 							&UIntLiteral{
@@ -242,6 +254,13 @@ func TestPrint(t *testing.T) {
 											},
 											Body: &IntLiteral{Value: 10},
 										},
+										{
+											Pattern: &RecordPattern{
+												Ident:    NewSymbol("Foo"),
+												EnumName: "Bar",
+											},
+											Body: &IntLiteral{Value: 10},
+										},
 									},
 									Else: &TupleLiteral{
 										Elems: []Expression{
@@ -294,7 +313,14 @@ func TestPrint(t *testing.T) {
 						Iterator: &VarDeclDestructuring{
 							Ident: NewSymbol("p"),
 						},
-						Range: &ArrayLiteral{},
+						Range: &ArrayLiteral{
+							Elems: []Expression{
+								&TupleLiteral{
+									Ident:    NewSymbol("Piyo"),
+									EnumName: "Fuga",
+								},
+							},
+						},
 						Body: []Statement{
 							&ExprStmt{
 								Expr: &FuncCallNamed{
@@ -358,6 +384,8 @@ Program
 -   -   -   RecordDestructuring anonym{g,hey}
 -   -   -   -   VarDeclDestructuring (g)
 -   -   -   -   VarDeclDestructuring (h)
+-   -   -   RecordDestructuring Blah::Woo{i}
+-   -   -   -   VarDeclDestructuring (i)
 -   -   -   UIntLiteral (42)
 -   -   VarAssign (h)
 -   -   -   UnaryExpr
@@ -419,6 +447,8 @@ Program
 -   -   -   -   -   -   UIntConstPattern (11)
 -   -   -   -   -   -   FloatConstPattern (2.7
 -   -   -   -   -   IntLiteral (10)
+-   -   -   -   -   RecordPattern Foo::Bar{}
+-   -   -   -   -   IntLiteral (10)
 -   -   -   -   -   TupleLiteral (elems: 1)
 -   -   -   -   -   -   DictLiteral (elems: 1)
 -   -   -   -   -   -   -   StringLiteral "foo"
@@ -437,7 +467,8 @@ Program
 -   -   -   -   VarRef (r)
 -   -   ForEachStmt
 -   -   -   VarDeclDestructuring (p)
--   -   -   ArrayLiteral (elems: 0)
+-   -   -   ArrayLiteral (elems: 1)
+-   -   -   -   TupleLiteral Piyo::Fuga(elems: 0)
 -   -   -   ExprStmt
 -   -   -   -   FuncCallNamed
 -   -   -   -   -   VarRef (g)
