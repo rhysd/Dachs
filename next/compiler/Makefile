@@ -20,6 +20,7 @@ TESTS := \
 	prelude/source_test.go \
 	prelude/error_test.go \
 	prelude/ordinal_test.go \
+	prelude/position_test.go \
 	ast/printer_test.go \
 	ast/visitor_test.go \
 	syntax/token_test.go \

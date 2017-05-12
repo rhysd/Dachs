@@ -425,7 +425,7 @@ type_record_or_tuple:
 			if len(fields) > 0 && fields[0].Name != "_" {
 				for _,f := range fields[1:] {
 					if f.Name == "_" {
-						yylex.Error("Mixing unnamed and named fields are not permitted at " + $1.String())
+						yylex.Error("Mixing unnamed and named fields are not permitted in record type at " + $1.Start.String())
 					}
 				}
 				$$ = &ast.RecordType{
@@ -437,7 +437,7 @@ type_record_or_tuple:
 				elems := make([]ast.Type, 0, len(fields))
 				for _,f := range fields {
 					if f.Name != "_" {
-						yylex.Error("Mixing unnamed and named fields is not permitted at " + $1.String())
+						yylex.Error("Mixing unnamed and named fields is not permitted in tuple type at " + $1.Start.String())
 					}
 					elems = append(elems, f.Type)
 				}
@@ -1175,7 +1175,7 @@ record_or_tuple_literal:
 				r.Ident = ast.NewSymbol(i.Value())
 				r.StartPos = i.Start
 			default:
-				yylex.Error("FATAL: record_or_tuple_anonym is not record nor tuple: " + r.String())
+				yylex.Error(fmt.Sprintf("FATAL: record_or_tuple_anonym is not record nor tuple '%s' at %s", r.String(), i.Start.String()))
 			}
 			$$ = r
 		}
@@ -1192,7 +1192,7 @@ record_or_tuple_literal:
 				r.StartPos = i.Start
 				r.EnumName = $3.Value()
 			default:
-				yylex.Error("FATAL: record_or_tuple_anonym is not record nor tuple: " + r.String())
+				yylex.Error(fmt.Sprintf("FATAL: record_or_tuple_anonym is not record nor tuple '%s' at %s", r.String(), i.Start.String()))
 			}
 			$$ = r
 		}
@@ -1208,7 +1208,7 @@ record_or_tuple_anonym:
 				elems = append(elems, fields[0].Expr)
 				for i, f := range fields[1:] {
 					if f.Name != "_" {
-						yylex.Error(fmt.Sprintf("Mixing unnamed and named fields is not permitted. %s field must be unnamed at %s", prelude.Ordinal(i+2), $1.String()))
+						yylex.Error(fmt.Sprintf("Mixing unnamed and named fields is not permitted. %s field of record literal must be unnamed at %s", prelude.Ordinal(i+2), $1.Start.String()))
 						break
 					}
 					elems = append(elems, f.Expr)
@@ -1221,7 +1221,7 @@ record_or_tuple_anonym:
 			} else {
 				for i, f := range fields[1:] {
 					if f.Name == "_" {
-						yylex.Error(fmt.Sprintf("Mixing unnamed and named fields is not permitted. %s field must be named at %s", prelude.Ordinal(i+2), $1.String()))
+						yylex.Error(fmt.Sprintf("Mixing unnamed and named fields is not permitted. %s field of tuple literal must be named at %s", prelude.Ordinal(i+2), $1.Start.String()))
 						break
 					}
 				}
@@ -1478,7 +1478,7 @@ constant:
 			t := $1
 			v, s, err := tokenToInt(t.Value())
 			if err != nil {
-				yylex.Error(fmt.Sprintf("Parse error at integer literal '%s': %s", t.Value(), err.Error()))
+				yylex.Error(fmt.Sprintf("Parse error at integer literal '%s': %s at %s", t.Value(), err.Error(), t.Start.String()))
 			} else if s {
 				$$ = &ast.IntLiteral{
 					StartPos: t.Start,
@@ -1498,7 +1498,7 @@ constant:
 			t := $1
 			f, err := strconv.ParseFloat(t.Value(), 64)
 			if err != nil  {
-				yylex.Error(fmt.Sprintf("Parse error at float literal '%s': %s", t.Value(), err.Error()))
+				yylex.Error(fmt.Sprintf("Parse error at float literal '%s': %s at %s", t.Value(), err.Error(), t.Start.String()))
 			} else {
 				$$ = &ast.FloatLiteral{
 					StartPos: t.Start,
@@ -1521,7 +1521,7 @@ constant:
 			t := $1
 			s, err := strconv.Unquote(t.Value())
 			if err != nil {
-				yylex.Error(fmt.Sprintf("Parse error at string literal '%s': %s", t.Value(), err.Error()))
+				yylex.Error(fmt.Sprintf("Parse error at string literal '%s': %s at %s", t.Value(), err.Error(), t.Start.String()))
 			} else {
 				$$ = &ast.StringLiteral{
 					StartPos: t.Start,
@@ -1543,7 +1543,7 @@ const_pattern:
 			t := $1
 			v, s, err := tokenToInt(t.Value())
 			if err != nil {
-				yylex.Error("Parse error at integer pattern: " + err.Error())
+				yylex.Error(fmt.Sprintf("Parse error at parsing integer '%s' for pattern matching: %s at %s", t.Value(), err.Error(), t.Start.String()))
 			} else if s {
 				$$ = &ast.IntConstPattern{
 					StartPos: t.Start,
@@ -1572,7 +1572,7 @@ const_pattern:
 			t := $1
 			s, err := strconv.Unquote(t.Value())
 			if err != nil {
-				yylex.Error(fmt.Sprintf("Parse error at string pattern '%s': %s", t.Value(), err.Error()))
+				yylex.Error(fmt.Sprintf("Parse error at string pattern '%s': %s at %s", t.Value(), err.Error(), t.Start.String()))
 			} else {
 				$$ = &ast.StringConstPattern{
 					StartPos: t.Start,
@@ -1586,7 +1586,7 @@ const_pattern:
 			t := $1
 			f, err := strconv.ParseFloat(t.Value(), 64)
 			if err != nil  {
-				yylex.Error("Parse error at float pattern: " + err.Error())
+				yylex.Error(fmt.Sprintf("Parse error at float pattern '%s': %s at %s", t.Value(), err.Error(), t.Start.String()))
 			} else {
 				$$ = &ast.FloatConstPattern{
 					StartPos: t.Start,

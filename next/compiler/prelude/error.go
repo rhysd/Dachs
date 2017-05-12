@@ -17,7 +17,8 @@ func (err *Error) Error() string {
 	var buf bytes.Buffer
 	s := err.Start
 
-	buf.WriteString(fmt.Sprintf("Error at %s:%d:%d", s.File.Name, s.Line, s.Column))
+	buf.WriteString("Error at ")
+	buf.WriteString(s.String())
 	for _, msg := range err.Messages {
 		buf.WriteString("\n  ")
 		buf.WriteString(msg)
@@ -57,7 +58,7 @@ func (err *Error) Wrapf(format string, args ...interface{}) *Error {
 
 // WrapAt stacks the additional message upon current error with position.
 func (err *Error) WrapAt(pos Pos, msg string) *Error {
-	err.Messages = append(err.Messages, fmt.Sprintf("Note at %s:%d:%d: %s", pos.File.Name, pos.Line, pos.Column, msg))
+	err.Messages = append(err.Messages, fmt.Sprintf("Note at %s: %s", pos.String(), msg))
 	return err
 }
 
