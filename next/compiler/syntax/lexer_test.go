@@ -127,5 +127,4 @@ func TestLexingUnknownChar(t *testing.T) {
 	if err == nil {
 		t.Error("Error should cause for unknown character")
 	}
-	println(err.Error())
 }

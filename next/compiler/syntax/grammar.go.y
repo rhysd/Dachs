@@ -1175,7 +1175,7 @@ record_or_tuple_literal:
 				r.Ident = ast.NewSymbol(i.Value())
 				r.StartPos = i.Start
 			default:
-				yylex.Error(fmt.Sprintf("FATAL: record_or_tuple_anonym is not record nor tuple '%s' at %s", r.String(), i.Start.String()))
+				panic(fmt.Sprintf("FATAL: record_or_tuple_anonym is not record nor tuple '%s' at %s", r.String(), i.Start.String()))
 			}
 			$$ = r
 		}
@@ -1192,7 +1192,7 @@ record_or_tuple_literal:
 				r.StartPos = i.Start
 				r.EnumName = $3.Value()
 			default:
-				yylex.Error(fmt.Sprintf("FATAL: record_or_tuple_anonym is not record nor tuple '%s' at %s", r.String(), i.Start.String()))
+				panic(fmt.Sprintf("FATAL: record_or_tuple_anonym is not record nor tuple '%s' at %s", r.String(), i.Start.String()))
 			}
 			$$ = r
 		}
@@ -1208,7 +1208,7 @@ record_or_tuple_anonym:
 				elems = append(elems, fields[0].Expr)
 				for i, f := range fields[1:] {
 					if f.Name != "_" {
-						yylex.Error(fmt.Sprintf("Mixing unnamed and named fields is not permitted. %s field of record literal must be unnamed at %s", prelude.Ordinal(i+2), $1.Start.String()))
+						yylex.Error(fmt.Sprintf("Mixing unnamed and named fields is not permitted. %s field of tuple literal must be unnamed at %s", prelude.Ordinal(i+2), $1.Start.String()))
 						break
 					}
 					elems = append(elems, f.Expr)
@@ -1221,7 +1221,7 @@ record_or_tuple_anonym:
 			} else {
 				for i, f := range fields[1:] {
 					if f.Name == "_" {
-						yylex.Error(fmt.Sprintf("Mixing unnamed and named fields is not permitted. %s field of tuple literal must be named at %s", prelude.Ordinal(i+2), $1.Start.String()))
+						yylex.Error(fmt.Sprintf("Mixing unnamed and named fields is not permitted. %s field of record literal must be named at %s", prelude.Ordinal(i+2), $1.Start.String()))
 						break
 					}
 				}
