@@ -61,7 +61,6 @@ func Parse(tokens chan *Token) (*ast.Program, error) {
 	yyErrorVerbose = true
 
 	l := &pseudoLexer{tokens: tokens}
-	defer close(tokens)
 	ret := yyParse(l)
 
 	if ret != 0 || l.errCount != 0 {

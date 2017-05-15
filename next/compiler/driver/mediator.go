@@ -81,6 +81,7 @@ func (d *Driver) Parse() (*ast.Program, error) {
 	l.Error = func(e *prelude.Error) {
 		err = e
 	}
+	defer close(l.Tokens)
 	go l.Lex()
 	root, parseErr := syntax.Parse(l.Tokens)
 	if err != nil {
