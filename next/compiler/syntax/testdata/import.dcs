@@ -1,6 +1,9 @@
 import std.array
 import std.array.{index_at, Array}
 import std.array.*
+import .std.array.*
+import .std.array
+import .std.array.{index_at, Array}
 
 func main
 end

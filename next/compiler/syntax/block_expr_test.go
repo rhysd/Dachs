@@ -294,7 +294,7 @@ func TestNestedExprBlock(t *testing.T) {
 	}
 	if_, ok := c.LastExpr.(*ast.IfExpr)
 	if !ok {
-		t.Fatal("'if' statement in 'case' clause was not coverted into IfExpr", c.LastExpr)
+		t.Fatal("'if' statement in 'case' clause was not converted into IfExpr", c.LastExpr)
 	}
 	thenE, ok := if_.Then.(*ast.SeqExpr)
 	if !ok {
