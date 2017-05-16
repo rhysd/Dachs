@@ -21,8 +21,10 @@ TESTS := \
 	prelude/error_test.go \
 	prelude/ordinal_test.go \
 	prelude/position_test.go \
+	ast/example_test.go \
 	ast/printer_test.go \
 	ast/visitor_test.go \
+	syntax/example_test.go \
 	syntax/token_test.go \
 	syntax/lexer_test.go \
 	syntax/parser_test.go \

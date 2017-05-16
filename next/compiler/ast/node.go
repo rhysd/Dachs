@@ -1,4 +1,3 @@
-// Package ast provides a high-level data structure for representing Dachs source code.
 package ast
 
 import (
