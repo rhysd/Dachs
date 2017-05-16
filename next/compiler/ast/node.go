@@ -1027,7 +1027,10 @@ func (n *Lambda) Pos() prelude.Pos        { return n.StartPos }
 func (n *Lambda) End() prelude.Pos {
 	if n.IsDoBlock {
 		return n.EndPos
-	} else {
-		return n.BodyExpr.End()
 	}
+	return n.BodyExpr.End()
+}
+
+func (p *Program) File() *prelude.Source {
+	return p.Pos().File
 }

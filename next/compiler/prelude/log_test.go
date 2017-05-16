@@ -13,21 +13,21 @@ func TestOutputAllLogs(t *testing.T) {
 	EnableLog(All)
 	SetLogWriter(&buf)
 
-	NowLogging(Lexing)
+	NowLogging(Parsing)
 
-	Log("lexing", 42)
+	Log("parsing", 42)
 	Log("this", "is", "test", 3.14)
 
-	NowLogging(Parsing)
-	Logf("parsing %d", 42)
+	NowLogging(Sema)
+	Logf("semantics %d", 42)
 	Log("this", "is", "test", 1.14)
 
 	got := strings.Split(buf.String(), "\n")
 	want := []string{
-		"[Lexing] log_test.go:18: lexing 42",
-		"[Lexing] log_test.go:19: this is test 3.14",
-		"[Parsing] log_test.go:22: parsing 42",
-		"[Parsing] log_test.go:23: this is test 1.14",
+		"[Parsing] log_test.go:18: parsing 42",
+		"[Parsing] log_test.go:19: this is test 3.14",
+		"[Sema] log_test.go:22: semantics 42",
+		"[Sema] log_test.go:23: this is test 1.14",
 		"",
 	}
 
@@ -47,21 +47,21 @@ func TestOutputSpecific(t *testing.T) {
 	var buf bytes.Buffer
 
 	DisableLog(All)
-	EnableLog(Lexing)
+	EnableLog(Parsing)
 	SetLogWriter(&buf)
 
-	NowLogging(Lexing)
-	Log("lexing", 42)
+	NowLogging(Parsing)
+	Log("parsing", 42)
 	Log("this", "is", "test", 3.14)
 
-	NowLogging(Parsing)
-	Logf("parsing %d", 42)
+	NowLogging(Sema)
+	Logf("semantics %d", 42)
 	Log("this", "is", "test", 1.14)
 
 	got := strings.Split(buf.String(), "\n")
 	want := []string{
-		"[Lexing] log_test.go:54: lexing 42",
-		"[Lexing] log_test.go:55: this is test 3.14",
+		"[Parsing] log_test.go:54: parsing 42",
+		"[Parsing] log_test.go:55: this is test 3.14",
 		"",
 	}
 
@@ -81,21 +81,21 @@ func TestOutputDisableSpecific(t *testing.T) {
 	var buf bytes.Buffer
 
 	EnableLog(All)
-	DisableLog(Lexing)
+	DisableLog(Parsing)
 	SetLogWriter(&buf)
 
-	NowLogging(Lexing)
-	Log("lexing", 42)
+	NowLogging(Parsing)
+	Log("parsing", 42)
 	Log("this", "is", "test", 3.14)
 
-	NowLogging(Parsing)
-	Logf("parsing %d", 42)
+	NowLogging(Sema)
+	Logf("semantics %d", 42)
 	Log("this", "is", "test", 1.14)
 
 	got := strings.Split(buf.String(), "\n")
 	want := []string{
-		"[Parsing] log_test.go:92: parsing 42",
-		"[Parsing] log_test.go:93: this is test 1.14",
+		"[Sema] log_test.go:92: semantics 42",
+		"[Sema] log_test.go:93: this is test 1.14",
 		"",
 	}
 
@@ -117,16 +117,28 @@ func TestOutputDisableAll(t *testing.T) {
 	DisableLog(All)
 	SetLogWriter(&buf)
 
-	NowLogging(Lexing)
-	Log("lexing", 42)
+	NowLogging(Parsing)
+	Log("parsing", 42)
 	Log("this", "is", "test", 3.14)
 
-	NowLogging(Parsing)
-	Logf("parsing %d", 42)
+	NowLogging(Sema)
+	Logf("semantics %d", 42)
 	Log("this", "is", "test", 1.14)
 
 	out := buf.String()
 	if out != "" {
 		t.Fatalf("Expected empty string but actually '%s'", out)
+	}
+}
+
+func TestIsLogEnabled(t *testing.T) {
+	DisableLog(All)
+	EnableLog(Sema)
+	NowLogging(Sema)
+	if !IsLogEnabled(Sema) {
+		t.Fatalf("IsLogEnabled() returns false although log is enabled")
+	}
+	if IsLogEnabled(Parsing) {
+		t.Fatalf("IsLogEnabled() returns true although log is disabled")
 	}
 }

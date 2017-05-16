@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"sync"
 )
 
 // LoggerTag represents components you want to see the log for.
@@ -15,52 +16,73 @@ const (
 	None LoggerTag = 0
 	// All represents logging all messages
 	All = ^0
-	// Lexing tag logs messages for lexer
-	Lexing = 1 << iota
-	// Parsing tag logs messages for parser
-	Parsing
+	// Parsing tag logs messages for lexer and parser
+	Parsing = 1 << iota
+	// Sema tag logs messages for semantics checks
+	Sema
 )
 
 var tagTable = [...]string{
-	Lexing:  "Lexing",
 	Parsing: "Parsing",
+	Sema:    "Sema",
 }
 
 type logger struct {
 	enabledTags LoggerTag
 	tag         LoggerTag
 	out         io.Writer
+	mu          sync.Mutex
 }
 
-var globalLogger = logger{0, 0, os.Stderr}
+var globalLogger = logger{
+	enabledTags: 0,
+	tag:         0,
+	out:         os.Stderr,
+}
 
 // EnableLog enables log for flags defined by tag. Tags can be combined with '|'.
 func EnableLog(tag LoggerTag) {
+	globalLogger.mu.Lock()
 	globalLogger.enabledTags |= tag
+	globalLogger.mu.Unlock()
+}
+
+// IsLogEnabled returns whether given tag is enabled or not.j
+func IsLogEnabled(tag LoggerTag) bool {
+	return globalLogger.enabledTags&tag != 0
 }
 
 // DisableLog stops logging for flags defined by tag. Tags can be combined with '|'.
 func DisableLog(tag LoggerTag) {
+	globalLogger.mu.Lock()
 	globalLogger.enabledTags &^= tag
+	globalLogger.mu.Unlock()
 }
 
 // NowLogging declares what is now logging with tag.
 func NowLogging(tag LoggerTag) {
+	globalLogger.mu.Lock()
 	globalLogger.tag = tag
+	globalLogger.mu.Unlock()
 }
 
 // SetLogWriter sets a target to write log. Default is os.Stderr
 func SetLogWriter(w io.Writer) {
-	// XXX: Need to protect the assignment with mutex for thread safety
+	globalLogger.mu.Lock()
 	globalLogger.out = w
+	globalLogger.mu.Unlock()
 }
 
 func output(text string, calldepth int) {
+	globalLogger.mu.Lock()
+	defer globalLogger.mu.Unlock()
 	if globalLogger.tag&globalLogger.enabledTags == 0 {
 		return
 	}
 
-	// XXX: Need to protect runtime.Caller() with mutex for thread safety
+	// Calling runtime.Caller is heavy
+	globalLogger.mu.Unlock()
+
 	_, file, line, ok := runtime.Caller(calldepth)
 	if !ok {
 		file = "???"
@@ -73,6 +95,8 @@ func output(text string, calldepth int) {
 			}
 		}
 	}
+
+	globalLogger.mu.Lock()
 
 	header := fmt.Sprintf("[%s] %s:%d: ", tagTable[globalLogger.tag], file, line)
 	io.WriteString(globalLogger.out, header+text)

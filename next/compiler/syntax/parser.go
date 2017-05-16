@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/rhysd/Dachs/next/compiler/ast"
+	"github.com/rhysd/Dachs/next/compiler/prelude"
 )
 
 type pseudoLexer struct {
@@ -18,19 +19,23 @@ func (l *pseudoLexer) Lex(lval *yySymType) int {
 	for {
 		select {
 		case t := <-l.tokens:
+			prelude.Log("Parser received token:", t.Kind.String())
 			lval.token = t
 
 			switch t.Kind {
 			case TokenEOF:
+				prelude.Log("Received EOF. Parser quitting")
 				// Zero means that the input ends
 				// (see golang.org/x/tools/cmd/goyacc/testdata/expr/expr.y)
 				return 0
 			case TokenComment:
 				continue
 			case TokenIllegal:
+				prelude.Log("Received ILLEGAL. Parser quitting")
 				return 0
 			case TokenNewline:
 				if l.skipNewline {
+					prelude.Log("skipNewline flag is enabled. Skipping newline")
 					continue
 				}
 			}
@@ -57,19 +62,26 @@ func (l *pseudoLexer) getError() error {
 }
 
 func Parse(tokens chan *Token) (*ast.Program, error) {
-	// yyDebug = 9999
+	if prelude.IsLogEnabled(prelude.Parsing) {
+		prelude.Log("yyDebug is enabled: 9999")
+		yyDebug = 9999
+	}
+
 	yyErrorVerbose = true
 
 	l := &pseudoLexer{tokens: tokens}
 	ret := yyParse(l)
 
 	if ret != 0 || l.errCount != 0 {
+		prelude.Logf("Parser failed. ret: %d, error count: %d", ret, l.errCount)
 		return nil, l.getError()
 	}
 
 	if l.result == nil {
-		return nil, fmt.Errorf("Parsing failed")
+		panic("FATAL: No error detected but result is nil")
 	}
+
+	prelude.Log("Parsed source successfully:", l.result.File().Name)
 
 	return l.result, nil
 }

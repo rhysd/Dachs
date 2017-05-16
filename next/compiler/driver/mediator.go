@@ -19,12 +19,12 @@ func setupLog(logs []string) error {
 		switch tag {
 		case "All":
 			prelude.EnableLog(prelude.All)
-		case "Lexing":
-			prelude.EnableLog(prelude.Lexing)
 		case "Parsing":
 			prelude.EnableLog(prelude.Parsing)
+		case "Sema":
+			prelude.EnableLog(prelude.Sema)
 		default:
-			return fmt.Errorf("Unknown log component '%s'. Valid component: 'Lexing', 'Parsing' or 'All'", tag)
+			return fmt.Errorf("Unknown log component '%s'. Valid component: 'Parsing', 'Sema' or 'All'", tag)
 		}
 	}
 	return nil
@@ -54,6 +54,8 @@ func NewDriver(file string, logs []string) (*Driver, error) {
 
 // Lex only lexes a given source
 func (d *Driver) Lex() ([]*syntax.Token, error) {
+	prelude.NowLogging(prelude.Parsing)
+
 	var err error
 	l := syntax.NewLexer(d.Source)
 	l.Error = func(e *prelude.Error) {
@@ -76,6 +78,8 @@ func (d *Driver) Lex() ([]*syntax.Token, error) {
 }
 
 func (d *Driver) Parse() (*ast.Program, error) {
+	prelude.NowLogging(prelude.Parsing)
+
 	var err error
 	l := syntax.NewLexer(d.Source)
 	l.Error = func(e *prelude.Error) {

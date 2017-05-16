@@ -133,12 +133,14 @@ func (l *Lexer) eatIdent() bool {
 }
 
 func (l *Lexer) emit(kind TokenKind) {
-	l.Tokens <- &Token{
+	t := &Token{
 		kind,
 		l.start,
 		l.current,
 	}
+	l.Tokens <- t
 	l.start = l.current
+	prelude.Log("Lex token:", t.String())
 }
 
 func (l *Lexer) fail(msg string) {

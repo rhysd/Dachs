@@ -14,6 +14,8 @@ guard :shell do
     case m[0]
     when /_test\.go$/
       run_test m[0]
+    when /grammar.go$/
+      run_test 'syntax/parser_test.go'
     else
       system "make build"
       f = m[0].to_s

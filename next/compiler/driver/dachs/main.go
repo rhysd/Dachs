@@ -10,7 +10,7 @@ import (
 
 var (
 	help       = flag.Bool("help", false, "Show this help")
-	log        = flag.String("log", "", "Logging components (comma-separated). Component: 'Lexing', 'Parsing' or 'All'")
+	log        = flag.String("log", "", "Logging components (comma-separated). Component: 'Parsing', 'Sema' or 'All'")
 	showTokens = flag.Bool("tokens", false, "Lexing code only and show tokens")
 	showAST    = flag.Bool("ast", false, "Parse code only and show AST as output")
 )
