@@ -39,7 +39,7 @@ TBW
 # Type Variable
 
 Type variable is a placeholder which can be replaced by actual type. The name starts with `'`.
-This is used for making a variant type.
+This is used for making a variable type.
 
 ```
 type Pair = {'a, 'b}
@@ -115,24 +115,59 @@ type {Name} of
 ```
 
 Below is an example of `Number`. `Number` consists of `Integer`, `Rational` and `Imaginary` here.
+It defines `Number`, `Integer`, `Rational`, `Imaginary` types.
 
 ```
 type Number =
-    case Integer{'a}
+    case Integer{_: 'a}
     case Rational{numerator, denominator}
     case Imaginary{real, imaginary}
+```
 
+You can use `::` separator to refer a variant of the enum type. For example, `Number::Integer` refers
+`Integer` variant of `Number` enum type. So you can make an object like record creation with `::` as
+below.
+
+```
+Number::Integer{_: 42}
+Number::Rational{numerator: 3, denominator: 10}
+Number::Imaginary{real: 1, imaginary: 5}
+```
+
+You can also use constructor function like record type.
+
+```
+Number::Integer(42)
+Number::Rational(3, 10)
+Number::Imaginary(1, 5)
+```
+
+Enum type can be specified with its name. For example, below `add_one` function receives one `Number`
+object and returns `Number` object. It can take any of `Number::Integer`, `Number::Rational` or
+`Number::Imaginary`.
+
+```
 func add_one(n: Number): Number
     ...
 end
-
-add_one(Number::Integer{42})
-add_one(Number::Rational{3, 10})
-add_one(Number::Imaginary{1, 5})
 ```
 
-It defines `Number`, `Integer`, `Rational`, `Imaginary` types.
 Contained value can be retrieved by pattern matching.
+
+```
+let n = Number::Ratinal(3, 10)
+
+match n
+with Number::Integer{i}
+    print(i)
+with Number::Rational{numerator, denominator}
+    print(numerator)
+    print(denominator)
+with Number::Imaginary{real, imaginary}
+    print(real)
+    print(imaginary)
+end
+```
 
 # `typeof()`
 
