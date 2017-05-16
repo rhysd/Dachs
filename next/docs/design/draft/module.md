@@ -36,6 +36,23 @@ import .foo.bar.Blah
 
 Note that `std.array` is implicitly imported if array is used in a program.
 
+### `import foo.bar`
+
+If `foo` is a directory, a compiler assumes `bar` is a file. It exposes all names in file `bar` into
+`bar` namespace. For example, if file `bar` contains name `piyo`, you can access it via `bar.piyo`.
+
+If `foo` is a file, a compiler assumes `bar` is a name definedin file `foo`. It exposes `foo`
+directly in file local.
+
+### `import foo.*`
+
+A compiler assumes `foo` is a file and exposes all names directly in file local.
+
+### `import .foo`
+
+If import path starts with `.`, it means a root of search path is the parent directory of the source
+file. Above all kinds of import paths are available for this.
+
 TODO: Add syntax to make an alias of imported module (e.g. `import std.array as A`) for avoiding name conflicts.
 
 ## Export
