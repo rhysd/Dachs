@@ -1,4 +1,3 @@
-// Package driver provides a class to glue all modules of Dachs compiler implementation.
 package driver
 
 import (
@@ -30,7 +29,8 @@ func setupLog(logs []string) error {
 	return nil
 }
 
-// NewDriver make a new instance of driver and setup logger for compiler
+// NewDriver make a new instance of driver and setup logger for compiler.
+// If "" is given as a first argument, driver will attempt to read source code from stdin.
 func NewDriver(file string, logs []string) (*Driver, error) {
 	var src *prelude.Source
 	var err error

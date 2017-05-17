@@ -1,6 +1,7 @@
 SRCS := \
 	driver/dachs/main.go \
 	driver/mediator.go \
+	driver/example_test.go \
 	prelude/error.go \
 	prelude/log.go \
 	prelude/position.go \
