@@ -78,6 +78,7 @@ type (
 	// Root
 	Program struct {
 		Toplevels []Node
+		Modules   []*Module
 	}
 
 	// Toplevels

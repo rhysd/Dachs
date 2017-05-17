@@ -1,6 +1,7 @@
 package prelude
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -10,7 +11,7 @@ func TestReadFromFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if s.Name != "./source.go" {
+	if !strings.HasSuffix(s.Name, "source.go") {
 		t.Errorf("Unexpected file name %s", s.Name)
 	}
 

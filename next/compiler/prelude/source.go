@@ -19,11 +19,15 @@ type Source struct {
 
 // NewSourceFromFile make *Source object from file path.
 func NewSourceFromFile(file string) (*Source, error) {
-	b, err := ioutil.ReadFile(file)
+	path, err := filepath.Abs(file)
 	if err != nil {
 		return nil, err
 	}
-	return &Source{file, b, true}, nil
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return &Source{path, b, true}, nil
 }
 
 // NewSourceFromStdin make *Source object from stdin. User will need to input source code into stdin.

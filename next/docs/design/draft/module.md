@@ -18,10 +18,7 @@ If the module path starts with a dot, it means relative path from the source fil
 e.g.
 
 ```
-!! Import all names from DACHS_LIB_PATH/std/array.dcs into 'array' namespace
-import std.array
-
-!! Import and expose all names from DACHS_LIB_PATH/std/array.dcs
+!! Import all names from DACHS_LIB_PATH/std/array.dcs exposing into 'array' namespace
 import std.array.*
 
 !! Import and expose only 'Array' from DACHS_LIB_PATH/std/array.dcs
@@ -36,19 +33,19 @@ import .foo.bar.Blah
 
 Note that `std.array` is implicitly imported if array is used in a program.
 
-### `import foo.bar`
+### `import foo.bar` or `import foo.{a, b, ...}`
 
-If `foo` is a directory, a compiler assumes `bar` is a file. It exposes all names in file `bar` into
-`bar` namespace. For example, if file `bar` contains name `piyo`, you can access it via `bar.piyo`.
-
-If `foo` is a file, a compiler assumes `bar` is a name definedin file `foo`. It exposes `foo`
-directly in file local.
+`foo` must be a file. A compiler exposes `bar` into local directly. If there are multiple names
+surrounded with `{` and `}`, it exposes all the names into local directly.
+So `import foo.bar` has the same meaning as `import foo.{bar}`.
 
 ### `import foo.*`
 
 A compiler assumes `foo` is a file and exposes all names directly in file local.
+It exposes all names in file `foo` into `foo` namespace. For example, if file `foo` contains name
+`piyo`, you can access it via `foo.piyo`.
 
-### `import .foo`
+### `import .foo.bar` or `import .foo.{a, b, ...}` or `import .foo.*`
 
 If import path starts with `.`, it means a root of search path is the parent directory of the source
 file. Above all kinds of import paths are available for this.

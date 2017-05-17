@@ -9,11 +9,13 @@ SRCS := \
 	ast/node.go \
 	ast/visitor.go \
 	ast/printer.go \
+	ast/module.go \
 	syntax/token.go \
 	syntax/lexer.go \
 	syntax/grammar.go \
 	syntax/parser.go \
 	syntax/block_expr.go \
+	syntax/import.go \
 
 TESTS := \
 	prelude/log_test.go \
