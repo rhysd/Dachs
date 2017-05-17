@@ -61,7 +61,22 @@ func (l *pseudoLexer) getError() error {
 	return fmt.Errorf("%d error(s) while parsing\n%s", l.errCount, l.errMessage.String())
 }
 
-func Parse(tokens chan *Token) (*ast.Program, error) {
+func Parse(src *prelude.Source) (*ast.Program, error) {
+	var lexErr error
+	l := NewLexer(src)
+	l.Error = func(err *prelude.Error) {
+		lexErr = err
+	}
+	defer close(l.Tokens)
+	go l.Lex()
+	prog, err := ParseTokens(l.Tokens)
+	if lexErr != nil {
+		return nil, lexErr
+	}
+	return prog, err
+}
+
+func ParseTokens(tokens chan *Token) (*ast.Program, error) {
 	if prelude.IsLogEnabled(prelude.Parsing) {
 		prelude.Log("yyDebug is enabled: 9999")
 		yyDebug = 9999

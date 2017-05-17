@@ -79,22 +79,7 @@ func (d *Driver) Lex() ([]*syntax.Token, error) {
 
 func (d *Driver) Parse() (*ast.Program, error) {
 	prelude.NowLogging(prelude.Parsing)
-
-	var err error
-	l := syntax.NewLexer(d.Source)
-	l.Error = func(e *prelude.Error) {
-		err = e
-	}
-	defer close(l.Tokens)
-	go l.Lex()
-	root, parseErr := syntax.Parse(l.Tokens)
-	if err != nil {
-		return nil, err
-	}
-	if parseErr != nil {
-		return nil, parseErr
-	}
-	return root, nil
+	return syntax.Parse(d.Source)
 }
 
 func (d *Driver) FprintAST(out io.Writer) error {

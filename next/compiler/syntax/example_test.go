@@ -32,10 +32,12 @@ func Example() {
 	go lexer.Lex()
 
 	// Receives tokens from channel and parse them into a syntax tree
-	tree, err := Parse(lexer.Tokens)
+	tree, err := ParseTokens(lexer.Tokens)
 	if err != nil {
 		panic(err)
 	}
+
+	// Note: Or you can use syntax.Parse() shortcut
 
 	// Parse was successfully done! Use the result
 	ast.Fprintln(os.Stdout, tree)

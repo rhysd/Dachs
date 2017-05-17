@@ -13,25 +13,6 @@ import (
 	"github.com/rhysd/Dachs/next/compiler/prelude"
 )
 
-func testParseSource(s *prelude.Source) (*ast.Program, error) {
-	l := NewLexer(s)
-	defer close(l.Tokens)
-
-	var lexErr error
-	l.Error = func(e *prelude.Error) { lexErr = e }
-
-	go l.Lex()
-	prog, err := Parse(l.Tokens)
-
-	if lexErr != nil {
-		return nil, lexErr
-	}
-	if err != nil {
-		return nil, err
-	}
-	return prog, nil
-}
-
 func TestParseOK(t *testing.T) {
 	inputs, err := filepath.Glob("testdata/*.dcs")
 	if err != nil {
@@ -69,7 +50,7 @@ func TestParseOK(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			prog, err := testParseSource(s)
+			prog, err := Parse(s)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -206,7 +187,7 @@ func TestParseFailed(t *testing.T) {
 		t.Run(tc.what, func(t *testing.T) {
 			code := fmt.Sprintf("func main; %s; end\n", tc.code)
 			src := prelude.NewDummySource(code)
-			_, err := testParseSource(src)
+			_, err := Parse(src)
 			if err == nil {
 				t.Fatalf("No error occurred with wrong source '%s'", code)
 			}

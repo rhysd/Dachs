@@ -68,17 +68,7 @@ func (res *importResolver) resolveInDir(dir string, node *ast.Import) (*ast.Modu
 		return nil, err
 	}
 
-	var lexErr error
-	l := NewLexer(src)
-	l.Error = func(e *prelude.Error) {
-		lexErr = e
-	}
-	defer close(l.Tokens)
-	go l.Lex()
-	prog, err := Parse(l.Tokens)
-	if lexErr != nil {
-		return nil, lexErr
-	}
+	prog, err := Parse(src)
 	if err != nil {
 		return nil, err
 	}
