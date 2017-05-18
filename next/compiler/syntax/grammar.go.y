@@ -231,6 +231,16 @@ import:
 		{
 			n := $3
 			n.StartPos = $1.Start
+
+			// Fix order of parents parsed in 'import_spec' rule
+			p := n.Parents
+			l := len(p)
+			for i,e := range p[:l/2] {
+				j := l - 1 - i
+				p[i] = p[j]
+				p[j] = e
+			}
+
 			$$ = n
 		}
 
@@ -247,6 +257,7 @@ import_spec:
 	IDENT DOT opt_newlines import_spec
 		{
 			n := $4
+			// Appends path entries in reversed order
 			n.Parents = append(n.Parents, $1.Value())
 			$$ = n
 		}

@@ -26,14 +26,17 @@ guard :shell do
       end
     end
   end
+
   watch /\.c$/ do |m|
     sep m[0]
     system "make build"
   end
+
   watch /\.go\.y$/ do |m|
     sep m[0]
     system "make build"
   end
+
   watch /syntax\/testdata\/.*\.ast$/ do |m|
     sep m[0]
     run_test 'syntax/grammar_test.go'
@@ -41,5 +44,9 @@ guard :shell do
   watch /syntax\/testdata\/.*\.tokens$/ do |m|
     sep m[0]
     run_test 'syntax/lexer_test.go'
+  end
+  watch /syntax\/testdata\/import\/.*\.dcs$/ do |m|
+    sep m[0]
+    run_test 'syntax/import_test.go'
   end
 end

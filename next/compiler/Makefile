@@ -1,7 +1,6 @@
 SRCS := \
 	driver/dachs/main.go \
 	driver/mediator.go \
-	driver/example_test.go \
 	prelude/error.go \
 	prelude/log.go \
 	prelude/position.go \
@@ -19,6 +18,7 @@ SRCS := \
 	syntax/import.go \
 
 TESTS := \
+	driver/example_test.go \
 	prelude/log_test.go \
 	prelude/source_test.go \
 	prelude/error_test.go \
@@ -32,6 +32,7 @@ TESTS := \
 	syntax/lexer_test.go \
 	syntax/parser_test.go \
 	syntax/block_expr_test.go \
+	syntax/import_test.go \
 
 all: build test
 

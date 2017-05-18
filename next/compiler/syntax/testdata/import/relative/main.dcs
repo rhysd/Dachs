@@ -1,0 +1,4 @@
+import .foo.bar
+import .aaa.foo.{a, b, c}
+
+func main; end

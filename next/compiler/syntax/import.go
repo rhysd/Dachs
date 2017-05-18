@@ -19,7 +19,7 @@ func defaultLibPaths() ([]string, error) {
 		split := strings.Split(env, ":")
 		for _, s := range split {
 			if s != "" {
-				paths = append(paths)
+				paths = append(paths, s)
 			}
 		}
 	}
