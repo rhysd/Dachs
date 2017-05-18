@@ -75,3 +75,10 @@ func TestBaseName(t *testing.T) {
 		}
 	}
 }
+
+func TestSourceString(t *testing.T) {
+	s := NewDummySource("")
+	if s.String() != "<dummy>" {
+		t.Fatal("Unknown source name:", s)
+	}
+}

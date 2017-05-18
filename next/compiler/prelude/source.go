@@ -52,3 +52,7 @@ func (src *Source) BaseName() string {
 	b := filepath.Base(src.Name)
 	return strings.TrimSuffix(b, filepath.Ext(b))
 }
+
+func (src *Source) String() string {
+	return src.Name
+}

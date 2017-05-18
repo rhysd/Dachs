@@ -62,6 +62,7 @@ func (l *pseudoLexer) getError() error {
 }
 
 func Parse(src *prelude.Source) (*ast.Program, error) {
+	prelude.Log("Start parsing source:", src)
 	var lexErr error
 	l := NewLexer(src)
 	l.Error = func(err *prelude.Error) {
@@ -96,7 +97,7 @@ func ParseTokens(tokens chan *Token) (*ast.Program, error) {
 		panic("FATAL: No error detected but result is nil")
 	}
 
-	prelude.Log("Parsed source successfully:", l.result.File().Name)
+	prelude.Log("Parsed source successfully:", l.result.File())
 
 	return l.result, nil
 }

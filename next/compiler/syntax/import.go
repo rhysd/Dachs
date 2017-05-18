@@ -23,6 +23,7 @@ func defaultLibPaths() ([]string, error) {
 			}
 		}
 	}
+	prelude.Log("Default library path:", paths)
 	return paths, nil
 }
 
@@ -60,6 +61,7 @@ func (res *importResolver) resolveInDir(dir string, node *ast.Import) (*ast.Modu
 
 	if prog, ok := res.parsedAST[file]; ok {
 		mod.AST = prog
+		prelude.Log("Resolved module from cache:", src)
 		return mod, nil
 	}
 
@@ -67,11 +69,13 @@ func (res *importResolver) resolveInDir(dir string, node *ast.Import) (*ast.Modu
 	if err != nil {
 		return nil, err
 	}
+	prelude.Log("Will parse module:", src)
 
 	prog, err := Parse(src)
 	if err != nil {
 		return nil, err
 	}
+	prelude.Log("Parsed module:", src)
 
 	// Recursively resolve imported modules in parsed AST
 	if err := res.resolve(prog); err != nil {
@@ -111,6 +115,7 @@ func (res *importResolver) resolveImport(node *ast.Import) (*ast.Module, error) 
 
 func (res *importResolver) resolve(prog *ast.Program) error {
 	src := prog.File()
+	prelude.Log("Will resolve imports in", src, prog.Pos())
 	if src.Exists {
 		res.parsedAST[src.Name] = prog
 	}
@@ -124,4 +129,15 @@ func (res *importResolver) resolve(prog *ast.Program) error {
 		}
 	}
 	return nil
+}
+
+// ResolveImports resolves all `import` statements in the program recursively.
+// The results will be set to `Modules` field of `Program` node.
+func ResolveImports(root *ast.Program) error {
+	res, err := newImportResolver()
+	if err != nil {
+		return prelude.NewErrorfAt(root.Pos(), "Error occurred while getting library path: %s", err.Error())
+	}
+	prelude.Log("Finished resolving modules successfully")
+	return res.resolve(root)
 }

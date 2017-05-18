@@ -50,6 +50,7 @@ func NewLexer(src *prelude.Source) *Lexer {
 
 // Lex starts to lex target source. Tokens will be sent to Tokens channel
 func (l *Lexer) Lex() {
+	prelude.Log("Start lexing:", l.src)
 	l.forward()
 	for l.state != nil {
 		l.state = l.state(l)
