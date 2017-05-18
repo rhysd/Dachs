@@ -26,8 +26,7 @@ func testMakePos() Pos {
 
 func TestNewError(t *testing.T) {
 	want :=
-		`Error at <dummy>:1:4
-  This is error text!
+		`Error: This is error text! (at <dummy>:1:4)
 
 > age prelude
 > 
@@ -49,7 +48,7 @@ func TestNewError(t *testing.T) {
 }
 
 func TestNewErrorAt(t *testing.T) {
-	want := "Error at <dummy>:1:4\n  This is error text!"
+	want := "Error: This is error text! (at <dummy>:1:4)"
 	for _, err := range []*Error{
 		NewErrorAt(testMakePos(), "This is error text!"),
 		NewErrorfAt(testMakePos(), "This is %s text!", "error"),
@@ -63,8 +62,7 @@ func TestNewErrorAt(t *testing.T) {
 
 func TestWithRange(t *testing.T) {
 	want :=
-		`Error at <dummy>:1:4
-  This is an error text!
+		`Error: This is an error text! (at <dummy>:1:4)
 
 > age prelude
 > 
@@ -81,7 +79,7 @@ func TestWithRange(t *testing.T) {
 }
 
 func TestWithPos(t *testing.T) {
-	want := "Error at <dummy>:1:4\n  This is wrapped error text!"
+	want := "Error: This is wrapped error text! (at <dummy>:1:4)"
 	got := WithPos(testMakePos(), fmt.Errorf("This is wrapped error text!")).Error()
 	if got != want {
 		t.Fatalf("Unexpected error message. want: '%s', got: '%s'", want, got)
@@ -90,9 +88,8 @@ func TestWithPos(t *testing.T) {
 
 func TestWrap(t *testing.T) {
 	want :=
-		`Error at <dummy>:1:4
-  This is original error text!
-  This is additional error text!
+		`Error: This is original error text! (at <dummy>:1:4)
+  Note: This is additional error text!
 
 > age prelude
 > 
@@ -114,7 +111,7 @@ func TestWrap(t *testing.T) {
 }
 
 func TestWrapAt(t *testing.T) {
-	want := "Error at <dummy>:1:4\n  This is original error text!\n  This is additional error text!"
+	want := "Error: This is original error text! (at <dummy>:1:4)\n  Note: This is additional error text!"
 	pos := testMakePos()
 	original := fmt.Errorf("This is original error text!")
 	for _, err := range []*Error{
@@ -130,8 +127,7 @@ func TestWrapAt(t *testing.T) {
 
 func TestWrapMethods(t *testing.T) {
 	want :=
-		`Error at <dummy>:1:4
-  This is original error text!
+		`Error: This is original error text! (at <dummy>:1:4)
   Note: This is additional error text!
 
 > age prelude
@@ -155,9 +151,8 @@ func TestWrapMethods(t *testing.T) {
 
 func TestWrapMethodsWithPos(t *testing.T) {
 	want :=
-		`Error at <dummy>:1:4
-  This is original error text!
-  Note at <dummy>:1:4: This is additional error text!
+		`Error: This is original error text! (at <dummy>:1:4)
+  Note: This is additional error text! (at <dummy>:1:4)
 
 > age prelude
 > 
@@ -183,7 +178,7 @@ func TestCodeIsEmpty(t *testing.T) {
 	s := NewDummySource("")
 	p := Pos{0, 1, 1, s}
 	err := NewError(p, p, "This is error text!")
-	want := "Error at <dummy>:1:1\n  This is error text!"
+	want := "Error: This is error text! (at <dummy>:1:1)"
 	got := err.Error()
 
 	if want != got {

@@ -17,10 +17,17 @@ func (err *Error) Error() string {
 	var buf bytes.Buffer
 	s := err.Start
 
-	buf.WriteString("Error at ")
+	// Error: {msg} (at {pos})
+	//   {note1}
+	//   {note2}
+	//   ...
+	buf.WriteString("Error: ")
+	buf.WriteString(err.Messages[0])
+	buf.WriteString(" (at ")
 	buf.WriteString(s.String())
-	for _, msg := range err.Messages {
-		buf.WriteString("\n  ")
+	buf.WriteString(")")
+	for _, msg := range err.Messages[1:] {
+		buf.WriteString("\n  Note: ")
 		buf.WriteString(msg)
 	}
 
@@ -46,19 +53,19 @@ func (err *Error) Error() string {
 
 // Wrap stacks the additional message upon current error.
 func (err *Error) Wrap(msg string) *Error {
-	err.Messages = append(err.Messages, "Note: "+msg)
+	err.Messages = append(err.Messages, msg)
 	return err
 }
 
 // Wrapf stacks the additional formatted message upon current error.
 func (err *Error) Wrapf(format string, args ...interface{}) *Error {
-	err.Messages = append(err.Messages, fmt.Sprintf("Note: "+format, args...))
+	err.Messages = append(err.Messages, fmt.Sprintf(format, args...))
 	return err
 }
 
 // WrapAt stacks the additional message upon current error with position.
 func (err *Error) WrapAt(pos Pos, msg string) *Error {
-	err.Messages = append(err.Messages, fmt.Sprintf("Note at %s: %s", pos.String(), msg))
+	err.Messages = append(err.Messages, fmt.Sprintf("%s (at %s)", msg, pos.String()))
 	return err
 }
 
@@ -99,6 +106,9 @@ func WithPos(pos Pos, err error) *Error {
 
 // Wrap adds range information and stack additional message to the original error.
 func Wrap(start, end Pos, err error, msg string) *Error {
+	if err, ok := err.(*Error); ok {
+		return err.WrapAt(start, msg)
+	}
 	return &Error{start, end, []string{err.Error(), msg}}
 }
 

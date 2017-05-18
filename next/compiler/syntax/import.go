@@ -61,7 +61,7 @@ func (res *importResolver) resolveInDir(dir string, node *ast.Import) (*ast.Modu
 
 	if prog, ok := res.parsedAST[file]; ok {
 		mod.AST = prog
-		prelude.Log("Resolved module from cache:", src)
+		prelude.Log("Resolved module from cache:", file)
 		return mod, nil
 	}
 
@@ -92,7 +92,7 @@ func (res *importResolver) resolveImport(node *ast.Import) (*ast.Module, error) 
 		dir := filepath.Dir(src.Name)
 		mod, err := res.resolveInDir(dir, node)
 		if err != nil {
-			return nil, prelude.NewErrorf(node.StartPos, node.EndPos, "Cannot import '%s' in directory '%s': %s", node.Path(), dir, err.Error())
+			return nil, prelude.Wrapf(node.StartPos, node.EndPos, err, "Cannot import '%s' in directory '%s'", node.Path(), dir)
 		}
 		return mod, nil
 	}

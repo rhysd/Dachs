@@ -13,6 +13,7 @@ var (
 	log        = flag.String("log", "", "Logging components (comma-separated). Component: 'Parsing', 'Sema' or 'All'")
 	showTokens = flag.Bool("tokens", false, "Lexing code only and show tokens")
 	showAST    = flag.Bool("ast", false, "Parse code only and show AST as output")
+	analyze    = flag.Bool("analyze", false, "Analyze source and report the result")
 )
 
 const usageHeader = `Usage: dachs [flags] [file]
@@ -67,7 +68,12 @@ func main() {
 		}
 	case *showAST:
 		if err := d.FprintAST(os.Stdout); err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(4)
+		}
+	case *analyze:
+		if err := d.Analyze(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(4)
 		}
 	default:

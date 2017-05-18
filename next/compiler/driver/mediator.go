@@ -90,3 +90,15 @@ func (d *Driver) FprintAST(out io.Writer) error {
 	ast.Fprintln(out, root)
 	return nil
 }
+
+func (d *Driver) Analyze() /*TODO: Return analyzation result*/ error {
+	root, err := d.Parse()
+	if err != nil {
+		return err
+	}
+	if err := syntax.ResolveImports(root); err != nil {
+		return err
+	}
+	panic("Not implemented yet")
+	return nil
+}
