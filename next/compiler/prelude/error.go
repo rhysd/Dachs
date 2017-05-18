@@ -3,8 +3,24 @@ package prelude
 import (
 	"bytes"
 	"fmt"
+	"github.com/fatih/color"
+	"runtime"
 	"strings"
 )
+
+func init() {
+	if runtime.GOOS == "windows" {
+		// FIXME:
+		// On Windows, ANSI sequences are not available on cmd.exe.
+		// go-colorable cannot help to solve this because it only provides writers to stdout or
+		// stderr.
+		// At least I need to improve the check. Even if running on windows, WLS would be able to
+		// handle ANSI sequences.
+		color.NoColor = true
+	}
+}
+
+var gray = color.New(color.FgHiBlack).SprintfFunc()
 
 // Error represents a compilation error with positional information and stacked messages.
 type Error struct {
@@ -21,13 +37,11 @@ func (err *Error) Error() string {
 	//   {note1}
 	//   {note2}
 	//   ...
-	buf.WriteString("Error: ")
+	buf.WriteString(color.RedString("Error: "))
 	buf.WriteString(err.Messages[0])
-	buf.WriteString(" (at ")
-	buf.WriteString(s.String())
-	buf.WriteString(")")
+	buf.WriteString(gray(" (at %s)", s.String()))
 	for _, msg := range err.Messages[1:] {
-		buf.WriteString("\n  Note: ")
+		buf.WriteString(color.GreenString("\n  Note: "))
 		buf.WriteString(msg)
 	}
 
@@ -65,7 +79,8 @@ func (err *Error) Wrapf(format string, args ...interface{}) *Error {
 
 // WrapAt stacks the additional message upon current error with position.
 func (err *Error) WrapAt(pos Pos, msg string) *Error {
-	err.Messages = append(err.Messages, fmt.Sprintf("%s (at %s)", msg, pos.String()))
+	at := gray("(at %s)", pos.String())
+	err.Messages = append(err.Messages, fmt.Sprintf("%s %s", msg, at))
 	return err
 }
 
