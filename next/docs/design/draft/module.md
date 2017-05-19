@@ -56,17 +56,23 @@ TODO: Add syntax to make an alias of imported module (e.g. `import std.array as 
 
 TBD. Currently all names are exposed in public.
 
-## `DACHS_LIB_PATH`
+
+# `DACHS_LIB_PATH`
 
 `DACHS_LIB_PATH` is an environment variable separated with `:`. Each separated entry should represent
 path to a directory. Compiler searches files in the directories and resolves `import` paths.
 
-The default value is `../lib/dachs` relative path to the parent directory of `dachs` executable.
+By default, two paths are registered.
+
+First, `../lib/dachs` relative path to the parent directory of `dachs` executable.
 For example if `dachs` is installed in `/usr/local/bin/dachs`, `/usr/local/lib/dachs` will be
 searched. And if `dachs` is built in `/path/to/Dachs/next/compiler/dachs`, `/path/to/Dachs/next/lib/dachs`
-will be searched.
+will be searched. This path is used by standard libraries and user should not put any code in this path.
 
-(TBD)
+Second, a parent directory of a package file (TBD, like `package.json` in npm). If there is no package
+package file, a parent directory of a file which contains `main()` function is used instead.
+Dachs's `import` statement cannot refer parent directory. It means that a package file or a source
+containing `main()` function should be put at the top of repository to refer all the files.
 
 # Implementation
 

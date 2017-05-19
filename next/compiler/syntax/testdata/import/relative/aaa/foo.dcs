@@ -1,1 +1,4 @@
+import .bar.*
+import .bbb.piyo.wow
+
 func a; end

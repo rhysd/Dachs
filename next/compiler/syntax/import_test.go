@@ -1,6 +1,7 @@
 package syntax
 
 import (
+	"fmt"
 	"github.com/rhysd/Dachs/next/compiler/ast"
 	"github.com/rhysd/Dachs/next/compiler/prelude"
 	"os"
@@ -80,6 +81,37 @@ func TestLibraryPathsFromEnv(t *testing.T) {
 	}
 }
 
+type moduleExpected struct {
+	file      string
+	namespace string
+	exposeAll bool
+	symbols   []string
+}
+
+func testModule(m *ast.Module, spec string, expected moduleExpected) string {
+	f := filepath.FromSlash("testdata/import/" + expected.file)
+	n := m.AST.File().Name
+	if !strings.HasSuffix(n, f) {
+		return fmt.Sprintf("Expected file path of '%s' to be '%s' but actuall '%s' was imported", spec, f, n)
+	}
+	if m.ExposeAll != expected.exposeAll {
+		return fmt.Sprintf("ExposeAll for '%s' is incorrect. want: %v, have: %v", spec, expected.exposeAll, m.ExposeAll)
+	}
+	if len(m.Imported) != len(expected.symbols) {
+		return fmt.Sprintf("Number of imported symbol for '%s' is incorrect. want: %d, have: %d. Note: %v", spec, len(expected.symbols), len(m.Imported), m.Imported)
+	}
+	for i, want := range expected.symbols {
+		have := m.Imported[i]
+		if want != have {
+			return fmt.Sprintf("%dth imported symbol from '%s' mismatch. want: %s, have: %s", i, spec, want, have)
+		}
+	}
+	if m.NameSpace != expected.namespace {
+		return fmt.Sprintf("Namespace for '%s' is incorrect. want: %s, have: %s", spec, expected.namespace, m.NameSpace)
+	}
+	return ""
+}
+
 func TestNestedModules(t *testing.T) {
 	prog, err := testParseAndResolveModules("nested")
 	if err != nil {
@@ -90,39 +122,19 @@ func TestNestedModules(t *testing.T) {
 		t.Fatal("Unexpected number of modules for main.dcs:", len(mods))
 	}
 
-	m := mods[0]
-	f := filepath.FromSlash("testdata/import/nested/foo.dcs")
-	n := m.AST.File().Name
-	if !strings.HasSuffix(n, f) {
-		t.Fatalf("Expected %s but actuall %s was imported", f, n)
-	}
-	if !m.ExposeAll {
-		t.Fatal("import * did not expose all names")
-	}
-	if len(m.Imported) != 0 {
-		t.Fatal("Exposed all names with * but symbol is also imported", len(m.Imported))
-	}
-	if m.NameSpace != "foo" {
-		t.Fatal("`import foo.*` must define namespace 'foo'", m.NameSpace)
+	if msg := testModule(mods[0], "foo.*", moduleExpected{
+		file:      "nested/foo.dcs",
+		namespace: "foo",
+		exposeAll: true,
+	}); msg != "" {
+		t.Error(msg)
 	}
 
-	m = mods[1]
-	f = filepath.FromSlash("testdata/import/nested/b/bar.dcs")
-	n = m.AST.File().Name
-	if !strings.HasSuffix(n, f) {
-		t.Fatalf("Expected %s but actuall %s was imported", f, n)
-	}
-	if m.ExposeAll {
-		t.Fatal("import foo.bar should not expose all names")
-	}
-	if len(m.Imported) != 1 {
-		t.Fatal("Number of imported symbol is wrong", len(m.Imported))
-	}
-	if m.Imported[0] != "piyo" {
-		t.Fatal("Imported name was unexpected", m.Imported[0])
-	}
-	if m.NameSpace != "" {
-		t.Fatal("`import foo.bar` must not define namespace", m.NameSpace)
+	if msg := testModule(mods[1], "b.bar.piyo", moduleExpected{
+		file:    "nested/b/bar.dcs",
+		symbols: []string{"piyo"},
+	}); msg != "" {
+		t.Error(msg)
 	}
 
 	ms := mods[0].AST.Modules
@@ -135,26 +147,60 @@ func TestNestedModules(t *testing.T) {
 		t.Fatal("Unexpected number of modules for b.bar.dcs:", len(ms))
 	}
 
-	m = ms[0]
-	f = filepath.FromSlash("testdata/import/nested/foo.dcs")
-	n = m.AST.File().Name
-	if !strings.HasSuffix(n, f) {
-		t.Fatalf("Expected %s but actuall %s was imported", f, n)
-	}
-	if m.ExposeAll {
-		t.Fatal("import foo.{a, b, c} should not expose all names")
-	}
-	if len(m.Imported) != 3 {
-		t.Fatal("Number of imported symbol is wrong", len(m.Imported))
-	}
-	for i, want := range []string{"a", "b", "c"} {
-		have := m.Imported[i]
-		if have != want {
-			t.Fatalf("As imported symbols from foo.{a, b, c}, %s is expected but actually %s", want, have)
-		}
+	if msg := testModule(ms[0], "foo.{a, b, c}", moduleExpected{
+		file:    "nested/foo.dcs",
+		symbols: []string{"a", "b", "c"},
+	}); msg != "" {
+		t.Error(msg)
 	}
 }
 
 func TestRelativeImports(t *testing.T) {
-	// TODO
+	prog, err := testParseAndResolveModules("relative")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mods := prog.Modules
+	if len(mods) != 1 {
+		t.Fatal("Unexpected number of modules for main.dcs:", len(mods))
+	}
+
+	if msg := testModule(mods[0], ".aaa.foo.bar", moduleExpected{
+		file:    "relative/aaa/foo.dcs",
+		symbols: []string{"bar"},
+	}); msg != "" {
+		t.Error(msg)
+	}
+
+	mods = mods[0].AST.Modules
+	if len(mods) != 2 {
+		t.Fatal("Unexpected number of modules for aaa/foo.dcs:", len(mods))
+	}
+	if msg := testModule(mods[0], ".bar.*", moduleExpected{
+		file:      "relative/aaa/bar.dcs",
+		exposeAll: true,
+		namespace: "bar",
+	}); msg != "" {
+		t.Error(msg)
+	}
+	if msg := testModule(mods[1], ".bbb.piyo.wow", moduleExpected{
+		file:    "relative/aaa/bbb/piyo.dcs",
+		symbols: []string{"wow"},
+	}); msg != "" {
+		t.Error(msg)
+	}
+	if len(mods[1].AST.Modules) != 0 {
+		t.Fatal("Unexpected number of modules for aaa/bar.dcs:", len(mods[1].AST.Modules))
+	}
+
+	mods = mods[0].AST.Modules
+	if len(mods) != 1 {
+		t.Fatal("Unexpected number of modules for aaa/foo.dcs:", len(mods))
+	}
+	if msg := testModule(mods[0], ".bbb.piyo.{a, b, wow}", moduleExpected{
+		file:    "relative/aaa/bbb/piyo.dcs",
+		symbols: []string{"a", "b", "wow"},
+	}); msg != "" {
+		t.Error(msg)
+	}
 }
