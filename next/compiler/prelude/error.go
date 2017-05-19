@@ -20,7 +20,10 @@ func init() {
 	}
 }
 
-var gray = color.New(color.FgHiBlack).SprintfFunc()
+var (
+	gray = color.New(color.FgHiBlack).SprintfFunc()
+	bold = color.New(color.Bold).SprintFunc()
+)
 
 // Error represents a compilation error with positional information and stacked messages.
 type Error struct {
@@ -38,7 +41,7 @@ func (err *Error) Error() string {
 	//   {note2}
 	//   ...
 	buf.WriteString(color.RedString("Error: "))
-	buf.WriteString(err.Messages[0])
+	buf.WriteString(bold(err.Messages[0]))
 	buf.WriteString(gray(" (at %s)", s.String()))
 	for _, msg := range err.Messages[1:] {
 		buf.WriteString(color.GreenString("\n  Note: "))
@@ -54,6 +57,8 @@ func (err *Error) Error() string {
 		return buf.String()
 	}
 
+	// TODO:
+	// Compensate for indentation at the first line of code snippet.
 	buf.WriteString("\n\n> ")
 	buf.WriteString(strings.Replace(snip, "\n", "\n> ", -1))
 	buf.WriteString("\n\n")

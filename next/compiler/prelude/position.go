@@ -3,7 +3,15 @@ package prelude
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 )
+
+var currentDir string
+
+func init() {
+	currentDir, _ = filepath.Abs(filepath.Dir(os.Args[0]))
+}
 
 // Pos represents some point in a source code.
 type Pos struct {
@@ -18,5 +26,9 @@ type Pos struct {
 }
 
 func (p Pos) String() string {
-	return fmt.Sprintf("%s:%d:%d", p.File.Name, p.Line, p.Column)
+	f := p.File.Name
+	if p.File.Exists && currentDir != "" && filepath.HasPrefix(f, currentDir) {
+		f, _ = filepath.Rel(currentDir, f)
+	}
+	return fmt.Sprintf("%s:%d:%d", f, p.Line, p.Column)
 }
