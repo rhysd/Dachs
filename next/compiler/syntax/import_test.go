@@ -74,7 +74,7 @@ func TestLibraryPathsFromEnv(t *testing.T) {
 		}
 		for i, w := range tc.want {
 			g := got[i]
-			if w != g {
+			if !strings.HasSuffix(g, w) {
 				t.Errorf("%dth path mismatched for env %s. want: %v, got: %v", i+1, tc.env, tc.want, got)
 			}
 		}

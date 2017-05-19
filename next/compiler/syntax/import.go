@@ -18,9 +18,15 @@ func libraryPaths() ([]string, error) {
 	if env != "" {
 		split := strings.Split(env, ":")
 		for _, s := range split {
-			if s != "" {
-				paths = append(paths, s)
+			if s == "" {
+				continue
 			}
+			p, err := filepath.Abs(s)
+			if err != nil {
+				prelude.Log("Failed to make an absolute path from", s)
+				continue
+			}
+			paths = append(paths, p)
 		}
 	}
 	prelude.Log("Default library path:", paths)
@@ -89,13 +95,24 @@ func (res *importResolver) resolveInDir(dir string, node *ast.Import) (*ast.Modu
 
 func (res *importResolver) findRelativePath(node *ast.Import) (string, error) {
 	dir := filepath.Dir(node.StartPos.File.Name)
+	prelude.Log("Will find lib path for relative import in", dir)
 	if res.projectPath != "" && filepath.HasPrefix(dir, res.projectPath) {
 		// Target directory is in project local
 		return res.projectPath, nil
 	}
 	for _, libpath := range res.libPaths {
 		if filepath.HasPrefix(dir, libpath) {
-			return libpath, nil
+			// When
+			//   dir == '/foo/lib/libname/bar/piyo'
+			//   libpath == '/foo/lib'
+			// we want '/foo/lib/libname' to obtain the root directory of the library.
+			// This is needed because relative import path `.foo.bar` in a library should be
+			// resolved as a relative path to the root of the library.
+			dir, entry := filepath.Split(dir)
+			for dir != libpath {
+				dir, entry = filepath.Split(dir)
+			}
+			return filepath.Join(libpath, entry), nil
 		}
 	}
 	return "", prelude.NewErrorf(node.StartPos, node.EndPos, "Cannot import '%s' because directory '%s' does not belong to project path '%s' nor library paths %v", node.Path(), dir, res.projectPath, res.libPaths)
