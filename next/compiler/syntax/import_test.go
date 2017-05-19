@@ -16,7 +16,7 @@ func TestDefaultPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	paths := res.defaultLibPaths
+	paths := res.libPaths
 	if len(paths) != 1 {
 		t.Fatal("Unexpected number of default library path:", len(paths))
 	}
@@ -68,7 +68,7 @@ func TestLibraryPathsFromEnv(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		got := res.defaultLibPaths[1:]
+		got := res.libPaths[1:]
 		if len(tc.want) != len(got) {
 			t.Fatalf("Number of paths for %s incorrect. want: %v, got: %v", tc.env, tc.want, got)
 		}
@@ -155,8 +155,8 @@ func TestNestedModules(t *testing.T) {
 	}
 }
 
-func TestRelativeImports(t *testing.T) {
-	prog, err := testParseAndResolveModules("relative")
+func TestLocalImports(t *testing.T) {
+	prog, err := testParseAndResolveModules("local")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestRelativeImports(t *testing.T) {
 	}
 
 	if msg := testModule(mods[0], ".aaa.foo.bar", moduleExpected{
-		file:    "relative/aaa/foo.dcs",
+		file:    "local/aaa/foo.dcs",
 		symbols: []string{"bar"},
 	}); msg != "" {
 		t.Error(msg)
@@ -177,14 +177,14 @@ func TestRelativeImports(t *testing.T) {
 		t.Fatal("Unexpected number of modules for aaa/foo.dcs:", len(mods))
 	}
 	if msg := testModule(mods[0], ".bar.*", moduleExpected{
-		file:      "relative/aaa/bar.dcs",
+		file:      "local/aaa/bar.dcs",
 		exposeAll: true,
 		namespace: "bar",
 	}); msg != "" {
 		t.Error(msg)
 	}
 	if msg := testModule(mods[1], ".bbb.piyo.wow", moduleExpected{
-		file:    "relative/aaa/bbb/piyo.dcs",
+		file:    "local/aaa/bbb/piyo.dcs",
 		symbols: []string{"wow"},
 	}); msg != "" {
 		t.Error(msg)
@@ -198,7 +198,7 @@ func TestRelativeImports(t *testing.T) {
 		t.Fatal("Unexpected number of modules for aaa/foo.dcs:", len(mods))
 	}
 	if msg := testModule(mods[0], ".bbb.piyo.{a, b, wow}", moduleExpected{
-		file:    "relative/aaa/bbb/piyo.dcs",
+		file:    "local/aaa/bbb/piyo.dcs",
 		symbols: []string{"a", "b", "wow"},
 	}); msg != "" {
 		t.Error(msg)

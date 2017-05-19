@@ -47,10 +47,22 @@ It exposes all names in file `foo` into `foo` namespace. For example, if file `f
 
 ### `import .foo.bar` or `import .foo.{a, b, ...}` or `import .foo.*`
 
-If import path starts with `.`, it means a root of search path is the parent directory of the source
-file. Above all kinds of import paths are available for this.
+If import path starts with `.`, it means the path is relative to a root of search path is the root
+directory of current project. Above all kinds of `import` path specs are available for this.
 
-TODO: Add syntax to make an alias of imported module (e.g. `import std.array as A`) for avoiding name conflicts.
+The root directory of project is determined in below rules.
+
+1. If a package file (like `package.json`) is found, the parent directory is regarded as the root
+   directory of the project.
+2. If 1. is not met and there is a source which contains `main()` function, the parent directory of
+   the source is regarded as the root directory of the project.
+
+Dachs's `import` statement cannot refer parent directory. It means that a package file or a source
+containing `main()` function should be put at the top of repository to refer all the files. In other
+words, they means that 'this directory and sub directories are a package of Dachs'.
+
+TODO: Add syntax to make an alias of imported module (e.g. `import std.array as A`) for avoiding
+name conflicts.
 
 ## Export
 
@@ -59,20 +71,14 @@ TBD. Currently all names are exposed in public.
 
 # `DACHS_LIB_PATH`
 
-`DACHS_LIB_PATH` is an environment variable separated with `:`. Each separated entry should represent
-path to a directory. Compiler searches files in the directories and resolves `import` paths.
+`DACHS_LIB_PATH` is an environment variable separated by `:`. Each separated entry should represent
+a path to a directory. Compiler searches files in the directories and resolves `import` module when
+import path does not start with `.`.
 
-By default, two paths are registered.
-
-First, `../lib/dachs` relative path to the parent directory of `dachs` executable.
+By default, `../lib/dachs` relative path to the parent directory of `dachs` executable.
 For example if `dachs` is installed in `/usr/local/bin/dachs`, `/usr/local/lib/dachs` will be
 searched. And if `dachs` is built in `/path/to/Dachs/next/compiler/dachs`, `/path/to/Dachs/next/lib/dachs`
 will be searched. This path is used by standard libraries and user should not put any code in this path.
-
-Second, a parent directory of a package file (TBD, like `package.json` in npm). If there is no package
-package file, a parent directory of a file which contains `main()` function is used instead.
-Dachs's `import` statement cannot refer parent directory. It means that a package file or a source
-containing `main()` function should be put at the top of repository to refer all the files.
 
 # Implementation
 

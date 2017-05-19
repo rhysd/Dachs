@@ -248,7 +248,7 @@ import_body:
 	DOT import_spec
 		{
 			n := $2
-			n.Relative = true
+			n.Local = true
 			$$ = n
 		}
 	| import_spec

@@ -129,7 +129,7 @@ type (
 	Import struct {
 		StartPos prelude.Pos
 		EndPos   prelude.Pos
-		Relative bool
+		Local    bool
 		Parents  []string
 		Imported []string
 	}
@@ -738,7 +738,7 @@ type (
 // Path builds an import path string
 func (i *Import) Path() string {
 	head := ""
-	if i.Relative {
+	if i.Local {
 		head = "."
 	}
 	tail := i.Imported[0]

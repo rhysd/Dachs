@@ -350,7 +350,7 @@ func TestPrint(t *testing.T) {
 				},
 			},
 			&Import{
-				Relative: true,
+				Local:    true,
 				Parents:  []string{"foo", "bar"},
 				Imported: []string{"piyo", "poyo"},
 			},

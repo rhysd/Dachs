@@ -1,0 +1,4 @@
+import .aaa.bar.*
+import .aaa.bbb.piyo.wow
+
+func a; end

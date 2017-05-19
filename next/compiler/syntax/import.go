@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func defaultLibPaths() ([]string, error) {
+func libraryPaths() ([]string, error) {
 	exe, err := filepath.Abs(os.Args[0])
 	if err != nil {
 		return nil, err
@@ -28,16 +28,17 @@ func defaultLibPaths() ([]string, error) {
 }
 
 type importResolver struct {
-	defaultLibPaths []string
-	parsedAST       map[string]*ast.Program
+	libPaths    []string
+	projectPath string
+	parsedAST   map[string]*ast.Program
 }
 
 func newImportResolver() (*importResolver, error) {
-	paths, err := defaultLibPaths()
+	paths, err := libraryPaths()
 	if err != nil {
 		return nil, err
 	}
-	return &importResolver{paths, map[string]*ast.Program{}}, nil
+	return &importResolver{paths, "", map[string]*ast.Program{}}, nil
 }
 
 func (res *importResolver) resolveInDir(dir string, node *ast.Import) (*ast.Module, error) {
@@ -86,19 +87,36 @@ func (res *importResolver) resolveInDir(dir string, node *ast.Import) (*ast.Modu
 	return mod, nil
 }
 
+func (res *importResolver) findRelativePath(node *ast.Import) (string, error) {
+	dir := filepath.Dir(node.StartPos.File.Name)
+	if res.projectPath != "" && filepath.HasPrefix(dir, res.projectPath) {
+		// Target directory is in project local
+		return res.projectPath, nil
+	}
+	for _, libpath := range res.libPaths {
+		if filepath.HasPrefix(dir, libpath) {
+			return libpath, nil
+		}
+	}
+	return "", prelude.NewErrorf(node.StartPos, node.EndPos, "Cannot import '%s' because directory '%s' does not belong to project path '%s' nor library paths %v", node.Path(), dir, res.projectPath, res.libPaths)
+}
+
 func (res *importResolver) resolveImport(node *ast.Import) (*ast.Module, error) {
-	src := node.StartPos.File
-	if node.Relative {
-		dir := filepath.Dir(src.Name)
-		mod, err := res.resolveInDir(dir, node)
+	if node.Local {
+		// When `import .foo.bar`, `import .foo.*` or `import .foo.{a, b}`
+		path, err := res.findRelativePath(node)
 		if err != nil {
-			return nil, prelude.Wrapf(node.StartPos, node.EndPos, err, "Cannot import '%s' in directory '%s'", node.Path(), dir)
+			return nil, err
+		}
+		mod, err := res.resolveInDir(path, node)
+		if err != nil {
+			return nil, prelude.Wrapf(node.StartPos, node.EndPos, err, "Cannot import '%s' in project '%s'", node.Path(), res.projectPath)
 		}
 		return mod, nil
 	}
 
-	errors := make([]error, 0, len(res.defaultLibPaths))
-	for _, dir := range res.defaultLibPaths {
+	errors := make([]error, 0, len(res.libPaths))
+	for _, dir := range res.libPaths {
 		mod, err := res.resolveInDir(dir, node)
 		if err == nil {
 			return mod, nil
@@ -106,7 +124,7 @@ func (res *importResolver) resolveImport(node *ast.Import) (*ast.Module, error) 
 		errors = append(errors, err)
 	}
 
-	err := prelude.NewErrorf(node.StartPos, node.EndPos, "Cannot import '%s'. Searched directories: %v", node.Path(), res.defaultLibPaths)
+	err := prelude.NewErrorf(node.StartPos, node.EndPos, "Cannot import '%s'. Searched directories: %v", node.Path(), res.libPaths)
 	for _, e := range errors {
 		err = err.Wrap(e.Error())
 	}
@@ -138,6 +156,12 @@ func ResolveImports(root *ast.Program) error {
 	if err != nil {
 		return prelude.NewErrorfAt(root.Pos(), "Error occurred while getting library path: %s", err.Error())
 	}
+
+	src := root.File()
+	if src.Exists {
+		res.projectPath = filepath.Dir(src.Name)
+	}
+
 	prelude.Log("Finished resolving modules successfully")
 	return res.resolve(root)
 }
