@@ -31,7 +31,8 @@ func testParseAndResolveModules(dir string) (*ast.Program, error) {
 	saved := os.Getenv("DACHS_LIB_PATH")
 	defer os.Setenv("DACHS_LIB_PATH", saved)
 	dir = filepath.Join("testdata", "import", dir)
-	os.Setenv("DACHS_LIB_PATH", dir)
+	env := fmt.Sprintf("%s:%s", dir, filepath.Join("testdata", "import", "externallib"))
+	os.Setenv("DACHS_LIB_PATH", env)
 	src, err := prelude.NewSourceFromFile(filepath.Join(dir, "main.dcs"))
 	if err != nil {
 		return nil, err
@@ -200,6 +201,44 @@ func TestLocalImports(t *testing.T) {
 	if msg := testModule(mods[0], ".bbb.piyo.{a, b, wow}", moduleExpected{
 		file:    "local/aaa/bbb/piyo.dcs",
 		symbols: []string{"a", "b", "wow"},
+	}); msg != "" {
+		t.Error(msg)
+	}
+}
+
+func TestImportExternalLib(t *testing.T) {
+	prog, err := testParseAndResolveModules("uselib")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mods := prog.Modules
+	if len(mods) != 1 {
+		t.Fatal("Unexpected number of modules for main.dcs:", len(mods))
+	}
+
+	if msg := testModule(mods[0], "mylib.aaa.api", moduleExpected{
+		file:    "externallib/mylib/aaa.dcs",
+		symbols: []string{"api"},
+	}); msg != "" {
+		t.Error(msg)
+	}
+
+	mods = mods[0].AST.Modules
+	if len(mods) != 2 {
+		t.Fatal("Unexpected number of modules for main.dcs:", len(mods))
+	}
+
+	if msg := testModule(mods[0], "<mylib>.foo.bbb.piyo", moduleExpected{
+		file:      "externallib/mylib/foo/bbb.dcs",
+		namespace: "bbb",
+		exposeAll: true,
+	}); msg != "" {
+		t.Error(msg)
+	}
+
+	if msg := testModule(mods[1], "<mylib>.ccc.{a, b, c}", moduleExpected{
+		file:    "externallib/mylib/ccc.dcs",
+		symbols: []string{"a", "b", "c"},
 	}); msg != "" {
 		t.Error(msg)
 	}

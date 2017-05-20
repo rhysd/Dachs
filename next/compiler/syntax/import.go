@@ -108,8 +108,12 @@ func (res *importResolver) findRelativePath(node *ast.Import) (string, error) {
 			// we want '/foo/lib/libname' to obtain the root directory of the library.
 			// This is needed because relative import path `.foo.bar` in a library should be
 			// resolved as a relative path to the root of the library.
+
 			dir, entry := filepath.Split(dir)
-			for dir != libpath {
+
+			// filepath.Clean() is necessary because first return value of filepath.Split() is NOT
+			// cleaned. Trailing '/' remains in the value.
+			for filepath.Clean(dir) != libpath {
 				dir, entry = filepath.Split(dir)
 			}
 			return filepath.Join(libpath, entry), nil
@@ -125,6 +129,7 @@ func (res *importResolver) resolveImport(node *ast.Import) (*ast.Module, error) 
 		if err != nil {
 			return nil, err
 		}
+		prelude.Log("Found lib path:", path)
 		mod, err := res.resolveInDir(path, node)
 		if err != nil {
 			return nil, prelude.Wrapf(node.StartPos, node.EndPos, err, "Cannot import '%s' in project '%s'", node.Path(), res.projectPath)
