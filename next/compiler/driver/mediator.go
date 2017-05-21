@@ -70,7 +70,6 @@ func (d *Driver) Lex() ([]*syntax.Token, error) {
 			tok = append(tok, t)
 			switch t.Kind {
 			case syntax.TokenEOF, syntax.TokenIllegal:
-				close(l.Tokens)
 				return tok, err
 			}
 		}

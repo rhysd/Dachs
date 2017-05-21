@@ -243,3 +243,27 @@ func TestImportExternalLib(t *testing.T) {
 		t.Error(msg)
 	}
 }
+
+func TestImportFailed(t *testing.T) {
+	cases := []struct {
+		what     string
+		expected string
+	}{
+		{"error_myself", "Cannot import myself"},
+		{"error_unknown", "Cannot import '.unknown.foo'"},
+		{"error_unknown_external", "Cannot import 'unknown.lib'"},
+		{"error_parse", "Cannot import '.foo.piyo'"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.what, func(t *testing.T) {
+			_, err := testParseAndResolveModules(tc.what)
+			if err == nil {
+				t.Fatal("Importing myself should cause an error", tc.what)
+			}
+			if !strings.Contains(err.Error(), tc.expected) {
+				t.Errorf("Expected error message '%s' but actually it was '%s'", tc.expected, err.Error())
+			}
+		})
+	}
+}

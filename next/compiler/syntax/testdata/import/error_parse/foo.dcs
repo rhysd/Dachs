@@ -1,0 +1,4 @@
+func piyo
+    !! parse error
+    aaa.
+end

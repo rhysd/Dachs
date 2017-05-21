@@ -25,9 +25,6 @@ func Example() {
 		fmt.Fprintln(os.Stderr, e)
 	}
 
-	// Lexed tokens will be sent to Tokens channel. Ensure to close it after lexing is done
-	defer close(lexer.Tokens)
-
 	// Lexing can be started in another goroutine.
 	go lexer.Lex()
 

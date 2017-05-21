@@ -68,7 +68,6 @@ func Parse(src *prelude.Source) (*ast.Program, error) {
 	l.Error = func(err *prelude.Error) {
 		lexErr = err
 	}
-	defer close(l.Tokens)
 	go l.Lex()
 	prog, err := ParseTokens(l.Tokens)
 	if lexErr != nil {

@@ -12,7 +12,6 @@ import (
 
 func testLex(s *prelude.Source) ([]*Token, error) {
 	l := NewLexer(s)
-	defer close(l.Tokens)
 
 	var err error
 	l.Error = func(e *prelude.Error) { err = e }

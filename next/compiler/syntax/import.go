@@ -1,6 +1,7 @@
 package syntax
 
 import (
+	"fmt"
 	"github.com/rhysd/Dachs/next/compiler/ast"
 	"github.com/rhysd/Dachs/next/compiler/prelude"
 	"os"
@@ -49,6 +50,10 @@ func newImportResolver() (*importResolver, error) {
 
 func (res *importResolver) resolveInDir(dir string, node *ast.Import) (*ast.Module, error) {
 	file := filepath.Join(dir, filepath.Join(node.Parents...)) + ".dcs"
+
+	if node.StartPos.File.Name == file {
+		return nil, fmt.Errorf("Cannot import myself")
+	}
 
 	ns := ""
 	names := node.Imported
