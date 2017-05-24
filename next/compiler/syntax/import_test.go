@@ -27,26 +27,6 @@ func TestDefaultPath(t *testing.T) {
 	}
 }
 
-func testParseAndResolveModules(dir string) (*ast.Program, error) {
-	saved := os.Getenv("DACHS_LIB_PATH")
-	defer os.Setenv("DACHS_LIB_PATH", saved)
-	dir = filepath.Join("testdata", "import", dir)
-	env := fmt.Sprintf("%s:%s", dir, filepath.Join("testdata", "import", "externallib"))
-	os.Setenv("DACHS_LIB_PATH", env)
-	src, err := prelude.NewSourceFromFile(filepath.Join(dir, "main.dcs"))
-	if err != nil {
-		return nil, err
-	}
-	prog, err := Parse(src)
-	if err != nil {
-		return nil, err
-	}
-	if err := ResolveImports(prog); err != nil {
-		return nil, err
-	}
-	return prog, nil
-}
-
 func TestLibraryPathsFromEnv(t *testing.T) {
 	cases := []struct {
 		env  string
@@ -80,6 +60,26 @@ func TestLibraryPathsFromEnv(t *testing.T) {
 			}
 		}
 	}
+}
+
+func testParseAndResolveModules(dir string) (*ast.Program, error) {
+	saved := os.Getenv("DACHS_LIB_PATH")
+	defer os.Setenv("DACHS_LIB_PATH", saved)
+	dir = filepath.Join("testdata", "import", dir)
+	env := fmt.Sprintf("%s:%s", dir, filepath.Join("testdata", "import", "externallib"))
+	os.Setenv("DACHS_LIB_PATH", env)
+	src, err := prelude.NewSourceFromFile(filepath.Join(dir, "main.dcs"))
+	if err != nil {
+		return nil, err
+	}
+	prog, err := Parse(src)
+	if err != nil {
+		return nil, err
+	}
+	if err := ResolveImports(prog); err != nil {
+		return nil, err
+	}
+	return prog, nil
 }
 
 type moduleExpected struct {
@@ -225,11 +225,11 @@ func TestImportExternalLib(t *testing.T) {
 
 	mods = mods[0].AST.Modules
 	if len(mods) != 2 {
-		t.Fatal("Unexpected number of modules for main.dcs:", len(mods))
+		t.Fatal("Unexpected number of modules for aaa.dcs:", len(mods))
 	}
 
 	if msg := testModule(mods[0], "<mylib>.foo.bbb.piyo", moduleExpected{
-		file:      "externallib/mylib/foo/bbb.dcs",
+		file:      "externallib/mylib/foo/bar/bbb.dcs",
 		namespace: "bbb",
 		exposeAll: true,
 	}); msg != "" {
@@ -239,6 +239,19 @@ func TestImportExternalLib(t *testing.T) {
 	if msg := testModule(mods[1], "<mylib>.ccc.{a, b, c}", moduleExpected{
 		file:    "externallib/mylib/ccc.dcs",
 		symbols: []string{"a", "b", "c"},
+	}); msg != "" {
+		t.Error(msg)
+	}
+
+	mods = mods[0].AST.Modules
+	if len(mods) != 1 {
+		t.Fatal("Unexpected number of modules for bbb.dcs:", len(mods))
+	}
+
+	if msg := testModule(mods[0], "<mylib>.ccc.*", moduleExpected{
+		file:      "externallib/mylib/ccc.dcs",
+		namespace: "ccc",
+		exposeAll: true,
 	}); msg != "" {
 		t.Error(msg)
 	}

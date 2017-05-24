@@ -115,11 +115,13 @@ func (res *importResolver) findRelativePath(node *ast.Import) (string, error) {
 			// resolved as a relative path to the root of the library.
 
 			dir, entry := filepath.Split(dir)
+			dir = filepath.Clean(dir)
 
 			// filepath.Clean() is necessary because first return value of filepath.Split() is NOT
 			// cleaned. Trailing '/' remains in the value.
-			for filepath.Clean(dir) != libpath {
+			for dir != libpath {
 				dir, entry = filepath.Split(dir)
+				dir = filepath.Clean(dir)
 			}
 			return filepath.Join(libpath, entry), nil
 		}

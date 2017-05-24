@@ -1,1 +1,3 @@
+import .ccc.*
+
 func piyo; end

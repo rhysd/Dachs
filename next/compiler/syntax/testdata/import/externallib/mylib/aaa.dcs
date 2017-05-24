@@ -1,2 +1,2 @@
-import .foo.bbb.*
+import .foo.bar.bbb.*
 import .ccc.{a, b, c}
