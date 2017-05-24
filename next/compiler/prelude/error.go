@@ -70,28 +70,28 @@ func (err *Error) Error() string {
 	return buf.String()
 }
 
-// Wrap stacks the additional message upon current error.
-func (err *Error) Wrap(msg string) *Error {
+// Note stacks the additional message upon current error.
+func (err *Error) Note(msg string) *Error {
 	err.Messages = append(err.Messages, msg)
 	return err
 }
 
-// Wrapf stacks the additional formatted message upon current error.
-func (err *Error) Wrapf(format string, args ...interface{}) *Error {
+// Notef stacks the additional formatted message upon current error.
+func (err *Error) Notef(format string, args ...interface{}) *Error {
 	err.Messages = append(err.Messages, fmt.Sprintf(format, args...))
 	return err
 }
 
-// WrapAt stacks the additional message upon current error with position.
-func (err *Error) WrapAt(pos Pos, msg string) *Error {
+// NoteAt stacks the additional message upon current error with position.
+func (err *Error) NoteAt(pos Pos, msg string) *Error {
 	at := gray("(at %s)", pos.String())
 	err.Messages = append(err.Messages, fmt.Sprintf("%s %s", msg, at))
 	return err
 }
 
-// WrapfAt stacks the additional formatted message upon current error with poisition.
-func (err *Error) WrapfAt(pos Pos, format string, args ...interface{}) *Error {
-	return err.WrapAt(pos, fmt.Sprintf(format, args...))
+// NotefAt stacks the additional formatted message upon current error with poisition.
+func (err *Error) NotefAt(pos Pos, format string, args ...interface{}) *Error {
+	return err.NoteAt(pos, fmt.Sprintf(format, args...))
 }
 
 // NewError makes a new compilation error with the range.
@@ -124,25 +124,25 @@ func WithPos(pos Pos, err error) *Error {
 	return NewErrorAt(pos, err.Error())
 }
 
-// Wrap adds range information and stack additional message to the original error.
-func Wrap(start, end Pos, err error, msg string) *Error {
+// Note adds range information and stack additional message to the original error.
+func Note(start, end Pos, err error, msg string) *Error {
 	if err, ok := err.(*Error); ok {
-		return err.WrapAt(start, msg)
+		return err.NoteAt(start, msg)
 	}
 	return &Error{start, end, []string{err.Error(), msg}}
 }
 
-// WrapAt adds positional information and stack additional message to the original error.
-func WrapAt(pos Pos, err error, msg string) *Error {
-	return Wrap(pos, Pos{}, err, msg)
+// NoteAt adds positional information and stack additional message to the original error.
+func NoteAt(pos Pos, err error, msg string) *Error {
+	return Note(pos, Pos{}, err, msg)
 }
 
-// Wrapf adds range information and stack additional formatted message to the original error.
-func Wrapf(start, end Pos, err error, format string, args ...interface{}) *Error {
-	return Wrap(start, end, err, fmt.Sprintf(format, args...))
+// Notef adds range information and stack additional formatted message to the original error.
+func Notef(start, end Pos, err error, format string, args ...interface{}) *Error {
+	return Note(start, end, err, fmt.Sprintf(format, args...))
 }
 
-// WrapfAt adds positional information and stack additional formatted message to the original error.
-func WrapfAt(pos Pos, err error, format string, args ...interface{}) *Error {
-	return Wrap(pos, Pos{}, err, fmt.Sprintf(format, args...))
+// NotefAt adds positional information and stack additional formatted message to the original error.
+func NotefAt(pos Pos, err error, format string, args ...interface{}) *Error {
+	return Note(pos, Pos{}, err, fmt.Sprintf(format, args...))
 }

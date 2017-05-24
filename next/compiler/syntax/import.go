@@ -137,7 +137,7 @@ func (res *importResolver) resolveImport(node *ast.Import) (*ast.Module, error) 
 		prelude.Log("Found lib path:", path)
 		mod, err := res.resolveInDir(path, node)
 		if err != nil {
-			return nil, prelude.Wrapf(node.StartPos, node.EndPos, err, "Cannot import '%s' in project '%s'", node.Path(), res.projectPath)
+			return nil, prelude.Notef(node.StartPos, node.EndPos, err, "Cannot import '%s' in project '%s'", node.Path(), res.projectPath)
 		}
 		return mod, nil
 	}
@@ -153,7 +153,7 @@ func (res *importResolver) resolveImport(node *ast.Import) (*ast.Module, error) 
 
 	err := prelude.NewErrorf(node.StartPos, node.EndPos, "Cannot import '%s'. Searched directories: %v", node.Path(), res.libPaths)
 	for _, e := range errors {
-		err = err.Wrap(e.Error())
+		err = err.Note(e.Error())
 	}
 	return nil, err
 }

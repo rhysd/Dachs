@@ -86,7 +86,7 @@ func TestWithPos(t *testing.T) {
 	}
 }
 
-func TestWrap(t *testing.T) {
+func TestNote(t *testing.T) {
 	want :=
 		`Error: This is original error text! (at <dummy>:1:4)
   Note: This is additional error text!
@@ -99,8 +99,8 @@ func TestWrap(t *testing.T) {
 
 	s, e := testMakeRange()
 	errs := []*Error{
-		Wrap(s, e, fmt.Errorf("This is original error text!"), "This is additional error text!"),
-		Wrapf(s, e, fmt.Errorf("This is original error text!"), "This is %s error text!", "additional"),
+		Note(s, e, fmt.Errorf("This is original error text!"), "This is additional error text!"),
+		Notef(s, e, fmt.Errorf("This is original error text!"), "This is %s error text!", "additional"),
 	}
 	for _, err := range errs {
 		got := err.Error()
@@ -110,13 +110,13 @@ func TestWrap(t *testing.T) {
 	}
 }
 
-func TestWrapAt(t *testing.T) {
+func TestNoteAt(t *testing.T) {
 	want := "Error: This is original error text! (at <dummy>:1:4)\n  Note: This is additional error text!"
 	pos := testMakePos()
 	original := fmt.Errorf("This is original error text!")
 	for _, err := range []*Error{
-		WrapAt(pos, original, "This is additional error text!"),
-		WrapfAt(pos, original, "This is additional %s!", "error text"),
+		NoteAt(pos, original, "This is additional error text!"),
+		NotefAt(pos, original, "This is additional %s!", "error text"),
 	} {
 		got := err.Error()
 		if got != want {
@@ -125,7 +125,7 @@ func TestWrapAt(t *testing.T) {
 	}
 }
 
-func TestWrapMethods(t *testing.T) {
+func TestNoteMethods(t *testing.T) {
 	want :=
 		`Error: This is original error text! (at <dummy>:1:4)
   Note: This is additional error text!
@@ -138,8 +138,8 @@ func TestWrapMethods(t *testing.T) {
 
 	s, e := testMakeRange()
 	errs := []*Error{
-		NewError(s, e, "This is original error text!").Wrap("This is additional error text!"),
-		NewError(s, e, "This is original error text!").Wrapf("This is %s!", "additional error text"),
+		NewError(s, e, "This is original error text!").Note("This is additional error text!"),
+		NewError(s, e, "This is original error text!").Notef("This is %s!", "additional error text"),
 	}
 	for _, err := range errs {
 		got := err.Error()
@@ -149,7 +149,7 @@ func TestWrapMethods(t *testing.T) {
 	}
 }
 
-func TestWrapMethodsWithPos(t *testing.T) {
+func TestNoteMethodsWithPos(t *testing.T) {
 	want :=
 		`Error: This is original error text! (at <dummy>:1:4)
   Note: This is additional error text! (at <dummy>:1:4)
@@ -163,8 +163,8 @@ func TestWrapMethodsWithPos(t *testing.T) {
 	s, e := testMakeRange()
 
 	errs := []*Error{
-		NewError(s, e, "This is original error text!").WrapAt(s, "This is additional error text!"),
-		NewError(s, e, "This is original error text!").WrapfAt(s, "This is %s!", "additional error text"),
+		NewError(s, e, "This is original error text!").NoteAt(s, "This is additional error text!"),
+		NewError(s, e, "This is original error text!").NotefAt(s, "This is %s!", "additional error text"),
 	}
 	for _, err := range errs {
 		got := err.Error()
