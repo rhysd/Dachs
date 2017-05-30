@@ -1,7 +1,6 @@
 package syntax
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/rhysd/Dachs/next/compiler/ast"
 	"github.com/rhysd/Dachs/next/compiler/prelude"
@@ -9,10 +8,10 @@ import (
 
 type pseudoLexer struct {
 	tokens      chan *Token
-	errCount    int
-	errMessage  bytes.Buffer
+	errors      []string
 	result      *ast.Program
 	skipNewline bool
+	lastToken   *Token
 }
 
 func (l *pseudoLexer) Lex(lval *yySymType) int {
@@ -41,6 +40,7 @@ func (l *pseudoLexer) Lex(lval *yySymType) int {
 			}
 
 			l.skipNewline = false
+			l.lastToken = t
 
 			// XXX:
 			// Converting token value into yacc's token.
@@ -53,12 +53,20 @@ func (l *pseudoLexer) Lex(lval *yySymType) int {
 }
 
 func (l *pseudoLexer) Error(msg string) {
-	l.errCount++
-	l.errMessage.WriteString(fmt.Sprintf("  * %s\n", msg))
+	l.errors = append(l.errors, msg)
 }
 
 func (l *pseudoLexer) getError() error {
-	return fmt.Errorf("%d error(s) while parsing\n%s", l.errCount, l.errMessage.String())
+	msg := fmt.Sprintf("Parse error: " + l.errors[0])
+	if l.lastToken != nil {
+		err := prelude.NewErrorAt(l.lastToken.Start, msg)
+		for _, e := range l.errors[1:] {
+			err = err.Note(e)
+		}
+		return err
+	} else {
+		return fmt.Errorf(msg)
+	}
 }
 
 func Parse(src *prelude.Source) (*ast.Program, error) {
@@ -87,8 +95,8 @@ func ParseTokens(tokens chan *Token) (*ast.Program, error) {
 	l := &pseudoLexer{tokens: tokens}
 	ret := yyParse(l)
 
-	if ret != 0 || l.errCount != 0 {
-		prelude.Logf("Parser failed. ret: %d, error count: %d", ret, l.errCount)
+	if ret != 0 || len(l.errors) > 0 {
+		prelude.Logf("Parser failed. ret: %d, error count: %d", ret, len(l.errors))
 		return nil, l.getError()
 	}
 
